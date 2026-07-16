@@ -14,7 +14,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 0: Common Foundation & Package Setup   — Status: ⬜ Pending
+### Sprint 0: Common Foundation & Package Setup   — Status: ✅ Complete
 
 **Goals**
 - Establish the shared foundation every module imports (envelope, `paginated()`, `ErrorCode`) and rename the package. Nothing else can export safely first (plan Part 1).
