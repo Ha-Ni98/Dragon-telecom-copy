@@ -39,12 +39,12 @@ Run **one sprint per fresh session.** At the start of each session, load exactly
 ### Step 3 — Validate
 Run the full checklist from `contract-rules.md` §6: `tsc --noEmit`, `madge --circular src`, lint, schema/type sync, no sensitive fields, ISO dates, zero logic.
 
-### Step 4 — Commit on Green
-When validation passes, commit (e.g. `git commit -m "contract: sprint [N] — [name]"`). This is the rollback point if the next sprint goes wrong.
-
-### Step 5 — Report & Mark
+### Step 4 — Report & Mark
 - Write a short summary to `/docs/stage-01-contract/results/report-sprint-[NN].md` (what was created, validation results, anything flagged).
 - Mark the sprint **✅ Complete** in `sprints.md`.
+
+### Step 5 — Commit on Green
+When validation passes, commit (e.g. `git commit -m "contract: sprint [N] — [name]"`). This is the rollback point if the next sprint goes wrong.
 
 ### Step 6 — Pause
 Wait for the user's **`next`** command before starting the next sprint.
