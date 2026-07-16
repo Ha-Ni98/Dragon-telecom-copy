@@ -1,2 +1,4 @@
 export * from './common/errors';
 export * from './common/types';
+export * from './common/auth';
+export * from './modules/identity';

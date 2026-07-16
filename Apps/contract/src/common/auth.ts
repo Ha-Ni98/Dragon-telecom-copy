@@ -1,8 +1,10 @@
 import { z } from 'zod';
-import { UserRole } from '../modules/user/user.enums';
+import { UserType } from '../modules/identity/identity.enums';
 
 export const JWTPayloadSchema = z.object({
-  id: z.uuid(),
-  role: z.enum(UserRole),
+  sub: z.uuid(),
+  type: z.enum(UserType),
+  clientId: z.uuid().optional(),
+  staffId: z.uuid().optional(),
 });
 export type JWTPayload = z.infer<typeof JWTPayloadSchema>;

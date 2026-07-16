@@ -37,7 +37,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 1: Identity (Core) & JWT Primitive   — Status: ⬜ Pending
+### Sprint 1: Identity (Core) & JWT Primitive   — Status: ✅ Complete
 
 **Goals**
 - Implement the core auth/user/roles/pages/technicians module (plan A) — it supersedes the template `user`/`auth` modules — and complete the shared JWT primitive that depends on its `UserType` enum.
