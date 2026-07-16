@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dragon Telecom</title>
+    <meta name="description" content="Dragon Telecom — full-stack starter." />
+    <meta property="og:title" content="Dragon Telecom" />
+    <meta property="og:description" content="Dragon Telecom — full-stack starter." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <script>
+      // Set the theme class before React mounts — this is a pure client SPA with no
+      // server render, so next-themes alone can't prevent a flash of the wrong theme.
+      // No system-preference fallback: defaultTheme is "light".
+      (function () {
+        if (localStorage.getItem("app_theme") === "dark") {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

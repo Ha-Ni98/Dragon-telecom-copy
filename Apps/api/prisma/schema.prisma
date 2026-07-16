@@ -1,0 +1,66 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================================
+// Enums (fixed, code-driven — mirror @your-app/contract z.enum())
+// ============================================================
+
+// EXTENSION POINT (auth): replace these placeholder roles with your app's roles.
+// Keep them identical to UserRole in the contract (user.enums.ts).
+enum UserRole {
+  ADMIN
+  USER
+}
+
+// ============================================================
+// Identity & Access
+// ============================================================
+
+model User {
+  id          String    @id @default(uuid())
+  username    String    @unique
+  password    String // SENSITIVE: hashed, never in a DTO
+  fullName    String
+  role        UserRole
+  lastLoginAt DateTime?
+  isEnabled   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // EXTENSION POINT (auth): add per-role profile relations here if your app needs them
+  // (this template keeps the display name on User.fullName).
+  refreshTokens RefreshToken[]
+
+  @@index([role])
+  @@index([isEnabled])
+  @@index([deletedAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique // SENSITIVE
+  expiredAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============================================================
+// Example domain module (reference shape — mirror for new modules)
+// ============================================================
+
+model DeliveryCompany {
+  id             String  @id @default(uuid())
+  name           String
+  registeredName String
+  isActive       Boolean @default(true)
+}
