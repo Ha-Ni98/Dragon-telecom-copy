@@ -28,29 +28,31 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 1: Prerequisites & contract additions   — Status: ⬜ Pending
+### Sprint 1: Prerequisites & contract additions   — Status: ✅ Done
 
 **Goals**
 - Land every enabling change the module depends on, on a green base: contract page-key enums, the
   Argon2id password-util swap, refresh-token TTL + login rate-limit infra, and the seeded `Page` registry.
 
 **Tasks**
-- [ ] Impl (contract): add `PageKey` + `PageGroup` enums to `Apps/contract/src/modules/identity/identity.enums.ts`; confirm the identity barrel re-exports them. (plan §7.1 Step A, §1.3)
-- [ ] Impl (contract, optional): tighten `PageDto.key` → `z.enum(PageKey)` (leave `RoleDto.pageKeys` / `UserDto.effectivePages` as `z.string()`). (plan §1.3)
-- [ ] Impl (foundation): rewrite `Apps/api/src/common/utils/password.utils.ts` with `argon2` (Argon2id); add `argon2`, drop `bcrypt` + `@types/bcrypt`. Keep `hashPassword`/`comparePassword` signatures. (plan §7.5, §8 item 1)
-- [ ] Impl (env): add `REFRESH_TOKEN_TTL_DAYS` (default `7`) to `src/env.ts` (or a documented module constant). (plan §7.3)
-- [ ] Impl (rate-limit): add a minimal login rate-limiter (keyed by IP + username → `ErrorCode.RATE_LIMITED` / 429), **or** record explicit deferral per plan §7.2. (owner decision)
-- [ ] Impl (seed): `Apps/api/prisma/seed.ts` — canonical `Page` rows built from `PageKey`/`PageGroup`/`PageScope` (sweep every `staff(KEY)` annotation + `Pages-Requirements/`); upsert by `key`. Wire `prisma db seed` (`package.json` `"prisma": { "seed": "tsx prisma/seed.ts" }` + a `db:seed` script). (plan §7.1 Step B)
-- [ ] Chore: ensure the `Page` table migration is applied (`npm run prisma:migrate`).
-- [ ] Test: update `Apps/api/test/unit/common/utils/password.utils.spec.ts` for Argon2id (hash verifies, wrong password fails, hash ≠ plaintext).
+- [x] Decision (owner, asked 2026-07-17): Page seed scope = **STAFF-scope only** (7 spec-quoted keys); no invented ADMIN-scope keys. (plan §7.1)
+- [x] Decision (owner, asked 2026-07-17): login rate-limiting = **explicitly deferred**, not implemented in this module. (plan §7.2)
+- [x] Impl (contract): add `PageKey` (7 STAFF-scope members) + `PageGroup` (6 groups) enums to `Apps/contract/src/modules/identity/identity.enums.ts`; confirm the identity barrel re-exports them. (plan §7.1 Step A, §1.3)
+- [x] Impl (foundation): rewrite `Apps/api/src/common/utils/password.utils.ts` with `argon2` (Argon2id); add `argon2`, drop `bcrypt` + `@types/bcrypt`. Keep `hashPassword`/`comparePassword` signatures. (plan §7.5, §8 item 1)
+- [x] Impl (env): add `REFRESH_TOKEN_EXPIRATION` (default `7`) to `src/env.ts`; renamed from the plan's `REFRESH_TOKEN_TTL_DAYS` to match `env-template.md`'s existing precedent (see report). (plan §7.3)
+- [x] Impl (seed): `Apps/api/prisma/seed.ts` — 7 canonical `Page` rows built from `PageKey`/`PageGroup`/`PageScope.STAFF`; upsert by `key`. Wired `prisma db seed` (`package.json` `"prisma": { "seed": "tsx prisma/seed.ts" }` + a `db:seed` script). (plan §7.1 Step B)
+- [x] Chore: `Page` table migration created and applied (`20260717103221_init`, first migration in the repo) against dev + test DBs.
+- [x] Test: updated `Apps/api/test/unit/common/utils/password.utils.spec.ts` for Argon2id (hash verifies, wrong password fails, hash ≠ plaintext, `$argon2id$` prefix); updated `test/unit/env.spec.ts` for the renamed var.
 
 **Validation**
-- [ ] Contract: `npm --prefix Apps/contract run validate` green (tsc `--noEmit` + madge cycles + eslint + conformance).
-- [ ] API: `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green (updated password-util spec; contract conformance still green).
-- [ ] `npm run db:seed` succeeds; `Page` rows exist for both scopes; re-running is idempotent.
-- [ ] No magic strings — seed references `PageKey`/`PageGroup`/`PageScope` only.
-- [ ] Committed on green (`api: sub-02 sprint 1 — identity prerequisites`; contract enums may be a separate `contract:` commit).
+- [x] Contract: `npm --prefix Apps/contract run validate` green (tsc `--noEmit` + madge cycles + eslint + conformance).
+- [x] API: `npx tsc --noEmit` clean; `npm run lint` clean. (Added `prisma` to `tsconfig.json`/lint `include` — it was previously unchecked.)
+- [x] `npm run test:unit` green (36/36; updated password-util spec; contract conformance still green).
+- [x] `npm run db:seed` succeeds; 7 STAFF-scope `Page` rows exist; re-running is idempotent (verified against a local Postgres — see report for environment notes).
+- [x] No magic strings — seed references `PageKey`/`PageGroup`/`PageScope` only.
+- [x] Committed on green (`api: identity sprint 1 — prerequisites`; contract enums included in the same commit — see report for rationale).
+
+**Report:** [`results-identity-01/report-sprint-01-01.md`](./results-identity-01/report-sprint-01-01.md)
 
 ---
 
@@ -80,8 +82,8 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
   with refresh-token crypto and the `auth.loggedIn` emit.
 
 **Tasks**
-- [ ] Impl: `src/modules/identity/identity.service.ts` — `class IdentityService implements IIdentityService`; `constructor(prisma)`; private refresh-token helpers (`node:crypto` `randomBytes(32)` + deterministic sha-256/HMAC; TTL from `REFRESH_TOKEN_TTL_DAYS`). (plan §5, §7.3)
-- [ ] Impl `login`: three-way resolve (username | email | phone→Client); Argon2id `comparePassword`; **one generic 401** `AUTH_INVALID_CREDENTIALS` + dummy compare (no timing/enumeration oracle); set `lastLoginAt`; mint access JWT (`generateToken`, `JWTPayload { sub, type, staffId?/clientId? }`); mint refresh (hash stored, `expiresAt`); emit `auth.loggedIn` after commit; apply login rate-limit if implemented. (plan §3.1)
+- [ ] Impl: `src/modules/identity/identity.service.ts` — `class IdentityService implements IIdentityService`; `constructor(prisma)`; private refresh-token helpers (`node:crypto` `randomBytes(32)` + deterministic sha-256/HMAC; TTL from `REFRESH_TOKEN_EXPIRATION`). (plan §5, §7.3)
+- [ ] Impl `login`: three-way resolve (username | email | phone→Client); Argon2id `comparePassword`; **one generic 401** `AUTH_INVALID_CREDENTIALS` + dummy compare (no timing/enumeration oracle); set `lastLoginAt`; mint access JWT (`generateToken`, `JWTPayload { sub, type, staffId?/clientId? }`); mint refresh (hash stored, `expiresAt`); emit `auth.loggedIn` after commit. Login rate-limiting is explicitly deferred (plan §7.2) — not implemented here. (plan §3.1)
 - [ ] Impl `refresh`: hash-lookup; rotate (revoke old, `replacedByTokenId`, new pair, rebuild payload from user + staff/client); **reuse-of-revoked → chain-kill**; expired/not-found → 401. (plan §3.2)
 - [ ] Impl `logout` (revoke caller's active tokens) and `getEffectivePages` (STAFF union / ADMIN all). (plan §3.2–3.3)
 - [ ] Test: `test/unit/modules/identity/identity.service.spec.ts` (part A) — mock Prisma; spy `eventBus`/token/crypto: three-way routing; **identical** 401 for unknown/wrong/disabled; `lastLoginAt` + `auth.loggedIn`; rotation (`revokedAt`+`replacedByTokenId`); reuse → chain-kill; expired → 401; effective-pages staff-union vs admin-all. (plan §4.2)

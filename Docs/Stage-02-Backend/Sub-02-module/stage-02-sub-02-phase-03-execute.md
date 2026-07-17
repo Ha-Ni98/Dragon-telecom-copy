@@ -73,4 +73,4 @@ Wait for `next`.
 
 1. A fully wired module (mapper, interface, service, optional listener, controller, routes).
 2. Passing unit tests (mapper, service), integration tests (endpoints), and conformance checks.
-3. Reports in `/docs/stage-02-backend/sub-02-module/results-[module]/` and one commit per sprint.
+3. Reports in `/docs/stage-02-backend/sub-02-module/results/results-[modules]-[set-number]/` and one commit per sprint.

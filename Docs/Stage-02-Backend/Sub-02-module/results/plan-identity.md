@@ -83,11 +83,14 @@ and `RefreshResultDto` = `{ accessToken, refreshToken }`. Raw tokens are the san
 - `UserType` → `AuthType` for the login result: `ADMIN→'admin'`, `STAFF→'staff'`, `CLIENT→'client'`
   (a pure `toAuthType()` helper in the mapper — avoids a magic string).
 - `PageScope` (Prisma) → `PageScope` (contract) — same strings.
-- **New (owner-approved):** `PageKey` + `PageGroup` enums added to `identity.enums.ts` — the typed
-  source for the seeded `Page` registry and for every backend/test reference to a page key (no magic
-  strings). DB `Page.key`/`Page.group` values equal the enum values. DTO fields stay `z.string()`
-  (page keys travel as strings; `RoleDto.pageKeys`/`UserDto.effectivePages` unchanged) — optionally
-  tighten `PageDto.key` → `z.enum(PageKey)`. See §7.1.
+- **New (owner-approved, scope narrowed during Sprint 1 — see §7.1):** `PageKey` + `PageGroup` enums
+  added to `identity.enums.ts`, covering **only the 7 spec-quoted STAFF-scope keys** (no invented
+  ADMIN-scope keys — nothing in Stage-00 gates an admin route on a page key, so there is no
+  authoritative ADMIN-scope naming to encode). DB `Page.key`/`Page.group` values equal the enum
+  values. DTO fields stay `z.string()` (page keys travel as strings; `RoleDto.pageKeys`/
+  `UserDto.effectivePages` unchanged); `PageDto.key` is **not** tightened to `z.enum(PageKey)` since
+  that would incorrectly close off the `ADMIN`-scope half of `Page.scope` that the schema still
+  supports. See §7.1.
 
 ---
 
@@ -292,35 +295,52 @@ Mount the router at `Apps/api/src/app.ts:22` (`// EXTENSION POINT (modules)`), i
 
 ## 7. Prerequisites / dependencies outside the 6 files (flagged)
 
-1. **Page registry: contract enum → seed (owner-approved, two steps).**
+1. **Page registry: contract enum → seed (owner-approved, two steps, scope narrowed to STAFF-only).**
    - *What it is:* the `Page` table is a **fixed catalog of permission keys** (`key/label/group/scope`),
      not user-editable — no create-page endpoint. The spec calls it a "seeded registry": rows are
      inserted once by a seed script, the same way the platform's wilayas/communes are seeded.
    - *Why identity needs it:* `GET /admin/pages` reads it; `setRolePages` validates submitted
      `pageKeys` against `Page.scope`; `me/permissions` unions them. Empty table ⇒ `PAGES` returns
      `[]` and every role-page assignment fails ⇒ the roles→pages→permissions system is inert.
+   - *Investigated during Sprint 1 execution:* searched all 12 module contracts for an `admin(PAGE_KEY)`
+     gating pattern analogous to `staff(PAGE_KEY)` — **none exists**; every admin route's access level
+     is the bare word `admin` (bypasses the page-key matrix entirely, per spec line 8). The only
+     `ADMIN_XXX`-shaped tokens found (`ADMIN_LIST`, `ADMIN_DASHBOARD`, …) are **route-constant names**
+     (e.g. `ClientRoutes.ADMIN_LIST`), not page keys — a false lead. So, unlike the 7 STAFF-scope keys
+     (each directly quoted verbatim in a contract's access column), **no ADMIN-scope key naming is
+     defined anywhere in Stage-00** — inventing 19 identifiers for the `ADM-*` pages would be authoring
+     new domain data, not reading it.
+   - **Owner decision (asked, resolved 2026-07-17): STAFF-scope only.** Seed only the 7 keys actually
+     used by role/permission gating; do not seed ADMIN-scope rows. Nothing reads `Page.scope === ADMIN`
+     today (admin bypasses the check), so this is not a functional gap — ADMIN-scope rows can be added
+     later if a real requirement introduces an `admin(PAGE_KEY)` gate. `Page.scope` in Prisma still
+     supports `ADMIN`; only the seed's *current* member list is narrowed.
    - **Step A — contract enums first (no magic strings).** Add `PageKey` and `PageGroup` enums to
      `Apps/contract/src/modules/identity/identity.enums.ts` (already re-exported by the identity
-     barrel). `PageKey` members = every page key; `PageGroup` = the display groupings. Known
-     **STAFF-scope** keys, already referenced by other module contracts' `staff(KEY)` annotations:
-     `STAFF_POS`, `STAFF_PRODUCTS`, `STAFF_ORDERS`, `STAFF_SALES`, `STAFF_INVOICES`, `STAFF_REPAIRS`,
-     `STAFF_POS_CLIENTS` (role-assignable). **ADMIN-scope** keys are compiled from
-     `Pages-Requirements/ADM-*` (not role-assignable; admin gets all, but the registry lists both
-     scopes). The definitive member list is finalized in the seed sprint by sweeping every
-     `staff(KEY)` annotation + `Pages-Requirements/`.
+     barrel). `PageKey` = the 7 STAFF-scope keys quoted in the contracts: `STAFF_POS`, `STAFF_PRODUCTS`,
+     `STAFF_ORDERS`, `STAFF_SALES`, `STAFF_INVOICES`, `STAFF_REPAIRS`, `STAFF_POS_CLIENTS`. `PageGroup`
+     = the functional groupings for their sidebar sections (a display/UI concern, not gated by any
+     business rule, so grouped pragmatically by module boundary): `POS` (`STAFF_POS`, `STAFF_POS_CLIENTS`),
+     `CATALOG` (`STAFF_PRODUCTS`), `ORDERS` (`STAFF_ORDERS`), `SALES` (`STAFF_SALES`), `BILLING`
+     (`STAFF_INVOICES`), `REPAIRS` (`STAFF_REPAIRS`).
    - **Step B — seed referencing the enums.** `Apps/api/prisma/seed.ts` inserts one `Page` row per
-     `PageKey`, using `PageKey`/`PageGroup`/`PageScope` (labels stay plain display strings). Wire
-     `prisma db seed` (`package.json` → `"prisma": { "seed": "tsx prisma/seed.ts" }` + a `db:seed`
-     script). Requires the `Page` table migration applied. Upsert by `key` so re-runs are idempotent.
-     Tests reuse the same canonical list (seed export or `page.factory.ts`).
-2. **Login rate-limiting — REQUIRED by spec, no foundation exists.** Spec BL 1 wants "rate-limit per
-   IP + username"; there is no limiter middleware/dependency and no env knob. Recommend a small
-   app-level limiter (keyed by IP+username, `ErrorCode.RATE_LIMITED`/429) added as a cross-cutting
-   middleware, or an explicit descope to a follow-up. Not resolvable inside the module's 6 files.
+     `PageKey` (scope `STAFF` for all seven), using `PageKey`/`PageGroup`/`PageScope` (labels stay
+     plain display strings). Wire `prisma db seed` (`package.json` → `"prisma": { "seed": "tsx
+     prisma/seed.ts" }` + a `db:seed` script). Requires the `Page` table migration applied. Upsert by
+     `key` so re-runs are idempotent. Tests reuse the same canonical list (seed export or `page.factory.ts`).
+2. **Login rate-limiting — explicitly deferred (owner decision, asked, resolved 2026-07-17).** Spec
+   BL 1 wants "rate-limit per IP + username"; no limiter middleware/dependency/env knob exists in the
+   foundation. **Decision: defer, not implemented in this module.** Rationale: rate limiting is
+   cross-cutting infra — an in-process (Map-based) limiter would silently stop working correctly
+   under any multi-instance deployment (each instance has its own counters), and a correct
+   implementation needs a shared store (e.g. Redis) that doesn't exist yet. Tracked as follow-up infra
+   work, out of identity's 6-file scope; **not** blocking Sprint 1 or the module's definition of done.
 3. **Refresh-token crypto + TTL.** `token.utils` only signs/verifies the **access** JWT. The service
    generates the refresh secret with `node:crypto` (`randomBytes(32)`) and stores a **deterministic**
    hash (`sha-256`/HMAC-SHA256 — required for `tokenHash` `@unique` lookup; bcrypt is unsuitable
-   here). 7-day TTL as a module constant (optionally a new `REFRESH_TOKEN_TTL_DAYS` env var).
+   here). TTL from `env.REFRESH_TOKEN_EXPIRATION` (days) — the exact name+shape `Docs/Stage-02-Backend/env-template.md`
+   already prescribes for this variable; found and matched during Sprint 1 execution (was
+   `REFRESH_TOKEN_TTL_DAYS` in the original plan — renamed per the rules doc precedent).
 4. **Conformance test extension** in `test/contract/routes.conformance.spec.ts` (§4.4) — already
    flagged in-file as Sub-02 work.
 5. **Password hashing → Argon2id (owner decided).** Reimplement `@common/utils/password.utils.ts`
@@ -362,6 +382,7 @@ to ask — each is resolved toward the rules/contract and flagged above for the 
 - Events `auth.loggedIn` / `user.created` / `user.updated` / `user.roleChanged` emit after commit.
 - Unit + integration + conformance suites (§4) pass; `routes.conformance` asserts all identity paths
   resolve and representative payloads parse against their contract schemas.
-- `PageKey`/`PageGroup` enums exist in the contract; `prisma/seed.ts` populates the `Page` registry
-  from them (no magic strings) and `prisma db seed` is wired + idempotent.
-- Prerequisites resolved or explicitly deferred: §7.1 (page-key contract enums + seed), §7.2 (rate-limit), §7.5 (Argon2id util swap).
+- `PageKey`/`PageGroup` enums (7 STAFF-scope keys) exist in the contract; `prisma/seed.ts` populates
+  the `Page` registry from them (no magic strings) and `prisma db seed` is wired + idempotent.
+- Prerequisites resolved or explicitly deferred: §7.1 (page-key contract enums + seed, STAFF-scope
+  only), §7.2 (rate-limit — explicitly deferred), §7.5 (Argon2id util swap).
