@@ -13,6 +13,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+
+# Local disk storage for uploaded product images (catalog module) — not a build artifact,
+# but not committed either; see Apps/api/src/modules/catalog/catalog.routes.ts.
+Apps/api/uploads/
 .output
 .vinxi
 .tanstack/**
