@@ -50,28 +50,31 @@ payloads already exist.
 
 # Part A — Platform module
 
-### Sprint P1: Prerequisites, dependencies & contract decision   — Status: ⬜ Pending
+### Sprint P1: Prerequisites, dependencies & contract decision   — Status: ✅ Done
 
 **Goals**
 - Land every enabling change the module depends on, on a green base: the spreadsheet/upload
   dependencies, the geography + settings seed, and the `AdminFeesResponseSchema` contract decision.
 
 **Tasks**
-- [ ] Decision (owner): `ADMIN_FEES` GET response — **add `AdminFeesResponseSchema`** to the platform contract (recommended) vs. return the bare `UpsertFeesCommand.rows` shape. (plan §8.1)
-- [ ] Decision (owner, confirm — no code): `SEQUENCE_DECREASE_FORBIDDEN` → `ConflictError`/409 (no new `ErrorCode`); `DeliveryFeeService.resolve` `mode` = local `'home'|'office'`; sequence counter **global-monotonic** (no per-year reset). (plan §8.2, §8.5, §8.6)
-- [ ] Impl (contract, if approved): add `AdminFeesResponseSchema`/`AdminFeesDto` to `Apps/contract/src/modules/platform/platform.dtos.ts`; confirm the platform barrel re-exports it. (plan §8.1)
-- [ ] Impl (deps): add `exceljs` + `multer` (+ `@types/multer`) to `Apps/api/package.json`; restrict upload MIME (`.xlsx`/`.csv`) + size via an **in-code constant** (env-template defines no upload knob — plan §7.2).
-- [ ] Impl (data): `Apps/api/prisma/wilayas.registry.ts` — canonical **69 wilayas + their communes** (`wilayaCode`/`communeCode`/`frName`/`arName`), sourced as a dataset (mirrors `pages.registry.ts`; side-effect-free so factories can reuse it). (plan §7.1)
-- [ ] Impl (seed): extend `Apps/api/prisma/seed.ts` — upsert wilayas/communes **by code** (idempotent); write the **4 default `Setting` rows** (`store`; `invoicing` with `prefixes` + `nextSequences = 1` for **every** `DocType`; `delivery` defaults; empty `storefront`). The `invoicing` row **must exist** for `SequenceService`'s `FOR UPDATE` lock. (plan §1.2, §3.5, §7.1)
-- [ ] Chore: no migration needed — `Wilaya`/`Commune`/`DeliveryFee`/`Setting` are already in `20260717103221_init`. Run `prisma generate` if the contract types changed.
+- [x] Decision (owner, asked): `ADMIN_FEES` GET response — **add `AdminFeesResponseSchema`** to the platform contract. (plan §8.1)
+- [x] Decision (owner, asked): geography seed size — spec says 69, but real-world Algeria has **58** wilayas/1541 communes (confirmed against a vendored dataset, `Mvp/frontend/src/config/algeria-{wilayas,commun}.json`); no real 69-wilaya dataset exists. **Seed only a small subset (3 wilayas / 14 communes) now, flag full geography seeding as a follow-up** — a deviation from the plan's "all 69" expectation, recorded in the report.
+- [x] Decision (confirmed, no fork): `SEQUENCE_DECREASE_FORBIDDEN` → `ConflictError`/409 (no new `ErrorCode`); `DeliveryFeeService.resolve` `mode` = local `'home'|'office'`; sequence counter **global-monotonic** (no per-year reset). (plan §8.2, §8.5, §8.6)
+- [x] Impl (contract): added `AdminFeesResponseSchema`/`AdminFeesDto` to `Apps/contract/src/modules/platform/platform.dtos.ts`; barrel re-exports via existing `export * from './platform.dtos'`. (plan §8.1)
+- [x] Impl (deps): added `exceljs` (^4.4.0) + `multer` (^2.0.0) + `@types/multer` (^1.4.12) to `Apps/api/package.json`; installed.
+- [x] Impl (data): `Apps/api/prisma/wilayas.registry.ts` — 3 real wilayas (Tindouf/Illizi/Ouargla) + their 14 communes, bilingual, codes/names copied verbatim from the vendored reference dataset (not invented). (plan §7.1; see decision above for the size deviation)
+- [x] Impl (seed): restructured `Apps/api/prisma/seed.ts` into `seedPages`/`seedGeography`/`seedSettings`. Geography upserts by code (idempotent). Settings use a **findUnique-then-create guard** (not a blind upsert) so re-running never overwrites admin-edited settings; `invoicing` covers all 8 `DocType` prefixes + `nextSequences = 1`. (plan §1.2, §3.5, §7.1)
+- [x] Chore: no migration needed — `Wilaya`/`Commune`/`DeliveryFee`/`Setting` already in `20260717103221_init`. No contract-type regen needed (schema unchanged; only a new Zod schema added).
 
 **Validation**
-- [ ] Contract (if changed): `npm --prefix Apps/contract run validate` green (tsc `--noEmit` + cycles + eslint + conformance).
-- [ ] `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green (existing suite unaffected).
-- [ ] `npm run db:seed` succeeds; 69 wilayas + their communes + the 4 `Setting` rows exist; re-running is idempotent.
-- [ ] No magic strings — seed references `DocType` + the registry only.
-- [ ] Committed on green (`api: platform sprint 1 — prerequisites`; any contract addition as a separate `contract:` commit).
+- [x] Contract: `npm --prefix Apps/contract run validate` green (tsc `--noEmit` + cycles + eslint + conformance 4/4).
+- [x] `npx tsc --noEmit` clean; `npm run lint` clean.
+- [x] `npm run test:unit` green — 98/98 tests, 13 files (unaffected by this sprint).
+- [x] `npm run db:seed` run twice against the local dev DB: 3 wilayas + 14 communes + 4 `Setting` rows created on run 1; run 2 shows `created: 0` for settings and unchanged geography counts (idempotent) — verified directly against Postgres (no duplicates).
+- [x] No magic strings — seed/registry reference `DocType` + the registry only; wilaya/commune codes are literal real-world data (see report for provenance).
+- [x] Committed on green (`api: platform sprint 1 — prerequisites`; contract addition included in the same commit — see report for rationale).
+
+**Report:** [`results-obser-plat-02/report-sprint-P1-02.md`](./results-obser-plat-02/report-sprint-P1-02.md)
 
 ---
 
