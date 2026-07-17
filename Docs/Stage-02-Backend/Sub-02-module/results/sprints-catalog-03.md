@@ -30,25 +30,27 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 1: Prerequisites — contract additions + auth-middleware extension   — Status: ⬜ Pending
+### Sprint 1: Prerequisites — contract additions + auth-middleware extension   — Status: ✅ Done
 
 **Goals**
 - Land the two owner-approved contract response shapes and extend the shared `requireAuth` with the
   `optional` and `pages` options the catalog routes depend on — on a green base, before any module code.
 
 **Tasks**
-- [ ] Impl (contract): add `ProductDetailResponseSchema = ProductWithPricingResponseSchema.extend({ relatedIds: z.array(z.uuid()) })` + `type ProductDetailDto` to `Apps/contract/src/modules/catalog/catalog.dtos.ts`; confirm the catalog barrel re-exports it. (plan §8 #1)
-- [ ] Impl (contract): add optional `productCount: z.number().int().min(0).optional()` to `FamilyResponseSchema` (populated only when `withCount=true`; omitted otherwise → backward-compatible). (plan §8 #2)
-- [ ] Impl (middleware): extend `Apps/api/src/common/middlewares/auth.middleware.ts` with `optional?: boolean` — on a missing/invalid token, **skip and call `next()`** (no `req.user`) instead of throwing; keeps the route public while letting the handler read the viewer when a token is present. (plan §7.2)
-- [ ] Impl (middleware): extend the same `requireAuth` with `pages?: PageKey[]` — after the `type` check, if `pages` is set, load the user's **effective page set** from the DB (ADMIN ⇒ bypass/all; STAFF ⇒ union of enabled roles' pages, reusing identity's `effectivePages` logic) and `ForbiddenError` unless every required page is present. (plan §7.3)
-- [ ] Test: extend `test/unit/middleware/auth.middleware.spec.ts` — `optional:true` no-token → `next()` with no `req.user`; `optional:true` valid token → `req.user` populated; `pages` present-in-set → pass; missing → 403; ADMIN bypasses `pages`; STAFF without the page → 403.
+- [x] Impl (contract): add `ProductDetailResponseSchema = ProductWithPricingResponseSchema.extend({ relatedIds: z.array(z.uuid()) })` + `type ProductDetailDto` to `Apps/contract/src/modules/catalog/catalog.dtos.ts`; confirm the catalog barrel re-exports it. (plan §8 #1)
+- [x] Impl (contract): add optional `productCount: z.number().int().min(0).optional()` to `FamilyResponseSchema` (populated only when `withCount=true`; omitted otherwise → backward-compatible). (plan §8 #2)
+- [x] Impl (middleware): extend `Apps/api/src/common/middlewares/auth.middleware.ts` with `optional?: boolean` — on a missing/invalid token, **skip and call `next()`** (no `req.user`) instead of throwing; keeps the route public while letting the handler read the viewer when a token is present. (plan §7.2)
+- [x] Impl (middleware): extend the same `requireAuth` with `pages?: PageKey[]` — after the `type` check, if `pages` is set, load the user's **effective page set** from the DB (ADMIN ⇒ bypass/all; STAFF ⇒ union of enabled roles' pages, reusing identity's `effectivePages` logic) and `ForbiddenError` unless every required page is present. (plan §7.3)
+- [x] Test: extend `test/unit/middleware/auth.middleware.spec.ts` — `optional:true` no-token → `next()` with no `req.user`; `optional:true` valid token → `req.user` populated; `pages` present-in-set → pass; missing → 403; ADMIN bypasses `pages`; STAFF without the page → 403.
 
 **Validation**
-- [ ] Contract: `npm --prefix Apps/contract run validate` green (tsc `--noEmit` + madge cycles + eslint + conformance); the two new/changed schemas parse and the conformance suite still passes.
-- [ ] API: `npx tsc --noEmit` clean; `npm run lint --no-color` clean.
-- [ ] `npm run test:unit` green (extended auth-middleware spec + existing suites).
-- [ ] No magic strings — `pages` option consumes `PageKey` enum members only; no route touched yet.
-- [ ] Committed on green (`contract:`/`api: catalog sprint 1 — prerequisites`).
+- [x] Contract: `npm --prefix Apps/contract run validate` green (tsc `--noEmit` + madge cycles + eslint + conformance); the two new/changed schemas parse and the conformance suite still passes.
+- [x] API: `npx tsc --noEmit` clean; `npm run lint --no-color` clean.
+- [x] `npm run test:unit` green (extended auth-middleware spec + existing suites — 172/172, 18 files).
+- [x] No magic strings — `pages` option consumes `PageKey` enum members only; no route touched yet.
+- [x] Committed on green (`api: catalog sprint 1 — prerequisites`).
+
+**Report:** [`results-catalog-03/report-sprint-01-03.md`](./results-catalog-03/report-sprint-01-03.md)
 
 ---
 
