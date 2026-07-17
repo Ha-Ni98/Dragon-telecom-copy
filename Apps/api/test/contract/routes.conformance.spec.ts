@@ -142,4 +142,48 @@ describe('route conformance', () => {
       }
     });
   });
+
+  // BRANDS/FAMILIES/MODELS/PRODUCTS/PRODUCT_DETAIL are public (or optional-viewer, which still
+  // runs the DB-backed handler unauthenticated) — same reasoning as platform's public routes,
+  // covered in test/integration/catalog.integration.spec.ts instead. Only the guarded routes
+  // (requireAuth short-circuits before any Prisma call on a missing token, including the
+  // `pages`-gated STAFF_PRODUCTS check) are checked here, DB-free.
+  describe('catalog route resolution (guarded routes only, mounted, no DB required)', () => {
+    it('every guarded CATALOG_ROUTES path resolves on `app`, not a raw unmatched-route 404', async () => {
+      const dummyId = '00000000-0000-4000-8000-000000000000';
+      const cases: { method: 'get' | 'post' | 'patch' | 'put'; path: string }[] = [
+        { method: 'get', path: CATALOG_ROUTES.STAFF_PRODUCTS },
+        { method: 'get', path: CATALOG_ROUTES.CATEGORIES },
+        { method: 'get', path: CATALOG_ROUTES.PRODUCT_STATS },
+        { method: 'get', path: CATALOG_ROUTES.ADMIN_PRODUCTS },
+        { method: 'post', path: CATALOG_ROUTES.ADMIN_PRODUCTS },
+        { method: 'get', path: CATALOG_ROUTES.ADMIN_PRODUCT_BY_ID.replace(':id', dummyId) },
+        { method: 'patch', path: CATALOG_ROUTES.ADMIN_PRODUCT_BY_ID.replace(':id', dummyId) },
+        { method: 'patch', path: CATALOG_ROUTES.PRICING.replace(':id', dummyId) },
+        { method: 'post', path: CATALOG_ROUTES.IMAGES.replace(':id', dummyId) },
+        { method: 'patch', path: CATALOG_ROUTES.IMAGES.replace(':id', dummyId) },
+        { method: 'get', path: CATALOG_ROUTES.ADMIN_BRANDS },
+        { method: 'post', path: CATALOG_ROUTES.ADMIN_BRANDS },
+        { method: 'patch', path: CATALOG_ROUTES.ADMIN_BRAND_BY_ID.replace(':id', dummyId) },
+        { method: 'get', path: CATALOG_ROUTES.ADMIN_FAMILIES },
+        { method: 'post', path: CATALOG_ROUTES.ADMIN_FAMILIES },
+        { method: 'patch', path: CATALOG_ROUTES.ADMIN_FAMILY_BY_ID.replace(':id', dummyId) },
+        { method: 'get', path: CATALOG_ROUTES.ADMIN_MODELS },
+        { method: 'post', path: CATALOG_ROUTES.ADMIN_MODELS },
+        { method: 'patch', path: CATALOG_ROUTES.ADMIN_MODEL_BY_ID.replace(':id', dummyId) },
+        { method: 'put', path: CATALOG_ROUTES.MODEL_FAMILIES.replace(':id', dummyId) },
+        { method: 'post', path: CATALOG_ROUTES.CATEGORIES_CUD },
+        { method: 'patch', path: CATALOG_ROUTES.CATEGORY_BY_ID.replace(':id', dummyId) },
+      ];
+
+      for (const { method, path } of cases) {
+        const res = await request(app)[method](`${env.API_PREFIX}${path}`);
+        expect(res.body, `${method.toUpperCase()} ${path} (status ${res.status})`).toHaveProperty('success');
+      }
+    });
+    // PRODUCT_STATS-before-ADMIN_PRODUCT_BY_ID route ordering can't be distinguished DB-free:
+    // both routes share the same `adminOnly` guard, which 401s identically before either route's
+    // `validateRequest` ever runs on an unauthenticated request. Verified for real, authenticated,
+    // in test/integration/catalog.integration.spec.ts instead (§4.3).
+  });
 });

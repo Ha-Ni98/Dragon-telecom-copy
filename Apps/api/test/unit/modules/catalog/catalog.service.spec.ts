@@ -32,7 +32,6 @@ const {
   productFindManyMock,
   productCountMock,
   productFindUniqueMock,
-  productFindUniqueOrThrowMock,
   productCreateMock,
   productUpdateMock,
   productPriceFindManyMock,
@@ -67,7 +66,6 @@ const {
   productFindManyMock: vi.fn(),
   productCountMock: vi.fn(),
   productFindUniqueMock: vi.fn(),
-  productFindUniqueOrThrowMock: vi.fn(),
   productCreateMock: vi.fn(),
   productUpdateMock: vi.fn(),
   productPriceFindManyMock: vi.fn(),
@@ -109,7 +107,6 @@ const prismaMock = {
     findMany: productFindManyMock,
     count: productCountMock,
     findUnique: productFindUniqueMock,
-    findUniqueOrThrow: productFindUniqueOrThrowMock,
     create: productCreateMock,
     update: productUpdateMock,
   },
@@ -536,7 +533,7 @@ describe('CatalogProductService', () => {
   describe('createProduct', () => {
     it('qty>0 calls inventory.addLayer once with INITIAL_STOCK inside the transaction and emits product.created', async () => {
       productCreateMock.mockResolvedValueOnce({ id: PRODUCT_ID, name: 'New Product' });
-      productFindUniqueOrThrowMock.mockResolvedValueOnce(buildProductRow({ name: 'New Product' }));
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow({ name: 'New Product' }));
 
       const cmd = CreateProductSchema.parse({
         name: 'New Product',
@@ -561,7 +558,7 @@ describe('CatalogProductService', () => {
 
     it('qty=0 never calls inventory.addLayer', async () => {
       productCreateMock.mockResolvedValueOnce({ id: PRODUCT_ID, name: 'Priceless Product' });
-      productFindUniqueOrThrowMock.mockResolvedValueOnce(buildProductRow({ name: 'Priceless Product' }));
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow({ name: 'Priceless Product' }));
 
       const cmd = CreateProductSchema.parse({
         name: 'Priceless Product',
@@ -604,7 +601,7 @@ describe('CatalogProductService', () => {
   describe('updatePricing', () => {
     it('emits product.repriced', async () => {
       productFindUniqueMock.mockResolvedValueOnce(buildProductRow());
-      productFindUniqueOrThrowMock.mockResolvedValueOnce(buildProductRow());
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow());
 
       await service().updatePricing(PRODUCT_ID, { guestPrice: 1500 });
 

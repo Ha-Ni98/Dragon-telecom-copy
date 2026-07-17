@@ -129,30 +129,34 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 5: API — controller, routes, wiring, inventory stub, integration & conformance   — Status: ⬜ Pending
+### Sprint 5: API — controller, routes, wiring, inventory stub, integration & conformance   — Status: ✅ Done
 
 **Goals**
 - Expose the HTTP surface, wire the composition root (guards, Multer, route ordering, inventory port
   stub), mount the router, and prove the module end-to-end + against the contract.
 
 **Tasks**
-- [ ] Impl: `src/modules/catalog/catalog.controller.ts` — thin; `try/catch → next(error)`; reads `req.validated` + optional viewer from `req.user`; multipart create/images read `req.files` (Multer); `sendSuccess` (`201` create, `200` read/update). (plan §5.1 item 5)
-- [ ] Impl: `src/modules/catalog/inventory.port.stub.ts` — minimal `IInventoryPort` skeleton performing the `INITIAL_STOCK` layer insert on the passed `tx` (one-line swap for the inventory module's exported singleton once it lands). (plan §7.1)
-- [ ] Impl: `src/modules/catalog/catalog.routes.ts` — composition root: instantiate the three services (product service gets `prisma` + the inventory port) + controller; register every route via `CATALOG_ROUTES` constants with `validateRequest` per segment + guards from the map (plan §5.1); `requireAuth({ optional:true })` on `PRODUCTS`/`PRODUCT_DETAIL`; `requireAuth({ types:[STAFF,ADMIN], pages:[STAFF_PRODUCTS], checkDB:true })` on `STAFF_PRODUCTS`; admin guard elsewhere; Multer on multipart routes. **Register `PRODUCT_STATS` before `ADMIN_PRODUCT_BY_ID`** (else `/admin/products/stats` matches `:id`). `export { router }`. (plan §5.1, §5.1 ordering note)
-- [ ] Impl (wiring): add `catalogRouter` to `src/modules/index.ts` `registerModules` at the EXTENSION POINT. (plan §6)
-- [ ] Test: `test/integration/catalog.integration.spec.ts` (real test DB, envelope asserted) — guest `/products` leak check; disabled brand hidden in `/brands` but its product's `/products/:id` still resolves; `POST /admin/products` qty>0 creates the FIFO layer (assert via inventory read) + unlocks pricing; `PATCH pricing` → `product.repriced`; category disable with an enabled POS member → 409; `staff/products` 403 without the page / 200 with it or as admin; `optional` auth on `/products` (guest vs CLIENT pricing differ). Auth via `auth.fixture`. (plan §4.3)
-- [ ] Test: extend `test/contract/routes.conformance.spec.ts` — every catalog response parses its `*ResponseSchema`; every registered route uses a `CATALOG_ROUTES` constant. (plan §4.4)
+- [x] Impl: `src/modules/catalog/catalog.controller.ts` — thin; `try/catch → next(error)`; reads `req.validated` + optional viewer from `req.user`; multipart create/images read `req.files` (Multer); `sendSuccess` (`201` create, `200` read/update). (plan §5.1 item 5)
+- [x] Impl: `src/modules/catalog/inventory.port.stub.ts` — minimal `IInventoryPort` skeleton performing the `INITIAL_STOCK` layer insert on the passed `tx` (one-line swap for the inventory module's exported singleton once it lands). (plan §7.1)
+- [x] Impl: `src/modules/catalog/catalog.routes.ts` — composition root: instantiate the three services (product service gets `prisma` + the inventory port) + controller; register every route via `CATALOG_ROUTES` constants with `validateRequest` per segment + guards from the map (plan §5.1); `requireAuth({ optional:true })` on `PRODUCTS`/`PRODUCT_DETAIL`; `requireAuth({ types:[STAFF,ADMIN], pages:[STAFF_PRODUCTS], checkDB:true })` on `STAFF_PRODUCTS`; admin guard elsewhere; Multer (disk storage) on multipart routes. **Registered `PRODUCT_STATS` before `ADMIN_PRODUCT_BY_ID`**. `export { router }`. (plan §5.1, §5.1 ordering note)
+- [x] Impl (wiring): added `catalogRouter` to `src/modules/index.ts` `registerModules` at the EXTENSION POINT. (plan §6)
+- [x] Fix (interface gap found while wiring `ADMIN_PRODUCT_BY_ID` GET): added public `getAdminProduct(id)` to `ICatalogProductService`/`CatalogProductService` (was previously a private post-mutation-reload-only helper). See report.
+- [x] Test: `test/data/pos-client.factory.ts` + `test/data/client.factory.ts` (deferred from Sprint 2) — minimal seeding for the price-resolution tier scenarios.
+- [x] Test: `test/integration/catalog.integration.spec.ts` (real test DB, envelope asserted) — guest `/products` leak check; disabled brand hidden in `/brands` but its product's `/products/:id` still resolves; `POST /admin/products` qty>0 reflects the stub's stock effect + unlocks pricing (adapted — no inventory read endpoint exists); `PATCH pricing` → `product.repriced`; category disable with an enabled POS member → 409; `staff/products` 403 without the page / 200 with it or as admin; `optional` auth on `/products` (guest vs CLIENT pricing differ); authenticated route-ordering check. (plan §4.3)
+- [x] Test: extended `test/contract/routes.conformance.spec.ts` — every guarded catalog route resolves DB-free (mirrors the identity/platform/observability blocks); every registered route uses a `CATALOG_ROUTES` constant. (plan §4.4)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint --no-color` clean.
-- [ ] `npm run test:unit` green (incl. conformance).
-- [ ] `npm run test:int` green against the test DB (routes wired, module mounted).
-- [ ] Routes use `CATALOG_ROUTES` constants only (no string literals); all responses go through `sendSuccess`; `PRODUCT_STATS` precedes `ADMIN_PRODUCT_BY_ID`; guards match the plan's map.
-- [ ] Committed on green (`api: catalog sprint 5 — api and wiring`).
+- [x] `npx tsc --noEmit` clean; `npm run lint --no-color` clean.
+- [x] `npm run test:unit` green (226/226, 20 files, incl. conformance).
+- [x] `npm run test:int` green (55/55) against the test DB (routes wired, module mounted).
+- [x] Routes use `CATALOG_ROUTES` constants only (no string literals); all responses go through `sendSuccess`; `PRODUCT_STATS` precedes `ADMIN_PRODUCT_BY_ID`; guards match the plan's map.
+- [x] Committed on green (`api: catalog sprint 5 — api and wiring`).
+
+**Report:** [`results-catalog-03/report-sprint-05-03.md`](./results-catalog-03/report-sprint-05-03.md)
 
 ---
 
-## Definition of done (module) — ⬜ Pending
+## Definition of done (module) — ✅ All 5 sprints done
 
 - `Apps/api/src/modules/catalog/` has the 5 core files (mapper, interface, service, controller, routes) —
   **no listener** — plus the local `inventory.port.stub.ts`; `catalogRouter` mounted via `registerModules`.

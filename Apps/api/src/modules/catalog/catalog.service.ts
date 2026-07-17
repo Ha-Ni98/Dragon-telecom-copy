@@ -564,7 +564,7 @@ export class CatalogProductService implements ICatalogProductService {
       });
 
       eventBus.emit('product.created', { productId, name: cmd.name });
-      return this.getAdminProductById(productId);
+      return this.getAdminProduct(productId);
     } catch (err) {
       if (isKnownRequestError(err, 'P2002')) throw new ConflictError('Barcode already in use');
       throw err;
@@ -591,7 +591,7 @@ export class CatalogProductService implements ICatalogProductService {
       if (isKnownRequestError(err, 'P2002')) throw new ConflictError('Barcode already in use');
       throw err;
     }
-    return this.getAdminProductById(id);
+    return this.getAdminProduct(id);
   }
 
   async updatePricing(id: string, cmd: UpdatePricingCommand): Promise<AdminProductDto> {
@@ -624,7 +624,7 @@ export class CatalogProductService implements ICatalogProductService {
     });
 
     eventBus.emit('product.repriced', { productId: id, name: product.name });
-    return this.getAdminProductById(id);
+    return this.getAdminProduct(id);
   }
 
   async addImages(id: string, cmd: AddProductImagesCommand, files: Express.Multer.File[]): Promise<AdminProductDto> {
@@ -644,7 +644,7 @@ export class CatalogProductService implements ICatalogProductService {
       })),
     });
 
-    return this.getAdminProductById(id);
+    return this.getAdminProduct(id);
   }
 
   async updateImages(id: string, cmd: UpdateProductImagesCommand): Promise<AdminProductDto> {
@@ -664,7 +664,7 @@ export class CatalogProductService implements ICatalogProductService {
       ),
     );
 
-    return this.getAdminProductById(id);
+    return this.getAdminProduct(id);
   }
 
   // Fetches minimal columns for every product and reduces in application code — no raw SQL for
@@ -787,8 +787,10 @@ export class CatalogProductService implements ICatalogProductService {
     return null;
   }
 
-  private async getAdminProductById(id: string): Promise<AdminProductDto> {
-    const product = await this.prisma.product.findUniqueOrThrow({ where: { id }, include: PRODUCT_INCLUDE });
+  // Public: also serves ADMIN_PRODUCT_BY_ID's GET directly, not just the post-mutation reload.
+  async getAdminProduct(id: string): Promise<AdminProductDto> {
+    const product = await this.prisma.product.findUnique({ where: { id }, include: PRODUCT_INCLUDE });
+    if (!product) throw new NotFoundError('Product');
     return CatalogMapper.toAdminProductDto(product);
   }
 }

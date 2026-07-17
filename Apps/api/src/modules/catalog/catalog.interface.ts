@@ -40,6 +40,7 @@ export interface ICatalogProductService {
   getProduct(id: string, viewer: Viewer): Promise<ProductDetailDto>;
   listStaffProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<StaffProductDto>>;
   listAdminProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<AdminProductDto>>;
+  getAdminProduct(id: string): Promise<AdminProductDto>;
   createProduct(cmd: CreateProductCommand, images: Express.Multer.File[]): Promise<AdminProductDto>;
   updateProduct(id: string, cmd: UpdateProductCommand): Promise<AdminProductDto>;
   updatePricing(id: string, cmd: UpdatePricingCommand): Promise<AdminProductDto>;
