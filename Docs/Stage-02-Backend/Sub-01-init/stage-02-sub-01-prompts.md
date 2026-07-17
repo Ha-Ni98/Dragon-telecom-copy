@@ -39,4 +39,4 @@ Read and follow strictly:
 - **Sprints:** `/docs/stage-02-backend/sub-01-init/sprints.md`
 - **Rules:** `back-end-rules.md` and `test-rules.md` and `realtime-rules.md`
 
-Instructions: follow the Context Protocol; take the **first sprint not marked ✅**; test-alongside; validate (`tsc --noEmit`, `npm run test:unit`, lint); commit on green; write the report; mark ✅; stop and wait for `next`.
+Instructions: follow the Context Protocol; take the **first sprint not marked ✅**; test-alongside; validate (`tsc --noEmit`, `npm run test:unit`, lint); write the report; mark ✅;  commit on green; stop and wait for `next`.
