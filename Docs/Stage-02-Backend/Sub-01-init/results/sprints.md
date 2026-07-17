@@ -16,7 +16,7 @@ Per plan §2.1 (D4), the contract's route constants were stripped of their leadi
 
 ---
 
-## Sprint 1: Foundation — Status: ⬜ Pending
+## Sprint 1: Foundation — Status: ✅ Done
 
 **Goals**
 - The zero-dependency layer compiles and crashes loudly on bad config: workspace scaffold, strict TS, test scripts, validated `env`, error hierarchy, Prisma singleton.

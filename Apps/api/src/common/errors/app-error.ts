@@ -1,4 +1,4 @@
-import type { ErrorCode } from '@your-app/contract';
+import type { ErrorCode } from '@dragon-telecom/contract';
 
 export class AppError extends Error {
   constructor(
