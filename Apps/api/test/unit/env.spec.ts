@@ -21,6 +21,7 @@ describe('env.ts', () => {
     delete process.env['API_PREFIX'];
     delete process.env['CORS_ORIGIN'];
     delete process.env['JWT_EXPIRATION'];
+    delete process.env['REFRESH_TOKEN_EXPIRATION'];
     delete process.env['LOG_LEVEL'];
   });
 
@@ -38,6 +39,7 @@ describe('env.ts', () => {
     expect(env.API_PREFIX).toBe('/api');
     expect(env.CORS_ORIGIN).toBe('*');
     expect(env.JWT_EXPIRATION).toBe('15m');
+    expect(env.REFRESH_TOKEN_EXPIRATION).toBe(7);
     expect(env.LOG_LEVEL).toBe('info');
     expect(env.JWT_SECRET).toBe(VALID_ENV.JWT_SECRET);
     expect(typeof env.PORT).toBe('number');

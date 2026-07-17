@@ -9,6 +9,9 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('*'),
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRATION: z.string().default('15m'),
+  // Number of days (not a duration string like JWT_EXPIRATION) — refresh tokens are raw
+  // random bytes, not JWTs, so nothing requires the jsonwebtoken/`ms` duration format.
+  REFRESH_TOKEN_EXPIRATION: z.coerce.number().int().min(1).default(7),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 });
 
