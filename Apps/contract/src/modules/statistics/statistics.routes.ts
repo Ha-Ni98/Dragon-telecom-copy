@@ -1,9 +1,9 @@
 export const STATS_ROUTES = {
-  ADMIN_DASHBOARD: '/api/admin/dashboard',
-  STAFF_DASHBOARD: '/api/staff/dashboard',
-  OVERVIEW: '/api/admin/statistics/overview',
-  FILTERED: '/api/admin/statistics/filtered',
-  CHARTS: '/api/admin/statistics/charts/:chart',
-  TOP_PRODUCTS: '/api/admin/statistics/top-products',
-  REPORT: '/api/admin/reports/:type',
+  ADMIN_DASHBOARD: '/admin/dashboard',
+  STAFF_DASHBOARD: '/staff/dashboard',
+  OVERVIEW: '/admin/statistics/overview',
+  FILTERED: '/admin/statistics/filtered',
+  CHARTS: '/admin/statistics/charts/:chart',
+  TOP_PRODUCTS: '/admin/statistics/top-products',
+  REPORT: '/admin/reports/:type',
 } as const;

@@ -39,11 +39,11 @@ One sprint per fresh session. Load only: `back-end-rules.md`, `test-rules.md`, a
 ### Step 3 — Validate
 `tsc --noEmit` clean · `npm run test:unit` green · lint clean · no `console.*` · no `process.env` outside `env.ts`.
 
-### Step 4 — Commit on Green
-Commit (`git commit -m "api: sub-01 sprint [N] — [name]"`). This is the rollback point.
-
-### Step 5 — Report & Mark
+### Step 4 — Report & Mark
 Write `/docs/stage-02-backend/sub-01-init/results/report-sprint-[NN].md` (work done + tests created). Mark the sprint ✅ in `sprints.md`.
+
+### Step 5 — Commit on Green
+Commit (`git commit -m "api: sub-01 sprint [N] — [name]"`). This is the rollback point.
 
 ### Step 6 — Pause
 Wait for `next`.

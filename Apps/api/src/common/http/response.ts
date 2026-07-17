@@ -1,7 +1,7 @@
 import type { Response } from 'express';
-import type { ApiResponse } from '@your-app/contract';
+import type { ApiResponse } from '@dragon-telecom/contract';
 
-export const sendSuccess = <T>(res: Response, data: T, status = 200): void => {
-  const body: ApiResponse<T> = { success: true, data };
+export const sendSuccess = <T>(res: Response, data: T, status = 200, message?: string): void => {
+  const body: ApiResponse<T> = message === undefined ? { success: true, data } : { success: true, data, message };
   res.status(status).json(body);
 };

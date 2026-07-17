@@ -1,25 +1,25 @@
 import { faker } from '@faker-js/faker';
-import type { LoginCommand } from '@your-app/contract';
-import { UserRole } from '@your-app/contract';
-import type { User } from '@prisma/client';
+import { UserType } from '@dragon-telecom/contract';
 
-export const createUserPayload = (overrides: Partial<LoginCommand> = {}): LoginCommand => ({
-  username: faker.internet.username(),
-  password: 'Password123!',
-  ...overrides,
-});
+// No single contract type fits an "insertable" internal user: UserDto strips
+// credentials by design, and CreateUserCommand is admin-only (ADMIN/STAFF, with
+// profile/roleIds). This is a self-contained shape for Sub-01 infra tests
+// (auth.fixture, auth.middleware) — modules add their own factories in Sub-02.
+export type UserFactoryInput = {
+  id: string;
+  username: string;
+  email?: string;
+  password: string;
+  type: UserType;
+  isEnabled: boolean;
+};
 
-// Prisma-shaped User entity for mapper unit tests (includes sensitive fields).
-export const userEntity = (overrides: Partial<User> = {}): User => ({
+export const createUser = (overrides: Partial<UserFactoryInput> = {}): UserFactoryInput => ({
   id: faker.string.uuid(),
   username: faker.internet.username(),
-  fullName: faker.person.fullName(),
-  password: '$argon2id$v=19$m=65536,t=3,p=4$fake-hash',
-  role: UserRole.ADMIN,
+  email: faker.internet.email(),
+  password: 'Password123!',
+  type: UserType.STAFF,
   isEnabled: true,
-  lastLoginAt: null,
-  createdAt: new Date('2024-01-15T10:00:00.000Z'),
-  updatedAt: new Date('2024-01-15T10:00:00.000Z'),
-  deletedAt: null,
   ...overrides,
 });

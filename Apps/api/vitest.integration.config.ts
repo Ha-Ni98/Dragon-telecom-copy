@@ -6,7 +6,7 @@ export default defineConfig({
     alias: {
       '@common': resolve(__dirname, './src/common'),
       '@modules': resolve(__dirname, './src/modules'),
-      '@your-app/contract': resolve(__dirname, '../contract/src/index.ts'),
+      '@dragon-telecom/contract': resolve(__dirname, '../contract/src/index.ts'),
     },
   },
   test: {
