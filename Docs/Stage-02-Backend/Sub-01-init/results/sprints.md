@@ -63,7 +63,7 @@ Per plan §2.1 (D4), the contract's route constants were stripped of their leadi
 
 ---
 
-## Sprint 3: Guards — Status: ⬜ Pending
+## Sprint 3: Guards — Status: ✅ Done
 
 **Goals**
 - The middleware layer: request typing, per-segment validation, the single `requireAuth` guard, and the last-in-chain error handler — all unit-tested with the Sprint 2 factories/fixtures.
