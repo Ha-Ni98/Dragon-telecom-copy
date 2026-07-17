@@ -129,31 +129,38 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 5: API — controller, routes, wiring, integration & conformance   — Status: ⬜ Pending
+### Sprint 5: API — controller, routes, wiring, integration & conformance   — Status: ✅ Done
 
 **Goals**
 - Expose the service over HTTP, mount it at the app extension point, and prove it end-to-end and contract-bound.
 
 **Tasks**
-- [ ] Impl: `src/modules/identity/identity.controller.ts` — thin handlers; `try/catch → next(error)`; read `req.validated` (and `req.user` for `logout`/`me`); `sendSuccess` with status `201` create / `200` read-update / `200`+`null` logout / `200` `string[]` for `me/permissions`. (plan §5)
-- [ ] Impl: `src/modules/identity/identity.routes.ts` — composition root: manual DI (`new IdentityService(prisma)` → `new IdentityController(service)`); one registration per `IDENTITY_ROUTES` constant + per-segment `validateRequest` + the guard from the plan §5.1 table (`checkDB:true` on admin routes). `export { router }`.
-- [ ] Impl (wiring): mount at the `src/app.ts` `EXTENSION POINT (modules)` — recommended via a new `src/modules/index.ts` aggregator. (plan §6)
-- [ ] Test: `test/integration/identity.integration.spec.ts` (real test DB, real prefix, envelope asserted) — three-way login; **byte-identical** 401 bodies; refresh rotation + chain-kill; users create(201)/list(paginated)/update(200); last-admin 409; disabling revokes tokens; roles CRUD; `setRolePages` STAFF-only (ADMIN-scope → 400); disabled role's pages drop from `me/permissions`; staff-union vs admin-all; technicians toggle; guards (non-admin 403, missing token 401). Pages seeded + `NODE_ENV=test`. (plan §4.3)
-- [ ] Test: extend `test/contract/routes.conformance.spec.ts` — every `IDENTITY_ROUTES` path resolves on `app` (not 404, correct method + auth); parse representative `res.body.data` through `UserResponseSchema`, `RoleResponseSchema`, `PageResponseSchema`, `TechnicianResponseSchema`, `LoginResultResponseSchema`, `RefreshResultResponseSchema`, `paginated(UserResponseSchema)`. (plan §4.4)
+- [x] Impl: `src/modules/identity/identity.controller.ts` — 16 thin handlers (one per route+method); `try/catch → next(error)`; read `req.validated` (`req.user!` for `logout`/`mePermissions` — `requireAuth` always sets it before the handler runs); `sendSuccess` with `201` for the 3 creates, `200` everywhere else (incl. `null` for logout, `string[]` for `mePermissions`). A small `buildRequestContext(req)` helper conditionally builds `{ ipAddress?, userAgent? }` for `login`/`refresh` (exact-optional-safe). (plan §5)
+- [x] Impl: `src/modules/identity/identity.routes.ts` — composition root: manual DI (`new IdentityService(prisma)` → `new IdentityController(service)`); one registration per route from the plan §5.1 table, guard **before** `validateRequest` (matches the rules doc's example ordering); `export { router }`.
+- [x] Impl (wiring): `src/modules/index.ts` (new) — `registerModules(apiRouter)` aggregator, per the plan's recommendation; `app.ts`'s extension point now calls it instead of the placeholder comment.
+- [x] Test: `test/integration/identity.integration.spec.ts` (14 tests, real test DB, real prefix, envelope asserted) — three-way login (username, email, phone-approved-client is exercised at the service-unit level — the integration suite covers username/email directly since phone login needs a `Client` row, out of identity's own factories); byte-identical 401 bodies; refresh rotation + reuse→chain-kill (including that the *newly rotated* token also dies); users create(201)/list(paginated, exact counts)/update(200); last-admin 409; disabling revokes tokens (old refresh then 401); roles CRUD + `setRolePages` (unknown key 400, **and** a genuine ADMIN-scope key inserted directly via Prisma → 400, distinct code paths both verified); disabled role's pages drop from `/me/permissions` immediately, ADMIN still gets every page; technicians create/list/toggle (no delete route); guards (non-admin 403, missing token 401). Mints tokens for **real persisted** users (not `auth.fixture`'s disconnected `mintAuthToken`) since admin routes use `checkDB: true`. (plan §4.3)
+- [x] Test: extended `test/contract/routes.conformance.spec.ts` with a **DB-free** "every `IDENTITY_ROUTES` path resolves, not a raw 404" check (all 16 method+path combos, unauthenticated — `requireAuth` short-circuits before any DB call either way) — kept in `test/contract/` (`test:unit` tier) deliberately DB-free per test-rules.md §3's "fast, no DB" promise for that tier. **Response-shape schema-parsing** (the DTO-schema half of plan §4.4) was added instead to the integration suite's existing authenticated 200/201 assertions, since that's where real, schema-parseable payloads already exist — see design note below. (plan §4.4)
+
+**Design note — split the two conformance concerns across tiers (deviation from the plan's literal single-file wording, resolved toward test-rules.md):** the plan groups "route resolves, not 404" and "response-shape parses" under the same `routes.conformance.spec.ts` extension. But that file lives in `test/contract/`, which `package.json`'s `test:unit` script bundles — and test-rules.md §3 states `test:unit` is "fast, no DB." Route-resolution checks can be done unauthenticated (no DB touch — `requireAuth` rejects before any lookup), so those stayed there. Response-shape checks need a real authenticated 200/201 payload, which requires the DB — so those were added as `.parse()` assertions on payloads the integration suite already produces, rather than opening a second DB-dependent code path inside the nominally DB-free `test/contract/` tier. All 7 schemas the plan named (`UserResponseSchema`, `RoleResponseSchema`, `PageResponseSchema`, `TechnicianResponseSchema`, `LoginResultResponseSchema`, `RefreshResultResponseSchema`, `paginated(UserResponseSchema)`) are exercised.
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green (unit + conformance).
-- [ ] `npm run test:int` green (test DB up + migrated + seeded).
-- [ ] Routes use contract constants only (no string literals); responses go through `sendSuccess`; each segment validated via `validateRequest`; every identity path resolves.
-- [ ] Committed on green (`api: sub-02 sprint 5 — identity API + wiring`).
+- [x] `npx tsc --noEmit` clean; `npm run lint` clean.
+- [x] `npm run test:unit` green — 98/98 tests, 13 files (identity mapper 18 + service 39 + the new conformance test).
+- [x] `npm run test:int` green — 15/15 tests, 2 files (14 identity + the pre-existing health check).
+- [x] Routes use contract constants only (no string literals) — confirmed by code + the conformance test proving every constant actually resolves; responses go through `sendSuccess`; each segment validated via `validateRequest`; every identity path resolves.
+- [x] Committed on green (`api: identity sprint 5 — API and wiring`).
+
+**Report:** [`results-identity-01/report-sprint-05-01.md`](./results-identity-01/report-sprint-05-01.md)
 
 ---
 
-## Definition of done (module)
+## Definition of done (module) — ✅ All 5 sprints done
 
-All of [`plan-identity.md`](./plan-identity.md) §9, in particular:
-- 5 module files present (mapper, interface, service, controller, routes) — **no** listener; router mounted at the `app.ts` extension point.
-- `PageKey`/`PageGroup` enums in the contract; `prisma/seed.ts` populates the `Page` registry from them (no magic strings), `prisma db seed` wired + idempotent.
-- Password hashing is Argon2id; every service method returns a DTO that parses its `*ResponseSchema`; events `auth.loggedIn`/`user.created`/`user.updated`/`user.roleChanged` emit after commit.
-- Unit + integration + conformance suites green; prerequisites §7.2 (rate-limit) resolved or explicitly deferred.
+All of [`plan-identity.md`](./plan-identity.md) §9 satisfied:
+- ✅ 5 module files present (mapper, interface, service, controller, routes) — **no** listener; router mounted at the `app.ts` extension point via `src/modules/index.ts`.
+- ✅ `PageKey`/`PageGroup` enums in the contract; `prisma/seed.ts` populates the `Page` registry from them (no magic strings, shared with `page.factory.ts` via `prisma/pages.registry.ts`), `prisma db seed` wired + idempotent (verified).
+- ✅ Password hashing is Argon2id; every service method returns a DTO that parses its `*ResponseSchema`; events `auth.loggedIn`/`user.created`/`user.updated`/`user.roleChanged` emit after commit (with the `tx?`-aware exception documented in Sprint 4 — the caller emits when it owns the transaction).
+- ✅ Unit (98) + integration (15) + conformance suites green; `tsc`/lint clean throughout.
+- Prerequisite §7.2 (login rate-limiting) remains **explicitly deferred** (owner decision, Sprint 1) — tracked as follow-up infra work, not part of this module's scope.
+
+See [`results-identity-01/`](./results-identity-01/) for all 5 sprint reports.
