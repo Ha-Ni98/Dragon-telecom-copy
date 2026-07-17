@@ -10,7 +10,7 @@ Plan the `[module]` module.
 
 Read and follow strictly:
 - **Phase file:** stage-02-sub-02-phase-01-plan.md
-- **Spec:** module-contracts/[module].md
+- **Spec:** module-contracts/
 - **Rules:** module-implementation-rules.md
 - **Contract:** @app-template/contract
 
@@ -24,10 +24,10 @@ Produce the sprint plan for `[module]`.
 
 Read and follow strictly:
 - **Phase file:** stage-02-sub-02-phase-02-sprints.md
-- **Plan:** /docs/stage-02-backend/sub-02-module/plan-[module].md
+- **Plan:** /docs/stage-02-backend/sub-02-module/results/plan-[module].md
 - **Rules:** module-implementation-rules.md
 
-Constraints: no code; foundation (mapper/interface) → logic (service) → API (controller/wiring); every sprint has a Validation block covering compilation and tests; output only Docs/stage-02-backend/sub-02-module/resuls/sprints-[module]-[setnumber].md.
+Constraints: no code; foundation (mapper/interface) → logic (service) → API (controller/wiring); every sprint has a Validation block covering compilation and tests; output only Docs/stage-02-backend/sub-02-module/results/sprints-[module]-[setnumber].md.
 
 ---
 
@@ -36,9 +36,9 @@ Constraints: no code; foundation (mapper/interface) → logic (service) → API 
 Begin executing the `[module]` sprints.
 
 Read and follow strictly:
-- **Phase file:** `stage-02-sub-02-phase-03-execute.md`
-- **Sprints:** `/docs/stage-02-backend/sub-02-module/sprints-[module].md`
-- **Rules:** `module-implementation-rules.md`
-- **Contract & spec:** `@app-template/contract`, `module-contracts/[module].md`
+- **Phase file:** stage-02-sub-02-phase-03-execute.md
+- **Sprints:** stage-02-backend/sub-02-module/sprints-[module].md
+- **Rules:** module-implementation-rules.md
+- **Contract & spec:** `@dragon-telecom/contract`, module-contracts/
 
-Instructions: follow the Context Protocol; take the **first sprint not marked ✅**; test-first; validate (`tsc`, `test:unit` incl. conformance, `test:int` once wired); commit on green; write the report; mark ✅; stop and wait for `next`.
+Instructions: follow the Context Protocol; take the **first sprint not marked ✅**; test-first; validate (`tsc`, `test:unit` incl. conformance, `test:int` once wired); write the report; mark ✅; commit on green; stop and wait for `next`.
