@@ -37,7 +37,7 @@ Begin executing the `[module]` sprints.
 
 Read and follow strictly:
 - **Phase file:** stage-02-sub-02-phase-03-execute.md
-- **Sprints:** stage-02-backend/sub-02-module/sprints-[module].md
+- **Sprints:** stage-02-backend/sub-02-module/results/sprints-
 - **Rules:** module-implementation-rules.md
 - **Contract & spec:** `@dragon-telecom/contract`, module-contracts/
 
