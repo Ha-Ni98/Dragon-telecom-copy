@@ -15,6 +15,14 @@ import type {
 // RequestContext). `eventKey` deliberately absent: idempotency is a zero-schema pre-insert
 // existence check on (actionType, entityType, entityId, description) — owner decision, Sprint O1
 // — not a dedicated dedup column.
+//
+// `alwaysAppend` (added during Sprint O2's service implementation — a refinement of the O1
+// design): the dedupe check alone can't distinguish "the same event replayed" from "a genuinely
+// new occurrence that happens to produce the same narration" for inherently-repeatable events —
+// e.g. the same user logging in twice in a row narrates identically ("logged in (staff)") but
+// both must be recorded. The listener sets this `true` for such events (auth.loggedIn and any
+// other event with no natural before/after state to vary the description), skipping the
+// existence check entirely and always inserting.
 export type AuditEntry = {
   actionType: string;
   entityType: string;
@@ -22,6 +30,7 @@ export type AuditEntry = {
   description: string;
   userId?: string;
   ipAddress?: string;
+  alwaysAppend?: boolean;
 };
 
 // catalog.events.ts's `product.searched` payload shape, mirrored locally rather than importing

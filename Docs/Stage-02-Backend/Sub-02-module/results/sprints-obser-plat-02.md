@@ -187,22 +187,24 @@ monotonicity under concurrency was proven against a real DB via real parallel tr
 
 ---
 
-### Sprint O2: Logic A — the sink service (writes, reads, stats)   — Status: ⬜ Pending
+### Sprint O2: Logic A — the sink service (writes, reads, stats)   — Status: ✅ Done
 
 **Goals**
 - `ObservabilityService` — append-only writes, the idempotent `recordAuditEvent`, the read/filter/
   paginate endpoints, and `getLogStats` windows. **No listener yet.**
 
 **Tasks**
-- [ ] Impl: `src/modules/observability/observability.service.ts` — `class ObservabilityService implements IObservabilityService`, `constructor(prisma)`. `recordClientActivity(clientId, cmd)` + `recordStaffSearch(userId, cmd)` + `recordProductSearched(payload)` — append-only inserts. `recordAuditEvent(entry)` — **idempotent**: upsert by `eventKey` (or existence-check per the O1 decision); `eventKey` null ⇒ always append. **Emits nothing.** (plan §2.1, §3.1–3.2)
-- [ ] Impl reads: `getClientActivity(clientId, q)` — filter `type?` + date range, newest first, join `product` → `ClientActivityDto[]` (array). `listStaffSearches(q)` — filter `userId?` + date + `q` (`query contains`, insensitive), join `user` + `matchedProduct` → `StaffSearchDto[]` (array). `listLogs(q)` — filter `actionType?`/`userId?`/date/`search` (`description contains`), join `user`, newest first, **`paginated(AuditLogResponseSchema)`** (20/page). `getLogStats()` — four `count()` windows (total / today / week / month). (plan §3.4)
-- [ ] Test: `test/unit/modules/observability/observability.service.spec.ts` — mock Prisma (constructor DI). Beacon writes map fields correctly; **`recordAuditEvent` idempotent** (replayed key → one row / no-op) + null-key appends; `getLogStats` window math; `listLogs` pagination meta; filter builders (`actionType`/`userId`/date/`contains`); `getClientActivity`/`listStaffSearches` filters + null-nested omission. (plan §4.2)
+- [x] Impl: `src/modules/observability/observability.service.ts` — `class ObservabilityService implements IObservabilityService`, `constructor(prisma)`. `recordClientActivity(clientId, cmd)` + `recordStaffSearch(userId, cmd)` + `recordProductSearched(payload)` — append-only inserts. `recordAuditEvent(entry)` — **idempotent**: existence-check on `(actionType, entityType, entityId, description)` per the O1 decision; **refinement discovered this sprint:** `entry.alwaysAppend` skips the check for inherently-repeatable events (e.g. `auth.loggedIn`), added to `AuditEntry` in `observability.interface.ts`. **Emits nothing.** (plan §2.1, §3.1–3.2)
+- [x] Impl reads: `getClientActivity(clientId, q)` — filter `type?` + date range, newest first, join `product` → `ClientActivityDto[]` (array). `listStaffSearches(q)` — filter `userId?` + date + `q` (`query contains`, insensitive), join `user` + `matchedProduct` → `StaffSearchDto[]` (array). `listLogs(q)` — filter `actionType?`/`userId?`/date/`search` (`description contains`), join `user`, newest first, **`paginated(AuditLogResponseSchema)`** (20/page). `getLogStats()` — four `count()` windows (total / today / week / month). (plan §3.4)
+- [x] Test: `test/unit/modules/observability/observability.service.spec.ts` (12 tests, written before the implementation) — mock Prisma (constructor DI). Beacon writes map fields correctly; **`recordAuditEvent` idempotent** (matching row → no-op) + `alwaysAppend` bypass; `getLogStats` window math; `listLogs` pagination meta; filter builders (`actionType`/`userId`/date/`contains`); `getClientActivity`/`listStaffSearches` filters + null-nested omission. (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green.
-- [ ] Append-only (no update/delete paths); `select`/`include` scoped to what the mapper needs; `listLogs` via `paginated(...).parse()`; every returned value is mapper-shaped.
-- [ ] Committed on green (`api: observability sprint 2 — sink service`).
+- [x] `npx tsc --noEmit` clean; `npm run lint` clean (one real finding fixed: a Prisma enum imported as a value but only used in `as` type-assertion position → `import type`).
+- [x] `npm run test:unit` green — 156/156 tests, 17 files (144 prior + 12 new).
+- [x] Append-only (no update/delete paths); `select`/`include` scoped to what the mapper needs; `listLogs` via `paginated(...).parse()`; every returned value is mapper-shaped.
+- [x] Committed on green (`api: observability sprint 2 — sink service`).
+
+**Report:** [`results-obser-plat-02/report-sprint-O2-02.md`](./results-obser-plat-02/report-sprint-O2-02.md)
 
 ---
 
