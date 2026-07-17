@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { UserType as PrismaUserType } from '@prisma/client';
-import { AuthType, ErrorCode, UserType as ContractUserType } from '@dragon-telecom/contract';
+import { Prisma, UserType as PrismaUserType } from '@prisma/client';
+import { AuthType, ErrorCode, UserType as ContractUserType, type CreateUserCommand } from '@dragon-telecom/contract';
 import { AppError } from '../../../../src/common/errors';
 import { IdentityService } from '../../../../src/modules/identity/identity.service';
 
@@ -8,6 +8,9 @@ const {
   userFindFirstMock,
   userFindUniqueMock,
   userUpdateMock,
+  userCreateMock,
+  userCountMock,
+  userFindManyMock,
   clientFindUniqueMock,
   refreshTokenFindUniqueMock,
   refreshTokenCreateMock,
@@ -15,9 +18,20 @@ const {
   refreshTokenUpdateManyMock,
   userRoleFindManyMock,
   pageFindManyMock,
+  roleFindUniqueMock,
+  roleFindUniqueOrThrowMock,
+  roleFindManyMock,
+  roleCreateMock,
+  roleUpdateMock,
+  rolePageDeleteManyMock,
+  rolePageCreateManyMock,
+  technicianFindManyMock,
+  technicianCreateMock,
+  technicianUpdateMock,
   transactionMock,
   eventBusEmitMock,
   comparePasswordMock,
+  hashPasswordMock,
   generateTokenMock,
   generateRefreshTokenMock,
   hashRefreshTokenMock,
@@ -25,6 +39,9 @@ const {
   userFindFirstMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   userUpdateMock: vi.fn(),
+  userCreateMock: vi.fn(),
+  userCountMock: vi.fn(),
+  userFindManyMock: vi.fn(),
   clientFindUniqueMock: vi.fn(),
   refreshTokenFindUniqueMock: vi.fn(),
   refreshTokenCreateMock: vi.fn(),
@@ -32,16 +49,27 @@ const {
   refreshTokenUpdateManyMock: vi.fn(),
   userRoleFindManyMock: vi.fn(),
   pageFindManyMock: vi.fn(),
+  roleFindUniqueMock: vi.fn(),
+  roleFindUniqueOrThrowMock: vi.fn(),
+  roleFindManyMock: vi.fn(),
+  roleCreateMock: vi.fn(),
+  roleUpdateMock: vi.fn(),
+  rolePageDeleteManyMock: vi.fn(),
+  rolePageCreateManyMock: vi.fn(),
+  technicianFindManyMock: vi.fn(),
+  technicianCreateMock: vi.fn(),
+  technicianUpdateMock: vi.fn(),
   transactionMock: vi.fn(),
   eventBusEmitMock: vi.fn(),
   comparePasswordMock: vi.fn(),
+  hashPasswordMock: vi.fn(),
   generateTokenMock: vi.fn(),
   generateRefreshTokenMock: vi.fn(),
   hashRefreshTokenMock: vi.fn(),
 }));
 
 vi.mock('@common/events/event-bus', () => ({ eventBus: { emit: eventBusEmitMock } }));
-vi.mock('@common/utils/password.utils', () => ({ comparePassword: comparePasswordMock, hashPassword: vi.fn() }));
+vi.mock('@common/utils/password.utils', () => ({ comparePassword: comparePasswordMock, hashPassword: hashPasswordMock }));
 vi.mock('@common/utils/token.utils', () => ({ generateToken: generateTokenMock, verifyToken: vi.fn() }));
 vi.mock('@common/utils/refresh-token.utils', () => ({
   generateRefreshToken: generateRefreshTokenMock,
@@ -49,7 +77,14 @@ vi.mock('@common/utils/refresh-token.utils', () => ({
 }));
 
 const prismaMock = {
-  user: { findFirst: userFindFirstMock, findUnique: userFindUniqueMock, update: userUpdateMock },
+  user: {
+    findFirst: userFindFirstMock,
+    findUnique: userFindUniqueMock,
+    update: userUpdateMock,
+    create: userCreateMock,
+    count: userCountMock,
+    findMany: userFindManyMock,
+  },
   client: { findUnique: clientFindUniqueMock },
   refreshToken: {
     findUnique: refreshTokenFindUniqueMock,
@@ -59,6 +94,15 @@ const prismaMock = {
   },
   userRole: { findMany: userRoleFindManyMock },
   page: { findMany: pageFindManyMock },
+  role: {
+    findUnique: roleFindUniqueMock,
+    findUniqueOrThrow: roleFindUniqueOrThrowMock,
+    findMany: roleFindManyMock,
+    create: roleCreateMock,
+    update: roleUpdateMock,
+  },
+  rolePage: { deleteMany: rolePageDeleteManyMock, createMany: rolePageCreateManyMock },
+  technician: { findMany: technicianFindManyMock, create: technicianCreateMock, update: technicianUpdateMock },
   $transaction: transactionMock,
 };
 
@@ -67,6 +111,11 @@ const STAFF_ID = '22222222-2222-4222-8222-222222222222';
 const CLIENT_ID = '33333333-3333-4333-8333-333333333333';
 const OLD_TOKEN_ID = '44444444-4444-4444-8444-444444444444';
 const NEW_TOKEN_ID = '55555555-5555-4555-8555-555555555555';
+const ROLE_ID = '66666666-6666-4666-8666-666666666666';
+const TECH_ID = '77777777-7777-4777-8777-777777777777';
+
+const prismaKnownError = (code: string, message = 'mock prisma error') =>
+  new Prisma.PrismaClientKnownRequestError(message, { code, clientVersion: '6.19.3' });
 
 const buildStaffUser = (overrides: Record<string, unknown> = {}) => ({
   id: USER_ID,
@@ -104,6 +153,7 @@ describe('IdentityService', () => {
     generateTokenMock.mockReturnValue('signed.access.token');
     generateRefreshTokenMock.mockReturnValue({ token: 'raw-refresh-token', tokenHash: 'hashed-refresh-token' });
     hashRefreshTokenMock.mockImplementation((token: string) => `hash(${token})`);
+    hashPasswordMock.mockImplementation(async (plain: string) => `hashed(${plain})`);
   });
 
   const service = () => new IdentityService(prismaMock as never);
@@ -375,6 +425,288 @@ describe('IdentityService', () => {
 
       expect(pages.sort()).toEqual(['STAFF_POS', 'STAFF_REPAIRS', 'STAFF_SALES']);
       expect(userRoleFindManyMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createUser', () => {
+    const cmd: CreateUserCommand = {
+      username: 'newstaff',
+      email: 'newstaff@example.com',
+      password: 'Password123!',
+      type: ContractUserType.STAFF,
+      profile: { firstName: 'New', lastName: 'Staff' },
+      roleIds: [ROLE_ID],
+    };
+
+    it('hashes the password, creates the user, and emits user.created (no external tx)', async () => {
+      userCreateMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      const dto = await service().createUser(cmd);
+
+      expect(hashPasswordMock).toHaveBeenCalledWith('Password123!');
+      expect(userCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            username: 'newstaff',
+            passwordHash: 'hashed(Password123!)',
+            type: ContractUserType.STAFF,
+          }),
+        }),
+      );
+      expect(eventBusEmitMock).toHaveBeenCalledWith('user.created', { user: dto });
+    });
+
+    it('does not emit when called with an external tx — the caller owns commit timing', async () => {
+      const txMock = { user: { create: userCreateMock }, page: { findMany: pageFindManyMock } };
+      userCreateMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      await service().createUser(cmd, txMock as never);
+
+      expect(eventBusEmitMock).not.toHaveBeenCalled();
+    });
+
+    it('maps a duplicate username/email (P2002) to a ConflictError', async () => {
+      userCreateMock.mockRejectedValueOnce(prismaKnownError('P2002'));
+
+      const err = await expectRejection(service().createUser(cmd));
+
+      expect(err.statusCode).toBe(409);
+      expect(err.code).toBe(ErrorCode.RESOURCE_CONFLICT);
+    });
+  });
+
+  describe('updateUser', () => {
+    it('blocks disabling the last enabled admin with a 409', async () => {
+      userFindUniqueMock.mockResolvedValueOnce(buildStaffUser({ type: PrismaUserType.ADMIN, userRoles: [] }));
+      userCountMock.mockResolvedValueOnce(1);
+
+      const err = await expectRejection(service().updateUser(USER_ID, { isEnabled: false }));
+
+      expect(err.statusCode).toBe(409);
+      expect(err.code).toBe(ErrorCode.RESOURCE_CONFLICT);
+      expect(userUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it('allows disabling an admin when another enabled admin remains', async () => {
+      userFindUniqueMock.mockResolvedValueOnce(buildStaffUser({ type: PrismaUserType.ADMIN, userRoles: [] }));
+      userCountMock.mockResolvedValueOnce(2);
+      userUpdateMock.mockResolvedValueOnce(buildStaffUser({ type: PrismaUserType.ADMIN, isEnabled: false, userRoles: [] }));
+      refreshTokenUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      await service().updateUser(USER_ID, { isEnabled: false });
+
+      expect(userUpdateMock).toHaveBeenCalled();
+    });
+
+    it('disabling a user revokes its active tokens in the same transaction', async () => {
+      userFindUniqueMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      userUpdateMock.mockResolvedValueOnce(buildStaffUser({ isEnabled: false, userRoles: [] }));
+      refreshTokenUpdateManyMock.mockResolvedValueOnce({ count: 2 });
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      await service().updateUser(USER_ID, { isEnabled: false });
+
+      expect(transactionMock).toHaveBeenCalled();
+      expect(refreshTokenUpdateManyMock).toHaveBeenCalledWith({
+        where: { userId: USER_ID, revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('changing the password revokes active tokens too', async () => {
+      userFindUniqueMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      userUpdateMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      refreshTokenUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      await service().updateUser(USER_ID, { password: 'NewPassword123!' });
+
+      expect(hashPasswordMock).toHaveBeenCalledWith('NewPassword123!');
+      expect(refreshTokenUpdateManyMock).toHaveBeenCalled();
+    });
+
+    it('a plain profile update does not revoke tokens and skips the transaction', async () => {
+      userFindUniqueMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      userUpdateMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      await service().updateUser(USER_ID, { profile: { jobTitle: 'Lead Cashier' } });
+
+      expect(refreshTokenUpdateManyMock).not.toHaveBeenCalled();
+      expect(transactionMock).not.toHaveBeenCalled();
+    });
+
+    it('emits user.updated, and additionally user.roleChanged when roleIds is provided', async () => {
+      userFindUniqueMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      userUpdateMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      const dto = await service().updateUser(USER_ID, { roleIds: [ROLE_ID] });
+
+      expect(eventBusEmitMock).toHaveBeenCalledWith('user.updated', { user: dto });
+      expect(eventBusEmitMock).toHaveBeenCalledWith('user.roleChanged', { userId: USER_ID, roleIds: [ROLE_ID] });
+    });
+
+    it('does not emit user.roleChanged when roleIds is not part of the update', async () => {
+      userFindUniqueMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      userUpdateMock.mockResolvedValueOnce(buildStaffUser({ userRoles: [] }));
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      await service().updateUser(USER_ID, { profile: { jobTitle: 'Lead Cashier' } });
+
+      expect(eventBusEmitMock).not.toHaveBeenCalledWith('user.roleChanged', expect.anything());
+    });
+  });
+
+  describe('setRolePages', () => {
+    it('rejects when a page key does not exist (400)', async () => {
+      roleFindUniqueMock.mockResolvedValueOnce({ id: ROLE_ID });
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      const err = await expectRejection(service().setRolePages(ROLE_ID, { pageKeys: ['NOT_A_REAL_KEY'] }));
+
+      expect(err.statusCode).toBe(400);
+      expect(err.code).toBe(ErrorCode.VALIDATION_ERROR);
+      expect(rolePageDeleteManyMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects an ADMIN-scope page key (400)', async () => {
+      roleFindUniqueMock.mockResolvedValueOnce({ id: ROLE_ID });
+      pageFindManyMock.mockResolvedValueOnce([{ id: 'page-1', key: 'ADM_DASHBOARD', scope: 'ADMIN' }]);
+
+      const err = await expectRejection(service().setRolePages(ROLE_ID, { pageKeys: ['ADM_DASHBOARD'] }));
+
+      expect(err.statusCode).toBe(400);
+      expect(err.code).toBe(ErrorCode.VALIDATION_ERROR);
+    });
+
+    it('replaces the role pages on success', async () => {
+      roleFindUniqueMock.mockResolvedValueOnce({ id: ROLE_ID });
+      pageFindManyMock.mockResolvedValueOnce([{ id: 'page-1', key: 'STAFF_POS', scope: 'STAFF' }]);
+      roleFindUniqueOrThrowMock.mockResolvedValueOnce({
+        id: ROLE_ID,
+        code: 'ROLE_1',
+        name: 'Role One',
+        description: null,
+        isEnabled: true,
+        rolePages: [{ page: { key: 'STAFF_POS' } }],
+      });
+
+      const dto = await service().setRolePages(ROLE_ID, { pageKeys: ['STAFF_POS'] });
+
+      expect(rolePageDeleteManyMock).toHaveBeenCalledWith({ where: { roleId: ROLE_ID } });
+      expect(rolePageCreateManyMock).toHaveBeenCalledWith({ data: [{ roleId: ROLE_ID, pageId: 'page-1' }] });
+      expect(dto.pageKeys).toEqual(['STAFF_POS']);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('hashes the new password and revokes active tokens', async () => {
+      userUpdateMock.mockResolvedValueOnce({});
+      refreshTokenUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+
+      await service().resetPassword(USER_ID, 'BrandNewPassword1!');
+
+      expect(hashPasswordMock).toHaveBeenCalledWith('BrandNewPassword1!');
+      expect(userUpdateMock).toHaveBeenCalledWith({ where: { id: USER_ID }, data: { passwordHash: 'hashed(BrandNewPassword1!)' } });
+      expect(refreshTokenUpdateManyMock).toHaveBeenCalledWith({
+        where: { userId: USER_ID, revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('runs both writes against the provided tx, not a new transaction', async () => {
+      const txUserUpdate = vi.fn().mockResolvedValueOnce({});
+      const txRefreshUpdateMany = vi.fn().mockResolvedValueOnce({ count: 0 });
+      const txMock = { user: { update: txUserUpdate }, refreshToken: { updateMany: txRefreshUpdateMany } };
+
+      await service().resetPassword(USER_ID, 'BrandNewPassword1!', txMock as never);
+
+      expect(txUserUpdate).toHaveBeenCalled();
+      expect(txRefreshUpdateMany).toHaveBeenCalled();
+      expect(transactionMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('roles, pages, and technicians (basic CRUD)', () => {
+    it('listRoles maps every role through the mapper', async () => {
+      roleFindManyMock.mockResolvedValueOnce([
+        { id: ROLE_ID, code: 'ROLE_1', name: 'Role One', description: null, isEnabled: true, rolePages: [] },
+      ]);
+
+      const roles = await service().listRoles();
+
+      expect(roles).toHaveLength(1);
+      expect(roles[0]?.code).toBe('ROLE_1');
+    });
+
+    it('createRole maps a duplicate code (P2002) to a ConflictError', async () => {
+      roleCreateMock.mockRejectedValueOnce(prismaKnownError('P2002'));
+
+      const err = await expectRejection(service().createRole({ code: 'DUP', name: 'Dup' }));
+
+      expect(err.statusCode).toBe(409);
+    });
+
+    it('updateRole maps a missing role (P2025) to a NotFoundError', async () => {
+      roleUpdateMock.mockRejectedValueOnce(prismaKnownError('P2025'));
+
+      const err = await expectRejection(service().updateRole(ROLE_ID, { name: 'New name' }));
+
+      expect(err.statusCode).toBe(404);
+    });
+
+    it('listPages filters by scope when provided', async () => {
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listPages({ scope: 'STAFF' as never });
+
+      expect(pageFindManyMock).toHaveBeenCalledWith(expect.objectContaining({ where: { scope: 'STAFF' } }));
+    });
+
+    it('createTechnician / updateTechnician round-trip through the mapper', async () => {
+      technicianCreateMock.mockResolvedValueOnce({ id: TECH_ID, name: 'Tech One', phone: null, isEnabled: true });
+      const created = await service().createTechnician({ name: 'Tech One' });
+      expect(created.name).toBe('Tech One');
+
+      technicianUpdateMock.mockResolvedValueOnce({ id: TECH_ID, name: 'Tech One', phone: null, isEnabled: false });
+      const updated = await service().updateTechnician(TECH_ID, { isEnabled: false });
+      expect(updated.isEnabled).toBe(false);
+    });
+
+    it('updateTechnician maps a missing technician (P2025) to a NotFoundError', async () => {
+      technicianUpdateMock.mockRejectedValueOnce(prismaKnownError('P2025'));
+
+      const err = await expectRejection(service().updateTechnician(TECH_ID, { isEnabled: false }));
+
+      expect(err.statusCode).toBe(404);
+    });
+  });
+
+  describe('listUsers / getUser', () => {
+    it('listUsers paginates and excludes CLIENT rows by default', async () => {
+      userCountMock.mockResolvedValueOnce(1);
+      userFindManyMock.mockResolvedValueOnce([buildStaffUser({ userRoles: [] })]);
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      const result = await service().listUsers({ page: 1, limit: 10 });
+
+      expect(userCountMock).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ type: { in: [PrismaUserType.ADMIN, PrismaUserType.STAFF] } }) }),
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.meta).toEqual({ page: 1, limit: 10, total: 1, totalPages: 1 });
+    });
+
+    it('getUser 404s for a CLIENT-type id (out of this endpoint domain)', async () => {
+      userFindUniqueMock.mockResolvedValueOnce(buildClientUser());
+
+      const err = await expectRejection(service().getUser(USER_ID));
+
+      expect(err.statusCode).toBe(404);
     });
   });
 });

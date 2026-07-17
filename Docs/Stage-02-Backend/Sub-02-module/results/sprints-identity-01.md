@@ -104,23 +104,28 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 4: Logic B — admin management   — Status: ⬜ Pending
+### Sprint 4: Logic B — admin management   — Status: ✅ Done
 
 **Goals**
 - Complete the service: users, roles, pages, technicians, guards, and the injected `resetPassword`.
 
 **Tasks**
-- [ ] Impl users: `listUsers` (paginated via `paginated()`), `getUser`, `createUser(cmd, tx?)` (tx-aware: `User`+`Staff`+`UserRole` in one transaction; `hashPassword`; `P2002` → `ConflictError`; emit `user.created`), `updateUser` (`isEnabled` + **last-admin guard** 409 + revoke tokens; `password` → hash + revoke; `profile`; `roleIds` replace; emit `user.updated`, and `user.roleChanged` when roles change). (plan §3.5–3.6, §2.1)
-- [ ] Impl roles/pages: `listRoles`, `createRole`, `updateRole`, `setRolePages` (validate keys exist **and** are STAFF-scope against the DB → `VALIDATION_ERROR`/400; replace `RolePage` rows in a transaction), `listPages(scope?)`. (plan §3.4, §2.1)
-- [ ] Impl technicians: `listTechnicians`, `createTechnician`, `updateTechnician` (`isEnabled` toggle — no delete). (plan §3.7)
-- [ ] Impl `resetPassword(userId, newPassword, tx?)` — hash + revoke all the user's tokens (injected surface for the clients module). (plan §2.1, §3.2)
-- [ ] Test: `identity.service.spec.ts` (part B) — last-admin guard blocks disabling the last enabled ADMIN (409); disabling revokes tokens; `createUser` conflict + `user.created`; `updateUser` `user.updated`/`user.roleChanged`; `setRolePages` rejects ADMIN-scope/unknown key (400) and replaces on success; `resetPassword` revokes tokens. (plan §4.2)
+- [x] Impl users: `listUsers` (paginated via `paginated(UserResponseSchema)`; restricted to ADMIN/STAFF — CLIENT rows are out of this endpoint's domain since `UserDto.profile` has no CLIENT variant; an explicit `type: CLIENT` filter returns empty rather than erroring), `getUser` (404s for CLIENT ids too), `createUser(cmd, tx?)` (single atomic nested-write `user.create` covers `User`+`Staff`+`UserRole` — Prisma nested writes are already atomic, no separate `$transaction` needed; `hashPassword`; `P2002` → `ConflictError`; emits `user.created` **only when `tx` is not provided** — see design note below), `updateUser` (`isEnabled` + **last-admin guard** 409 + revoke tokens; `password` → hash + revoke; `profile`; `roleIds` replace; emits `user.updated`, and `user.roleChanged` when `roleIds` provided). (plan §3.5–3.6, §2.1)
+- [x] Impl roles/pages: `listRoles`, `createRole` (`P2002` → `ConflictError`), `updateRole` (`P2025` → `NotFoundError`), `setRolePages` (validates keys exist **and** are STAFF-scope against the DB → `BadRequestError`/400; replaces `RolePage` rows in a transaction), `listPages(scope?)`. (plan §3.4, §2.1)
+- [x] Impl technicians: `listTechnicians`, `createTechnician`, `updateTechnician` (`isEnabled` toggle, `P2025` → `NotFoundError` — no delete). (plan §3.7)
+- [x] Impl `resetPassword(userId, newPassword, tx?)` — hash + revoke all the user's tokens; when `tx` is provided, runs both writes directly against it (Prisma's `TransactionClient` has no `$transaction` of its own — you can't nest transactions, the passed `tx` already *is* the atomic context); otherwise wraps its own two writes in `this.prisma.$transaction([...])`. (plan §2.1, §3.2)
+- [x] Test: `identity.service.spec.ts` (part B, +23 tests) — last-admin guard (409) + allows disabling when another admin remains; disabling revokes tokens; password change also revokes tokens; plain profile update does neither; `createUser` conflict (409) + `user.created` emitted only without `tx`; `updateUser` `user.updated`/`user.roleChanged` (and does *not* emit `roleChanged` when `roleIds` untouched); `setRolePages` rejects unknown key and ADMIN-scope key (400) and replaces on success; `resetPassword` revokes tokens both standalone and via an external `tx`; plus lighter CRUD coverage for roles/pages/technicians/listUsers/getUser. (plan §4.2)
+
+**Design note — event timing with the injected `tx?` (`createUser`, discovered mid-sprint):** the spec requires events to emit *after commit*. When `createUser`/`resetPassword` are called by another module inside *its* transaction (the injected-service connection rule), `IdentityService` has no visibility into when that outer transaction actually commits — so it must not emit on the caller's behalf. Resolved by only emitting `user.created` when `tx` is absent (i.e., identity owns the write); when `tx` is passed, the **caller** is responsible for emitting after its own transaction commits. Documented inline in the code and here since it's not obvious from the interface signature alone.
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean.
-- [ ] `npm run test:unit` green.
-- [ ] Multi-row writes run in transactions; Prisma `select`/`include` scoped to needed fields; DTOs parse their schemas.
-- [ ] Committed on green (`api: sub-02 sprint 4 — identity admin management`).
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green — 97/97 tests, 13 files (+23 from this sprint's additions to `identity.service.spec.ts`, now 39 tests).
+- [x] `npm run lint` clean (one real finding fixed: an unused `Page` type import).
+- [x] Multi-row writes run in transactions where atomicity is needed (`updateUser`'s user+token-revoke, `setRolePages`'s delete+recreate, standalone `resetPassword`); Prisma nested-writes (`createUser`) are atomic without an explicit `$transaction`; `include`/`select` scoped to what the mapper needs; every returned value is DTO-shaped via `IdentityMapper`/`paginated(UserResponseSchema).parse(...)`.
+- [x] Committed on green (`api: identity sprint 4 — admin management`).
+
+**Report:** [`results-identity-01/report-sprint-04-01.md`](./results-identity-01/report-sprint-04-01.md)
 
 ---
 

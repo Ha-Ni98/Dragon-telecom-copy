@@ -1,9 +1,11 @@
 import type { Client, PrismaClient, Staff } from '@prisma/client';
-import { UserType as PrismaUserType } from '@prisma/client';
+import { Prisma, UserType as PrismaUserType, PageScope as PrismaPageScope } from '@prisma/client';
 import {
   ErrorCode,
   LoginResultResponseSchema,
   RefreshResultResponseSchema,
+  UserResponseSchema,
+  paginated,
   type CreateRoleCommand,
   type CreateTechnicianCommand,
   type CreateUserCommand,
@@ -25,14 +27,27 @@ import {
   type UserListQuery,
   type UserType as ContractUserType,
 } from '@dragon-telecom/contract';
-import { AppError } from '@common/errors';
+import { AppError, BadRequestError, ConflictError, NotFoundError } from '@common/errors';
 import { eventBus } from '@common/events/event-bus';
-import { comparePassword } from '@common/utils/password.utils';
+import { comparePassword, hashPassword } from '@common/utils/password.utils';
 import { generateToken } from '@common/utils/token.utils';
 import { generateRefreshToken, hashRefreshToken } from '@common/utils/refresh-token.utils';
 import { env } from '../../env';
 import type { IIdentityService, RequestContext } from './identity.interface';
 import { IdentityMapper } from './identity.mapper';
+
+// The full relation shape IdentityMapper.toUserDto needs. `staff` is nullable at the Prisma
+// level (User.staff is an optional relation) even though ADMIN/STAFF rows always have one in
+// practice — see assertStaffLoaded().
+const USER_INCLUDE = {
+  staff: true,
+  userRoles: { include: { role: { include: { rolePages: { include: { page: true } } } } } },
+} satisfies Prisma.UserInclude;
+
+const ROLE_INCLUDE = { rolePages: { include: { page: true } } } satisfies Prisma.RoleInclude;
+
+const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaClientKnownRequestError =>
+  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -160,8 +175,8 @@ export class IdentityService implements IIdentityService {
     const type = user.type as PrismaUserType;
 
     if (type === PrismaUserType.ADMIN) {
-      const pages = await this.prisma.page.findMany({ select: { key: true } });
-      return IdentityMapper.effectivePages([], pages.map((page) => page.key), type);
+      const allPageKeys = await this.getAllPageKeys();
+      return IdentityMapper.effectivePages([], allPageKeys, type);
     }
 
     const userRoles = await this.prisma.userRole.findMany({
@@ -171,49 +186,289 @@ export class IdentityService implements IIdentityService {
     return IdentityMapper.effectivePages(userRoles, [], type);
   }
 
-  // --- Users (Sprint 4) ---
-  async listUsers(_query: UserListQuery): Promise<PaginatedResult<UserDto>> {
-    return this.notImplemented('listUsers');
-  }
-  async getUser(_id: string): Promise<UserDto> {
-    return this.notImplemented('getUser');
-  }
-  async createUser(_cmd: CreateUserCommand): Promise<UserDto> {
-    return this.notImplemented('createUser');
-  }
-  async updateUser(_id: string, _cmd: UpdateUserCommand): Promise<UserDto> {
-    return this.notImplemented('updateUser');
-  }
-  async resetPassword(_userId: string, _newPassword: string): Promise<void> {
-    return this.notImplemented('resetPassword');
+  // --- Users ---
+  async listUsers(query: UserListQuery): Promise<PaginatedResult<UserDto>> {
+    // Identity's /admin/users only manages ADMIN/STAFF (CreateUserCommand can't express
+    // CLIENT); an explicit `type: CLIENT` filter is out of this endpoint's domain -> empty.
+    const typeFilter =
+      query.type != null
+        ? ([PrismaUserType.ADMIN, PrismaUserType.STAFF] as PrismaUserType[]).includes(query.type as PrismaUserType)
+          ? [query.type as PrismaUserType]
+          : []
+        : [PrismaUserType.ADMIN, PrismaUserType.STAFF];
+
+    const where: Prisma.UserWhereInput = {
+      type: { in: typeFilter },
+      ...(query.isEnabled !== undefined ? { isEnabled: query.isEnabled } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { username: { contains: query.search, mode: 'insensitive' } },
+              { email: { contains: query.search, mode: 'insensitive' } },
+              { staff: { firstName: { contains: query.search, mode: 'insensitive' } } },
+              { staff: { lastName: { contains: query.search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, users] = await this.prisma.$transaction([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        include: USER_INCLUDE,
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const allPageKeys = await this.getAllPageKeys();
+    const items = users.map((user) => IdentityMapper.toUserDto(this.assertStaffLoaded(user), allPageKeys));
+
+    return paginated(UserResponseSchema).parse({
+      items,
+      meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) },
+    });
   }
 
-  // --- Roles & pages (Sprint 4) ---
+  async getUser(id: string): Promise<UserDto> {
+    const user = await this.prisma.user.findUnique({ where: { id }, include: USER_INCLUDE });
+    if (!user || user.type === PrismaUserType.CLIENT) throw new NotFoundError('User');
+
+    const allPageKeys = await this.getAllPageKeys();
+    return IdentityMapper.toUserDto(this.assertStaffLoaded(user), allPageKeys);
+  }
+
+  async createUser(cmd: CreateUserCommand, tx?: Prisma.TransactionClient): Promise<UserDto> {
+    const client = tx ?? this.prisma;
+    const passwordHash = await hashPassword(cmd.password);
+
+    let created;
+    try {
+      created = await client.user.create({
+        data: {
+          username: cmd.username,
+          ...(cmd.email != null ? { email: cmd.email } : {}),
+          passwordHash,
+          type: cmd.type as PrismaUserType,
+          staff: {
+            create: {
+              firstName: cmd.profile.firstName,
+              lastName: cmd.profile.lastName,
+              ...(cmd.profile.phone != null ? { phone: cmd.profile.phone } : {}),
+              ...(cmd.profile.jobTitle != null ? { jobTitle: cmd.profile.jobTitle } : {}),
+            },
+          },
+          ...(cmd.roleIds?.length ? { userRoles: { create: cmd.roleIds.map((roleId) => ({ roleId })) } } : {}),
+        },
+        include: USER_INCLUDE,
+      });
+    } catch (err) {
+      if (isKnownRequestError(err, 'P2002')) throw new ConflictError('Username or email already in use');
+      throw err;
+    }
+
+    const allPageKeys = await this.getAllPageKeys();
+    const dto = IdentityMapper.toUserDto(this.assertStaffLoaded(created), allPageKeys);
+
+    // When `tx` is provided we're running inside another module's transaction (the injected-
+    // service connection rule) — that caller owns commit timing and must emit `user.created`
+    // itself once ITS transaction actually commits. We only emit when we own the write.
+    if (!tx) {
+      eventBus.emit('user.created', { user: dto });
+    }
+
+    return dto;
+  }
+
+  async updateUser(id: string, cmd: UpdateUserCommand): Promise<UserDto> {
+    const existing = await this.prisma.user.findUnique({ where: { id }, include: USER_INCLUDE });
+    if (!existing || existing.type === PrismaUserType.CLIENT) throw new NotFoundError('User');
+
+    if (cmd.isEnabled === false && existing.isEnabled && existing.type === PrismaUserType.ADMIN) {
+      const enabledAdminCount = await this.prisma.user.count({
+        where: { type: PrismaUserType.ADMIN, isEnabled: true },
+      });
+      if (enabledAdminCount <= 1) throw new ConflictError('Cannot disable the last enabled admin');
+    }
+
+    const passwordHash = cmd.password !== undefined ? await hashPassword(cmd.password) : undefined;
+    const rolesChanged = cmd.roleIds !== undefined;
+    const shouldRevokeTokens = cmd.isEnabled === false || cmd.password !== undefined;
+
+    const updateArgs = {
+      where: { id },
+      data: {
+        ...(cmd.isEnabled !== undefined ? { isEnabled: cmd.isEnabled } : {}),
+        ...(passwordHash !== undefined ? { passwordHash } : {}),
+        ...(cmd.profile
+          ? {
+              staff: {
+                update: {
+                  ...(cmd.profile.firstName !== undefined ? { firstName: cmd.profile.firstName } : {}),
+                  ...(cmd.profile.lastName !== undefined ? { lastName: cmd.profile.lastName } : {}),
+                  ...(cmd.profile.phone !== undefined ? { phone: cmd.profile.phone } : {}),
+                  ...(cmd.profile.jobTitle !== undefined ? { jobTitle: cmd.profile.jobTitle } : {}),
+                },
+              },
+            }
+          : {}),
+        ...(rolesChanged
+          ? { userRoles: { deleteMany: {}, create: (cmd.roleIds ?? []).map((roleId) => ({ roleId })) } }
+          : {}),
+      },
+      include: USER_INCLUDE,
+    };
+
+    const updated = shouldRevokeTokens
+      ? (
+          await this.prisma.$transaction([
+            this.prisma.user.update(updateArgs),
+            this.prisma.refreshToken.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } }),
+          ])
+        )[0]
+      : await this.prisma.user.update(updateArgs);
+
+    const allPageKeys = await this.getAllPageKeys();
+    const dto = IdentityMapper.toUserDto(this.assertStaffLoaded(updated), allPageKeys);
+
+    eventBus.emit('user.updated', { user: dto });
+    if (rolesChanged) {
+      eventBus.emit('user.roleChanged', { userId: id, roleIds: cmd.roleIds ?? [] });
+    }
+
+    return dto;
+  }
+
+  async resetPassword(userId: string, newPassword: string, tx?: Prisma.TransactionClient): Promise<void> {
+    const passwordHash = await hashPassword(newPassword);
+
+    if (tx) {
+      // Already inside the caller's transaction — no separate $transaction is possible (or
+      // needed): both writes below already participate in the outer atomic unit.
+      await tx.user.update({ where: { id: userId }, data: { passwordHash } });
+      await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      return;
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+    ]);
+  }
+
+  // --- Roles & pages ---
   async listRoles(): Promise<RoleDto[]> {
-    return this.notImplemented('listRoles');
-  }
-  async createRole(_cmd: CreateRoleCommand): Promise<RoleDto> {
-    return this.notImplemented('createRole');
-  }
-  async updateRole(_id: string, _cmd: UpdateRoleCommand): Promise<RoleDto> {
-    return this.notImplemented('updateRole');
-  }
-  async setRolePages(_id: string, _cmd: SetRolePagesCommand): Promise<RoleDto> {
-    return this.notImplemented('setRolePages');
-  }
-  async listPages(_query: PagesQuery): Promise<PageDto[]> {
-    return this.notImplemented('listPages');
+    const roles = await this.prisma.role.findMany({ include: ROLE_INCLUDE, orderBy: { name: 'asc' } });
+    return roles.map((role) => IdentityMapper.toRoleDto(role));
   }
 
-  // --- Technicians (Sprint 4) ---
+  async createRole(cmd: CreateRoleCommand): Promise<RoleDto> {
+    try {
+      const role = await this.prisma.role.create({
+        data: { code: cmd.code, name: cmd.name, ...(cmd.description != null ? { description: cmd.description } : {}) },
+        include: ROLE_INCLUDE,
+      });
+      return IdentityMapper.toRoleDto(role);
+    } catch (err) {
+      if (isKnownRequestError(err, 'P2002')) throw new ConflictError('Role code already in use');
+      throw err;
+    }
+  }
+
+  async updateRole(id: string, cmd: UpdateRoleCommand): Promise<RoleDto> {
+    try {
+      const role = await this.prisma.role.update({
+        where: { id },
+        data: {
+          ...(cmd.name !== undefined ? { name: cmd.name } : {}),
+          ...(cmd.description !== undefined ? { description: cmd.description } : {}),
+          ...(cmd.isEnabled !== undefined ? { isEnabled: cmd.isEnabled } : {}),
+        },
+        include: ROLE_INCLUDE,
+      });
+      return IdentityMapper.toRoleDto(role);
+    } catch (err) {
+      if (isKnownRequestError(err, 'P2025')) throw new NotFoundError('Role');
+      throw err;
+    }
+  }
+
+  async setRolePages(id: string, cmd: SetRolePagesCommand): Promise<RoleDto> {
+    const role = await this.prisma.role.findUnique({ where: { id } });
+    if (!role) throw new NotFoundError('Role');
+
+    const pages = await this.prisma.page.findMany({ where: { key: { in: cmd.pageKeys } } });
+    const foundKeys = new Set(pages.map((page) => page.key));
+    const unknownKeys = cmd.pageKeys.filter((key) => !foundKeys.has(key));
+    const adminScopeKeys = pages.filter((page) => page.scope === PrismaPageScope.ADMIN).map((page) => page.key);
+
+    if (unknownKeys.length > 0 || adminScopeKeys.length > 0) {
+      throw new BadRequestError('role_pages accepts STAFF-scope pages only', { unknownKeys, adminScopeKeys });
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.rolePage.deleteMany({ where: { roleId: id } }),
+      this.prisma.rolePage.createMany({ data: pages.map((page) => ({ roleId: id, pageId: page.id })) }),
+    ]);
+
+    const updated = await this.prisma.role.findUniqueOrThrow({ where: { id }, include: ROLE_INCLUDE });
+    return IdentityMapper.toRoleDto(updated);
+  }
+
+  async listPages(query: PagesQuery): Promise<PageDto[]> {
+    const pages = await this.prisma.page.findMany({
+      ...(query.scope !== undefined ? { where: { scope: query.scope as PrismaPageScope } } : {}),
+      orderBy: [{ group: 'asc' }, { label: 'asc' }],
+    });
+    return pages.map((page) => IdentityMapper.toPageDto(page));
+  }
+
+  // --- Technicians ---
   async listTechnicians(): Promise<TechnicianDto[]> {
-    return this.notImplemented('listTechnicians');
+    const technicians = await this.prisma.technician.findMany({ orderBy: { name: 'asc' } });
+    return technicians.map((technician) => IdentityMapper.toTechnicianDto(technician));
   }
-  async createTechnician(_cmd: CreateTechnicianCommand): Promise<TechnicianDto> {
-    return this.notImplemented('createTechnician');
+
+  async createTechnician(cmd: CreateTechnicianCommand): Promise<TechnicianDto> {
+    const technician = await this.prisma.technician.create({
+      data: { name: cmd.name, ...(cmd.phone != null ? { phone: cmd.phone } : {}) },
+    });
+    return IdentityMapper.toTechnicianDto(technician);
   }
-  async updateTechnician(_id: string, _cmd: UpdateTechnicianCommand): Promise<TechnicianDto> {
-    return this.notImplemented('updateTechnician');
+
+  async updateTechnician(id: string, cmd: UpdateTechnicianCommand): Promise<TechnicianDto> {
+    try {
+      const technician = await this.prisma.technician.update({
+        where: { id },
+        data: {
+          ...(cmd.name !== undefined ? { name: cmd.name } : {}),
+          ...(cmd.phone !== undefined ? { phone: cmd.phone } : {}),
+          ...(cmd.isEnabled !== undefined ? { isEnabled: cmd.isEnabled } : {}),
+        },
+      });
+      return IdentityMapper.toTechnicianDto(technician);
+    } catch (err) {
+      if (isKnownRequestError(err, 'P2025')) throw new NotFoundError('Technician');
+      throw err;
+    }
+  }
+
+  private async getAllPageKeys(): Promise<string[]> {
+    const pages = await this.prisma.page.findMany({ select: { key: true } });
+    return pages.map((page) => page.key);
+  }
+
+  // ADMIN/STAFF rows always have a Staff profile (invariant enforced by createUser); narrows
+  // Prisma's structurally-nullable `staff: Staff | null` for the mapper, which requires it
+  // non-null. Throws loudly instead of silently mapping a broken row — this is a data-
+  // integrity bug, not a normal runtime case.
+  private assertStaffLoaded<T extends { id: string; type: PrismaUserType; staff: Staff | null }>(
+    user: T,
+  ): T & { staff: Staff } {
+    if (!user.staff) throw new Error(`User ${user.id} (${user.type}) is missing its Staff profile`);
+    return user as T & { staff: Staff };
   }
 
   private async resolveLoginUser(identifier: string): Promise<LoginUser | null> {
