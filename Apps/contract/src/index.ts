@@ -9,3 +9,5 @@ export * from './modules/platform';
 export * from './modules/purchasing';
 export * from './modules/sales';
 export * from './modules/orders';
+export * from './modules/repairs';
+export * from './modules/billing';

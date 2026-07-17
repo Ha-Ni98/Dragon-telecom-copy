@@ -148,7 +148,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 6: Repairs & Billing   — Status: ⬜ Pending
+### Sprint 6: Repairs & Billing   — Status: ✅ Complete
 
 **Goals**
 - Implement back-office repairs (plan H) and the invoice/client-payment module (plan I). Both self-contained; margins `.optional()` mapping-gated.
