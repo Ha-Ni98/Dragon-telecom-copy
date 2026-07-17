@@ -230,44 +230,54 @@ monotonicity under concurrency was proven against a real DB via real parallel tr
 
 ---
 
-### Sprint O4: API — controller, routes, wiring, integration & conformance   — Status: ⬜ Pending
+### Sprint O4: API — controller, routes, wiring, integration & conformance   — Status: ✅ Done
 
 **Goals**
 - Expose beacons + reads over HTTP, wire the listener at startup, mount it, and prove it end-to-end —
   including a real cross-module platform→audit check now that platform emits.
 
 **Tasks**
-- [ ] Impl: `src/modules/observability/observability.controller.ts` — thin; `try/catch → next(error)`. **Beacons:** read `req.user` (`clientId`/`sub`) + `req.validated.body`; respond **`202`** immediately, then **fire-and-forget** the insert (failures logged, not surfaced). **Reads:** `req.validated.{params,query}` + `sendSuccess` (`200`). (plan §5)
-- [ ] Impl: `src/modules/observability/observability.routes.ts` — composition root: `new ObservabilityService(prisma)` → `new ObservabilityController(service)` **and** `new ObservabilityListener(service); listener.setup()` (wired **once at startup**). One registration per `OBS_ROUTES` constant + guards + `validateRequest` per plan §5.1. `export { router }`. (plan §5, §5.1, §6)
-- [ ] Impl (wiring): add `apiRouter.use(observabilityRouter)` to `registerModules` in `src/modules/index.ts`. (plan §6)
-- [ ] Test: `test/integration/observability.integration.spec.ts` (real test DB, envelope asserted) — emit each event on the real bus → **exactly one** `AuditLog` with correct `actionType`/`entityType`/`entityId`/`description`; **re-emit → still one** (idempotent). Beacon: junk → **400 no write**; `SEARCH` + `durationSeconds` → **400**; valid → **202** + one row. `product.searched` ⇒ **exactly one** `StaffSearchLog`. Reads: filters + date ranges; `LOGS` **paginated 20/page**; `LOG_STATS` counts. Guards (client beacon rejects a staff token & vice-versa; admin reads → 403 for non-admin; missing token → 401). Response-shape: parse through `ClientActivity`/`StaffSearch`/`AuditLog`/`LogStatsResponseSchema` + `paginated(AuditLogResponseSchema)`. **Cross-module:** a real `PATCH /admin/settings` (platform) → **one** `settings.changed` audit row narrated old → new. (plan §4.3)
-- [ ] Test: extend `test/contract/routes.conformance.spec.ts` — a **DB-free** `observability route resolution` block (every `OBS_ROUTES` path resolves, has `success`, not a bare 404). (plan §4.4)
+- [x] Impl: `src/modules/observability/observability.controller.ts` — thin. **Beacons** are synchronous handlers (not `async`): read `req.user` (`clientId`/`sub`) + `req.validated.body`; respond **`202`** immediately via `sendSuccess`, then **fire-and-forget** the insert with a `.catch()` that logs (failures logged, not surfaced). **Reads:** `req.validated.{params,query}` + `sendSuccess` (`200`). (plan §5)
+- [x] Impl: `src/modules/observability/observability.routes.ts` — composition root: `new ObservabilityService(prisma)` → `new ObservabilityController(service)` **and** `new ObservabilityListener(service); listener.setup()` (wired **once at module load**, since `registerModules` imports this file exactly once at startup). One registration per `OBS_ROUTES` constant + guards + `validateRequest` per plan §5.1. `export { router }`. (plan §5, §5.1, §6)
+- [x] Impl (wiring): added `apiRouter.use(observabilityRouter)` to `registerModules` in `src/modules/index.ts`. (plan §6)
+- [x] **Real finding (not in the plan):** `ClientActivityLog.clientId`/`StaffSearchLog.userId` are real DB-enforced FKs to `Client`/`User` — Sprint O1–O3's mocked specs never surfaced this. Fixed in the integration test fixtures only (seeded a real `User` for `product.searched`; added a local `seedClient()` helper — clients module doesn't exist yet, so a minimal valid `Client` row is inserted directly). No product code changed. See report.
+- [x] Test: `test/integration/observability.integration.spec.ts` (16 tests, real test DB, envelope asserted) — emit each event on the real bus → **exactly one** `AuditLog` with correct `actionType`/`entityType`/`entityId`/`description`; **re-emit → still one** (idempotent, through the real event-driven path). Beacon: junk → **400 no write**; `SEARCH` + `durationSeconds` → **400**; valid → **202** + one row (two separate assertions proving non-blocking). `product.searched` ⇒ **exactly one** `StaffSearchLog`. Reads: filters + date ranges; `LOGS` **paginated 20/page**; `LOG_STATS` counts. Guards (client beacon rejects a staff token & vice-versa; admin reads → 403 for non-admin; missing token → 401). Response-shape parsed through `ClientActivity`/`StaffSearch`/`AuditLog`/`LogStatsResponseSchema` + `paginated(AuditLogResponseSchema)`. **Cross-module:** a real `PATCH /admin/settings` (platform) → **one** `settings.changed` audit row narrated `500 → 777`. (plan §4.3)
+- [x] Test: extended `test/contract/routes.conformance.spec.ts` — a **DB-free** block covering **all 6** `OBS_ROUTES` (every route is guarded here, unlike platform, so no scoping deviation needed). (plan §4.4)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green.
-- [ ] `npm run test:int` green (observability + platform + identity + prior).
-- [ ] Routes use `OBS_ROUTES` constants only; beacons return **202 without blocking**; reads via `sendSuccess`; `listener.setup()` runs at startup; every observability path resolves.
-- [ ] Committed on green (`api: observability sprint 4 — API and wiring`).
+- [x] `npx tsc --noEmit` clean; `npm run lint` clean.
+- [x] `npm run test:unit` green — 165/165 tests, 18 files (164 prior + 1 new conformance test).
+- [x] `npm run test:int` green — 45/45 tests, 4 files (16 observability + 14 identity + 14 platform + 1 health).
+- [x] Routes use `OBS_ROUTES` constants only; beacons return **202 without blocking**; reads via `sendSuccess`; `listener.setup()` runs at module load (startup); every observability path resolves (conformance, DB-free) and end-to-end (integration).
+- [x] Committed on green (`api: observability sprint 4 — API and wiring`).
+
+**Report:** [`results-obser-plat-02/report-sprint-O4-02.md`](./results-obser-plat-02/report-sprint-O4-02.md)
 
 ---
 
-## Definition of done (both modules)
+## Definition of done (both modules) — ✅ All 8 sprints done (P1–P4, O1–O4)
 
-**Platform** — [`plan-platform.md`](./plan-platform.md) §9 satisfied:
+**Platform** — ✅ [`plan-platform.md`](./plan-platform.md) §9 satisfied:
 - 5 module files (mapper, interface, service, controller, routes) — **no** listener; `platform.service.ts` provides `PlatformService`, `SequenceService`, `DeliveryFeeService`; router mounted via `registerModules`; `sequenceService`/`deliveryFeeService` exported for downstream DI.
 - Every route uses a `PLATFORM_ROUTES` constant + segment validation; every DTO parses its `*ResponseSchema` (`Decimal → number` everywhere money leaves the service).
-- Fee resolution honours **commune → wilaya → default** with the right `source`; import is **all-or-nothing** (bad row → 400, zero writes); export round-trips; `nextNumber` is transactional, **monotonic under concurrency**, gaps tolerated, never reused; lowering a next-sequence → 409; `settings.changed`/`deliveryFees.changed` emit **after commit** old → new.
-- Geography + settings seed idempotent; `exceljs` + `multer` added.
-- Unit + integration + conformance green; `tsc`/lint clean throughout.
+- Fee resolution honours **commune → wilaya → default** with the right `source`; import is **all-or-nothing** (bad row → 400, zero writes); export round-trips (proven end-to-end via real HTTP + real DB); `nextNumber` is transactional, **monotonic under concurrency** (proven against a real DB with 5 parallel transactions), gaps tolerated, never reused; lowering a next-sequence → 409; `settings.changed`/`deliveryFees.changed` emit **after commit** old → new.
+- Geography + settings seed idempotent (narrowed to a small real subset by owner decision, not the plan's original "all 69" — Sprint P1); `exceljs` + `multer` added.
+- Unit (25+13) + integration (14) + conformance green throughout; `tsc`/lint clean.
+- **Bonus finding:** a real Postgres NULL-uniqueness gap in `@@unique([wilayaId, communeId])` was found and fixed at the application level (Sprint P3), verified against the real dev DB.
 
-**Observability** — [`plan-observability.md`](./plan-observability.md) §9 satisfied:
-- All **6 files** (mapper, interface, service, **listener**, controller, routes); the module **emits nothing**; the **listener is wired at startup** and subscribes to every §0.1 event key.
-- Every route uses an `OBS_ROUTES` constant + segment validation; every DTO parses its `*ResponseSchema` (nested `user`/`product` omitted when null; `Date → ISO`).
-- **One audit row per event**, narration **contains both before/after values**, `description`-bearing events verbatim; **replayed event = no-op**; a failing sink write never throws into the emitter.
-- Beacons: junk → 400 no write; `SEARCH` + `durationSeconds` → 400; valid → 202; `product.searched` ⇒ exactly one `StaffSearchLog`; reads filtered + `LOGS` paginated 20/page + `LOG_STATS` windows; `getClientActivity` ready as the clients Browsing-tab read.
-- Unit (incl. the listener/narration spec) + integration + conformance green; `tsc`/lint clean throughout.
+**Observability** — ✅ [`plan-observability.md`](./plan-observability.md) §9 satisfied:
+- All **6 files** (mapper, interface, service, **listener**, controller, routes); the module **emits nothing**; the **listener is wired at module load** (startup) and subscribes to all **34** event keys (33 audit + `product.searched`).
+- Every route uses an `OBS_ROUTES` constant + segment validation; every DTO parses its `*ResponseSchema` (nested `user`/`product`/`matchedProduct` omitted when null; `Date → ISO`).
+- **One audit row per event**, narration **contains both before/after values**, `description`-bearing events verbatim; **replayed event = no-op** (zero-schema dedupe, proven through the real event-driven path); a failing sink write never throws into the emitter (double-guarded — see Sprint O3 report).
+- Beacons: junk → 400 no write; `SEARCH` + `durationSeconds` → 400; valid → 202 without blocking (proven via two separate assertions); `product.searched` ⇒ exactly one `StaffSearchLog`, never an `AuditLog` row; reads filtered + `LOGS` paginated 20/page + `LOG_STATS` windows; `getClientActivity` ready as the clients Browsing-tab read.
+- **Cross-module proof:** a real `PATCH /admin/settings` (platform) produces one real, correctly-narrated `settings.changed` audit row — the full identity/platform → observability pipeline exercised together for the first time (Sprint O4).
+- Unit (7+12+8) + integration (16) + conformance green throughout; `tsc`/lint clean.
 
-**Open decisions carried into execution** (resolve at the sprint that owns them, then record in the sprint report):
-- Platform: `AdminFeesResponseSchema` add-vs-reuse (P1); `SEQUENCE_DECREASE_FORBIDDEN` mapping, `mode` literal, no per-year reset (P1). (plan §8)
-- Observability: audit idempotency mechanism — `eventKey @unique` migration vs existence-check (O1); `STAFF_SEARCH_BEACON` vs `product.searched` authoritative path (O1); beacon rate-limiting **explicitly deferred** (consistent with identity); statistics read surface deferred to the statistics plan. (plan §7, §8)
+**Decisions made during execution** (asked and resolved at the sprint that owned them; full reasoning in each sprint's report):
+- Platform: `AdminFeesResponseSchema` **added** to the contract (P1); geography seed **narrowed to 3 wilayas/14 communes** rather than the spec's "69" — no real dataset matches that number (P1); `SEQUENCE_DECREASE_FORBIDDEN` mapped to `ConflictError`, `mode` kept a local literal, no per-year sequence reset (P1). (plan §8)
+- Observability: audit idempotency → **zero-schema existence check** `(actionType, entityType, entityId, description)`, not the `eventKey @unique` migration (O1); `STAFF_SEARCH_BEACON` vs `product.searched` → **both kept**, flagged for reconciliation once catalog ships (O1); an `alwaysAppend` escape hatch was added to `AuditEntry` mid-sprint (O2) for inherently-repeatable events like `auth.loggedIn`; beacon rate-limiting **explicitly deferred** (consistent with identity); statistics read surface deferred to the statistics module's own plan. (plan §7, §8)
+
+**Carried forward to future modules (recorded in memory):** the `DeliveryFee` null-uniqueness
+workaround pattern (any future write to that table must use it), the narrowed geography seed (don't
+assume `/api/wilayas` returns close to 58/69 rows yet), and the `STAFF_SEARCH_BEACON`/
+`product.searched` double-counting risk (to resolve when the catalog module lands).

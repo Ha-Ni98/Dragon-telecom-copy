@@ -120,4 +120,26 @@ describe('route conformance', () => {
       }
     });
   });
+
+  // Every OBS_ROUTES path is guarded (unlike platform's 3 public routes) — the identity
+  // precedent applies directly here: requireAuth's missing-token check short-circuits before any
+  // Prisma call, so all 6 routes stay DB-free.
+  describe('observability route resolution (mounted, no DB required)', () => {
+    it('every OBS_ROUTES path resolves on `app`, not a raw unmatched-route 404', async () => {
+      const dummyId = '00000000-0000-4000-8000-000000000000';
+      const cases: { method: 'get' | 'post'; path: string }[] = [
+        { method: 'post', path: OBS_ROUTES.CLIENT_BEACON },
+        { method: 'post', path: OBS_ROUTES.STAFF_SEARCH_BEACON },
+        { method: 'get', path: OBS_ROUTES.CLIENT_ACTIVITY.replace(':id', dummyId) },
+        { method: 'get', path: OBS_ROUTES.STAFF_SEARCHES },
+        { method: 'get', path: OBS_ROUTES.LOGS },
+        { method: 'get', path: OBS_ROUTES.LOG_STATS },
+      ];
+
+      for (const { method, path } of cases) {
+        const res = await request(app)[method](`${env.API_PREFIX}${path}`);
+        expect(res.body, `${method.toUpperCase()} ${path} (status ${res.status})`).toHaveProperty('success');
+      }
+    });
+  });
 });
