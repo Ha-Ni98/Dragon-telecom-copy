@@ -54,24 +54,28 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 2: Foundation — mapper, interfaces, factories   — Status: ⬜ Pending
+### Sprint 2: Foundation — mapper, interfaces, factories   — Status: ✅ Done
 
 **Goals**
 - Pure Entity⇄DTO transformation, the three service contracts + the injected inventory port, and
   contract-shaped test data — no business logic.
 
 **Tasks**
-- [ ] Impl: `src/modules/catalog/catalog.mapper.ts` — pure/static `toProductImageDto`, `toProductWithPricingDto(product, priced, viewerFlags)`, `toProductDetailDto` (+`relatedIds`), `toStaffProductDto`, `toAdminProductDto`, `toClientCategoryDto(cat, counts)`, `toBrandDto`, `toFamilyDto(family, productCount?)`, `toDeviceModelDto`, `toProductStatsDto`. `Decimal.toNumber()`, `Date.toISOString()`, `availableQuantity`/`stockStatus` derivation, `familyIds` flatten; **never spreads the entity** (excludes cost/reserved/exact-qty on public+staff DTOs); each `toDto` ends `…ResponseSchema.parse(dto)`. (plan §1, §5.1)
-- [ ] Impl: `src/modules/catalog/catalog.interface.ts` — `ICatalogProductService`, `ICatalogTaxonomyService`, `ICatalogCategoryService` (methods per plan §2.1, returning contract DTOs only) + `IInventoryPort` (`addLayer(tx, { productId, quantity, unitCost, type })`). (plan §2.1)
-- [ ] Test (factories): `test/data/brand.factory.ts`, `family.factory.ts`, `device-model.factory.ts`, `product.factory.ts`, `product-price.factory.ts`, `client-category.factory.ts` — each returns a valid persistence payload + matching command payload; reuse/extend existing `pos-client`/`client` factories for tier + `inCart` scenarios. (plan §4.1)
-- [ ] Test: `test/unit/modules/catalog/catalog.mapper.spec.ts` — each `toDto` parses its schema; **leak assertions** (public/staff carry no `averageCost`/reserved/exact qty); `Decimal→number`, `Date→ISO`, `familyIds` flatten, `stockStatus` thresholds, `availableQuantity` math, `productCount` present only when supplied. (plan §4.2)
+- [x] Impl: `src/modules/catalog/catalog.mapper.ts` — pure/static `toProductImageDto`, `toProductWithPricingDto(product, priced, viewerFlags)`, `toProductDetailDto` (+`relatedIds`), `toStaffProductDto`, `toAdminProductDto`, `toClientCategoryDto(cat, counts)`, `toBrandDto`, `toFamilyDto(family, productCount?)`, `toDeviceModelDto`, `toProductStatsDto`. `Decimal.toNumber()`, `Date.toISOString()`, `availableQuantity`/`stockStatus` derivation, `familyIds` flatten; **never spreads the entity** (excludes cost/reserved/exact-qty on public+staff DTOs); each `toDto` ends `…ResponseSchema.parse(dto)`. (plan §1, §5.1)
+- [x] Impl: `src/modules/catalog/catalog.interface.ts` — `ICatalogProductService`, `ICatalogTaxonomyService`, `ICatalogCategoryService` (methods per plan §2.1, returning contract DTOs only) + `IInventoryPort` (`addLayer(tx, { productId, quantity, unitCost, type })`). (plan §2.1)
+- [x] Schema fix (owner-approved, asked before implementing): added `Product.brandId`/`brand` (direct, required, independent of `deviceModelId`) to `schema.prisma` + migration `20260717191021_product_brand_id`, applied to dev + test DBs — see report.
+- [x] Test (factories): `test/data/brand.factory.ts`, `family.factory.ts`, `device-model.factory.ts`, `product.factory.ts`, `product-price.factory.ts`, `client-category.factory.ts` — each returns a valid persistence payload + matching command payload. `pos-client`/`client` factories **deferred to Sprint 5** (not needed until real-DB integration scenarios — see report). (plan §4.1)
+- [x] Test: `test/unit/modules/catalog/catalog.mapper.spec.ts` — each `toDto` parses its schema; **leak assertions** (public/staff carry no `averageCost`/reserved/exact qty); `Decimal→number`, `Date→ISO`, `familyIds` flatten, `stockStatus` thresholds, `availableQuantity` math, `productCount` present only when supplied. (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (mapper spec + contract conformance + existing suites).
-- [ ] `npm run lint --no-color` clean.
-- [ ] Mapper excludes sensitive fields and returns contract DTOs (parses `*ResponseSchema`); interfaces return DTOs, never Prisma entities.
-- [ ] Committed on green (`api: catalog sprint 2 — foundation`).
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green (197/197, 19 files — mapper spec + contract conformance + existing suites).
+- [x] `npm run lint --no-color` clean.
+- [x] Mapper excludes sensitive fields and returns contract DTOs (parses `*ResponseSchema`); interfaces return DTOs, never Prisma entities.
+- [x] `npm run test:int` green (45/45) against a real Postgres post-migration, confirming the schema change is safe.
+- [x] Committed on green (`api: catalog sprint 2 — foundation`).
+
+**Report:** [`results-catalog-03/report-sprint-02-03.md`](./results-catalog-03/report-sprint-02-03.md)
 
 ---
 

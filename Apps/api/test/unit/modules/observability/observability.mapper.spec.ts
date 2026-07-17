@@ -33,6 +33,7 @@ const buildProduct = (overrides: Partial<Product> = {}): Product => ({
   name: 'Charger Cable',
   description: null,
   familyId: 'family-1',
+  brandId: 'brand-1',
   deviceModelId: null,
   guestPrice: null,
   defaultSalePrice: null,

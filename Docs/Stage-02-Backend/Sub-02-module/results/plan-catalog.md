@@ -50,6 +50,18 @@ Everything else is confirmed pre-existing:
 joins to `ClientCart` (for `inCart`) and `PosClient` (for tier resolution). **`Product.quantityOnHand`,
 `quantityReserved`, `averageCost` are inventory-owned — catalog never writes them** (spec BL#6).
 
+> **Schema gap found and fixed during Sprint 2 (owner-approved, asked before implementing):**
+> `Product` had no direct `brandId` — brand was only reachable via the optional `deviceModel` relation,
+> so a universal part (`deviceModelId = null`) had **no way to resolve a brand at all**. But the contract
+> already modelled brand as independent of model: `CreateProductCommand`'s `brandId|newBrandName` is a
+> required top-level XOR pair, separate from the optional `modelId|newModelName`, and all three product
+> DTOs declare `brand` required while `model` is optional. This is a genuine schema-vs-contract conflict
+> (not a HOW gap), so I stopped and asked. **Decision: add `Product.brandId`/`brand` (required, direct
+> relation to `Brand`, independent of `deviceModelId`) to `schema.prisma` + a migration**, matching the
+> contract's existing intent with zero contract change. Applied via migration
+> `20260717191021_product_brand_id` against both the dev and test databases (Product table was empty —
+> no data-loss risk). See Sprint 2's report for details.
+
 ---
 
 ## 1. Step 1 — Contract & Schema analysis
