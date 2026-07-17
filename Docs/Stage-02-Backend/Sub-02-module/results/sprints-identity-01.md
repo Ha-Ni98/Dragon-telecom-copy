@@ -56,22 +56,27 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 2: Foundation — mapper, interface, factories   — Status: ⬜ Pending
+### Sprint 2: Foundation — mapper, interface, factories   — Status: ✅ Done
 
 **Goals**
 - Pure Entity⇄DTO transformation, the service contract, and contract-shaped test data — no business logic.
 
 **Tasks**
-- [ ] Impl: `src/modules/identity/identity.mapper.ts` — `toUserDto(user, allPageKeys)`, `toStaffProfileDto`, `toRoleDto`, `toPageDto`, `toTechnicianDto`, `toAuthType`, and a pure `effectivePages(userRoles, allPageKeys, type)` helper. Never spread the entity; each `toDto` ends with `XxxResponseSchema.parse(...)`. (plan §1, §5)
-- [ ] Impl: `src/modules/identity/identity.interface.ts` — `IIdentityService` with all methods (plan §2.1); returns contract DTOs only.
-- [ ] Test (factories): extend `test/data/user.factory.ts` (`createUserPayload`, `seedUser` with hashed password); add `role.factory.ts`, `page.factory.ts` (from the canonical `PageKey` list), `technician.factory.ts`, `refresh-token.factory.ts`, `login.factory.ts`. (plan §4.1)
-- [ ] Test: `test/unit/modules/identity/identity.mapper.spec.ts` — excludes `passwordHash`/token fields; `lastLoginAt` Date→ISO; `effectivePages` unions enabled roles only; disabled role drops; ADMIN → all pages; `RoleDto.pageKeys`; each DTO parses its `*ResponseSchema`. (plan §4.2)
+- [x] Impl: `src/modules/identity/identity.mapper.ts` — `toUserDto(user, allPageKeys)`, `toStaffProfileDto`, `toRoleDto`, `toPageDto`, `toTechnicianDto`, `toAuthType`, and a **public** `effectivePages(userRoles, allPageKeys, type)` helper (made public, not private — Sprint 3's `getEffectivePages` needs to call it directly without building a full `UserDto`). Never spreads the entity; each `toDto` ends with `XxxResponseSchema.parse(...)`. (plan §1, §5)
+- [x] Impl: `src/modules/identity/identity.interface.ts` — `IIdentityService` with all methods (plan §2.1); returns contract DTOs only.
+- [x] Test (factories): extended `test/data/user.factory.ts` (`createUserPayload`, `seedUser` with Argon2id-hashed password); added `role.factory.ts`, `page.factory.ts` (from the canonical `PageKey` list via the new shared `prisma/pages.registry.ts`), `technician.factory.ts`, `refresh-token.factory.ts`, `login.factory.ts`. (plan §4.1)
+- [x] Test: `test/unit/modules/identity/identity.mapper.spec.ts` (18 tests) — excludes `passwordHash`/token fields; `lastLoginAt` Date→ISO; `effectivePages` unions enabled roles only; disabled role drops; ADMIN → all pages; `RoleDto.pageKeys`; each DTO parses its `*ResponseSchema`. (plan §4.2)
+- [x] Unplanned addition: `src/common/utils/refresh-token.utils.ts` (`generateRefreshToken`/`hashRefreshToken`, sha-256) — extracted as a shared pure util so `refresh-token.factory.ts` (this sprint) and `identity.service.ts` (Sprint 3) hash refresh tokens identically instead of duplicating the algorithm in two places. Sprint 3's task list below is updated accordingly. Has its own unit test (4 tests).
+- [x] Unplanned addition: `prisma/pages.registry.ts` — extracted the Sprint-1 `PAGES` array out of `prisma/seed.ts` into a standalone, side-effect-free module so `page.factory.ts` can reuse the exact same canonical list without duplicating it (importing `seed.ts` directly was unsafe — its `main()` runs on import).
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (mapper spec + conformance).
-- [ ] Mapper excludes sensitive fields and returns contract DTOs (parses `*ResponseSchema`); interface methods return DTOs, never entities.
-- [ ] Committed on green (`api: sub-02 sprint 2 — identity foundation`).
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green — 58/58 tests, 12 files (mapper: 18, refresh-token.utils: 4, conformance: 2, pre-existing: 34).
+- [x] Mapper excludes sensitive fields and returns contract DTOs (parses `*ResponseSchema`); interface methods return DTOs, never entities.
+- [x] `npm run lint` clean — also fixed a real, pre-existing environment bug hit while validating this sprint: ESLint 10.7's stylish formatter calls `util.styleText` (Node ≥20.12 only) whenever there's ≥1 finding to print, crashing outright on this sandbox's Node 18.18. Added `--no-color` to the `lint` script (harmless on Node ≥20 too) so the script no longer crashes instead of reporting real findings. See report.
+- [x] Committed on green (`api: identity sprint 2 — foundation`).
+
+**Report:** [`results-identity-01/report-sprint-02-01.md`](./results-identity-01/report-sprint-02-01.md)
 
 ---
 
@@ -82,7 +87,7 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
   with refresh-token crypto and the `auth.loggedIn` emit.
 
 **Tasks**
-- [ ] Impl: `src/modules/identity/identity.service.ts` — `class IdentityService implements IIdentityService`; `constructor(prisma)`; private refresh-token helpers (`node:crypto` `randomBytes(32)` + deterministic sha-256/HMAC; TTL from `REFRESH_TOKEN_EXPIRATION`). (plan §5, §7.3)
+- [ ] Impl: `src/modules/identity/identity.service.ts` — `class IdentityService implements IIdentityService`; `constructor(prisma)`; refresh-token crypto via the shared `generateRefreshToken`/`hashRefreshToken` (`src/common/utils/refresh-token.utils.ts`, built in Sprint 2 — not private service helpers as originally planned, to avoid duplicating the hash algorithm between the service and `refresh-token.factory.ts`); TTL from `env.REFRESH_TOKEN_EXPIRATION` (days). (plan §5, §7.3)
 - [ ] Impl `login`: three-way resolve (username | email | phone→Client); Argon2id `comparePassword`; **one generic 401** `AUTH_INVALID_CREDENTIALS` + dummy compare (no timing/enumeration oracle); set `lastLoginAt`; mint access JWT (`generateToken`, `JWTPayload { sub, type, staffId?/clientId? }`); mint refresh (hash stored, `expiresAt`); emit `auth.loggedIn` after commit. Login rate-limiting is explicitly deferred (plan §7.2) — not implemented here. (plan §3.1)
 - [ ] Impl `refresh`: hash-lookup; rotate (revoke old, `replacedByTokenId`, new pair, rebuild payload from user + staff/client); **reuse-of-revoked → chain-kill**; expired/not-found → 401. (plan §3.2)
 - [ ] Impl `logout` (revoke caller's active tokens) and `getEffectivePages` (STAFF union / ADMIN all). (plan §3.2–3.3)
