@@ -40,7 +40,7 @@ Per plan §2.1 (D4), the contract's route constants were stripped of their leadi
 
 ---
 
-## Sprint 2: Framework — Status: ⬜ Pending
+## Sprint 2: Framework — Status: ✅ Done
 
 **Goals**
 - The framework services on top of the foundation: logging, the `ApiResponse` envelope, the typed event bus, pure utils — plus the test foundations (guarded DB reset + user factory) that later sprints reuse.
