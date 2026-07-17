@@ -82,7 +82,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 3: Clients & Inventory   — Status: ⬜ Pending
+### Sprint 3: Clients & Inventory   — Status: ✅ Complete
 
 **Goals**
 - Implement the two modules that depend on `catalog` (now available): client/POS identity (plan B) and the FIFO ledger surface (plan D).
