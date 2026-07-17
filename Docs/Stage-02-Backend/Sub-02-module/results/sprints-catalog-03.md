@@ -79,7 +79,7 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 3: Logic A — taxonomy + client-categories   — Status: ⬜ Pending
+### Sprint 3: Logic A — taxonomy + client-categories   — Status: ✅ Done
 
 **Goals**
 - Stand up `CatalogTaxonomyService` + `CatalogCategoryService` (constructor DI on `PrismaClient`),
@@ -87,17 +87,19 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
   stub this sprint.
 
 **Tasks**
-- [ ] Impl: create `src/modules/catalog/catalog.service.ts` with `CatalogTaxonomyService implements ICatalogTaxonomyService` and `CatalogCategoryService implements ICatalogCategoryService` co-located; `CatalogProductService` present as **typed stubs that throw `"...not implemented yet (see Sprint 4)"`** so the file compiles its `implements`. (plan §5.1 item 3, §8 #5)
-- [ ] Impl (taxonomy): `listBrands`/`listFamilies(q)`/`listModels(q)` (public → **enabled-only**, `withCount` populates `productCount`); admin `createBrand/updateBrand`, `createFamily/updateFamily`, `createModel/updateModel`, `setModelFamilies`. Enforce: unique names (**model unique per brand** → 409 on dup), slug generation, **one nesting level** (reject grandparent), **disable-only** (no deletes), **featured cap 6 enabled** (reject 7th), `MODEL_FAMILIES` **replaces** the `DeviceModelFamily` set. `isKnownRequestError` P2002/P2025 → `ConflictError`/`NotFoundError`. Emit `taxonomy.changed` after commit. (plan §3.4)
-- [ ] Impl (categories): `listCategories`, `createCategory` (unique name, creates **no** prices), `updateCategory` (rename + `isEnabled` toggle; **disable requires zero enabled `PosClient` members** → 409 `CATEGORY_IN_USE` + count). `memberCount`/`pricedProductCount` counts. Emit `clientCategory.changed`. (plan §3.5)
-- [ ] Test: `test/unit/modules/catalog/catalog.service.spec.ts` (taxonomy+category portion) — mock Prisma via constructor DI + spy `@common/events/event-bus`: enabled-only public lists; disabled brand hidden; duplicate model-in-brand → 409; one-nesting-level rejected; featured 7th → rejected; `MODEL_FAMILIES` replace; category disable with enabled member → 409 `CATEGORY_IN_USE` (+count); create-category makes no prices; `taxonomy.changed`/`clientCategory.changed` emitted on mutation. (plan §4.2)
+- [x] Impl: create `src/modules/catalog/catalog.service.ts` with `CatalogTaxonomyService implements ICatalogTaxonomyService` and `CatalogCategoryService implements ICatalogCategoryService` co-located; `CatalogProductService` present as **typed stubs that throw `"...not implemented yet (see Sprint 4)"`** so the file compiles its `implements`. (plan §5.1 item 3, §8 #5)
+- [x] Impl (taxonomy): `listBrands`/`listFamilies(q)`/`listModels(q)` (public → **enabled-only**, `withCount` populates `productCount`); admin `createBrand/updateBrand`, `createFamily/updateFamily`, `createModel/updateModel`, `setModelFamilies`. Enforce: unique names (**model unique per brand** → 409 on dup), slug generation, **one nesting level** (reject grandparent), **disable-only** (no deletes), **featured cap 6 enabled** (reject 7th), `MODEL_FAMILIES` **replaces** the `DeviceModelFamily` set. `isKnownRequestError` P2002/P2025 → `ConflictError`/`NotFoundError`. Emit `taxonomy.changed` after commit. (plan §3.4)
+- [x] Impl (categories): `listCategories`, `createCategory` (unique name, creates **no** prices), `updateCategory` (rename + `isEnabled` toggle; **disable requires zero enabled `PosClient` members** → 409 `CATEGORY_IN_USE` + count). `memberCount`/`pricedProductCount` counts. Emit `clientCategory.changed`. (plan §3.5)
+- [x] Test: `test/unit/modules/catalog/catalog.service.spec.ts` (taxonomy+category portion) — mock Prisma via constructor DI + spy `@common/events/event-bus`: enabled-only public lists; disabled brand hidden; duplicate model-in-brand → 409; one-nesting-level rejected; featured 7th → rejected; `MODEL_FAMILIES` replace; category disable with enabled member → 409 `CATEGORY_IN_USE` (+count); create-category makes no prices; `taxonomy.changed`/`clientCategory.changed` emitted on mutation. (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (taxonomy+category service tests + prior suites).
-- [ ] `npm run lint --no-color` clean.
-- [ ] Services throw `AppError` subclasses; emit typed events **after commit**; return DTOs via `.parse()` (never entities); catalog never writes `quantityOnHand`/`quantityReserved`/`averageCost`.
-- [ ] Committed on green (`api: catalog sprint 3 — taxonomy and categories`).
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green (212/212, 20 files — taxonomy+category service tests + prior suites).
+- [x] `npm run lint --no-color` clean.
+- [x] Services throw `AppError` subclasses; emit typed events **after commit**; return DTOs via `.parse()` (never entities); catalog never writes `quantityOnHand`/`quantityReserved`/`averageCost`.
+- [x] Committed on green (`api: catalog sprint 3 — taxonomy and categories`).
+
+**Report:** [`results-catalog-03/report-sprint-03-03.md`](./results-catalog-03/report-sprint-03-03.md)
 
 ---
 

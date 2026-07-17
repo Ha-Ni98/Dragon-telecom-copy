@@ -49,9 +49,12 @@ export interface ICatalogProductService {
 }
 
 export interface ICatalogTaxonomyService {
-  listBrands(): Promise<BrandDto[]>;
-  listFamilies(query: FamiliesQuery): Promise<FamilyDto[]>;
-  listModels(query: ModelsQuery): Promise<DeviceModelDto[]>;
+  // `includeDisabled`: false/omitted for the public routes (BRANDS/FAMILIES/MODELS — enabled-only,
+  // per spec BL#4); true for the admin management routes (ADMIN_BRANDS/ADMIN_FAMILIES/ADMIN_MODELS
+  // GET), which must still see disabled rows to re-enable them.
+  listBrands(includeDisabled?: boolean): Promise<BrandDto[]>;
+  listFamilies(query: FamiliesQuery, includeDisabled?: boolean): Promise<FamilyDto[]>;
+  listModels(query: ModelsQuery, includeDisabled?: boolean): Promise<DeviceModelDto[]>;
   createBrand(cmd: CreateBrandCommand): Promise<BrandDto>;
   updateBrand(id: string, cmd: UpdateBrandCommand): Promise<BrandDto>;
   createFamily(cmd: CreateFamilyCommand): Promise<FamilyDto>;
