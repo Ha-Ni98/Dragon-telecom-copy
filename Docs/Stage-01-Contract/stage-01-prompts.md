@@ -56,5 +56,5 @@ Instructions:
 1. Follow the Context Protocol: load only the files listed for this sprint.
 2. Identify the **first sprint not marked ✅** and execute only that one.
 3. Strict 6-file-max-per-module structure; zero logic; ISO-string dates.
-4. Validate (`tsc --noEmit`, `madge --circular src`, lint), commit on green, write the report, mark the sprint ✅.
+4. Validate (`tsc --noEmit`, `madge --circular src`, lint), write the report, mark the sprint ✅, commit on green.
 5. Stop and wait for `next`.

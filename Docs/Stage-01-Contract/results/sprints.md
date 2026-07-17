@@ -169,7 +169,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 7: Statistics & Observability   — Status: ⬜ Pending
+### Sprint 7: Statistics & Observability   — Status: ✅ Complete
 
 **Goals**
 - Implement the two read-only/sink modules last: statistics dashboards & reports (plan J) and the audit/activity module (plan K). Neither is imported by anything.

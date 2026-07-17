@@ -11,3 +11,5 @@ export * from './modules/sales';
 export * from './modules/orders';
 export * from './modules/repairs';
 export * from './modules/billing';
+export * from './modules/statistics';
+export * from './modules/observability';
