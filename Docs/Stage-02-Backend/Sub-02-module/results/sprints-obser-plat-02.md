@@ -124,25 +124,38 @@ payloads already exist.
 
 ---
 
-### Sprint P4: API — controller, routes, wiring, integration & conformance   — Status: ⬜ Pending
+### Sprint P4: API — controller, routes, wiring, integration & conformance   — Status: ✅ Done
 
 **Goals**
 - Expose the service over HTTP, mount it, export the injected singletons, and prove it end-to-end and
   contract-bound.
 
 **Tasks**
-- [ ] Impl: `src/modules/platform/platform.controller.ts` — thin; `try/catch → next(error)`; read `req.validated`; `sendSuccess` (`200` reads/updates); **export** sets `Content-Type` + `Content-Disposition` and streams the file for `excel`/`csv` (`json` → the row array); **import** reads `req.file.buffer` (Multer). (plan §5, §8.4)
-- [ ] Impl: `src/modules/platform/platform.routes.ts` — composition root: `new PlatformService(prisma)`, `new SequenceService(prisma)`, `new DeliveryFeeService(prisma)`, `new PlatformController(service)`; one registration per `PLATFORM_ROUTES` constant + guard **before** `validateRequest` per plan §5.1; `multer().single('file')` on `FEES_IMPORT`. `export { router, sequenceService, deliveryFeeService }` (the injected singletons for downstream DI). (plan §5, §5.1, §6)
-- [ ] Impl (wiring): add `apiRouter.use(platformRouter)` to `registerModules` in `src/modules/index.ts`. (plan §6)
-- [ ] Test: `test/integration/platform.integration.spec.ts` (real test DB, real prefix, envelope asserted) — `GET /wilayas` bilingual + communes; `GET /delivery-fees` **precedence + `source`** across all 3 levels; admin fees GET→PUT round-trip (200); **import one bad row → 400 listing it + zero writes**, then a clean import succeeds; **export round-trips** (`import(export())` no-op); settings GET/PATCH (200) + `settings.changed` narrated; **sequence monotonic under concurrency** (parallel `nextNumber` in transactions → N distinct, contiguous) + **decrease → 409**; guards (non-admin → 403, missing token → 401; public routes reachable unauthenticated). Response-shape: parse payloads through `WilayaResponseSchema`/`FeeResponseSchema`/`SettingsResponseSchema`/`PublicSettingsResponseSchema` (+ `AdminFeesResponseSchema` if added). Requires the geography + settings seed and `NODE_ENV=test`. (plan §4.3)
-- [ ] Test: extend `test/contract/routes.conformance.spec.ts` — a **DB-free** `platform route resolution` block: every `PLATFORM_ROUTES` path resolves on `app` (has a `success` key, not a bare 404), unauthenticated. (plan §4.4)
+- [x] Impl: `src/modules/platform/platform.controller.ts` — thin; `try/catch → next(error)`; read `req.validated`; `sendSuccess` (`200` reads/updates); **export** sets `Content-Type` + `Content-Disposition` and streams the raw body (`json` format → the row array); **import** reads `req.file.buffer` (Multer). (plan §5, §8.4)
+- [x] Impl: `src/modules/platform/platform.routes.ts` — composition root: `new PlatformService(prisma)`, `new PlatformController(service)`; one registration per `PLATFORM_ROUTES` constant + guard **before** `validateRequest` per plan §5.1; `multer({...}).single('file')` on `FEES_IMPORT`. `export { router, sequenceService, deliveryFeeService }` (the injected singletons for downstream DI, built once on the shared `prisma`). (plan §5, §5.1, §6)
+- [x] Impl (wiring): added `apiRouter.use(platformRouter)` to `registerModules` in `src/modules/index.ts`. (plan §6)
+- [x] Test: `test/integration/platform.integration.spec.ts` (14 tests, real test DB, real prefix, envelope asserted) — `GET /wilayas` bilingual + communes; `GET /delivery-fees` **precedence + `source`** across all 3 levels in one scenario; admin fees GET→PUT round-trip (200); **import one bad row → 400 listing it + zero writes**, then a clean import succeeds; **export round-trips** (`import(export())` through two real HTTP requests, no-op); settings GET/PATCH (200) + `settings.changed` narrated (captured via a real `eventBus.on` listener); **sequence monotonic under concurrency** (5 parallel `nextNumber` calls, each in its own real transaction → 5 distinct, contiguous numbers) + **decrease → 409**; `deliveryFeeService.resolve` exercised directly; guards (non-admin → 403, missing token → 401; public routes reachable unauthenticated). Response-shape parsed through `WilayaResponseSchema`/`FeeResponseSchema`/`SettingsResponseSchema`/`PublicSettingsResponseSchema`/`AdminFeesResponseSchema`. (plan §4.3)
+- [x] Test: extended `test/contract/routes.conformance.spec.ts` — a **DB-free** block covering the **6 admin-guarded** `PLATFORM_ROUTES` (not the 3 public ones — see report for why: platform, unlike identity, has unguarded routes that would actually hit the DB if sent unauthenticated here; the public routes' resolution + response-shape are covered in the integration suite instead). (plan §4.4 — scoped deviation, documented)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green (mapper + service + conformance).
-- [ ] `npm run test:int` green (platform + prior suites).
-- [ ] Routes use `PLATFORM_ROUTES` constants only (no string literals); responses via `sendSuccess` (except the sanctioned binary export §8.4); each segment validated; every platform path resolves; `sequenceService`/`deliveryFeeService` exported.
-- [ ] Committed on green (`api: platform sprint 4 — API and wiring`).
+- [x] `npx tsc --noEmit` clean; `npm run lint` clean.
+- [x] `npm run test:unit` green — 137/137 tests, 15 files (136 prior + 1 new conformance test).
+- [x] `npm run test:int` green — 29/29 tests, 3 files (14 identity + 14 platform + 1 health). Required exporting `TEST_DATABASE_URL` to the sandbox's actual Postgres port (5544, not `test/setup.ts`'s 5433 fallback) — an environment note, not a code change; see report.
+- [x] Routes use `PLATFORM_ROUTES` constants only (no string literals); responses via `sendSuccess` (except the sanctioned binary export §8.4); each segment validated; admin-guarded platform paths resolve (conformance) and every platform path resolves end-to-end (integration); `sequenceService`/`deliveryFeeService` exported.
+- [x] Committed on green (`api: platform sprint 4 — API and wiring`).
+
+**Report:** [`results-obser-plat-02/report-sprint-P4-02.md`](./results-obser-plat-02/report-sprint-P4-02.md)
+
+---
+
+## Platform module — ✅ all 4 sprints (P1–P4) done
+
+See [`results-obser-plat-02/report-sprint-P4-02.md`](./results-obser-plat-02/report-sprint-P4-02.md)'s
+closing section for the full `plan-platform.md` §9 definition-of-done checklist. Highlights: a real
+Postgres NULL-uniqueness bug in `@@unique([wilayaId, communeId])` was found and fixed at the
+application level (Sprint P3, verified against the real dev DB); the geography seed was narrowed to a
+small real subset by owner decision rather than the plan's original "all 69" (Sprint P1); sequence
+monotonicity under concurrency was proven against a real DB via real parallel transactions (Sprint P4).
 
 ---
 
