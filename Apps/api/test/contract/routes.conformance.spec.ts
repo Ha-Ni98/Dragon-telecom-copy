@@ -95,4 +95,51 @@ describe('route conformance', () => {
       }
     });
   });
+
+  // WILAYAS / FEE / SETTINGS_PUBLIC are public routes (no requireAuth guard) — unlike every
+  // identity route, hitting them unauthenticated would still run the real DB-backed handler,
+  // breaking this tier's "fast, no DB" promise (test-rules.md §3). Their resolution +
+  // response-shape are covered in test/integration/platform.integration.spec.ts instead, where a
+  // real test DB is already up. Only the admin-guarded routes are checked here, deliberately
+  // scoped down from "every PLATFORM_ROUTES path" — same trick as the identity block:
+  // requireAuth's missing-token check short-circuits before any Prisma call either way.
+  describe('platform route resolution (admin-guarded routes only, mounted, no DB required)', () => {
+    it('every admin-guarded PLATFORM_ROUTES path resolves on `app`, not a raw unmatched-route 404', async () => {
+      const cases: { method: 'get' | 'post' | 'patch' | 'put'; path: string }[] = [
+        { method: 'get', path: PLATFORM_ROUTES.ADMIN_FEES },
+        { method: 'put', path: PLATFORM_ROUTES.ADMIN_FEES },
+        { method: 'post', path: PLATFORM_ROUTES.FEES_IMPORT },
+        { method: 'get', path: PLATFORM_ROUTES.FEES_EXPORT },
+        { method: 'get', path: PLATFORM_ROUTES.SETTINGS },
+        { method: 'patch', path: PLATFORM_ROUTES.SETTINGS },
+      ];
+
+      for (const { method, path } of cases) {
+        const res = await request(app)[method](`${env.API_PREFIX}${path}`);
+        expect(res.body, `${method.toUpperCase()} ${path} (status ${res.status})`).toHaveProperty('success');
+      }
+    });
+  });
+
+  // Every OBS_ROUTES path is guarded (unlike platform's 3 public routes) — the identity
+  // precedent applies directly here: requireAuth's missing-token check short-circuits before any
+  // Prisma call, so all 6 routes stay DB-free.
+  describe('observability route resolution (mounted, no DB required)', () => {
+    it('every OBS_ROUTES path resolves on `app`, not a raw unmatched-route 404', async () => {
+      const dummyId = '00000000-0000-4000-8000-000000000000';
+      const cases: { method: 'get' | 'post'; path: string }[] = [
+        { method: 'post', path: OBS_ROUTES.CLIENT_BEACON },
+        { method: 'post', path: OBS_ROUTES.STAFF_SEARCH_BEACON },
+        { method: 'get', path: OBS_ROUTES.CLIENT_ACTIVITY.replace(':id', dummyId) },
+        { method: 'get', path: OBS_ROUTES.STAFF_SEARCHES },
+        { method: 'get', path: OBS_ROUTES.LOGS },
+        { method: 'get', path: OBS_ROUTES.LOG_STATS },
+      ];
+
+      for (const { method, path } of cases) {
+        const res = await request(app)[method](`${env.API_PREFIX}${path}`);
+        expect(res.body, `${method.toUpperCase()} ${path} (status ${res.status})`).toHaveProperty('success');
+      }
+    });
+  });
 });
