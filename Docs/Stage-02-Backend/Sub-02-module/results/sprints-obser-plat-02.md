@@ -101,23 +101,26 @@ payloads already exist.
 
 ---
 
-### Sprint P3: Logic — service + injected SequenceService & DeliveryFeeService   — Status: ⬜ Pending
+### Sprint P3: Logic — service + injected SequenceService & DeliveryFeeService   — Status: ✅ Done
 
 **Goals**
 - Implement all business logic — settings, fee resolution, admin fees, Excel import/export — plus the
   two injected services, with the two post-commit emits.
 
 **Tasks**
-- [ ] Impl: `src/modules/platform/platform.service.ts` — `class PlatformService implements IPlatformService`, `constructor(prisma)`. `listWilayas` (ordered, bilingual, with communes); `resolveFee` (**commune → wilaya → default** + `source`); `getAdminFees`/`upsertFees` (upsert by `(wilayaId, communeId)` in one `$transaction`; validate ids + `commune.wilayaId === wilayaId`; emit `deliveryFees.changed` **after commit**); `getSettings` (merge over defaults) / `updateSettings` (deep-merge per section in a `$transaction`; **decrease → 409** `ConflictError`; emit `settings.changed` **old → new** after commit) / `getPublicSettings`. (plan §3.1–3.4, §3.7)
-- [ ] Impl import/export: `importFees(buffer)` — parse workbook (`exceljs`), map + **validate every row** (codes resolve; commune ∈ wilaya; fees ≥ 0), collect row errors → on **any** failure throw `BadRequestError` with `details` listing the offending rows, **zero writes**; else upsert all in one `$transaction` + emit. `exportFees(query)` — serialise current fees to `excel` (default) / `csv` / `json` → `{ filename, mime, body }`; **round-trips** with import. (plan §3.3)
-- [ ] Impl: co-located `SequenceService implements ISequenceService` — `nextNumber(tx, docType)`: **row-lock** the `invoicing` `Setting` (`tx.$queryRaw … FOR UPDATE`), parse JSON, format `PREFIX-YYYY-NNNN` (`padStart(4,'0')`), write back `nextSequences[docType] + 1` on `tx`, return the string. And `DeliveryFeeService implements IDeliveryFeeService` — `resolve(wilayaId, communeId, mode)` sharing the private resolver with `resolveFee`. (plan §3.5–3.6)
-- [ ] Test: `test/unit/modules/platform/platform.service.spec.ts` — mock Prisma (constructor DI) + spy `eventBus`. Resolution **precedence + `source`** for each of the 3 levels; `resolve(mode)` returns the right leg; sequence **format + increment + monotonic** (sequential → N, N+1) + the `FOR UPDATE` path; **decrease → 409**; `updateSettings` emits `settings.changed` old → new; `upsertFees` emits `deliveryFees.changed`; **import one bad row → `BadRequestError` listing it + zero upsert calls**; export round-trip shape. (plan §4.2)
+- [x] Impl: `src/modules/platform/platform.service.ts` — `class PlatformService implements IPlatformService`, `constructor(prisma)`. `listWilayas` (ordered, bilingual, with communes); `resolveFee` (**commune → wilaya → default** + `source`); `getAdminFees`/`upsertFees` (validate ids + `commune.wilayaId === wilayaId`; emit `deliveryFees.changed` **after commit**); `getSettings` (merge over defaults) / `updateSettings` (section-level merge in a `$transaction`; **decrease → 409** `ConflictError`; emit `settings.changed` **old → new** after commit) / `getPublicSettings`. (plan §3.1–3.4, §3.7)
+- [x] Impl import/export: `importFees(buffer)` — parse workbook (`exceljs`), map + **validate every row** (codes resolve; commune ∈ wilaya; fees ≥ 0), collect row errors → on **any** failure throw `BadRequestError` with `details` listing the offending rows, **zero writes**; else upsert all in one `$transaction` + emit. `exportFees(query)` — serialise current fees to `excel` (default) / `csv` / `json` → `{ filename, mime, body }`; **round-trips** with import. (plan §3.3)
+- [x] Impl: co-located `SequenceService implements ISequenceService` — `nextNumber(tx, docType)`: **row-lock** the `invoicing` `Setting` (`tx.$queryRaw … FOR UPDATE`), parse JSON, format `PREFIX-YYYY-NNNN`, write back the incremented counter on `tx`. And `DeliveryFeeService implements IDeliveryFeeService` — `resolve(wilayaId, communeId, mode)` sharing a module-level `resolveFeeAndSource()` function with `resolveFee`. (plan §3.5–3.6)
+- [x] **Real bug found & fixed (not in the plan):** Postgres treats `NULL` as distinct in `@@unique([wilayaId, communeId])`, so the wilaya-level row (`communeId = null`) is **not actually DB-enforced unique** — Prisma's compound-key `upsert()` would silently insert duplicates on repeat calls. Verified directly against Postgres (raw SQL + a real-DB smoke script); worked around at the application level (`findFirst` + update-or-create) rather than a schema migration. Applied to both `upsertFees` and `importFees`. See report.
+- [x] Test: `test/unit/modules/platform/platform.service.spec.ts` (25 tests, written before the implementation) — mock Prisma (constructor DI) + spy `eventBus`. Resolution **precedence + `source`** for each of the 3 levels; `resolve(mode)` returns the right leg; the null-commune workaround (update-existing vs create-new); sequence **format + increment + monotonic** (sequential → N, N+1) via a mock `tx`; **decrease → 409**; `updateSettings` emits `settings.changed` old → new and merges only the touched section; `upsertFees`/`importFees` reject with zero writes on bad input; export round-trip shape (excel/csv/json). (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green.
-- [ ] Service throws `AppError` subclasses (`ConflictError` for decrease, `BadRequestError` for import); multi-row writes in `$transaction`; typed events emit **after commit**; returns DTOs via the mapper's `.parse()`.
-- [ ] Committed on green (`api: platform sprint 3 — logic`).
+- [x] `npx tsc --noEmit` clean; `npm run lint` clean (one real finding fixed: `DocType` needed `import type`; also fixed two real type errors from exceljs's own broken `Buffer` ambient declaration and from `Partial<T>` vs Zod's `{key?: T|undefined}` optional-field typing — see report).
+- [x] `npm run test:unit` green — 136/136 tests, 15 files (111 prior + 25 new).
+- [x] Service throws `AppError` subclasses (`ConflictError` for decrease, `BadRequestError` for import/validation); multi-row writes in `$transaction`; typed events emit **after commit**; returns DTOs via the mapper's `.parse()`.
+- [x] Committed on green (`api: platform sprint 3 — logic`).
+
+**Report:** [`results-obser-plat-02/report-sprint-P3-02.md`](./results-obser-plat-02/report-sprint-P3-02.md)
 
 ---
 
