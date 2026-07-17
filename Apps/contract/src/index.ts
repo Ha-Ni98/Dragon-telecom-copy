@@ -7,3 +7,5 @@ export * from './modules/clients';
 export * from './modules/inventory';
 export * from './modules/platform';
 export * from './modules/purchasing';
+export * from './modules/sales';
+export * from './modules/orders';

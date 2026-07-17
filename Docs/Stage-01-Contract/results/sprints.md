@@ -126,7 +126,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 5: Sales & Orders   — Status: ⬜ Pending
+### Sprint 5: Sales & Orders   — Status: ✅ Complete
 
 **Goals**
 - Implement the two revenue-document modules: POS sales (plan F) and storefront orders (plan G). Both self-contained; margin fields are `.optional()` mapping-gated.
