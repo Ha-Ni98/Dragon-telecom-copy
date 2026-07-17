@@ -208,23 +208,25 @@ monotonicity under concurrency was proven against a real DB via real parallel tr
 
 ---
 
-### Sprint O3: Logic B — the listener & narration engine   — Status: ⬜ Pending
+### Sprint O3: Logic B — the listener & narration engine   — Status: ✅ Done
 
 **Goals**
 - The module's core: the audit/activity listener — every §0.1 handler, the narration map,
   `product.searched`, and the never-throw-into-the-emitter guarantee.
 
 **Tasks**
-- [ ] Impl: `src/modules/observability/observability.listener.ts` — injects `IObservabilityService`; `setup()` registers **one handler per §0.1 event key**. Each builds an `AuditEntry` (`actionType` = event name, `entityType`/`entityId` = source doc, `description` narrated with before/after, `userId?`/`ipAddress?` where present, a deterministic `eventKey`) and calls `recordAuditEvent`; wrapped in `try/catch` that **logs + swallows** (never throws into the emitter). (plan §3.1)
-- [ ] Impl narration: the full §3.1 map — **verbatim-`description`** events (`settings.changed`, `deliveryFees.changed`, `inventory.adjusted`, `taxonomy.changed`, `clientCategory.changed`) vs. **structured before/after** events (`order`/`repair.statusChanged`, `posClient`/`supplier.creditChanged`, `supplierInvoice.confirmed`, `sale.confirmed`/`payment.*` credit). `eventKey` per §8.1 (`<event>:<entityId>[:<discriminator>]`; `auth.loggedIn` → null, always append). (plan §3.1, §8.1)
-- [ ] Impl activity: the `product.searched` handler → `recordProductSearched` (one `StaffSearchLog`). (plan §3.2)
-- [ ] Test: `test/unit/modules/observability/observability.listener.spec.ts` (the core) — real/spied `eventBus`. Narration **contains both before/after** (status `confirmed → packaged`; credit `1 500 → 3 200`); `description`-bearing payloads used **verbatim**; **replayed event → no-op** (one row); a **throwing `recordAuditEvent` is swallowed** (emitter unaffected); `product.searched` ⇒ **exactly one** `StaffSearchLog`; representative coverage across the emitter groups. (plan §4.2)
+- [x] Impl: `src/modules/observability/observability.listener.ts` — injects `IObservabilityService`; `setup()` registers **all 34 handlers** (33 audit + `product.searched`), grouped by emitting module. Each builds an `AuditEntry` (`actionType` = event name, `entityType`/`entityId` = source doc, `description` narrated with before/after) and calls `recordAuditEvent`, funneled through a `safeRun()` helper that double-guards (outer `try/catch` for synchronous narration-building throws, `.catch()` for async rejections) — **never throws into the emitter**. No `eventKey` (zero-schema decision, O1); `auth.loggedIn` sets `alwaysAppend: true` instead. (plan §3.1)
+- [x] Impl narration: the full §3.1 map — **verbatim-`description`** events (`settings.changed`, `deliveryFees.changed`, `inventory.adjusted`, `taxonomy.changed`, `clientCategory.changed`) vs. **structured before/after** events (`order`/`repair.statusChanged`, `posClient`/`supplier.creditChanged`, `supplierInvoice.confirmed`, `payment.*` credit, `sale.confirmed`). (plan §3.1)
+- [x] Impl activity: the `product.searched` handler → `recordProductSearched` (one `StaffSearchLog`, never touches `AuditLog`). (plan §3.2)
+- [x] Test: `test/unit/modules/observability/observability.listener.spec.ts` (8 tests, written before the implementation) — the **real** listener + service pair (mocked Prisma), driven through the real `eventBus`. Narration **contains both before/after** (`order.statusChanged`, `posClient.creditChanged`); `description`-bearing payloads used **verbatim** (`settings.changed`, `deliveryFees.changed`); **replayed event → no-op** (one row, through the real event-driven path); a **failing `recordAuditEvent` is swallowed and logged** (emitter unaffected); `product.searched` ⇒ **exactly one** `StaffSearchLog`, never an `AuditLog` row; `auth.loggedIn`'s `alwaysAppend` skips the dedupe check. (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green.
-- [ ] Every §0.1 event key has a handler that type-checks against the bus; handlers never throw into the emitter; narration is built **from the payload only** (no cross-table reads).
-- [ ] Committed on green (`api: observability sprint 3 — listener and narration`).
+- [x] `npx tsc --noEmit` clean — every one of the 34 handlers' payload field accesses matched the real contract event types on the first attempt (no `AppEvents` export needed — inferred per-call from `eventBus.on`'s own generic). `npm run lint` clean.
+- [x] `npm run test:unit` green — 164/164 tests, 18 files (156 prior + 8 new).
+- [x] Every §0.1 event key has a handler that type-checks against the bus; handlers never throw into the emitter (both sync and async failure modes guarded — see report); narration is built **from the payload only** (no cross-table reads, verified by code review of every `build` closure).
+- [x] Committed on green (`api: observability sprint 3 — listener and narration`).
+
+**Report:** [`results-obser-plat-02/report-sprint-O3-02.md`](./results-obser-plat-02/report-sprint-O3-02.md)
 
 ---
 
