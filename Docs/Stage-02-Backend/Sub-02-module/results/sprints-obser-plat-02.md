@@ -161,27 +161,29 @@ monotonicity under concurrency was proven against a real DB via real parallel tr
 
 # Part B — Observability module
 
-### Sprint O1: Foundation — idempotency decision, mapper, interface, factories   — Status: ⬜ Pending
+### Sprint O1: Foundation — idempotency decision, mapper, interface, factories   — Status: ✅ Done
 
 **Goals**
 - Settle the audit-idempotency mechanism, then land pure transforms + the service contract + test data
   — no logic.
 
 **Tasks**
-- [ ] Decision (owner): audit idempotency — **add `AuditLog.eventKey String? @unique`** (recommended; one migration) vs. a zero-schema pre-insert existence-check. (plan §8.1, §7.2)
-- [ ] Decision (owner): `STAFF_SEARCH_BEACON` vs. `product.searched` — which write path is authoritative (avoid double-counting). (plan §8.2)
-- [ ] Impl (schema, if `eventKey` chosen): add `eventKey String? @unique` to `AuditLog` in `schema.prisma`; `prisma migrate dev` (new migration) applied to dev **and** test; `prisma generate`. (plan §8.1)
-- [ ] Impl: `src/modules/observability/observability.mapper.ts` — `toClientActivityDto`, `toStaffSearchDto`, `toAuditLogDto`, `toLogStatsDto`. `Date → ISO`; **omit** nested `product`/`matchedProduct`/`user` when the FK is null; `userName` from the join; each ends `XxxResponseSchema.parse(...)`. (plan §1, §5)
-- [ ] Impl: `src/modules/observability/observability.interface.ts` — `IObservabilityService` (plan §2.1) + the module-local `AuditEntry` type (`{ actionType, entityType, entityId, description, userId?, ipAddress?, eventKey? }`).
-- [ ] Test (factories): `test/data/client-activity.factory.ts` (`clientActivityPayload` valid **and** the `SEARCH` + `durationSeconds` invalid case; `seedClientActivity`), `staff-search.factory.ts` (`staffSearchPayload`; `seedStaffSearch`), `audit-log.factory.ts` (`seedAuditLog` + **one sample payload per event key** drawn from the contract event types). (plan §4.1)
-- [ ] Test: `test/unit/modules/observability/observability.mapper.spec.ts` — `Date → ISO`; `product`/`matchedProduct`/`user` omitted when the FK is null; `userName` from the join; `actionType` passes through as an arbitrary string; each DTO parses its `*ResponseSchema`. (plan §4.2)
+- [x] Decision (owner, asked): audit idempotency — **zero-schema pre-insert existence-check** (not the `eventKey` migration). Discriminated by `(actionType, entityType, entityId, description)` — `description` already encodes the specific before/after values for structured events. (plan §8.1, §7.2)
+- [x] Decision (owner, asked): `STAFF_SEARCH_BEACON` vs. `product.searched` — **keep both**, flagged as a known double-counting risk once catalog ships `product.searched` (not blocking now — only identity+platform emit today). (plan §8.2)
+- [x] No migration needed (zero-schema decision).
+- [x] Impl: `src/modules/observability/observability.mapper.ts` — `toClientActivityDto`, `toStaffSearchDto`, `toAuditLogDto`, `toLogStatsDto`. `Date → ISO`; nested `product`/`matchedProduct`/`user` **omitted** (key absent, not `null`-valued) when the FK is null; `userName` from the join; each ends `XxxResponseSchema.parse(...)`. (plan §1, §5)
+- [x] Impl: `src/modules/observability/observability.interface.ts` — `IObservabilityService` (plan §2.1) + the module-local `AuditEntry` type (no `eventKey` field, per the zero-schema decision) + `ProductSearchedPayload`.
+- [x] Test (factories): `test/data/client-activity.factory.ts` (`clientActivityPayload`, `invalidSearchWithDurationPayload`, `seedClientActivity`), `staff-search.factory.ts` (`staffSearchPayload`; `seedStaffSearch`), `audit-log.factory.ts` (`seedAuditLog` + `SAMPLE_EVENTS` — **6 representative events**, not all ~30; see report for the scoped-down rationale). (plan §4.1)
+- [x] Test: `test/unit/modules/observability/observability.mapper.spec.ts` (7 tests) — `Date → ISO`; `product`/`matchedProduct`/`user` omitted when the FK is null; `userName` from the join; `actionType` passes through as an arbitrary string (incl. a never-before-seen one); each DTO parses its `*ResponseSchema`. (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green (mapper + conformance + prior).
-- [ ] (if migration) `prisma migrate` applied to dev + test; `eventKey` is nullable + unique; re-run idempotent.
-- [ ] Mapper omits null nested objects, converts `Date → ISO`, returns DTOs; interface returns DTOs only.
-- [ ] Committed on green (`api: observability sprint 1 — foundation`).
+- [x] `npx tsc --noEmit` clean; `npm run lint` clean (the `satisfies` checks on `SAMPLE_EVENTS` against the real contract event types all compiled).
+- [x] `npm run test:unit` green — 144/144 tests, 16 files (137 prior + 7 new).
+- [x] No migration (zero-schema decision); `prisma migrate status` unaffected.
+- [x] Mapper omits null nested objects, converts `Date → ISO`, returns DTOs; interface returns DTOs only.
+- [x] Committed on green (`api: observability sprint 1 — foundation`).
+
+**Report:** [`results-obser-plat-02/report-sprint-O1-02.md`](./results-obser-plat-02/report-sprint-O1-02.md)
 
 ---
 
