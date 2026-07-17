@@ -60,7 +60,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 2: Catalog   — Status: ⬜ Pending
+### Sprint 2: Catalog   — Status: ✅ Complete
 
 **Goals**
 - Implement the taxonomy/products/prices/categories module (plan C). It is the largest module and the only dependency of `clients` and `inventory`, so it ships alone to unblock them.
