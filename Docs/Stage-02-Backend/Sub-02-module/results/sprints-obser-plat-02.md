@@ -78,22 +78,26 @@ payloads already exist.
 
 ---
 
-### Sprint P2: Foundation — mapper, interfaces, factories   — Status: ⬜ Pending
+### Sprint P2: Foundation — mapper, interfaces, factories   — Status: ✅ Done
 
 **Goals**
 - Pure Entity⇄DTO transforms, the three service contracts, and contract-shaped test data — no logic.
 
 **Tasks**
-- [ ] Impl: `src/modules/platform/platform.mapper.ts` — `toWilayaDto`, `toFeeDto(home, office, source)`, `toSettingsDto(mergedSections)`, `toPublicSettingsDto`, `toAdminFeesDto` (per the P1 decision). **`Decimal.toNumber()`** for money; never spreads; each `toDto` ends `XxxResponseSchema.parse(...)`. A private **defaults-template + merge** helper so a fresh DB still yields a valid `SettingsDto`. (plan §1, §5)
-- [ ] Impl: `src/modules/platform/platform.interface.ts` — `IPlatformService`, `ISequenceService`, `IDeliveryFeeService` (plan §2.1); return contract DTOs (or the injected primitives).
-- [ ] Test (factories): `test/data/wilaya.factory.ts` (`seedWilayas(subset)`, bilingual), `delivery-fee.factory.ts` (`upsertFeesPayload`, `seedFee`), `settings.factory.ts` (`updateSettingsPayload`, `seedSettings` → 4 default rows), `fees-import.fixture` (tiny in-memory workbook Buffer: one good + one bad row). (plan §4.1)
-- [ ] Test: `test/unit/modules/platform/platform.mapper.spec.ts` — `Decimal → number`; `WilayaDto` bilingual + nested communes; `SettingsDto` merges defaults for absent keys and parses `SettingsResponseSchema`; `PublicSettingsDto` exposes only `storefront`; `FeeDto.source` reflects the level. (plan §4.2)
+- [x] Impl: `src/modules/platform/platform.mapper.ts` — `toWilayaDto`, `toFeeDto(deliveryHome, deliveryOffice, source)`, `toSettingsDto(rows)`, `toPublicSettingsDto(settings)`, `toAdminFeesDto(wilayas, fees, defaults)`. **`Decimal.toNumber()`** for money (private `toMoney` helper); never spreads; each `toDto` ends `XxxResponseSchema.parse(...)`. Section-level defaults-template + merge for `toSettingsDto`. (plan §1, §5)
+- [x] Impl: `src/modules/platform/platform.interface.ts` — `IPlatformService`, `ISequenceService`, `IDeliveryFeeService` (plan §2.1); return contract DTOs (or the injected primitives).
+- [x] Test (factories): `test/data/wilaya.factory.ts` (`seedWilayas`, idempotent upsert), `delivery-fee.factory.ts` (`upsertFeesPayload`, `seedFee`), `settings.factory.ts` (`updateSettingsPayload`, `seedSettings`), `fees-import.fixture.ts` (`validFeesWorkbook`/`mixedFeesWorkbook`, real `.xlsx` Buffers via `exceljs`). (plan §4.1)
+- [x] Test: `test/unit/modules/platform/platform.mapper.spec.ts` (13 tests, written before the mapper implementation) — `Decimal → number`; `WilayaDto` bilingual + nested communes; `SettingsDto` merges defaults for absent sections and parses `SettingsResponseSchema`; `PublicSettingsDto` exposes only `storefront`; `FeeDto.source` reflects the level; `AdminFeesDto` falls back to settings defaults per-wilaya and lists only communes with an explicit override. (plan §4.2)
+- [x] Unplanned addition: extracted shared `Apps/api/prisma/settings-defaults.ts` (mirrors `pages.registry.ts`/`wilayas.registry.ts`) so Sprint P1's seed and this sprint's mapper fallback use one literal source instead of two independently-drifting copies; refactored `seed.ts` to import it.
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint` clean.
-- [ ] `npm run test:unit` green (mapper + conformance + prior).
-- [ ] Mapper converts `Decimal → number` and returns DTOs (parses `*ResponseSchema`), never entities; interfaces return DTOs only.
-- [ ] Committed on green (`api: platform sprint 2 — foundation`).
+- [x] `npx tsc --noEmit` clean; `npm run lint` clean (one real finding fixed: `platform.mapper.ts`'s `Prisma` import needed `import type`).
+- [x] `npm run test:unit` green — 111/111 tests, 14 files (98 prior + 13 new).
+- [x] Mapper converts `Decimal → number` and returns DTOs (parses `*ResponseSchema`), never entities; interfaces return DTOs only.
+- [x] Smoke-tested the `fees-import.fixture.ts` round-trips through `exceljs` (temporary script, removed before commit).
+- [x] Committed on green (`api: platform sprint 2 — foundation`).
+
+**Report:** [`results-obser-plat-02/report-sprint-P2-02.md`](./results-obser-plat-02/report-sprint-P2-02.md)
 
 ---
 

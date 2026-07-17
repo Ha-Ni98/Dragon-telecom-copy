@@ -1,32 +1,8 @@
-import { DocType } from '@dragon-telecom/contract';
 import { prisma } from '../src/common/db/prisma';
 import { logger } from '../src/common/config/logger';
 import { PAGES_REGISTRY } from './pages.registry';
 import { WILAYAS_REGISTRY } from './wilayas.registry';
-
-// One row per DocType — every prefix/nextSequence key SequenceService.nextNumber may read.
-const INVOICING_PREFIXES: Record<DocType, string> = {
-  [DocType.INVOICE]: 'FAC',
-  [DocType.SALE]: 'SAL',
-  [DocType.ORDER]: 'ORD',
-  [DocType.REPAIR]: 'REP',
-  [DocType.SUPPLIER_INVOICE]: 'SUP',
-  [DocType.ADJUSTMENT]: 'ADJ',
-  [DocType.POS_CLIENT]: 'POS',
-  [DocType.CLIENT]: 'CLI',
-};
-
-const NEXT_SEQUENCES: Record<DocType, number> = Object.fromEntries(
-  Object.values(DocType).map((docType) => [docType, 1]),
-) as Record<DocType, number>;
-
-// Keyed by the SettingsDto section name (Setting.key mirrors the DTO key — plan §1.2).
-const DEFAULT_SETTINGS: Record<string, unknown> = {
-  store: { name: 'Dragon Telecom' },
-  invoicing: { prefixes: INVOICING_PREFIXES, nextSequences: NEXT_SEQUENCES },
-  delivery: { defaultHome: 500, defaultOffice: 300 },
-  storefront: { featuredProductIds: [] },
-};
+import { DEFAULT_SETTINGS } from './settings-defaults';
 
 async function seedPages(): Promise<void> {
   for (const page of PAGES_REGISTRY) {
