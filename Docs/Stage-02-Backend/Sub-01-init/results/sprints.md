@@ -86,7 +86,7 @@ Per plan §2.1 (D4), the contract's route constants were stripped of their leadi
 
 ---
 
-## Sprint 4: Boot — Status: ⬜ Pending
+## Sprint 4: Boot — Status: ✅ Done
 
 **Goals**
 - The bootloader assembles the pipeline and comes up: `app.ts` middleware chain, `server.ts` lifecycle, a `/health` smoke test, and the route-conformance harness composing `env.API_PREFIX`.
