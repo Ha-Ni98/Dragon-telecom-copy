@@ -105,7 +105,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 4: Platform & Purchasing   — Status: ⬜ Pending
+### Sprint 4: Platform & Purchasing   — Status: ✅ Complete
 
 **Goals**
 - Implement two self-contained modules: platform settings/geography/fees (plan L) and supplier purchasing (plan E).
