@@ -1,6 +1,6 @@
 # Stage 02 · Sub-02 — Prompts (Module Endpoint)
 
-Run once per module. Replace `[module]` with the module name. Standing rules: rules govern HOW, phase files WHAT/WHEN, the contract WHICH; resolve HOW conflicts toward the rules and note them; stop and ask only on a genuine conflict; before declaring any type/enum/route, confirm it doesn't already exist in `@app-template/contract`.
+Run once per module. Replace `[module]` with the module name. Standing rules: rules govern HOW, phase files WHAT/WHEN, the contract WHICH; resolve HOW conflicts toward the rules and note them; stop and ask only on a genuine conflict; before declaring any type/enum/route, confirm it doesn't already exist in `@dragon-telecom/contract`.
 
 ---
 
@@ -12,9 +12,9 @@ Read and follow strictly:
 - **Phase file:** stage-02-sub-02-phase-01-plan.md
 - **Spec:** module-contracts/
 - **Rules:** module-implementation-rules.md
-- **Contract:** @app-template/contract
+- **Contract:** @dragon-telecom/contract
 
-Constraints: no code; output only /docs/stage-02-backend/sub-02-module/plan-[module].md.
+Constraints: no code; output only /Docs/stage-02-backend/sub-02-module/results/plan-[module].md.
 
 ---
 
@@ -24,7 +24,7 @@ Produce the sprint plan for `[module]`.
 
 Read and follow strictly:
 - **Phase file:** stage-02-sub-02-phase-02-sprints.md
-- **Plan:** /docs/stage-02-backend/sub-02-module/results/plan-[module].md
+- **Plan:** /Docs/stage-02-backend/sub-02-module/results/plan-
 - **Rules:** module-implementation-rules.md
 
 Constraints: no code; foundation (mapper/interface) → logic (service) → API (controller/wiring); every sprint has a Validation block covering compilation and tests; output only Docs/stage-02-backend/sub-02-module/results/sprints-[module]-[setnumber].md.

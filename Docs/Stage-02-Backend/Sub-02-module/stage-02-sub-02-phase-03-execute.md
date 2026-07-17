@@ -47,7 +47,7 @@ Write `/docs/stage-02-backend/sub-02-module/results-[module]/report-sprint-[NN]-
 
 ### Step 5 — Commit on Green
 Stage all changes, add all files you change no need to see what files you change use directly this command: `git add .`
-`git commit -m "api: [module] sprint [N] — [name]"`. and don't add anything to this commit message beside what i give to you.
+`git commit -m "api: [module] sprint [N] — [name]"`. 
 
 ### Step 6 — Pause
 Wait for `next`.
