@@ -80,24 +80,27 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 3: Logic A — auth & sessions   — Status: ⬜ Pending
+### Sprint 3: Logic A — auth & sessions   — Status: ✅ Done
 
 **Goals**
 - Stand up `IdentityService` (constructor DI) and implement login / refresh / logout / effective-pages,
   with refresh-token crypto and the `auth.loggedIn` emit.
 
 **Tasks**
-- [ ] Impl: `src/modules/identity/identity.service.ts` — `class IdentityService implements IIdentityService`; `constructor(prisma)`; refresh-token crypto via the shared `generateRefreshToken`/`hashRefreshToken` (`src/common/utils/refresh-token.utils.ts`, built in Sprint 2 — not private service helpers as originally planned, to avoid duplicating the hash algorithm between the service and `refresh-token.factory.ts`); TTL from `env.REFRESH_TOKEN_EXPIRATION` (days). (plan §5, §7.3)
-- [ ] Impl `login`: three-way resolve (username | email | phone→Client); Argon2id `comparePassword`; **one generic 401** `AUTH_INVALID_CREDENTIALS` + dummy compare (no timing/enumeration oracle); set `lastLoginAt`; mint access JWT (`generateToken`, `JWTPayload { sub, type, staffId?/clientId? }`); mint refresh (hash stored, `expiresAt`); emit `auth.loggedIn` after commit. Login rate-limiting is explicitly deferred (plan §7.2) — not implemented here. (plan §3.1)
-- [ ] Impl `refresh`: hash-lookup; rotate (revoke old, `replacedByTokenId`, new pair, rebuild payload from user + staff/client); **reuse-of-revoked → chain-kill**; expired/not-found → 401. (plan §3.2)
-- [ ] Impl `logout` (revoke caller's active tokens) and `getEffectivePages` (STAFF union / ADMIN all). (plan §3.2–3.3)
-- [ ] Test: `test/unit/modules/identity/identity.service.spec.ts` (part A) — mock Prisma; spy `eventBus`/token/crypto: three-way routing; **identical** 401 for unknown/wrong/disabled; `lastLoginAt` + `auth.loggedIn`; rotation (`revokedAt`+`replacedByTokenId`); reuse → chain-kill; expired → 401; effective-pages staff-union vs admin-all. (plan §4.2)
+- [x] Impl: `src/modules/identity/identity.service.ts` — `class IdentityService implements IIdentityService`; `constructor(prisma)`; refresh-token crypto via the shared `generateRefreshToken`/`hashRefreshToken`; TTL from `env.REFRESH_TOKEN_EXPIRATION` (days). Implements the full `IIdentityService` interface now (required to compile `implements`) — the 13 methods out of scope this sprint (users/roles/pages/technicians) are typed stubs that throw `"...not implemented yet (see Sprint 4)"`, replaced one-by-one next sprint. (plan §5, §7.3)
+- [x] Impl `login`: three-way resolve (username | email | phone→Client, only for approved/`userId`-linked clients); Argon2id `comparePassword`; **one generic 401** `AUTH_INVALID_CREDENTIALS` + dummy compare against a precomputed Argon2id hash (no timing/enumeration oracle); sets `lastLoginAt` + creates the refresh token in one `$transaction`; mints access JWT (`JWTPayload { sub, type, staffId? | clientId? }` depending on which relation is populated); emits `auth.loggedIn` after commit. Login rate-limiting remains explicitly deferred (plan §7.2). (plan §3.1)
+- [x] Impl `refresh`: hash-lookup; rotates in an interactive `$transaction` (revoke old with `replacedByTokenId`, create new); **reuse-of-revoked → chain-kill** (`updateMany` revokes every active token for that user); expired/not-found/disabled-user → 401. (plan §3.2)
+- [x] Impl `logout` (revokes the caller's active tokens) and `getEffectivePages` (STAFF/CLIENT → union of enabled roles' pages via `IdentityMapper.effectivePages`; ADMIN → every `Page.key`, same mapper function). (plan §3.2–3.3)
+- [x] Test: `test/unit/modules/identity/identity.service.spec.ts` (16 tests) — mocks Prisma via constructor DI (no `@common/db/prisma` mock needed) + `vi.mock`s `@common/events/event-bus`, `@common/utils/password.utils`, `@common/utils/token.utils`, `@common/utils/refresh-token.utils`. Covers: three-way routing (direct + phone, including the pending-client-no-userId case); byte-identical 401 for unknown/wrong-password/disabled (same statusCode+code+message); dummy-compare-still-runs on the unknown-user path; `lastLoginAt` set + `auth.loggedIn` emitted with the right payload; JWT payload carries `staffId` vs `clientId` correctly; rotation (`revokedAt`+`replacedByTokenId`); reuse → chain-kill; expired → 401; disabled-user refresh (defense-in-depth, not explicitly required by the plan but a real code branch) → 401; logout revokes active tokens; effective-pages staff-union vs admin-all. (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean.
-- [ ] `npm run test:unit` green.
-- [ ] Service throws `AppError` subclasses; emits typed events **after commit**; returns DTOs (never entities/hashes).
-- [ ] Committed on green (`api: sub-02 sprint 3 — identity auth/sessions`).
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green — 74/74 tests, 13 files.
+- [x] `npm run lint` clean.
+- [x] Service throws `AppError` subclasses (`invalidCredentialsError()` — no dedicated subclass exists for `AUTH_INVALID_CREDENTIALS`, per plan §8 item 5); emits typed events **after commit** (inside/after the `$transaction`); returns DTOs via `.parse()` against `LoginResultResponseSchema`/`RefreshResultResponseSchema` (never entities/hashes).
+- [x] Committed on green (`api: identity sprint 3 — auth and sessions`).
+
+**Report:** [`results-identity-01/report-sprint-03-01.md`](./results-identity-01/report-sprint-03-01.md)
 
 ---
 
