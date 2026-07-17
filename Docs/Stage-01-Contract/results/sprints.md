@@ -14,7 +14,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 0: Common Foundation & Package Setup   — Status: ⬜ Pending
+### Sprint 0: Common Foundation & Package Setup   — Status: ✅ Complete
 
 **Goals**
 - Establish the shared foundation every module imports (envelope, `paginated()`, `ErrorCode`) and rename the package. Nothing else can export safely first (plan Part 1).
@@ -37,7 +37,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 1: Identity (Core) & JWT Primitive   — Status: ⬜ Pending
+### Sprint 1: Identity (Core) & JWT Primitive   — Status: ✅ Complete
 
 **Goals**
 - Implement the core auth/user/roles/pages/technicians module (plan A) — it supersedes the template `user`/`auth` modules — and complete the shared JWT primitive that depends on its `UserType` enum.
@@ -60,7 +60,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 2: Catalog   — Status: ⬜ Pending
+### Sprint 2: Catalog   — Status: ✅ Complete
 
 **Goals**
 - Implement the taxonomy/products/prices/categories module (plan C). It is the largest module and the only dependency of `clients` and `inventory`, so it ships alone to unblock them.
@@ -82,7 +82,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 3: Clients & Inventory   — Status: ⬜ Pending
+### Sprint 3: Clients & Inventory   — Status: ✅ Complete
 
 **Goals**
 - Implement the two modules that depend on `catalog` (now available): client/POS identity (plan B) and the FIFO ledger surface (plan D).
@@ -105,7 +105,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 4: Platform & Purchasing   — Status: ⬜ Pending
+### Sprint 4: Platform & Purchasing   — Status: ✅ Complete
 
 **Goals**
 - Implement two self-contained modules: platform settings/geography/fees (plan L) and supplier purchasing (plan E).
@@ -126,7 +126,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 5: Sales & Orders   — Status: ⬜ Pending
+### Sprint 5: Sales & Orders   — Status: ✅ Complete
 
 **Goals**
 - Implement the two revenue-document modules: POS sales (plan F) and storefront orders (plan G). Both self-contained; margin fields are `.optional()` mapping-gated.
@@ -148,7 +148,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 6: Repairs & Billing   — Status: ⬜ Pending
+### Sprint 6: Repairs & Billing   — Status: ✅ Complete
 
 **Goals**
 - Implement back-office repairs (plan H) and the invoice/client-payment module (plan I). Both self-contained; margins `.optional()` mapping-gated.
@@ -169,7 +169,7 @@ Each sprint ends by updating the touched module barrel(s) **and** root `src/inde
 
 ---
 
-### Sprint 7: Statistics & Observability   — Status: ⬜ Pending
+### Sprint 7: Statistics & Observability   — Status: ✅ Complete
 
 **Goals**
 - Implement the two read-only/sink modules last: statistics dashboards & reports (plan J) and the audit/activity module (plan K). Neither is imported by anything.
