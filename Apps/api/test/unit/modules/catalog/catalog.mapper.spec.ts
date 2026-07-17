@@ -61,13 +61,13 @@ const buildImage = (overrides: Partial<ProductImage> = {}): ProductImage => ({
 
 type ProductWithRelationsOverrides = Partial<Product> & {
   brand?: Brand;
-  model?: DeviceModel | null;
+  deviceModel?: DeviceModel | null;
   family?: Family;
   images?: ProductImage[];
 };
 
 const buildProduct = (overrides: ProductWithRelationsOverrides = {}) => {
-  const { brand, model, family, images, ...productOverrides } = overrides;
+  const { brand, deviceModel, family, images, ...productOverrides } = overrides;
   return {
     id: PRODUCT_ID,
     sku: 'SKU-1',
@@ -89,7 +89,7 @@ const buildProduct = (overrides: ProductWithRelationsOverrides = {}) => {
     updatedAt: now,
     ...productOverrides,
     brand: brand ?? buildBrand(),
-    model: model === undefined ? buildDeviceModel() : model,
+    deviceModel: deviceModel === undefined ? buildDeviceModel() : deviceModel,
     family: family ?? buildFamily(),
     images: images ?? [],
   };
@@ -143,7 +143,7 @@ describe('CatalogMapper', () => {
 
     it('omits model when the product has none (universal part)', () => {
       const dto = CatalogMapper.toProductWithPricingDto(
-        buildProduct({ deviceModelId: null, model: null }),
+        buildProduct({ deviceModelId: null, deviceModel: null }),
         { priceHidden: true },
         { inStock: false, inCart: false },
       );

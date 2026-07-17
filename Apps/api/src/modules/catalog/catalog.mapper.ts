@@ -25,9 +25,12 @@ import {
 
 type Money = Prisma.Decimal | number;
 
+// Field named `deviceModel` (not `model`) to match Prisma's actual relation name on `Product`
+// exactly — callers pass through their `include: { deviceModel: true }` query result as-is,
+// with no rename/translation step. The DTO's own `model` field is a mapper output, unrelated.
 type ProductWithRelations = Product & {
   brand: Brand;
-  model?: DeviceModel | null;
+  deviceModel?: DeviceModel | null;
   family: Family;
   images: ProductImage[];
 };
@@ -64,7 +67,7 @@ export class CatalogMapper {
       ...(product.barcode != null ? { barcode: product.barcode } : {}),
       createdAt: product.createdAt.toISOString(),
       brand: { id: product.brand.id, name: product.brand.name },
-      ...(product.model != null ? { model: { id: product.model.id, name: product.model.name } } : {}),
+      ...(product.deviceModel != null ? { model: { id: product.deviceModel.id, name: product.deviceModel.name } } : {}),
       family: {
         id: product.family.id,
         name: product.family.name,
@@ -102,7 +105,7 @@ export class CatalogMapper {
       ...(product.barcode != null ? { barcode: product.barcode } : {}),
       family: { id: product.family.id, name: product.family.name },
       brand: { id: product.brand.id, name: product.brand.name },
-      ...(product.model != null ? { model: { id: product.model.id, name: product.model.name } } : {}),
+      ...(product.deviceModel != null ? { model: { id: product.deviceModel.id, name: product.deviceModel.name } } : {}),
       availableQuantity: CatalogMapper.availableQuantity(product),
       ...(product.defaultSalePrice != null
         ? { defaultSalePrice: CatalogMapper.toMoney(product.defaultSalePrice) }
@@ -123,7 +126,7 @@ export class CatalogMapper {
       ...(product.description != null ? { description: product.description } : {}),
       family: { id: product.family.id, name: product.family.name },
       brand: { id: product.brand.id, name: product.brand.name },
-      ...(product.model != null ? { model: { id: product.model.id, name: product.model.name } } : {}),
+      ...(product.deviceModel != null ? { model: { id: product.deviceModel.id, name: product.deviceModel.name } } : {}),
       ...(product.guestPrice != null ? { guestPrice: CatalogMapper.toMoney(product.guestPrice) } : {}),
       ...(product.defaultSalePrice != null
         ? { defaultSalePrice: CatalogMapper.toMoney(product.defaultSalePrice) }

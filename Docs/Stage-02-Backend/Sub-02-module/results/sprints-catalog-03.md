@@ -103,7 +103,7 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
 
 ---
 
-### Sprint 4: Logic B — products, pricing, price resolution   — Status: ⬜ Pending
+### Sprint 4: Logic B — products, pricing, price resolution   — Status: ✅ Done
 
 **Goals**
 - Complete `catalog.service.ts`: the reused price resolver, product lists (public/staff/admin),
@@ -111,18 +111,21 @@ message (contract-only changes may be a separate `contract:` commit); **no** `Co
   `product.*` events.
 
 **Tasks**
-- [ ] Impl: `CatalogProductService implements ICatalogProductService`; `constructor(prisma, inventory: IInventoryPort)`. Replace the Sprint-3 stubs. (plan §2.1, §5.1)
-- [ ] Impl (resolver): the single pure `resolvePrice(product, viewer, categoryPriceMap)` → `{ currentPrice?, guestPrice?, priceHidden }` covering the full matrix (client+tier via `Client.posClientId→PosClient.categoryId`, client no-tier, guest priced, guest null); `inStock = availableQuantity > 0`; `inCart` from `ClientCart` for CLIENT tokens else false. (plan §1.2, §3.1)
-- [ ] Impl (reads): `listProducts(q, viewer)` (public, viewer-resolved, paginated via `ProductListQuerySchema` + `paginated()`), `getProduct(id, viewer)` (→ `ProductDetailDto` incl. `relatedIds`), `listStaffProducts` (qty + 4 sale prices, no cost), `listAdminProducts` (full), `productStats` (bucket counts). **`product.searched` emitted only when `search` present AND an authenticated `userId` exists** (staff/admin), never for guests. (plan §3.1, §8 #3)
-- [ ] Impl (writes): `createProduct(cmd, images)` in one `$transaction` — inline-create taxonomy on `newXxxName` (else validate `*Id`); generate unique `sku`; **qty=0 rejects pricing (`PRICING_REQUIRES_STOCK`)**, **qty>0 requires cost** → create product then `inventory.addLayer(tx, INITIAL_STOCK)` then persist unlocked pricing; emit `product.created` after commit. `updateProduct` (core fields only). `updatePricing` (upsert `guestPrice` nullable / `defaultSalePrice` / `ProductPrice` rows) → emit `product.repriced`. `addImages`/`updateImages` (store URL/path only). Never writes inventory-owned columns. (plan §3.2, §3.3, §3.6)
-- [ ] Test: extend `catalog.service.spec.ts` — price matrix (4 cases); guest DTO leak check; `qty 0 + pricing → 400 PRICING_REQUIRES_STOCK`; `qty>0 no cost → 400`; `qty>0 → addLayer called once with INITIAL_STOCK on the tx` (mock `IInventoryPort`); `product.searched` emitted with `userId` on staff/admin search, **not** guest; `product.created`/`product.repriced` emitted. (plan §4.2)
+- [x] Impl: `CatalogProductService implements ICatalogProductService`; `constructor(prisma, inventory: IInventoryPort)`. Replace the Sprint-3 stubs. (plan §2.1, §5.1)
+- [x] Impl (resolver): the single pure `resolvePrice(product, viewer, categoryPriceMap)` → `{ currentPrice?, guestPrice?, priceHidden }` covering the full matrix (client+tier via `Client.posClientId→PosClient.categoryId`, client no-tier, guest priced, guest null); `inStock = availableQuantity > 0`; `inCart` from `ClientCart` for CLIENT tokens else false. (plan §1.2, §3.1)
+- [x] Impl (reads): `listProducts(q, viewer)` (public, viewer-resolved, paginated via `ProductListQuerySchema` + `paginated()`), `getProduct(id, viewer)` (→ `ProductDetailDto` incl. `relatedIds`), `listStaffProducts` (qty + 4 sale prices, no cost), `listAdminProducts` (full), `productStats` (bucket counts). **`product.searched` emitted only when `search` present AND an authenticated `userId` exists** (staff/admin), never for guests. (plan §3.1, §8 #3)
+- [x] Impl (writes): `createProduct(cmd, images)` in one `$transaction` — inline-create taxonomy on `newXxxName` (else validate `*Id`); generate unique `sku`; **qty=0 rejects pricing (`PRICING_REQUIRES_STOCK`)**, **qty>0 requires cost** → create product then `inventory.addLayer(tx, INITIAL_STOCK)` then persist unlocked pricing; emit `product.created` after commit. `updateProduct` (core fields only). `updatePricing` (upsert `guestPrice` nullable / `defaultSalePrice` / `ProductPrice` rows) → emit `product.repriced`. `addImages`/`updateImages` (store URL/path only). Never writes inventory-owned columns. (plan §3.2, §3.3, §3.6)
+- [x] Fix (Sprint 2 fallout): renamed `catalog.mapper.ts`'s internal `ProductWithRelations.model` field to `deviceModel` to match Prisma's actual relation name — avoids a translation step in every query this sprint writes. DTO output field unchanged. See report.
+- [x] Test: extend `catalog.service.spec.ts` — price matrix (4 cases); guest DTO leak check; `qty 0 + pricing → 400 PRICING_REQUIRES_STOCK`; `qty>0 no cost → 400` (as contract-schema regression checks — the service trusts the validated command and doesn't re-check them); `qty>0 → addLayer called once with INITIAL_STOCK on the tx` (mock `IInventoryPort`); `product.searched` emitted with `userId` on staff/admin search, **not** guest; `product.created`/`product.repriced` emitted. (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (full service spec + prior suites).
-- [ ] `npm run lint --no-color` clean.
-- [ ] `createProduct` is transactional and calls the injected port in-tx; storefront DTOs leak no cost/reserved/exact qty/margin; every method returns a `.parse()`d DTO.
-- [ ] Committed on green (`api: catalog sprint 4 — products and pricing`).
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green (225/225, 20 files — full service spec + prior suites).
+- [x] `npm run lint --no-color` clean.
+- [x] `createProduct` is transactional and calls the injected port in-tx; storefront DTOs leak no cost/reserved/exact qty/margin; every method returns a `.parse()`d DTO.
+- [x] Committed on green (`api: catalog sprint 4 — products and pricing`).
+
+**Report:** [`results-catalog-03/report-sprint-04-03.md`](./results-catalog-03/report-sprint-04-03.md)
 
 ---
 

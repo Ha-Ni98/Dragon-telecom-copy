@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Prisma } from '@prisma/client';
+import { CreateProductSchema, MovementType } from '@dragon-telecom/contract';
 import type { AppError } from '../../../../src/common/errors';
-import { CatalogCategoryService, CatalogTaxonomyService } from '../../../../src/modules/catalog/catalog.service';
+import {
+  CatalogCategoryService,
+  CatalogProductService,
+  CatalogTaxonomyService,
+} from '../../../../src/modules/catalog/catalog.service';
+import type { IInventoryPort } from '../../../../src/modules/catalog/catalog.interface';
 
 const {
   brandFindManyMock,
@@ -23,6 +29,19 @@ const {
   clientCategoryUpdateMock,
   posClientCountMock,
   productPriceCountMock,
+  productFindManyMock,
+  productCountMock,
+  productFindUniqueMock,
+  productFindUniqueOrThrowMock,
+  productCreateMock,
+  productUpdateMock,
+  productPriceFindManyMock,
+  productPriceCreateManyMock,
+  productPriceUpsertMock,
+  productImageCreateManyMock,
+  productImageUpdateMock,
+  clientFindUniqueMock,
+  clientCartFindManyMock,
   transactionMock,
   eventBusEmitMock,
 } = vi.hoisted(() => ({
@@ -45,6 +64,19 @@ const {
   clientCategoryUpdateMock: vi.fn(),
   posClientCountMock: vi.fn(),
   productPriceCountMock: vi.fn(),
+  productFindManyMock: vi.fn(),
+  productCountMock: vi.fn(),
+  productFindUniqueMock: vi.fn(),
+  productFindUniqueOrThrowMock: vi.fn(),
+  productCreateMock: vi.fn(),
+  productUpdateMock: vi.fn(),
+  productPriceFindManyMock: vi.fn(),
+  productPriceCreateManyMock: vi.fn(),
+  productPriceUpsertMock: vi.fn(),
+  productImageCreateManyMock: vi.fn(),
+  productImageUpdateMock: vi.fn(),
+  clientFindUniqueMock: vi.fn(),
+  clientCartFindManyMock: vi.fn(),
   transactionMock: vi.fn(),
   eventBusEmitMock: vi.fn(),
 }));
@@ -73,7 +105,23 @@ const prismaMock = {
     update: clientCategoryUpdateMock,
   },
   posClient: { count: posClientCountMock },
-  productPrice: { count: productPriceCountMock },
+  product: {
+    findMany: productFindManyMock,
+    count: productCountMock,
+    findUnique: productFindUniqueMock,
+    findUniqueOrThrow: productFindUniqueOrThrowMock,
+    create: productCreateMock,
+    update: productUpdateMock,
+  },
+  productPrice: {
+    count: productPriceCountMock,
+    findMany: productPriceFindManyMock,
+    createMany: productPriceCreateManyMock,
+    upsert: productPriceUpsertMock,
+  },
+  productImage: { createMany: productImageCreateManyMock, update: productImageUpdateMock },
+  client: { findUnique: clientFindUniqueMock },
+  clientCart: { findMany: clientCartFindManyMock },
   $transaction: transactionMock,
 };
 
@@ -324,6 +372,254 @@ describe('CatalogCategoryService', () => {
         'clientCategory.changed',
         expect.objectContaining({ categoryId: CATEGORY_ID }),
       );
+    });
+  });
+});
+
+const PRODUCT_ID = '77777777-7777-4777-8777-777777777777';
+const CLIENT_ID = '88888888-8888-4888-8888-888888888888';
+const CATEGORY_TIER_ID = '99999999-9999-4999-8999-999999999999';
+
+const buildProductRow = (overrides: Record<string, unknown> = {}) => ({
+  id: PRODUCT_ID,
+  sku: 'SKU-1',
+  barcode: null,
+  name: 'Screen Protector',
+  description: null,
+  familyId: FAMILY_ID,
+  brandId: BRAND_ID,
+  deviceModelId: null,
+  guestPrice: null,
+  defaultSalePrice: null,
+  averageCost: new Prisma.Decimal(0),
+  quantityOnHand: 10,
+  quantityReserved: 0,
+  reorderThreshold: 0,
+  isPublished: true,
+  isEnabled: true,
+  createdAt: now,
+  updatedAt: now,
+  brand: { id: BRAND_ID, name: 'Samsung', slug: 'samsung', logoUrl: null, isEnabled: true, createdAt: now, updatedAt: now },
+  family: {
+    id: FAMILY_ID,
+    name: 'Screens',
+    slug: 'screens',
+    iconUrl: null,
+    parentId: null,
+    isUniversal: false,
+    isFeatured: false,
+    isEnabled: true,
+    createdAt: now,
+    updatedAt: now,
+  },
+  deviceModel: null,
+  images: [],
+  ...overrides,
+});
+
+describe('CatalogProductService', () => {
+  const inventoryMock: IInventoryPort = { addLayer: vi.fn() };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transactionMock.mockImplementation(async (arg: unknown) => {
+      if (typeof arg === 'function') return (arg as (tx: unknown) => unknown)(prismaMock);
+      return Promise.all(arg as Promise<unknown>[]);
+    });
+  });
+
+  const service = () => new CatalogProductService(prismaMock as never, inventoryMock);
+
+  describe('price resolution matrix', () => {
+    it('CLIENT + tier: uses the category ProductPrice row over guestPrice', async () => {
+      const product = buildProductRow({ guestPrice: new Prisma.Decimal(1000) });
+      productCountMock.mockResolvedValueOnce(1);
+      productFindManyMock.mockResolvedValueOnce([product]);
+      clientFindUniqueMock.mockResolvedValueOnce({ posClient: { categoryId: CATEGORY_TIER_ID } });
+      productPriceFindManyMock.mockResolvedValueOnce([
+        { productId: PRODUCT_ID, price: new Prisma.Decimal(750) },
+      ]);
+      clientCartFindManyMock.mockResolvedValueOnce([]);
+
+      const result = await service().listProducts(
+        { page: 1, limit: 15 } as never,
+        { sub: CLIENT_ID, type: 'CLIENT', clientId: CLIENT_ID } as never,
+      );
+
+      expect(result.items[0]?.currentPrice).toBe(750);
+      expect(result.items[0]?.guestPrice).toBe(1000);
+      expect(result.items[0]?.priceHidden).toBe(false);
+    });
+
+    it('CLIENT, no tier: falls back to guestPrice', async () => {
+      const product = buildProductRow({ guestPrice: new Prisma.Decimal(1200) });
+      productCountMock.mockResolvedValueOnce(1);
+      productFindManyMock.mockResolvedValueOnce([product]);
+      clientFindUniqueMock.mockResolvedValueOnce({ posClient: null });
+      clientCartFindManyMock.mockResolvedValueOnce([]);
+
+      const result = await service().listProducts(
+        { page: 1, limit: 15 } as never,
+        { sub: CLIENT_ID, type: 'CLIENT', clientId: CLIENT_ID } as never,
+      );
+
+      expect(result.items[0]?.currentPrice).toBe(1200);
+      expect(result.items[0]?.priceHidden).toBe(false);
+    });
+
+    it('Guest, priced: currentPrice mirrors guestPrice', async () => {
+      const product = buildProductRow({ guestPrice: new Prisma.Decimal(900) });
+      productCountMock.mockResolvedValueOnce(1);
+      productFindManyMock.mockResolvedValueOnce([product]);
+
+      const result = await service().listProducts({ page: 1, limit: 15 } as never, undefined);
+
+      expect(result.items[0]?.currentPrice).toBe(900);
+      expect(result.items[0]?.priceHidden).toBe(false);
+    });
+
+    it('Guest, null guestPrice: hidden, no currentPrice', async () => {
+      const product = buildProductRow({ guestPrice: null });
+      productCountMock.mockResolvedValueOnce(1);
+      productFindManyMock.mockResolvedValueOnce([product]);
+
+      const result = await service().listProducts({ page: 1, limit: 15 } as never, undefined);
+
+      expect(result.items[0]?.priceHidden).toBe(true);
+      expect('currentPrice' in result.items[0]!).toBe(false);
+    });
+  });
+
+  describe('storefront DTO leak check', () => {
+    it('a guest listing never carries cost/reserved/exact-quantity fields', async () => {
+      const product = buildProductRow({ quantityOnHand: 40, quantityReserved: 12, averageCost: new Prisma.Decimal(5000) });
+      productCountMock.mockResolvedValueOnce(1);
+      productFindManyMock.mockResolvedValueOnce([product]);
+
+      const result = await service().listProducts({ page: 1, limit: 15 } as never, undefined);
+
+      expect(result.items[0]).not.toHaveProperty('averageCost');
+      expect(result.items[0]).not.toHaveProperty('quantityOnHand');
+      expect(result.items[0]).not.toHaveProperty('quantityReserved');
+      expect(result.items[0]).not.toHaveProperty('sku');
+    });
+  });
+
+  describe('product.searched', () => {
+    it('emits with userId on a staff search', async () => {
+      const product = buildProductRow();
+      productCountMock.mockResolvedValueOnce(1);
+      productFindManyMock.mockResolvedValueOnce([{ ...product, prices: [] }]);
+
+      await service().listStaffProducts(
+        { page: 1, limit: 15, search: 'screen' } as never,
+        { sub: 'staff-1', type: 'STAFF' } as never,
+      );
+
+      expect(eventBusEmitMock).toHaveBeenCalledWith(
+        'product.searched',
+        expect.objectContaining({ userId: 'staff-1', query: 'screen', matchedProductId: PRODUCT_ID }),
+      );
+    });
+
+    it('does not emit on a guest storefront search', async () => {
+      const product = buildProductRow();
+      productCountMock.mockResolvedValueOnce(1);
+      productFindManyMock.mockResolvedValueOnce([product]);
+
+      await service().listProducts({ page: 1, limit: 15, search: 'screen' } as never, undefined);
+
+      expect(eventBusEmitMock).not.toHaveBeenCalledWith('product.searched', expect.anything());
+    });
+  });
+
+  describe('createProduct', () => {
+    it('qty>0 calls inventory.addLayer once with INITIAL_STOCK inside the transaction and emits product.created', async () => {
+      productCreateMock.mockResolvedValueOnce({ id: PRODUCT_ID, name: 'New Product' });
+      productFindUniqueOrThrowMock.mockResolvedValueOnce(buildProductRow({ name: 'New Product' }));
+
+      const cmd = CreateProductSchema.parse({
+        name: 'New Product',
+        familyId: FAMILY_ID,
+        brandId: BRAND_ID,
+        initialQuantity: 5,
+        initialUnitCost: 1000,
+      });
+
+      await service().createProduct(cmd, []);
+
+      expect(inventoryMock.addLayer).toHaveBeenCalledTimes(1);
+      expect(inventoryMock.addLayer).toHaveBeenCalledWith(
+        prismaMock,
+        expect.objectContaining({ productId: PRODUCT_ID, quantity: 5, unitCost: 1000, type: MovementType.INITIAL_STOCK }),
+      );
+      expect(eventBusEmitMock).toHaveBeenCalledWith(
+        'product.created',
+        expect.objectContaining({ productId: PRODUCT_ID, name: 'New Product' }),
+      );
+    });
+
+    it('qty=0 never calls inventory.addLayer', async () => {
+      productCreateMock.mockResolvedValueOnce({ id: PRODUCT_ID, name: 'Priceless Product' });
+      productFindUniqueOrThrowMock.mockResolvedValueOnce(buildProductRow({ name: 'Priceless Product' }));
+
+      const cmd = CreateProductSchema.parse({
+        name: 'Priceless Product',
+        familyId: FAMILY_ID,
+        brandId: BRAND_ID,
+        initialQuantity: 0,
+      });
+
+      await service().createProduct(cmd, []);
+
+      expect(inventoryMock.addLayer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('contract enforcement (regression — the service trusts these, it does not re-check them)', () => {
+    it('rejects initialQuantity=0 with pricing fields (PRICING_REQUIRES_STOCK)', () => {
+      expect(() =>
+        CreateProductSchema.parse({
+          name: 'X',
+          familyId: FAMILY_ID,
+          brandId: BRAND_ID,
+          initialQuantity: 0,
+          guestPrice: 100,
+        }),
+      ).toThrow();
+    });
+
+    it('rejects initialQuantity>0 without initialUnitCost', () => {
+      expect(() =>
+        CreateProductSchema.parse({
+          name: 'X',
+          familyId: FAMILY_ID,
+          brandId: BRAND_ID,
+          initialQuantity: 5,
+        }),
+      ).toThrow();
+    });
+  });
+
+  describe('updatePricing', () => {
+    it('emits product.repriced', async () => {
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow());
+      productFindUniqueOrThrowMock.mockResolvedValueOnce(buildProductRow());
+
+      await service().updatePricing(PRODUCT_ID, { guestPrice: 1500 });
+
+      expect(eventBusEmitMock).toHaveBeenCalledWith(
+        'product.repriced',
+        expect.objectContaining({ productId: PRODUCT_ID }),
+      );
+    });
+
+    it('404s when the product does not exist', async () => {
+      productFindUniqueMock.mockResolvedValueOnce(null);
+
+      await expect(service().updatePricing(PRODUCT_ID, { guestPrice: 1500 })).rejects.toMatchObject({
+        statusCode: 404,
+      });
     });
   });
 });
