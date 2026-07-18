@@ -58,23 +58,23 @@ inventory module documented — see the inventory-complete handoff.
 
 ---
 
-### Sprint 2: Clients — Foundation (mapper, interface, factories)   — Status: ⬜ Pending
+### Sprint 2: Clients — Foundation (mapper, interface, factories)   — Status: ✅ Done
 
 **Goals**
 - Pure `clients.mapper.ts`, `IClientsService` + consumer-side port interfaces, and the missing
   factories, with mapper unit tests. No service logic.
 
 **Tasks**
-- [ ] Impl: `src/modules/clients/clients.mapper.ts` — `toValidatePhoneDto`, `toClientMeDto` (**no `category`, no raw `status`**; money proxied from linked PosClient, `0` if none), `toAdminClientDto` (`fullName`, `wilayaFr`/`communeFr`, `categoryName`, roll-ups), `toPosClientDto`, `toCartItemDto` (assembles `{ productId, addedAt(ISO), product }` — `product` supplied pre-resolved, never rebuilt). Each ends `XxxResponseSchema.parse(dto)`. Field-listing, never spreads; `Decimal→number` helper; `Date→ISO`; Prisma enum → contract enum. (plan §I.1)
-- [ ] Impl: `src/modules/clients/clients.interface.ts` — `IClientsService` (all methods from plan §I.2, returning contract DTOs incl. `ClientStatsDto` from Sprint 1); `Viewer` alias reused; consumer-side port interfaces `ICatalogCartPort`, an identity port typing (`provisionClientUser`/`resetPassword`/password-verify), and an observability activity-read port. (plan §I.2, §I.5)
-- [ ] Impl: factories `test/data/client-cart.factory.ts` (+ reuse existing `client`, `pos-client`, `client-category`, `client-activity`, `wilaya`, `product`, `product-price` factories). (plan §A)
-- [ ] Test: `test/unit/modules/clients/clients.mapper.spec.ts` — field-exclusion (`ClientMeDto` has no `status`/`category`), `Decimal→number`, `Date→ISO`, `PhoneAvailability` lowercase never `ClientStatus`, `.parse` never throws on valid input.
+- [x] Impl: `src/modules/clients/clients.mapper.ts` — `toValidatePhoneDto`, `toClientMeDto` (**no `category`, no raw `status`**; money proxied from linked PosClient, `0` if none), `toAdminClientDto` (`fullName`, `wilayaFr`/`communeFr`, `categoryName`, roll-ups), `toPosClientDto`, `toCartItemDto` (assembles `{ productId, addedAt(ISO), product }` — `product` supplied pre-resolved, never rebuilt). Each ends `XxxResponseSchema.parse(dto)`. Field-listing, never spreads; `Decimal→number` helper; `Date→ISO`; Prisma enum → contract enum. (plan §I.1)
+- [x] Impl: `src/modules/clients/clients.interface.ts` — `IClientsService` (all methods from plan §I.2, returning contract DTOs incl. `ClientStatsDto` + newly-added `PosClientListQuery` from the contract); `Viewer` alias reused; consumer-side port interfaces `ICatalogCartPort` and `IIdentityProvisioningPort` (`provisionClientUser`/`resetPassword`). **No activity-read port** — observability already owns+serves `/admin/clients/:id/activity` as its own route (see report); **no password-verify port** — `changeMyPassword`'s currentPassword check reads `User.passwordHash` directly + the shared password util instead (see report); **`rejectClient` has no `staffId`** — no column to store it. (plan §I.2, §I.5)
+- [x] Impl: factories `test/data/client-cart.factory.ts` (+ reuse existing `client`, `pos-client`, `client-category`, `client-activity`, `wilaya`, `product`, `product-price` factories). (plan §A)
+- [x] Test: `test/unit/modules/clients/clients.mapper.spec.ts` — field-exclusion (`ClientMeDto` has no `status`/`category`), `Decimal→number`, `Date→ISO`, `PhoneAvailability` lowercase never `ClientStatus`, `.parse` never throws on valid input.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (mapper + conformance).
-- [ ] Mapper excludes sensitive fields (lists returned fields, no spread); returns contract DTOs only.
-- [ ] Committed on green (`clients: sprint 2 — foundation (mapper, interface, factories)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (mapper + conformance — 318/318, 23 files).
+- [x] Mapper excludes sensitive fields (lists returned fields, no spread); returns contract DTOs only.
+- [x] Committed on green (`clients: sprint 2 — foundation (mapper, interface, factories)`).
 
 ---
 
