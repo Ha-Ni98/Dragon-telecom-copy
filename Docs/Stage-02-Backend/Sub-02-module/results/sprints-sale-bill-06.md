@@ -129,22 +129,22 @@ same direct-sibling-import DI as set 05 (`clients`/`purchasing`).
 
 ---
 
-### Sprint 5: Billing — Foundation (mapper, interface, factories)   — Status: ⬜ Pending
+### Sprint 5: Billing — Foundation (mapper, interface, factories)   — Status: ✅ Done
 
 **Goals**
 - Pure `billing.mapper.ts`, `IBillingService` + local `PdfResult`, factories, mapper unit tests.
 
 **Tasks**
-- [ ] Impl: `src/modules/billing/billing.mapper.ts` — `toInvoiceDto(invoice, lines, ctx, { audience })` (**audience-gated**: `client`/`staff` omit `totalCost`/`totalProfit` + line `costSnapshot`/`profit`/`currentAverageCost`; `admin` keeps them and fills `currentAverageCost` from the live `Product.averageCost` join; `issuedAt` ISO, `dueDate` date-only; snapshot name/address never re-derived), `toClientPaymentDto(payment, ctx)` (`invoiceNumber?` via join, money `Decimal→number`, `paidAt` ISO), `toInvoicePersistence(source, event, lines)` (immutable snapshot create-input, never spreads). Each ends `XxxResponseSchema.parse(dto)`. (plan §II.1)
-- [ ] Impl: `src/modules/billing/billing.interface.ts` — `IBillingService` (all methods from plan §II.2, returning contract DTOs; PDF getters return the local `PdfResult = { filename; mime:'application/pdf'; body: Buffer }`; listener-only `issueFromSale`/`issueFromOrder`/`applyClientPaymentRecorded` typed off the contract event payloads). `PdfResult` mirrors platform/inventory's `ExportResult` (not a contract DTO — PDFs bypass the envelope, §D-6). (plan §II.2)
-- [ ] Impl: factories `test/data/create-client-payment.factory.ts` + synthetic `sale.confirmed` / `order.confirmed` event builders (reuse the Sprint-2 sale factories where useful). (plan §II.4)
-- [ ] Test: `test/unit/modules/billing/billing.mapper.spec.ts` — client/staff audience strips `costSnapshot`/`profit`/`currentAverageCost`/`totalCost`/`totalProfit`; admin keeps + injects live `currentAverageCost`; `Decimal→number`, `Date→ISO`; `.parse` never throws on valid input.
+- [x] Impl: `src/modules/billing/billing.mapper.ts` — `toInvoiceDto(invoice, ctx)` (**audience-gated**: `client`/`staff` omit `totalCost`/`totalProfit` + line `costSnapshot`/`profit`/`currentAverageCost`; `admin` keeps them and injects `currentAverageCost` from `ctx.currentAverageCostByLineId`), `toClientPaymentDto(payment)` (`invoiceNumber?` via join, money `Decimal→number`, `paidAt` ISO), `toInvoicePersistence(input: InvoiceIssueInput)` (immutable snapshot create-input, never spreads). Each ends `XxxResponseSchema.parse(dto)`. **Two significant schema gaps found and resolved via ctx (no migration)** — see report: `Invoice` has **no `sourceReference` column at all** (required on every audience, not just admin — resolved live in Sprint 6 by joining `sourceId` → `Sale.reference`/`Order.reference`); `InvoiceLine` has **no `productId`** (no FK path to `Product.averageCost` for `currentAverageCost` — Sprint 6 will correlate by `label`/`quantity`/`unitPrice` back to the source document's own lines). `toInvoicePersistence` takes one normalized `InvoiceIssueInput` (not the plan's literal `(source, event, lines)`) since `sale.confirmed`/`order.confirmed` share too little shape for the mapper to reconcile itself. (plan §II.1)
+- [x] Impl: `src/modules/billing/billing.interface.ts` — `IBillingService` (all methods from plan §II.2, returning contract DTOs; PDF getters return the local `PdfResult = { filename; mime:'application/pdf'; body: Buffer }`; listener-only `issueFromSale`/`issueFromOrder`/`applyClientPaymentRecorded` typed off the contract event payloads). `PdfResult` mirrors platform/inventory's `ExportResult` (not a contract DTO — PDFs bypass the envelope, §D-6). (plan §II.2)
+- [x] Impl: factories `test/data/create-client-payment.factory.ts` + `test/data/billing-events.factory.ts` (`buildSaleConfirmedEvent`/`buildOrderConfirmedEvent`, plain builders, not schema-validated). (plan §II.4)
+- [x] Test: `test/unit/modules/billing/billing.mapper.spec.ts` (12 tests) — client/staff audience strips `costSnapshot`/`profit`/`currentAverageCost`/`totalCost`/`totalProfit`; admin keeps + injects `currentAverageCost` (omitted gracefully when absent from ctx); `sourceReference` always from ctx; `Decimal→number`, `Date→ISO`/date-only, `serialNumbers` passthrough (plain string, no array conversion — unlike sales); `.parse` never throws across all 3 audiences.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (mapper + conformance).
-- [ ] Mapper pure/field-listing, audience-gated; returns contract DTOs only.
-- [ ] Committed on green (`billing: sprint 5 — foundation (mapper, interface, factories)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (mapper + conformance — 460/460, 32 files).
+- [x] Mapper pure/field-listing, audience-gated; returns contract DTOs only.
+- [x] Committed on green (`billing: sprint 5 — foundation (mapper, interface, factories)`).
 
 ---
 
