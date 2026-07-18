@@ -189,22 +189,22 @@ pure reads of the shared `prisma` singleton (§D-4).
 
 ---
 
-### Sprint 7: Statistics — Foundation (mapper, interface)   — Status: ⬜ Pending
+### Sprint 7: Statistics — Foundation (mapper, interface)   — Status: ✅ Done
 
 **Goals**
 - Thin `statistics.mapper.ts` (row shapers only, §D-6) + `IStatisticsService`, with mapper unit
   tests. No new factories (statistics writes nothing — it reuses existing factories/seeds).
 
 **Tasks**
-- [ ] Impl: `src/modules/statistics/statistics.mapper.ts` — the repeatable row shapers only, each ending in the matching `…ResponseSchema.parse(...)`: `toDashboardOrderSummary`, `toDashboardClientSummary`, `toLowStockItem` (`availableQuantity = quantityOnHand − quantityReserved`, `reorderThreshold` from `Product`), `toReportDto({ chart, rows, totals, drill })`, plus `toOverviewDto`/`toFilteredDto`/`toStaffDashboardDto`/`toAdminDashboardDto` assembling their aggregate inputs into the contract shape. `Decimal→number`, `Date→ISO`. Query composition stays in the service (§D-6). (plan §III.1)
-- [ ] Impl: `src/modules/statistics/statistics.interface.ts` — `IStatisticsService` (all methods from plan §III.2, returning contract DTOs; `getReport` returns `ReportDto | ExportResult`, reusing the `{ filename; mime; body }` `ExportResult` shape from the inventory/platform precedent for `format=csv`; `getStaffDashboard(staffId)` scoped to self). (plan §III.2)
-- [ ] Test: `test/unit/modules/statistics/statistics.mapper.spec.ts` — `toLowStockItem` computes `availableQuantity` and carries `reorderThreshold`; dashboard summaries shape correctly; `toReportDto` preserves `drill { entity, idField }`; `Decimal→number`/`Date→ISO`; `.parse` never throws across `Overview`/`Filtered`/`Report`/`AdminDashboard`/`StaffDashboard`.
+- [x] Impl: `src/modules/statistics/statistics.mapper.ts` — the repeatable row shapers only, each ending in the matching `…ResponseSchema.parse(...)`: `toDashboardOrderSummary`, `toDashboardClientSummary`, `toLowStockItem` (`availableQuantity = quantityOnHand − quantityReserved`, `reorderThreshold` from `Product`), `toReportDto({ chart, rows, totals, drill })`, plus `toOverviewDto`/`toFilteredDto`/`toStaffDashboardDto`/`toAdminDashboardDto` assembling their aggregate inputs into the contract shape. `Decimal→number`, `Date→ISO`. Query composition stays in the service (§D-6). Two genuine, undocumented contract gaps found+resolved: `CHARTS` has no dedicated schema (reused `ReportResponseSchema.shape.chart` rather than redeclaring it) and `TOP_PRODUCTS` has no shape at all (a local, flagged `TopProductResponseSchema`) — see [report-sprint-07-07.md](./results-order-rep-stat-07/report-sprint-07-07.md). (plan §III.1)
+- [x] Impl: `src/modules/statistics/statistics.interface.ts` — `IStatisticsService` (all methods from plan §III.2, returning contract DTOs; `getReport` returns `ReportDto | ExportResult`, reusing the `{ filename; mime; body }` `ExportResult` shape from the inventory/platform precedent for `format=csv`; `getStaffDashboard(staffId)` scoped to self). (plan §III.2)
+- [x] Test: `test/unit/modules/statistics/statistics.mapper.spec.ts` (12 tests) — `toLowStockItem` computes `availableQuantity` and carries `reorderThreshold`; dashboard summaries shape correctly; `toReportDto` preserves `drill { entity, idField }`; `Decimal→number`/`Date→ISO`; `.parse` never throws across `Overview`/`Filtered`/`Report`/`AdminDashboard`/`StaffDashboard`.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (mapper + conformance).
-- [ ] Mapper thin/pure, returns contract DTOs only; no bus/injected-service dependency introduced; no re-declared contract types.
-- [ ] Committed on green (`statistics: sprint 7 — foundation (mapper, interface)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (mapper + conformance) — 582/582, 40 files.
+- [x] Mapper thin/pure, returns contract DTOs only; no bus/injected-service dependency introduced; no re-declared contract types.
+- [x] Committed on green (`statistics: sprint 7 — foundation (mapper, interface)`).
 
 ---
 
