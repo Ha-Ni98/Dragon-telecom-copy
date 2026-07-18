@@ -119,22 +119,22 @@ pure reads of the shared `prisma` singleton (§D-4).
 
 ---
 
-### Sprint 4: Repairs — Foundation (mapper, interface, factories)   — Status: ⬜ Pending
+### Sprint 4: Repairs — Foundation (mapper, interface, factories)   — Status: ✅ Done
 
 **Goals**
 - Pure `repairs.mapper.ts`, `IRepairsService`, factories, with mapper unit tests. No service logic.
 
 **Tasks**
-- [ ] Impl: `src/modules/repairs/repairs.mapper.ts` — `toRepairDto(repair, parts, history, ctx, { includeMargins })` (**margin-gated**: omit `totalCost`/`totalProfit` and each part's `costOfGoods`/`profit` when staff; `device = { brand?{id,name}, model?{id,name}, label?, imei? }` inlined refs; `reportedIssues` = `String[]` cast to `ReportedIssue[]`; `technician?{id,name}`; `parts[]` from `RepairPart`; `history[]` from `RepairStatusHistory` with `staffName` from the joined `Staff`; per §C-1/§D-1 filter the synthetic `INTAKE→INTAKE` intake row out of the surfaced `history` unless the team keeps it as "ticket opened by X"; `ageHours` derived), `toPersistenceIntake(cmd, ctx)` (`status:INTAKE`, `reference=ctx.reference`, `labourPrice:0`, totals 0, prefill `customerName`/`customerPhone` from an attached `PosClient` when `posClientId` given, BL#1), `toPartCreateInput(cmd, ctx)` (`productNameSnapshot=ctx.productName`, `lineTotal=unitPrice×quantity`, cost/profit null until COMPLETED). Each ends `RepairResponseSchema.parse(dto)`; field-listing; `toMoney`; `Date→ISO`; enum casts. (plan §II.1)
-- [ ] Impl: `src/modules/repairs/repairs.interface.ts` — `IRepairsService` (all methods from plan §II.2, returning contract DTOs; actor threaded as `JWTPayload`; **no** listener-only method — repairs listens to nothing). (plan §II.2)
-- [ ] Impl: factories — `test/data/repair.factory.ts` (`makeRepair` + `seedRepair` DB helper), `create-repair.factory.ts` (`makeCreateRepairCommand`), `repair-part.factory.ts` (`makeRepairPart`); reuse existing `makeProduct`/`makePosClient`/`makeTechnician`/`makeStaff`/`makeBrand`/`makeDeviceModel`. (plan §II.3)
-- [ ] Test: `test/unit/modules/repairs/repairs.mapper.spec.ts` — device ref assembly (brand/model/label/imei optionals); margin gating on `totalCost`/`totalProfit` + part `costOfGoods`/`profit`; `history` `staffName` join + intake-row filtering choice; `reportedIssues` cast; `.parse` never throws.
+- [x] Impl: `src/modules/repairs/repairs.mapper.ts` — `toRepairDto(repair, parts, history, ctx, { includeMargins })` (**margin-gated**: omit `totalCost`/`totalProfit` and each part's `costOfGoods`/`profit` when staff; `device = { brand?{id,name}, model?{id,name}, label?, imei? }` inlined refs; `reportedIssues` = `String[]` cast to `ReportedIssue[]`; `technician?{id,name}`; `parts[]` from `RepairPart`; `history[]` from `RepairStatusHistory` with `staffName` from the joined `Staff`; per §C-1/§D-1 filter the synthetic `INTAKE→INTAKE` intake row out of the surfaced `history` unless the team keeps it as "ticket opened by X"; `ageHours` derived), `toPersistenceIntake(cmd, ctx)` (`status:INTAKE`, `reference=ctx.reference`, `labourPrice:0`, totals 0, prefill `customerName`/`customerPhone` from an attached `PosClient` when `posClientId` given, BL#1), `toPartCreateInput(cmd, ctx)` (`productNameSnapshot=ctx.productName`, `lineTotal=unitPrice×quantity`, cost/profit null until COMPLETED). Each ends `RepairResponseSchema.parse(dto)`; field-listing; `toMoney`; `Date→ISO`; enum casts. (plan §II.1)
+- [x] Impl: `src/modules/repairs/repairs.interface.ts` — `IRepairsService` (all methods from plan §II.2, returning contract DTOs; actor threaded as `JWTPayload`; **no** listener-only method — repairs listens to nothing). `listRepairs`'s plan-hedged return type resolved concretely to plain `RepairDto[]` — `RepairListQuerySchema` has no page/limit fields (see [report-sprint-04-07.md](./results-order-rep-stat-07/report-sprint-04-07.md)). (plan §II.2)
+- [x] Impl: factories — `test/data/repair.factory.ts` (`makeRepair` + `seedRepair` DB helper), `create-repair.factory.ts` (`makeCreateRepairCommand`), `repair-part.factory.ts` (`makeRepairPart`). `Repair` has no required FK relations at all, so `seedRepair` needs no brand/technician/posClient setup unless a test wants one.
+- [x] Test: `test/unit/modules/repairs/repairs.mapper.spec.ts` (15 tests) — device ref assembly (brand/model/label/imei optionals); margin gating on `totalCost`/`totalProfit` + part `costOfGoods`/`profit` (incl. admin-but-not-yet-completed omission); `history` `staffName` join, intake row **kept** (reads as "ticket opened by X"); `reportedIssues` cast; `.parse` never throws.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (mapper + conformance).
-- [ ] Mapper pure/field-listing, margin-gated, returns contract DTOs only; no re-declared contract types.
-- [ ] Committed on green (`repairs: sprint 4 — foundation (mapper, interface, factories)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (mapper + conformance) — 554/554, 38 files.
+- [x] Mapper pure/field-listing, margin-gated, returns contract DTOs only; no re-declared contract types.
+- [x] Committed on green (`repairs: sprint 4 — foundation (mapper, interface, factories)`).
 
 ---
 
