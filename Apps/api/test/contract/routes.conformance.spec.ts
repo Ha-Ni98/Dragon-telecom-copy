@@ -280,4 +280,33 @@ describe('route conformance', () => {
     // share the same adminOnly guard) — verified for real, authenticated, in
     // test/integration/purchasing.integration.spec.ts instead.
   });
+
+  // Every SALE_ROUTES path is guarded (no public routes at all) — the inventory/purchasing
+  // precedent applies directly: requireAuth's missing-token check short-circuits before any
+  // Prisma call (including the pages-gated STAFF_POS/STAFF_SALES checks), so all routes stay
+  // DB-free.
+  describe('sales route resolution (mounted, no DB required)', () => {
+    it('every SALE_ROUTES path resolves on `app`, not a raw unmatched-route 404', async () => {
+      const dummyId = '00000000-0000-4000-8000-000000000000';
+      const cases: { method: 'get' | 'post' | 'patch'; path: string }[] = [
+        { method: 'post', path: SALE_ROUTES.CREATE_DRAFT },
+        { method: 'patch', path: SALE_ROUTES.UPDATE_DRAFT.replace(':id', dummyId) },
+        { method: 'post', path: SALE_ROUTES.CONFIRM.replace(':id', dummyId) },
+        { method: 'get', path: SALE_ROUTES.STAFF_LIST },
+        { method: 'get', path: SALE_ROUTES.ADMIN_LIST },
+        { method: 'get', path: SALE_ROUTES.STAFF_DETAIL.replace(':reference', 'SAL-2026-0001') },
+        { method: 'get', path: SALE_ROUTES.ADMIN_DETAIL.replace(':reference', 'SAL-2026-0001') },
+        { method: 'post', path: SALE_ROUTES.RETURN },
+      ];
+
+      for (const { method, path } of cases) {
+        const res = await request(app)[method](`${env.API_PREFIX}${path}`);
+        expect(res.body, `${method.toUpperCase()} ${path} (status ${res.status})`).toHaveProperty('success');
+      }
+    });
+    // STAFF_LIST/CREATE_DRAFT share one literal path (different methods) and STAFF_DETAIL/
+    // ADMIN_DETAIL a shared :reference-shape — none of that is distinguishable DB-free since
+    // Express dispatches on method+path together; verified for real, authenticated, in
+    // test/integration/sales.integration.spec.ts instead.
+  });
 });

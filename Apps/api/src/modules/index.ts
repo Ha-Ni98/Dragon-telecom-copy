@@ -9,6 +9,7 @@ import type { IInventoryPort } from './catalog/catalog.interface';
 import { router as inventoryRouter, inventoryService } from './inventory/inventory.routes';
 import { router as clientsRouter } from './clients/clients.routes';
 import { router as purchasingRouter } from './purchasing/purchasing.routes';
+import { router as salesRouter } from './sales/sales.routes';
 
 // Adapts the real FIFO engine (IInventoryService) to the shape catalog's createProduct expects
 // (IInventoryPort) — object-input vs. positional args, and discards the returned movementId
@@ -47,4 +48,8 @@ export const registerModules = (apiRouter: Router): void => {
   // purchasing.routes.ts imports sequenceService/inventoryService/catalogProductService
   // directly, same one-directional shape.
   apiRouter.use(purchasingRouter);
+  // sales.routes.ts imports sequenceService/inventoryService/catalogProductService directly,
+  // same one-directional shape (catalogProductService satisfies ICatalogPosPricingPort
+  // structurally — set-06 Sprint 1's resolvePosPrices — no adapter needed).
+  apiRouter.use(salesRouter);
 };

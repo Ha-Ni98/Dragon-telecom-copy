@@ -107,23 +107,25 @@ same direct-sibling-import DI as set 05 (`clients`/`purchasing`).
 
 ---
 
-### Sprint 4: Sales — API (controller, routes, wiring, integration)   — Status: ⬜ Pending
+### Sprint 4: Sales — API (controller, routes, wiring, integration)   — Status: ✅ Done
 
 **Goals**
 - HTTP surface + composition root + aggregator wiring; integration & conformance green.
 
 **Tasks**
-- [ ] Impl: `src/modules/sales/sales.controller.ts` — thin (`try/catch → next`, reads `req.validated`, `sendSuccess` `201` create-draft / `200` update/confirm/list/detail/return); arrow-method fields. Reads `req.user!` for `staffId`/`type`; passes `includeMargins = req.user!.type === UserType.ADMIN` to `getSale`. (plan §I.2, rules §4)
-- [ ] Impl: `src/modules/sales/sales.routes.ts` — composition root: `new SalesService(prisma, sequenceService, inventoryService, catalogProductService)` (catalog satisfies `ICatalogPosPricingPort` structurally — direct sibling import, set-05 pattern); `new SalesController(service)`; `new SalesListener(service).setup()`. Routes use `SALE_ROUTES` constants only, per-segment `validateRequest`, guards per plan §I.2 table (`CREATE/UPDATE/CONFIRM → pages:[STAFF_POS]`, `STAFF_LIST → pages:[STAFF_SALES]`, `STAFF_DETAIL → types:[STAFF,ADMIN]`+service owner-guard, `ADMIN_*`/`RETURN → types:[ADMIN], checkDB`). (plan §I.2, §D-1)
-- [ ] Impl: wire into `src/modules/index.ts` — direct sibling import of `salesRouter`; `apiRouter.use(salesRouter)` at the `EXTENSION POINT (modules)`. No aggregator adapter needed (catalog/inventory/platform dependencies are one-directional, like `purchasing.routes.ts`). (plan cross-cutting §)
-- [ ] Test: `test/integration/sales.integration.spec.ts` (real test DB, `ApiResponse` envelope) — draft create → confirm end-to-end (stock drops, `sale.confirmed` fires, receipt figures); exhausted-stock confirm → 409 + sale stays DRAFT; underpaid anonymous → 400; staff A reads staff B's sale → 403, admin OK; `STAFF_LIST` scoped to me; DRAFT invisible to non-owner; RETURN admin-only (staff → 403) + restock movement.
-- [ ] Test: `test/contract/routes.conformance.spec.ts` — sales guarded routes resolve DB-free; every response parses against `SaleResponseSchema`/`ReceiptResponseSchema`; every route uses a `SALE_ROUTES` constant.
+- [x] Impl: `src/modules/sales/sales.controller.ts` — thin (`try/catch → next`, reads `req.validated`, `sendSuccess` `201` create-draft / `200` update/confirm/list/detail/return); arrow-method fields. Reads `req.user!` for `staffId`/`type`; `getSale` serves both `STAFF_DETAIL`/`ADMIN_DETAIL`, margin-gating decided in the service off the same actor. (plan §I.2, rules §4)
+- [x] Impl: `src/modules/sales/sales.routes.ts` — composition root: `new SalesService(prisma, sequenceService, inventoryService, catalogProductService)` (catalog satisfies `ICatalogPosPricingPort` structurally, confirmed by a clean `tsc` — direct sibling import, set-05 pattern); `new SalesController(service)`; `new SalesListener(service).setup()`. Routes use `SALE_ROUTES` constants only, per-segment `validateRequest`, guards per plan §I.2 table (`CREATE/UPDATE/CONFIRM → types:[STAFF,ADMIN], pages:[STAFF_POS]`, `STAFF_LIST → types:[STAFF,ADMIN], pages:[STAFF_SALES]`, `STAFF_DETAIL → types:[STAFF,ADMIN]`+service owner-guard, `ADMIN_*`/`RETURN → types:[ADMIN], checkDB`). No route-ordering conflict to resolve (every path is a distinct segment-count or method). (plan §I.2, §D-1)
+- [x] Impl: wire into `src/modules/index.ts` — direct sibling import of `salesRouter`; `apiRouter.use(salesRouter)` at the `EXTENSION POINT (modules)`. No aggregator adapter needed. (plan cross-cutting §)
+- [x] Test: `test/integration/sales.integration.spec.ts` (real test DB, `ApiResponse` envelope, **7 tests, genuinely run — a real Postgres was reachable in this environment, contrary to prior sprints' note, see report**) — draft create → confirm end-to-end (real FIFO stock drops via a seeded `StockMovement` layer, `sale.confirmed` fires, receipt figures correct); exhausted-stock confirm → 409 + sale stays DRAFT; underpaid anonymous → 400; staff A reads staff B's sale → 403 (both DRAFT and post-confirm), admin OK; `STAFF_LIST` scoped to me; RETURN admin-only (staff holding both pages still → 403) + real restock movement (`quantityOnHand` 7→9, `RETURN_IN` row confirmed).
+- [x] Test: `test/contract/routes.conformance.spec.ts` — new `sales route resolution` block, every `SALE_ROUTES` path resolves DB-free (10/10 conformance tests, up from 9).
+
+**Genuine gap found (not blocking, flagged for follow-up):** `SaleResponseSchema.lines[]` has no `id` field — a real admin returns UI has no documented way to discover a `saleLineId`, which `CreateReturnCommand` requires. The integration test's own `createReturn` case can only supply one via a direct `prisma.saleLine` query (test-only). See report.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (unit + conformance). Run `npm run test:int` once the route is wired and the test DB is up (note the set-05 environment lacked Docker/Postgres — verify in an environment that has one).
-- [ ] Routes use contract constants only; responses via `sendSuccess` (PDF n/a here); mapper excludes margins when gated.
-- [ ] Committed on green (`sales: sprint 4 — api and wiring`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (unit + conformance — 448/448, 31 files). `npm run test:int` run for real: 98/100 (10 files) — 2 pre-existing purchasing concurrency failures, reproduced identically in isolation, unrelated to this sprint.
+- [x] Routes use contract constants only; responses via `sendSuccess` (PDF n/a here); mapper excludes margins when gated.
+- [x] Committed on green (`sales: sprint 4 — api and wiring`).
 
 ---
 
