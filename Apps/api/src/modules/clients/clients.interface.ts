@@ -5,12 +5,15 @@ import type {
   AdminClientListQuery,
   AdminUpdateClientCommand,
   ApproveClientCommand,
+  BillingEvents,
   CartItemDto,
   ChangeMyPasswordCommand,
   ClientMeDto,
+  ClientsEvents,
   ClientStatsDto,
   CreatePosClientCommand,
   JWTPayload,
+  OrdersEvents,
   PaginatedResult,
   PosClientDto,
   PosClientListQuery,
@@ -19,6 +22,7 @@ import type {
   RegisterClientCommand,
   RejectClientCommand,
   ResetClientPasswordCommand,
+  SalesEvents,
   UpdateMeCommand,
   UpdatePosClientCommand,
   ValidatePhoneResultDto,
@@ -58,6 +62,19 @@ export interface IClientsService {
   listPosClients(query: PosClientListQuery): Promise<PaginatedResult<PosClientDto>>;
   createPosClient(cmd: CreatePosClientCommand): Promise<PosClientDto>;
   updatePosClient(id: string, cmd: UpdatePosClientCommand): Promise<PosClientDto>;
+
+  // Internal — invoked only by this module's own listener (post-commit), never by HTTP routes.
+  // Payload types are the contract's own event shapes (not another module's *service*
+  // interface) — importing them keeps these signatures in lockstep with whatever
+  // sales/orders/billing actually emit, with zero duplicated shape declarations.
+  materializePosClientForApprovedClient(
+    clientId: string,
+    posClientSeed: ClientsEvents['client.approved']['posClientSeed'],
+  ): Promise<void>;
+  applySaleConfirmed(payload: SalesEvents['sale.confirmed']): Promise<void>;
+  applyOrderConfirmed(payload: OrdersEvents['order.confirmed']): Promise<void>;
+  applyClientPaymentRecorded(payload: BillingEvents['payment.clientRecorded']): Promise<void>;
+  applyReturnCreated(payload: SalesEvents['return.created']): Promise<void>;
 }
 
 // Injected port (dependency inversion, plan §I.5) — real implementation lives in catalog

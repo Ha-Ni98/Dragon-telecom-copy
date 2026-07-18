@@ -78,28 +78,28 @@ inventory module documented — see the inventory-complete handoff.
 
 ---
 
-### Sprint 3: Clients — Logic (service + listener)   — Status: ⬜ Pending
+### Sprint 3: Clients — Logic (service + listener)   — Status: ✅ Done
 
 **Goals**
 - `ClientsService implements IClientsService` and `ClientsListener`; all §I.3 business logic;
   emits/handles events; unit tests with mock Prisma + fake ports + spy bus.
 
 **Tasks**
-- [ ] Impl: `src/modules/clients/clients.service.ts` — constructor DI `(prisma, identityPort, sequence: ISequenceService, catalogCart: ICatalogCartPort, activityRead)`:
-  - phone three-states (`available`/`registered`/`pending`); `register` writes PENDING `Client` (`userId=null`, `code` via `DocType.CLIENT`), re-runs the phone check, duplicate → **status-specific `409`**, emits `client.registered`.
-  - `approve` — one tx: `identityPort.provisionClientUser(..., tx)` → set `APPROVED`/`approvedAt`/`approvedByStaffId`/`userId` → commit → emit `client.approved {clientId, posClientSeed}`; only PENDING approvable (`409` else).
-  - `resetClientPassword`/`changeMyPassword` via identity (revokes refresh tokens); emit `client.passwordReset`; reject if no `userId`.
-  - `updateMe` never writes `phone`; money proxied from PosClient. Cart: `addCartItem` upsert (idempotent), `removeCartItem` idempotent delete, `getCart` resolves via `catalogCart.getCartProducts`.
-  - PosClient create/quick-create (`code` via `DocType.POS_CLIENT`, `initialCredit` opening), update, search, list; `recomputePosClientCaches` internal. Emit `posClient.creditChanged` on credit moves. (plan §I.3, §I.6)
-- [ ] Impl: `src/modules/clients/clients.listener.ts` — injects `IClientsService`, `setup()` subscribes: `client.approved` (own, post-commit → create linked PosClient + set `Client.posClientId`, **idempotent by `clientId`**), and the dormant `sale.confirmed`/`order.confirmed`/`payment.clientRecorded`/`return.created` handlers (recompute-from-ledger, idempotent by document id). All wrapped in a `safeRun` guard (throws/rejections never reach `eventBus.emit`). (plan §I.4, §D-3, §D-6)
-- [ ] Test: `test/unit/modules/clients/clients.service.spec.ts` — phone three states; duplicate register status-specific `409`; approve happy path calls the identity port + emits `client.approved`; approve non-PENDING `409`; reset/change-password revoke tokens; `updateMe` never writes phone; cart upsert/delete idempotent.
-- [ ] Test: `test/unit/modules/clients/clients.listener.spec.ts` — `client.approved` replay ⇒ exactly one PosClient; cache handlers apply once per document id; a handler throw is swallowed.
+- [x] Impl: `src/modules/clients/clients.service.ts` — constructor DI `(prisma, identity: IIdentityProvisioningPort, sequence: ISequenceService, catalogCart: ICatalogCartPort)` (no `activityRead` — dropped in Sprint 2):
+  - phone four-states (`available`/`registered`/`pending`, **`REJECTED`→`available`** — resolved ambiguity, see report); `register` writes PENDING `Client` (`userId=null`, `code` via `DocType.CLIENT` inside the create's own tx), re-runs the phone check, duplicate → **status-specific `409`**, validates wilaya/commune, emits `client.registered`.
+  - `approve` — one tx: `identity.provisionClientUser(..., tx)` → set `APPROVED`/`approvedAt`/`approvedByStaffId`/`userId` → commit → emit `client.approved {clientId, posClientSeed}`; only PENDING approvable (`409` else).
+  - `resetClientPassword`/`changeMyPassword` via identity's `resetPassword` (revokes refresh tokens); emit `client.passwordReset`; reject if no `userId`. `changeMyPassword` verifies `currentPassword` via a direct `User.passwordHash` read + the shared password util (Sprint 2 design), 401 on mismatch.
+  - `updateMe` never writes `phone`; money proxied from PosClient. Cart: `addCartItem` upsert (idempotent), `removeCartItem` idempotent `deleteMany`, `getCart` resolves via `catalogCart.getCartProducts`, skipping unresolved products.
+  - PosClient create/quick-create (share one helper; `code` via `DocType.POS_CLIENT`, `initialCredit` opening, both inside one tx), update, search, list. Emit `posClient.creditChanged` only when `initialCredit` is truthy. Admin roll-ups (`totalOrders`/`totalSpent`/`lastOrderDate`) now genuinely aggregate `Order`(by `clientId`)/`Sale`(by linked `PosClient.id`), unfiltered by status (see report). (plan §I.3, §I.6)
+- [x] Impl: `src/modules/clients/clients.listener.ts` — injects `IClientsService`, `setup()` subscribes: `client.approved` (own, post-commit → create linked PosClient + set `Client.posClientId`, **idempotent by `clientId`**, genuinely tested), and the dormant `sale.confirmed`/`order.confirmed`/`payment.clientRecorded`/`return.created` handlers. **Simplified from `recompute-from-ledger` to literal one-shot spec-described increments** (see report §D-3 revision — avoids inventing `SaleStatus`/`OrderStatus` business rules for unbuilt sibling modules; relies on the emitter's own single-emission guarantee, same as purchasing's precedent). All wrapped in a `safeRun` guard. (plan §I.4, §D-6)
+- [x] Test: `test/unit/modules/clients/clients.service.spec.ts` (38 tests) — phone four-states; duplicate register status-specific `409` + wilaya/commune 400s; approve happy path calls the identity port + emits `client.approved`; approve non-PENDING `409`; reset/change-password + 401/409 paths; `updateMe` never writes phone + P2025→404; cart upsert/deleteMany/empty-shortcut/skip-unresolved; all 5 listener-invoked methods directly.
+- [x] Test: `test/unit/modules/clients/clients.listener.spec.ts` (5 tests) — `client.approved` replay ⇒ exactly one PosClient (genuinely idempotent, tested); dormant handlers apply their one-shot delta correctly; a handler throw is swallowed.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (service + listener + conformance).
-- [ ] Events emitted post-commit; listener idempotent; no cross-module folder import (ports only).
-- [ ] Committed on green (`clients: sprint 3 — logic (service + listener)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (service + listener + conformance — 361/361, 25 files).
+- [x] Events emitted post-commit; `client.approved` listener genuinely idempotent; no cross-module folder import (only `ISequenceService`, imported directly like inventory's precedent for shared infra, + the two locally-declared ports).
+- [x] Committed on green (`clients: sprint 3 — logic (service + listener)`).
 
 ---
 
