@@ -42,24 +42,24 @@ same direct-sibling-import DI as set 05 (`clients`/`purchasing`).
 
 ---
 
-### Sprint 1: Shared prerequisites & contract   — Status: ⬜ Pending
+### Sprint 1: Shared prerequisites & contract   — Status: ✅ Done
 
 **Goals**
 - Land the two §C-1 `DocType` values (+ seed prefixes) and the §C-2 catalog POS-price read
   method so `sales` can be built against real, tested seams. No `sales/`/`billing/` code yet.
 
 **Tasks**
-- [ ] Contract: add `RETURN` and `CLIENT_PAYMENT` to `DocType` (`modules/platform/platform.enums.ts`); extend the `Record<DocType,string>` prefix seed (`settings-defaults.ts`) with `RETURN → 'RET'` and `CLIENT_PAYMENT → 'REG'` — **distinct from existing prefixes** (`FAC`=INVOICE, `FRN`=SUPPLIER, `PAY`=SUPPLIER_PAYMENT; avoid collisions). `DEFAULT_NEXT_SEQUENCES` picks them up automatically (`Object.values(DocType)`). (plan §C-1)
-- [ ] Catalog: add a read method to `CatalogProductService` (additive, no schema change): `getPosPrices(productIds: string[], categoryId: string | null): Promise<{ productId; productName; resolvedPrice }[]>` — resolves each product's price as `ProductPrice[productId, categoryId]` else `Product.defaultSalePrice` (reusing the existing private `loadPriceMap`), and returns the `productNameSnapshot` source. **Consumer-side port interface (`ICatalogPosPricingPort`) is declared in Sprint 2**, matching the `ICatalogPricingPort`-in-`inventory.interface.ts` precedent (provider satisfies it structurally, no `implements`). (plan §C-2, §D-2)
-- [ ] Test: `catalog.service.spec.ts` — `getPosPrices` returns category price when a `ProductPrice` row exists, falls back to `defaultSalePrice` when it doesn't and when `categoryId` is `null`, and surfaces `productName`; parses against the documented shape.
-- [ ] Test: platform sequence/settings specs still green with the two new `DocType` keys (seed exhaustiveness); `SequenceService.nextNumber(tx, DocType.RETURN)` yields `RET-YYYY-0001` and `DocType.CLIENT_PAYMENT` yields `REG-YYYY-0001`.
-- [ ] Test: contract package conformance/`tsc` green with the added enum values.
+- [x] Contract: add `RETURN` and `CLIENT_PAYMENT` to `DocType` (`modules/platform/platform.enums.ts`); extend the `Record<DocType,string>` prefix seed (`settings-defaults.ts`) with `RETURN → 'RET'` and `CLIENT_PAYMENT → 'REG'` — **distinct from existing prefixes** (`FAC`=INVOICE, `FRN`=SUPPLIER, `PAY`=SUPPLIER_PAYMENT; avoid collisions). `DEFAULT_NEXT_SEQUENCES` picks them up automatically (`Object.values(DocType)`). (plan §C-1)
+- [x] Catalog: add a read method to `CatalogProductService` (additive, no schema change): `resolvePosPrices(productIds: string[], categoryId: string | null): Promise<{ productId; productName; resolvedPrice? }[]>` — resolves each product's price as `ProductPrice[productId, categoryId]` else `Product.defaultSalePrice`, and returns the `productNameSnapshot` source. **Named `resolvePosPrices` (not `getPosPrices`)** to match the plan §C-2 port name exactly (structural typing needs the name); **`resolvedPrice` is optional**, following the non-throwing `getRepriceCandidates`/`getCostBasis` precedent since `defaultSalePrice` is genuinely nullable — see report. **Consumer-side port interface (`ICatalogPosPricingPort`) is declared in Sprint 2**, matching the `ICatalogPricingPort`-in-`inventory.interface.ts` precedent (provider satisfies it structurally, no `implements`). (plan §C-2, §D-2)
+- [x] Test: `catalog.service.spec.ts` — `resolvePosPrices` returns category price when a `ProductPrice` row exists, falls back to `defaultSalePrice` when it doesn't and when `categoryId` is `null`, omits `resolvedPrice` when neither exists, and surfaces `productName`; parses against the documented shape.
+- [x] Test: platform sequence/settings specs still green with the two new `DocType` keys (seed exhaustiveness); `SequenceService.nextNumber(tx, DocType.RETURN)` yields `RET-YYYY-0001` and `DocType.CLIENT_PAYMENT` yields `REG-YYYY-0001`.
+- [x] Test: contract package conformance/`tsc` green with the added enum values.
 
 **Validation**
-- [ ] `tsc --noEmit` clean across `contract`, `api`.
-- [ ] `npm run test:unit` green (catalog + platform + contract conformance).
-- [ ] No route/DTO/enum re-declared that already existed — only the two `DocType` values are new (genuinely missing per plan §C-1); `CREDIT_REQUIRES_CLIENT` adds **no** `ErrorCode` (uses `BadRequestError`, §C-5).
-- [ ] Committed on green (`catalog/contract: sprint 1 — sales+billing prerequisites`).
+- [x] `tsc --noEmit` clean across `contract`, `api`.
+- [x] `npm run test:unit` green (catalog + platform + contract conformance — 405/405, 28 files).
+- [x] No route/DTO/enum re-declared that already existed — only the two `DocType` values are new (genuinely missing per plan §C-1); `CREDIT_REQUIRES_CLIENT` adds **no** `ErrorCode` (uses `BadRequestError`, §C-5).
+- [x] Committed on green (`catalog/contract: sprint 1 — sales+billing prerequisites`).
 
 ---
 
