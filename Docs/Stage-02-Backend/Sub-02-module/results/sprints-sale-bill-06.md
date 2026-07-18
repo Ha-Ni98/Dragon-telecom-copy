@@ -63,23 +63,23 @@ same direct-sibling-import DI as set 05 (`clients`/`purchasing`).
 
 ---
 
-### Sprint 2: Sales — Foundation (mapper, interface, factories)   — Status: ⬜ Pending
+### Sprint 2: Sales — Foundation (mapper, interface, factories)   — Status: ✅ Done
 
 **Goals**
 - Pure `sales.mapper.ts`, `ISalesService` + consumer-side `ICatalogPosPricingPort`, factories,
   with mapper unit tests. No service logic.
 
 **Tasks**
-- [ ] Impl: `src/modules/sales/sales.mapper.ts` — `toSaleDto(sale, lines, ctx, { includeMargins })` (**margin-gated**: omit `totalCost`/`totalProfit` + line `costOfGoods`/`profit` when `includeMargins===false`; surface both `resolvedPrice` and `unitPrice`; `posClientName`/`staffName` from joins; `soldAt` ISO or omitted while DRAFT), `toReceiptDto(sale, lines)` (customer-facing figures only — `total`/`previousCredit`/`grandTotal`/`totalPaid`/`newCredit`, never cost/profit), `toPersistenceDraft(cmd, ctx)` (DRAFT create-input; `productNameSnapshot` per line; money/margin fields defaulted). Each ends `XxxResponseSchema.parse(dto)`; field-listing (never spreads); shared `toMoney` (`Decimal→number`); `Date→ISO`; Prisma enum → contract enum. (plan §I.1)
-- [ ] Impl: `src/modules/sales/sales.interface.ts` — `ISalesService` (all methods from plan §I.2, returning contract DTOs; `confirm` returns `ReceiptDto` per §D-3; listener-only `recordRepairSale(payload: RepairsEvents['repair.pickedUp'])`) + consumer-side `ICatalogPosPricingPort` (`resolvePosPrices(productIds, categoryId|null)`, matching catalog's Sprint-1 method structurally). Actor threaded as `{ staffId, type }` for ownership/scoping. (plan §I.2)
-- [ ] Impl: factories `test/data/sale-draft.factory.ts`, `confirm-sale.factory.ts`, `create-return.factory.ts`, `repair-picked-up.factory.ts` (event payload) — reuse existing `pos-client`/`product`/`staff` factories. (plan §I.4)
-- [ ] Test: `test/unit/modules/sales/sales.mapper.spec.ts` — staff mapping omits `costOfGoods`/`profit`/`totalCost`/`totalProfit`, admin keeps them; receipt carries figures but no cost/profit ("staff mapping hides profit"); `Decimal→number`, `Date→ISO`, override surfaced (`unitPrice≠resolvedPrice`); `.parse` never throws on valid input.
+- [x] Impl: `src/modules/sales/sales.mapper.ts` — `toSaleDto(sale, ctx, { includeMargins })` (**margin-gated**: omit `totalCost`/`totalProfit` + line `costOfGoods`/`profit` when `includeMargins===false`; surface both `resolvedPrice` and `unitPrice`; `posClientName`/`staffName` from joins; `soldAt` ISO or omitted while DRAFT), `toReceiptDto(sale)` (customer-facing figures only — `total`/`previousCredit`/`grandTotal`/`totalPaid`/`newCredit`, never cost/profit), `toPersistenceDraft(cmd, ctx)` (DRAFT create-input; `productNameSnapshot` per line; money/margin fields defaulted). **Deviation:** `lines` folded into a joined `SaleRow` type (one param) rather than a separate `lines` arg — matches purchasing's `SupplierInvoiceRow` precedent; `DraftMapContext` gained a `reference` placeholder field (`Sale.reference` has no `@default`, unlike what the plan's literal `{staffId; productNames}` assumed) — see report. Each ends `XxxResponseSchema.parse(dto)`; field-listing (never spreads); private `toMoney` (`Decimal→number`); `Date→ISO`; Prisma enum → contract enum cast. Also added comma-join/split `serializeSerials`/`parseSerials` — `SaleLine.serialNumbers` is free-text but the contract wants an array (first module needing this conversion). (plan §I.1)
+- [x] Impl: `src/modules/sales/sales.interface.ts` — `ISalesService` (all methods from plan §I.2, returning contract DTOs; `confirm` returns `ReceiptDto` per §D-3; listener-only `recordRepairSale(payload: RepairsEvents['repair.pickedUp'])`) + consumer-side `ICatalogPosPricingPort` (`resolvePosPrices(productIds, categoryId|null)`, matching catalog's Sprint-1 method structurally). Actor threaded as the contract's own `JWTPayload` directly (already carries `type`/`staffId`) rather than a hand-rolled subset. (plan §I.2)
+- [x] Impl: factories `test/data/sale-draft.factory.ts` (+ `seedSale` DB helper for later integration sprints), `confirm-sale.factory.ts`, `create-return.factory.ts`, `repair-picked-up.factory.ts` (event payload, not schema-validated). (plan §I.4)
+- [x] Test: `test/unit/modules/sales/sales.mapper.spec.ts` (17 tests) — staff mapping omits `costOfGoods`/`profit`/`totalCost`/`totalProfit`, admin keeps them; receipt carries figures but no cost/profit ("staff mapping hides profit"); `Decimal→number`, `soldAt` ISO-or-omitted, override surfaced (`unitPrice≠resolvedPrice`); serialNumbers comma-string↔array both directions; `.parse` never throws on valid input.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (mapper + conformance).
-- [ ] Mapper pure/field-listing, excludes margins when gated; returns contract DTOs only.
-- [ ] Committed on green (`sales: sprint 2 — foundation (mapper, interface, factories)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (mapper + conformance — 422/422, 29 files).
+- [x] Mapper pure/field-listing, excludes margins when gated; returns contract DTOs only.
+- [x] Committed on green (`sales: sprint 2 — foundation (mapper, interface, factories)`).
 
 ---
 
