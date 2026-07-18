@@ -17,6 +17,7 @@ const {
   clientFindUniqueMock,
   invoiceFindUniqueMock,
   userUpsertMock,
+  staffFindUniqueMock,
   stockMovementFindFirstMock,
   stockMovementConsumptionFindManyMock,
   transactionMock,
@@ -32,6 +33,7 @@ const {
   clientFindUniqueMock: vi.fn(),
   invoiceFindUniqueMock: vi.fn(),
   userUpsertMock: vi.fn(),
+  staffFindUniqueMock: vi.fn(),
   stockMovementFindFirstMock: vi.fn(),
   stockMovementConsumptionFindManyMock: vi.fn(),
   transactionMock: vi.fn(),
@@ -53,6 +55,7 @@ const prismaMock = {
   client: { findUnique: clientFindUniqueMock },
   invoice: { findUnique: invoiceFindUniqueMock },
   user: { upsert: userUpsertMock },
+  staff: { findUnique: staffFindUniqueMock },
   stockMovement: { findFirst: stockMovementFindFirstMock },
   stockMovementConsumption: { findMany: stockMovementConsumptionFindManyMock },
   $transaction: transactionMock,
@@ -128,6 +131,7 @@ describe('OrdersService', () => {
       return Promise.all(arg as Promise<unknown>[]);
     });
     userUpsertMock.mockResolvedValue({ staff: { id: SYSTEM_STAFF_ID } });
+    staffFindUniqueMock.mockResolvedValue({ id: SYSTEM_STAFF_ID });
     (catalogPricingMock.getCartProducts as ReturnType<typeof vi.fn>).mockResolvedValue([
       { id: PRODUCT_ID, name: 'Screen Protector', currentPrice: 1000, priceHidden: false },
     ]);

@@ -343,4 +343,38 @@ describe('route conformance', () => {
     // together); verified for real, authenticated, in test/integration/billing.integration.spec.ts
     // instead.
   });
+
+  // PLACE is public|client (requireAuth({optional:true})) — a missing token still skips
+  // straight to next() with no DB call at all (auth.middleware.ts's own optional branch), and
+  // an empty POST body then fails validateRequest's PlaceOrderSchema check before the
+  // controller/service ever runs — so it stays DB-free here too, same as every other
+  // (fully guarded) ORDER_ROUTES path.
+  describe('orders route resolution (mounted, no DB required)', () => {
+    it('every ORDER_ROUTES path resolves on `app`, not a raw unmatched-route 404', async () => {
+      const dummyId = '00000000-0000-4000-8000-000000000000';
+      const cases: { method: 'get' | 'post' | 'patch'; path: string }[] = [
+        { method: 'post', path: ORDER_ROUTES.PLACE },
+        { method: 'get', path: ORDER_ROUTES.MY_LIST },
+        { method: 'post', path: ORDER_ROUTES.MY_CANCEL.replace(':id', dummyId) },
+        { method: 'get', path: ORDER_ROUTES.STAFF_LIST },
+        { method: 'get', path: ORDER_ROUTES.ADMIN_LIST },
+        { method: 'post', path: ORDER_ROUTES.STAFF_CONFIRM.replace(':id', dummyId) },
+        { method: 'post', path: ORDER_ROUTES.ADMIN_CONFIRM.replace(':id', dummyId) },
+        { method: 'patch', path: ORDER_ROUTES.STAFF_STATUS.replace(':id', dummyId) },
+        { method: 'patch', path: ORDER_ROUTES.ADMIN_STATUS.replace(':id', dummyId) },
+        { method: 'post', path: ORDER_ROUTES.CANCEL.replace(':id', dummyId) },
+        { method: 'post', path: ORDER_ROUTES.RETURN.replace(':id', dummyId) },
+        { method: 'get', path: ORDER_ROUTES.STAFF_STATS },
+        { method: 'get', path: ORDER_ROUTES.ADMIN_STATS },
+      ];
+
+      for (const { method, path } of cases) {
+        const res = await request(app)[method](`${env.API_PREFIX}${path}`);
+        expect(res.body, `${method.toUpperCase()} ${path} (status ${res.status})`).toHaveProperty('success');
+      }
+    });
+    // STAFF_STATS/STAFF_CONFIRM etc. share the `/staff/orders` prefix but distinct literal
+    // suffixes (stats/confirm/status) — no ordering ambiguity; verified for real, authenticated,
+    // in test/integration/orders.integration.spec.ts instead.
+  });
 });

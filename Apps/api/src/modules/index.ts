@@ -11,6 +11,7 @@ import { router as clientsRouter } from './clients/clients.routes';
 import { router as purchasingRouter } from './purchasing/purchasing.routes';
 import { router as salesRouter } from './sales/sales.routes';
 import { router as billingRouter } from './billing/billing.routes';
+import { router as ordersRouter } from './orders/orders.routes';
 
 // Adapts the real FIFO engine (IInventoryService) to the shape catalog's createProduct expects
 // (IInventoryPort) — object-input vs. positional args, and discards the returned movementId
@@ -59,4 +60,13 @@ export const registerModules = (apiRouter: Router): void => {
   // billing.routes.ts wires its own BillingListener, matching every prior module; clients' and
   // observability's dormant handlers for invoice.issued/payment.clientRecorded wake automatically.
   apiRouter.use(billingRouter);
+  // orders.routes.ts imports sequenceService/deliveryFeeService/inventoryService/
+  // catalogProductService directly, same one-directional shape (catalogProductService
+  // satisfies ICatalogViewerPricingPort structurally via its getCartProducts method — already
+  // public, already consumed this same way by clients' ICatalogCartPort — no adapter needed).
+  // No listener registration here: orders.routes.ts wires its own OrdersListener, matching
+  // every prior module; billing's/clients'/observability's dormant handlers for
+  // order.confirmed/order.placed/order.statusChanged/order.cancelled/order.returned wake
+  // automatically.
+  apiRouter.use(ordersRouter);
 };

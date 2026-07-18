@@ -51,7 +51,7 @@ const STATUS_SEQUENCE: OrderStatus[] = [
 
 export class OrdersService implements IOrdersService {
   // Lazily resolved once per process and cached — see resolveSystemStaffId below.
-  private systemStaffId?: string;
+  private systemStaffId: string | undefined;
   private static readonly SYSTEM_USERNAME = 'system.storefront';
 
   constructor(
@@ -437,7 +437,15 @@ export class OrdersService implements IOrdersService {
   // is @unique, so `upsert` is race-safe under concurrency) and cached on the instance. See the
   // Sprint 2 report for the full reasoning and alternatives considered.
   private async resolveSystemStaffId(): Promise<string> {
-    if (this.systemStaffId != null) return this.systemStaffId;
+    // The cache is verified, not blindly trusted: a truncated/deleted Staff row (test resets
+    // between cases; theoretically a prod cleanup job too) must self-heal on the next call
+    // rather than 500 forever on a stale FK. One cheap PK lookup on the common (already-
+    // resolved) path, versus a full re-bootstrap only when genuinely needed.
+    if (this.systemStaffId != null) {
+      const stillExists = await this.prisma.staff.findUnique({ where: { id: this.systemStaffId }, select: { id: true } });
+      if (stillExists) return this.systemStaffId;
+      this.systemStaffId = undefined;
+    }
 
     const passwordHash = await hashPassword(randomUUID());
     const user = await this.prisma.user.upsert({
