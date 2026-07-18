@@ -208,7 +208,7 @@ pure reads of the shared `prisma` singleton (§D-4).
 
 ---
 
-### Sprint 8: Statistics — Logic (service)   — Status: ⬜ Pending
+### Sprint 8: Statistics — Logic (service)   — Status: ✅ Done
 
 **Goals**
 - `StatisticsService implements IStatisticsService` (**Prisma-only** — no injected services, no
@@ -216,7 +216,7 @@ pure reads of the shared `prisma` singleton (§D-4).
   with a seeded/mock Prisma.
 
 **Tasks**
-- [ ] Impl: `src/modules/statistics/statistics.service.ts` — constructor DI `(prisma)`:
+- [x] Impl: `src/modules/statistics/statistics.service.ts` — constructor DI `(prisma)`:
   - **Revenue/profit** = `Σ` COMPLETED `Sale` rows (origins **POS + REPAIR**) + CONFIRMED-and-later `Order` rows (`Order.profit`/`costOfGoods`). **Never** sum `Repair` rows and **never** use the zeroed ORDER-invoice cost (§C-4) — guarantees "repair sale counted once" + "no FIFO drift".
   - `getOverview` — `totalRevenue`/`totalProfit` (above), `stockValue = Σ quantityOnHand × averageCost` (`Product`), `totalClientCredit = Σ PosClient.credit`, `totalSupplierCredit = Σ` supplier outstanding.
   - `getFiltered` — window `[from,to]` vs the immediately-preceding **equal-length** window; `*ChangePct` guarded against an **empty previous period** ⇒ 0 (never divide-by-zero).
@@ -224,14 +224,14 @@ pure reads of the shared `prisma` singleton (§D-4).
   - `getReport(type, query)` — the nine `ReportType`s; `sales-by-category`/`by-seller` expose the discount column `Σ (resolvedPrice − unitPrice) × qty`; `stock-movements` totals per `MovementType` (large `ADJUSTMENT_OUT` flagged); `ageing` buckets client (`PosClient.credit`) + supplier credit by document age; `client-browsing` joins observability `StaffSearchLog`/`ClientActivityLog` (top searches, most-viewed products with zero purchases); every row carries `drill { entity, idField }`; **`format=csv` returns an `ExportResult` streaming the same `rows`**.
   - `getAdminDashboard` — `stats` + `*ChangePct` (period comparison, empty-previous guarded), pending/recent orders+clients, low stock, `repairsByStatus` (`groupBy` map keyed by `RepairStatus` value), `draftSalesByStaff`. `getStaffDashboard(staffId)` — **strictly `staffId = me`**: `mySalesToday` (count) + `myRevenueToday`, `myDrafts`, `myPendingOrdersCount?`, low-stock (read-only alert — the only non-scoped datum).
   - Use Prisma `groupBy`/`aggregate`/`count` (rules §5 "Use `select` for needed fields"); no recomputation of FIFO or figures.
-- [ ] Impl: **no listener** (contract exports no `StatisticsEvents`).
-- [ ] Test: `test/unit/modules/statistics/statistics.service.spec.ts` — `profit = Σ stored line profits` (no FIFO drift vs a hand-computed expectation); period-comparison math incl. **empty previous period** ⇒ 0; **repair sale counted once** (a repair + its REPAIR-origin sale sum to the sale only, the `Repair` row never added); discount column matches overrides; `stockValue` formula; **staff-dashboard leak test** (nothing global except low stock); CSV `rows` shape == JSON `rows`.
+- [x] Impl: **no listener** (contract exports no `StatisticsEvents`).
+- [x] Test: `test/unit/modules/statistics/statistics.service.spec.ts` (20 tests) — `profit = Σ stored line profits` (no FIFO drift vs a hand-computed expectation); period-comparison math incl. **empty previous period** ⇒ 0; **repair sale counted once** (never reads the `Repair` table for money at all); discount column matches overrides; `stockValue` formula; **staff-dashboard leak test** (nothing global except `myPendingOrdersCount`/low stock, both documented exceptions); CSV `rows` shape == JSON `rows`. See [report-sprint-08-07.md](./results-order-rep-stat-07/report-sprint-08-07.md) for 9 documented inferences this unusually under-specified module required (chart granularity, TOP_PRODUCTS period parsing, "category"=Family, ageing bucketing, etc.).
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (service + conformance).
-- [ ] Service is read-only (no writes, no emits); reads **stored** figures only (§C-4); returns DTOs that `.parse`; no cross-module folder import (pure reads via shared `prisma`).
-- [ ] Committed on green (`statistics: sprint 8 — logic (service)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (service + conformance) — 590/590, 41 files.
+- [x] Service is read-only (no writes, no emits); reads **stored** figures only (§C-4); returns DTOs that `.parse`; no cross-module folder import (pure reads via shared `prisma`).
+- [x] Committed on green (`statistics: sprint 8 — logic (service)`).
 
 ---
 
