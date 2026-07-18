@@ -207,4 +207,45 @@ describe('route conformance', () => {
       }
     });
   });
+
+  // VALIDATE_PHONE/REGISTER are public (no requireAuth guard) — same reasoning as platform's
+  // public routes: hitting them unauthenticated still runs the real DB-backed handler, breaking
+  // this tier's "fast, no DB" promise. Covered in test/integration/clients.integration.spec.ts
+  // instead. Every other CLIENT_ROUTES/POS_CLIENT_ROUTES path is guarded (client/staff/admin),
+  // so requireAuth's missing-token check short-circuits before any Prisma call — including the
+  // POS_CLIENT_ROUTES.SEARCH custom OR-page guard, whose first stage is `requireAuth` too.
+  describe('clients route resolution (guarded routes only, mounted, no DB required)', () => {
+    it('every guarded CLIENT_ROUTES/POS_CLIENT_ROUTES path resolves on `app`, not a raw unmatched-route 404', async () => {
+      const dummyId = '00000000-0000-4000-8000-000000000000';
+      const cases: { method: 'get' | 'post' | 'patch' | 'delete'; path: string }[] = [
+        { method: 'get', path: CLIENT_ROUTES.ME },
+        { method: 'patch', path: CLIENT_ROUTES.ME },
+        { method: 'post', path: CLIENT_ROUTES.ME_PASSWORD },
+        { method: 'get', path: CLIENT_ROUTES.CART },
+        { method: 'post', path: CLIENT_ROUTES.CART },
+        { method: 'delete', path: CLIENT_ROUTES.CART_ITEM.replace(':productId', dummyId) },
+        { method: 'get', path: CLIENT_ROUTES.ADMIN_LIST },
+        { method: 'get', path: CLIENT_ROUTES.ADMIN_STATS },
+        { method: 'get', path: CLIENT_ROUTES.ADMIN_DETAIL.replace(':id', dummyId) },
+        { method: 'post', path: CLIENT_ROUTES.APPROVE.replace(':id', dummyId) },
+        { method: 'post', path: CLIENT_ROUTES.REJECT.replace(':id', dummyId) },
+        { method: 'post', path: CLIENT_ROUTES.RESET_PASSWORD.replace(':id', dummyId) },
+        { method: 'patch', path: CLIENT_ROUTES.ADMIN_UPDATE.replace(':id', dummyId) },
+        { method: 'get', path: POS_CLIENT_ROUTES.SEARCH },
+        { method: 'post', path: POS_CLIENT_ROUTES.QUICK_CREATE },
+        { method: 'get', path: POS_CLIENT_ROUTES.ADMIN },
+        { method: 'post', path: POS_CLIENT_ROUTES.ADMIN },
+        { method: 'patch', path: POS_CLIENT_ROUTES.ADMIN_BY_ID.replace(':id', dummyId) },
+      ];
+
+      for (const { method, path } of cases) {
+        const res = await request(app)[method](`${env.API_PREFIX}${path}`);
+        expect(res.body, `${method.toUpperCase()} ${path} (status ${res.status})`).toHaveProperty('success');
+      }
+    });
+    // ADMIN_STATS-before-ADMIN_DETAIL route ordering can't be distinguished DB-free: both share
+    // the same adminOnly guard, which 401s identically before validateRequest ever runs on an
+    // unauthenticated request. Verified for real, authenticated, in
+    // test/integration/clients.integration.spec.ts instead.
+  });
 });

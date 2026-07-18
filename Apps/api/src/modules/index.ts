@@ -7,6 +7,7 @@ import { router as observabilityRouter } from './observability/observability.rou
 import { router as catalogRouter, catalogProductService } from './catalog/catalog.routes';
 import type { IInventoryPort } from './catalog/catalog.interface';
 import { router as inventoryRouter, inventoryService } from './inventory/inventory.routes';
+import { router as clientsRouter } from './clients/clients.routes';
 
 // Adapts the real FIFO engine (IInventoryService) to the shape catalog's createProduct expects
 // (IInventoryPort) — object-input vs. positional args, and discards the returned movementId
@@ -39,4 +40,7 @@ export const registerModules = (apiRouter: Router): void => {
   apiRouter.use(observabilityRouter);
   apiRouter.use(catalogRouter);
   apiRouter.use(inventoryRouter);
+  // clients.routes.ts imports identityService/catalogProductService/sequenceService directly
+  // (one-directional dependency, no adapter needed here — see clients.routes.ts's own comment).
+  apiRouter.use(clientsRouter);
 };

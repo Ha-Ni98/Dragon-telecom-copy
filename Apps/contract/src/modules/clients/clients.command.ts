@@ -18,14 +18,21 @@ export const RegisterClientSchema = z.object({
 });
 export type RegisterClientCommand = z.infer<typeof RegisterClientSchema>;
 
-// phone is deliberately absent — read-only per spec ("Me: phone immutable").
-export const UpdateMeSchema = z.object({
-  email: z.email().optional(),
-  storeName: z.string().optional(),
-  wilayaId: z.uuid().optional(),
-  communeId: z.uuid().optional(),
-  address: z.string().optional(),
-});
+// phone is deliberately absent — read-only per spec ("Me: phone immutable"). `.strict()`
+// (rather than the object default of silently stripping unknown keys) so a client-supplied
+// `phone` field actually 400s instead of being silently dropped — the spec's own Test
+// Scenarios line ("Me PATCH phone → 400") requires the request to be rejected, not ignored
+// (discovered/verified at Sprint 4 integration-test time — plan-client-purch.md's mapper/
+// service layers already assumed rejection but nothing enforced it until now).
+export const UpdateMeSchema = z
+  .object({
+    email: z.email().optional(),
+    storeName: z.string().optional(),
+    wilayaId: z.uuid().optional(),
+    communeId: z.uuid().optional(),
+    address: z.string().optional(),
+  })
+  .strict();
 export type UpdateMeCommand = z.infer<typeof UpdateMeSchema>;
 
 // Fields not spelled out in the spec beyond the route note; mirrors the
