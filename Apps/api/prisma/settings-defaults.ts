@@ -10,6 +10,8 @@ export const DEFAULT_INVOICING_PREFIXES: Record<DocType, string> = {
   [DocType.ADJUSTMENT]: 'ADJ',
   [DocType.POS_CLIENT]: 'POS',
   [DocType.CLIENT]: 'CLI',
+  [DocType.SUPPLIER]: 'FRN',
+  [DocType.SUPPLIER_PAYMENT]: 'PAY',
 };
 
 export const DEFAULT_NEXT_SEQUENCES: Record<DocType, number> = Object.fromEntries(

@@ -33,28 +33,28 @@ inventory module documented — see the inventory-complete handoff.
 
 ---
 
-### Sprint 1: Shared prerequisites & contract   — Status: ⬜ Pending
+### Sprint 1: Shared prerequisites & contract   — Status: ✅ Done
 
 **Goals**
 - Land the three §C prerequisites and the two §D-1 contract additions so both modules can be
   built against real, tested seams. No `clients/`/`purchasing/` code yet.
 
 **Tasks**
-- [ ] Contract: add `DocType.SUPPLIER` and `DocType.SUPPLIER_PAYMENT` to `platform.enums.ts`; extend `settings-defaults.ts` `Record<DocType,string>` with `SUPPLIER → 'FRN'`, `SUPPLIER_PAYMENT → 'PAY'` (avoid `SUP`, already `SUPPLIER_INVOICE`). `DEFAULT_NEXT_SEQUENCES` picks them up automatically (`Object.values(DocType)`). (plan §C-2)
-- [ ] Contract: add the `ClientStatsDto` response schema (`clients.dtos.ts`: `{ totalClients; pending; approved; rejected }`) and a `{ phone }` body schema for `VALIDATE_PHONE` (`clients.command.ts` — e.g. `ValidatePhoneSchema`). Barrel already re-exports the module. (plan §D-1, §I.2)
-- [ ] Identity: add `provisionClientUser(input:{username; password; clientId}, tx: Prisma.TransactionClient): Promise<{ userId: string }>` to `IIdentityService` + `IdentityService` — creates a `type:CLIENT` `User` (no `Staff` row), hashes via the existing Argon2id util, emits **nothing** (caller emits post-commit). `P2002` → `ConflictError`. (plan §C-1, §I.3-2)
-- [ ] Identity: **export the service singleton** from `identity.routes.ts` (`export const identityService = service;` — currently exports only `router`) so clients' composition root can inject it. (plan §C-1, §B.2)
-- [ ] Catalog: add read methods to `CatalogProductService` (additive, no schema change): `getCartProducts(productIds, viewer): Promise<ProductWithPricingDto[]>` (clients cart); `getRepriceCandidates(tx, productIds)` and `getCostBasis(productIds)` (purchasing confirm + DRAFT projection). Expose via named port interfaces `ICatalogCartPort` / `ICatalogRepricePort` on the catalog side. (plan §C-3, §I.5, §II.5)
-- [ ] Test: `identity.service.spec.ts` — `provisionClientUser` creates a CLIENT user with no Staff row, hashes the password, emits nothing, `P2002` → `ConflictError`, honours the passed `tx`.
-- [ ] Test: `catalog.service.spec.ts` — `getCartProducts` returns per-viewer `ProductWithPricingDto[]`; `getRepriceCandidates`/`getCostBasis` return the documented shapes; both parse against their contract fragments.
-- [ ] Test: platform sequence/settings specs still green with the two new `DocType` keys (seed exhaustiveness); `SequenceService.nextNumber(tx, DocType.SUPPLIER)` yields `FRN-YYYY-0001`.
-- [ ] Test: contract package conformance/`tsc` green with the added enum values + DTO + schema.
+- [x] Contract: add `DocType.SUPPLIER` and `DocType.SUPPLIER_PAYMENT` to `platform.enums.ts`; extend `settings-defaults.ts` `Record<DocType,string>` with `SUPPLIER → 'FRN'`, `SUPPLIER_PAYMENT → 'PAY'` (avoid `SUP`, already `SUPPLIER_INVOICE`). `DEFAULT_NEXT_SEQUENCES` picks them up automatically (`Object.values(DocType)`). (plan §C-2)
+- [x] Contract: add the `ClientStatsDto` response schema (`clients.dtos.ts`: `{ totalClients; pending; approved; rejected }`) and a `{ phone }` body schema for `VALIDATE_PHONE` (`clients.command.ts` — e.g. `ValidatePhoneSchema`). Barrel already re-exports the module. (plan §D-1, §I.2)
+- [x] Identity: add `provisionClientUser(input:{username; password}, tx: Prisma.TransactionClient): Promise<{ userId: string }>` to `IIdentityService` + `IdentityService` — creates a `type:CLIENT` `User` (no `Staff` row), hashes via the existing Argon2id util, emits **nothing** (caller emits post-commit). `P2002` → `ConflictError`. **`clientId` dropped from the signature** (see report — identity has no use for it; `Client.userId` is set by the caller). (plan §C-1, §I.3-2)
+- [x] Identity: **export the service singleton** from `identity.routes.ts` (`export const identityService = service;` — currently exports only `router`) so clients' composition root can inject it. (plan §C-1, §B.2)
+- [x] Catalog: add read methods to `CatalogProductService` (additive, no schema change): `getCartProducts(productIds, viewer): Promise<ProductWithPricingDto[]>` (clients cart); `getRepriceCandidates(tx, productIds)` and `getCostBasis(productIds)` (purchasing confirm + DRAFT projection). **Port interfaces deferred to Sprints 2/5** (consumer-side, matching the `ICatalogPricingPort`-in-`inventory.interface.ts` precedent — see report). (plan §C-3, §I.5, §II.5)
+- [x] Test: `identity.service.spec.ts` — `provisionClientUser` creates a CLIENT user with no Staff row, hashes the password, emits nothing, `P2002` → `ConflictError`, honours the passed `tx`.
+- [x] Test: `catalog.service.spec.ts` — `getCartProducts` returns per-viewer `ProductWithPricingDto[]`; `getRepriceCandidates`/`getCostBasis` return the documented shapes; both parse against their contract fragments.
+- [x] Test: platform sequence/settings specs still green with the two new `DocType` keys (seed exhaustiveness); `SequenceService.nextNumber(tx, DocType.SUPPLIER)` yields `FRN-YYYY-0001`.
+- [x] Test: contract package conformance/`tsc` green with the added enum values + DTO + schema.
 
 **Validation**
-- [ ] `tsc --noEmit` clean across `contract`, `api`.
-- [ ] `npm run test:unit` green (identity + catalog + platform + contract conformance).
-- [ ] No route/DTO/enum re-declared that already existed (only the two `DocType` values + `ClientStatsDto` + `ValidatePhoneSchema` are new — all genuinely missing per plan §0/§D-1).
-- [ ] Committed on green (`identity/catalog/contract: sprint 1 — clients+purchasing prerequisites`).
+- [x] `tsc --noEmit` clean across `contract`, `api`.
+- [x] `npm run test:unit` green (identity + catalog + platform + contract conformance — 300/300, 22 files).
+- [x] No route/DTO/enum re-declared that already existed (only the two `DocType` values + `ClientStatsDto` + `ValidatePhoneSchema` are new — all genuinely missing per plan §0/§D-1).
+- [x] Committed on green (`identity/catalog/contract: sprint 1 — clients+purchasing prerequisites`).
 
 ---
 

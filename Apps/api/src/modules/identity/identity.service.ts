@@ -282,6 +282,23 @@ export class IdentityService implements IIdentityService {
     return dto;
   }
 
+  async provisionClientUser(
+    input: { username: string; password: string },
+    tx: Prisma.TransactionClient,
+  ): Promise<{ userId: string }> {
+    const passwordHash = await hashPassword(input.password);
+
+    try {
+      const created = await tx.user.create({
+        data: { username: input.username, passwordHash, type: PrismaUserType.CLIENT },
+      });
+      return { userId: created.id };
+    } catch (err) {
+      if (isKnownRequestError(err, 'P2002')) throw new ConflictError('Username already in use');
+      throw err;
+    }
+  }
+
   async updateUser(id: string, cmd: UpdateUserCommand): Promise<UserDto> {
     const existing = await this.prisma.user.findUnique({ where: { id }, include: USER_INCLUDE });
     if (!existing || existing.type === PrismaUserType.CLIENT) throw new NotFoundError('User');

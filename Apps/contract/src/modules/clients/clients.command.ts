@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+// VALIDATE_PHONE's request body has no named schema in the spec — inferred from the route's
+// own input (a bare phone lookup, re-run server-side inside register — spec BL#1).
+export const ValidatePhoneSchema = z.object({
+  phone: z.string(),
+});
+export type ValidatePhoneCommand = z.infer<typeof ValidatePhoneSchema>;
+
 export const RegisterClientSchema = z.object({
   firstName: z.string(),
   lastName: z.string(),
