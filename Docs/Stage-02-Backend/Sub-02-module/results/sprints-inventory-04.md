@@ -81,7 +81,7 @@ message; **no** `Co-Authored-By`.
 
 ---
 
-### Sprint 3: Logic B — reads + adjustments (`InventoryReadService`)   — Status: ⬜ Pending
+### Sprint 3: Logic B — reads + adjustments (`InventoryReadService`)   — Status: ✅ Done
 
 **Goals**
 - Complete `inventory.service.ts`: `InventoryReadService` with `getStock` (+CSV), `listMovements`
@@ -89,19 +89,21 @@ message; **no** `Co-Authored-By`.
   sequence + engine delegation + in-tx reprice + `adjusted` event). Replace the Sprint-2 stubs.
 
 **Tasks**
-- [ ] Impl: `InventoryReadService implements IInventoryReadService`; `constructor(prisma, sequence: ISequenceService, catalogPricing: ICatalogPricingPort)`. Replace the Sprint-2 stubs. (plan §2.1, §5 item 3)
-- [ ] Impl (`getStock`): read `Product` rows → `toStockRowDto`; `lowStockOnly` filters to `isLow`; `export='csv'` returns `ExportResult { filename, mime, body }` (CSV of the `StockRowDto` columns, platform `exportFees` pattern); otherwise the row list (**unpaginated per contract** — `StockQuery` has no page/limit, plan §8 #4). (plan §3, §5.1, §7.4)
-- [ ] Impl (`listMovements`): map `MovementsQuery` (`productId`/`type`/`from`/`to`/`staffId`) → Prisma `where`; paginate via `paginated()`; `select`/join `Product.name` + `Staff` + resolve `referenceLabel` → `toMovementDto`. (plan §1.1, §3 cross-cutting)
-- [ ] Impl (`listReservations`): aggregate **live PENDING** movements grouped by `(productId, referenceType, referenceId)`, keep net `quantity > 0`; `holderType` from movement type; `ageHours` from the earliest reserve; paginate → `toReservationDto`. (plan §1.1)
-- [ ] Impl (`createAdjustment`): single `$transaction` — `sequence.nextNumber(tx, DocType.ADJUSTMENT)`; create `StockAdjustment` + a `StockAdjustmentLine` per line (`previousQuantity`/`countedQuantity`/`delta = counted − previous`); **delta>0** ⇒ `engine.addLayer(tx, …, unitCost ?? currentAvgCost, ADJUSTMENT_IN, ref)` + if `line.prices` present `catalogPricing.applyPricing(tx, productId, prices)` **in the same tx**; **delta<0** ⇒ `engine.consumeFifo(tx, …, revenue=null, ADJUSTMENT_OUT, ref)` (⇒ `profit=null`); **delta=0** ⇒ reprice-only allowed. After commit: flush the engine's `stockChanged` buffer + emit `inventory.adjusted { reference, description }`. Return `toAdjustmentResultDto`. `note?` optional. (plan §3.4, §2.2)
-- [ ] Test: extend `inventory.service.spec.ts` (reads + adjustment portion) — mock Prisma + mock `ISequenceService` + **mock `ICatalogPricingPort`** + spy event-bus: `getStock` levels/`stockValue`/`isLow` + `lowStockOnly` + CSV export shape; `listMovements` filters + pagination + `referenceLabel`; `listReservations` aggregation + `ageHours` + `holderType`; `createAdjustment` COUNT/DAMAGE mixed IN/OUT ⇒ `AdjustmentResultDto`, `ADJUSTMENT` sequence reference, IN-delta default cost = avgCost, reprice calls `applyPricing` **once, in-tx**, `ADJUSTMENT_OUT` `profit=null`, `inventory.adjusted` emitted once. (plan §4.2)
+- [x] Impl: `InventoryReadService implements IInventoryReadService`; `constructor(prisma, sequence: ISequenceService, catalogPricing: ICatalogPricingPort, engine: IInventoryService)`. Replace the Sprint-2 stubs. **`engine` added** beyond the plan's listed constructor — the next task line requires it (see report). (plan §2.1, §5 item 3)
+- [x] Impl (`getStock`): read `Product` rows → `toStockRowDto`; `lowStockOnly` filters to `isLow`; `export='csv'` returns `ExportResult { filename, mime, body }` (CSV of the `StockRowDto` columns, platform `exportFees` pattern); otherwise the row list (**unpaginated per contract** — `StockQuery` has no page/limit, plan §8 #4). (plan §3, §5.1, §7.4)
+- [x] Impl (`listMovements`): map `MovementsQuery` (`productId`/`type`/`from`/`to`/`staffId`) → Prisma `where`; paginate via count+findMany; join `Product.name` + `Staff` + resolve `referenceLabel` (PRODUCT from the join directly, ADJUSTMENT/SUPPLIER_INVOICE via one batched lookup each, else the mapper's fallback) → `toMovementDto`. (plan §1.1, §3 cross-cutting)
+- [x] Impl (`listReservations`): aggregate **live PENDING** movements via `Prisma.groupBy` on `(productId, referenceType, referenceId)`, keep net `quantity > 0`; `holderType` derived from `referenceType` (mirrors the engine's own derivation, inverted); `ageHours` from the earliest reserve; paginated in-memory (flagged in report — groupBy+having+accurate-count don't compose cleanly) → `toReservationDto`. (plan §1.1)
+- [x] Impl (`createAdjustment`): single `$transaction` — `sequence.nextNumber(tx, DocType.ADJUSTMENT)`; create `StockAdjustment` + a `StockAdjustmentLine` per line (`previousQuantity`/`countedQuantity`/`delta = counted − previous`); **delta>0** ⇒ `engine.addLayer(tx, …, unitCost ?? currentAvgCost, ADJUSTMENT_IN, ref)` + if `line.prices` present `catalogPricing.applyPricing(tx, productId, prices)` **in the same tx**; **delta<0** ⇒ `engine.consumeFifo(tx, …, revenue=null, ADJUSTMENT_OUT, ref)` (⇒ `profit=null`); **delta=0** ⇒ reprice-only, no result line (uuid-required `movementId` can't represent "no movement" — see report). After commit (captured `tx` via closure): `engine.flushEvents(tx)` + emit `inventory.adjusted { reference, description }`. Return `toAdjustmentResultDto`. `note?` optional. (plan §3.4, §2.2)
+- [x] Test: extended `inventory.service.spec.ts` (+38 tests, 63 total) — mock Prisma + mock `ISequenceService` + mock `ICatalogPricingPort` + **mock the engine** (its own correctness already proven in Sprint 2) + spy event-bus: `getStock` levels/`stockValue`/`isLow` + `lowStockOnly` + CSV export shape; `listMovements` filters + pagination + all three `referenceLabel` paths; `listReservations` aggregation + `ageHours` + `holderType` + net-zero exclusion; `createAdjustment` IN/OUT/zero-delta lines ⇒ `AdjustmentResultDto`, `ADJUSTMENT` sequence reference, IN-delta default cost = avgCost, reprice calls `applyPricing` **once, in-tx**, `ADJUSTMENT_OUT` `profit=null`, `inventory.adjusted` emitted once after commit. (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (full service spec + prior suites).
-- [ ] `npm run lint --no-color` clean.
-- [ ] Every read-service method returns a `.parse()`d DTO; `createAdjustment` is transactional (sequence + engine + reprice atomic in one tx); `inventory.adjusted` emitted **after commit**; `Decimal→number` + `Date→ISO` at every boundary.
-- [ ] Committed on green (`api: inventory sprint 3 — reads and adjustments`).
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green (289/289, 22 files — 63 in the inventory service spec + prior suites).
+- [x] `npm run lint --no-color` clean.
+- [x] Every read-service method returns a `.parse()`d DTO; `createAdjustment` is transactional (sequence + engine + reprice atomic in one tx); `inventory.adjusted` emitted **after commit**; `Decimal→number` + `Date→ISO` at every boundary.
+- [x] Committed on green (`api: inventory sprint 3 — reads and adjustments`).
+
+**Report:** [`results-inventory-04/report-sprint-03-04.md`](./results-inventory-04/report-sprint-03-04.md)
 
 ---
 

@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Prisma } from '@prisma/client';
-import type { Product } from '@prisma/client';
-import { MovementType } from '@dragon-telecom/contract';
-import { InventoryService } from '../../../../src/modules/inventory/inventory.service';
-import type { MovementRef } from '../../../../src/modules/inventory/inventory.interface';
+import type { Product, StockMovement } from '@prisma/client';
+import { AdjustmentReason, MovementType, ReservationHolderType } from '@dragon-telecom/contract';
+import type { StockRowDto } from '@dragon-telecom/contract';
+import { InventoryService, InventoryReadService } from '../../../../src/modules/inventory/inventory.service';
+import type { ExportResult, MovementRef } from '../../../../src/modules/inventory/inventory.interface';
 
 const { eventBusEmitMock } = vi.hoisted(() => ({ eventBusEmitMock: vi.fn() }));
 vi.mock('@common/events/event-bus', () => ({ eventBus: { emit: eventBusEmitMock } }));
@@ -12,6 +13,8 @@ const PRODUCT_ID = '11111111-1111-4111-8111-111111111111';
 const STAFF_ID = '22222222-2222-4222-8222-222222222222';
 const ORDER_ID = '33333333-3333-4333-8333-333333333333';
 const REPAIR_ID = '44444444-4444-4444-8444-444444444444';
+const ADJUSTMENT_ID = '55555555-5555-4555-8555-555555555555';
+const MOVEMENT_ID = '66666666-6666-4666-8666-666666666666';
 
 const buildRef = (overrides: Partial<MovementRef> = {}): MovementRef => ({
   referenceType: 'ORDER',
@@ -522,6 +525,429 @@ describe('InventoryService (the FIFO engine)', () => {
       await expect(engine.addLayer(tx, 'missing-id', 5, 100, MovementType.SUPPLIER_INVOICE, buildRef())).rejects.toMatchObject({
         statusCode: 404,
       });
+    });
+  });
+});
+
+const {
+  productFindManyMock,
+  productFindUniqueMock,
+  stockAdjustmentCreateMock,
+  stockAdjustmentLineCreateMock,
+  stockMovementFindManyMock,
+  stockMovementCountMock,
+  stockMovementGroupByMock,
+  stockAdjustmentFindManyMock,
+  supplierInvoiceFindManyMock,
+  transactionMock,
+} = vi.hoisted(() => ({
+  productFindManyMock: vi.fn(),
+  productFindUniqueMock: vi.fn(),
+  stockAdjustmentCreateMock: vi.fn(),
+  stockAdjustmentLineCreateMock: vi.fn(),
+  stockMovementFindManyMock: vi.fn(),
+  stockMovementCountMock: vi.fn(),
+  stockMovementGroupByMock: vi.fn(),
+  stockAdjustmentFindManyMock: vi.fn(),
+  supplierInvoiceFindManyMock: vi.fn(),
+  transactionMock: vi.fn(),
+}));
+
+const prismaMock = {
+  product: { findMany: productFindManyMock, findUnique: productFindUniqueMock },
+  stockAdjustment: { create: stockAdjustmentCreateMock, findMany: stockAdjustmentFindManyMock },
+  stockAdjustmentLine: { create: stockAdjustmentLineCreateMock },
+  stockMovement: {
+    findMany: stockMovementFindManyMock,
+    count: stockMovementCountMock,
+    groupBy: stockMovementGroupByMock,
+  },
+  supplierInvoice: { findMany: supplierInvoiceFindManyMock },
+  $transaction: transactionMock,
+};
+
+const buildProductRow = (overrides: Partial<Product> = {}): Product => ({
+  id: PRODUCT_ID,
+  sku: 'SKU-1',
+  barcode: null,
+  name: 'Screen Protector',
+  description: null,
+  familyId: 'family-id',
+  brandId: 'brand-id',
+  deviceModelId: null,
+  guestPrice: null,
+  defaultSalePrice: null,
+  averageCost: new Prisma.Decimal(0),
+  quantityOnHand: 0,
+  quantityReserved: 0,
+  reorderThreshold: 0,
+  isPublished: false,
+  isEnabled: true,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  ...overrides,
+});
+
+const buildMovementRow = (
+  overrides: Partial<StockMovement> = {},
+  product: { name: string } = { name: 'Screen Protector' },
+  staff: { firstName: string; lastName: string } = { firstName: 'Amine', lastName: 'Belkacem' },
+) => ({
+  id: MOVEMENT_ID,
+  productId: PRODUCT_ID,
+  direction: 'IN',
+  type: 'SUPPLIER_INVOICE',
+  quantity: 10,
+  unitCost: new Prisma.Decimal(100),
+  remainingQuantity: 10,
+  costOfGoods: null,
+  profit: null,
+  balanceAfter: 10,
+  referenceType: 'SUPPLIER_INVOICE',
+  referenceId: ORDER_ID,
+  reason: null,
+  staffId: STAFF_ID,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  ...overrides,
+  product,
+  staff,
+});
+
+describe('InventoryReadService', () => {
+  const sequenceMock = { nextNumber: vi.fn() };
+  const catalogPricingMock = { applyPricing: vi.fn() };
+  const engineMock = {
+    reserve: vi.fn(),
+    release: vi.fn(),
+    addLayer: vi.fn(),
+    consumeFifo: vi.fn(),
+    returnIn: vi.fn(),
+    flushEvents: vi.fn(),
+  };
+
+  const service = () =>
+    new InventoryReadService(prismaMock as never, sequenceMock as never, catalogPricingMock as never, engineMock as never);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transactionMock.mockImplementation(async (arg: unknown) => {
+      if (typeof arg === 'function') return (arg as (tx: unknown) => unknown)(prismaMock);
+      return Promise.all(arg as Promise<unknown>[]);
+    });
+    // Safe defaults for the batched referenceLabel lookups — buildMovementRow() defaults to a
+    // SUPPLIER_INVOICE reference, so listMovements always calls these; tests that care about the
+    // resolved label override with their own mockResolvedValueOnce.
+    stockAdjustmentFindManyMock.mockResolvedValue([]);
+    supplierInvoiceFindManyMock.mockResolvedValue([]);
+  });
+
+  describe('getStock', () => {
+    it('derives availableQuantity/stockValue/isLow per row', async () => {
+      productFindManyMock.mockResolvedValueOnce([
+        buildProductRow({ quantityOnHand: 20, quantityReserved: 5, averageCost: new Prisma.Decimal(100), reorderThreshold: 10 }),
+      ]);
+
+      const rows = (await service().getStock({})) as StockRowDto[];
+
+      expect(rows[0]?.availableQuantity).toBe(15);
+      expect(rows[0]?.stockValue).toBe(2000);
+      expect(rows[0]?.isLow).toBe(false);
+    });
+
+    it('lowStockOnly filters to isLow rows only', async () => {
+      const NOT_LOW_ID = '77777777-7777-4777-8777-777777777777';
+      const LOW_ID = '88888888-8888-4888-8888-888888888888';
+      productFindManyMock.mockResolvedValueOnce([
+        buildProductRow({ id: NOT_LOW_ID, quantityOnHand: 20, quantityReserved: 0, reorderThreshold: 5 }),
+        buildProductRow({ id: LOW_ID, quantityOnHand: 3, quantityReserved: 0, reorderThreshold: 5 }),
+      ]);
+
+      const rows = (await service().getStock({ lowStockOnly: true })) as StockRowDto[];
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.productId).toBe(LOW_ID);
+    });
+
+    it('export=csv returns a CSV ExportResult with a header row', async () => {
+      productFindManyMock.mockResolvedValueOnce([buildProductRow({})]);
+
+      const result = (await service().getStock({ export: 'csv' })) as ExportResult;
+
+      expect(result.mime).toBe('text/csv');
+      expect(result.filename).toMatch(/\.csv$/);
+      expect(String(result.body).split('\n')[0]).toContain('productId');
+      expect(String(result.body).split('\n')).toHaveLength(2); // header + 1 row
+    });
+  });
+
+  describe('listMovements', () => {
+    it('paginates and builds the meta block', async () => {
+      stockMovementCountMock.mockResolvedValueOnce(1);
+      stockMovementFindManyMock.mockResolvedValueOnce([buildMovementRow()]);
+
+      const result = await service().listMovements({ page: 1, limit: 20 });
+
+      expect(result.meta).toEqual({ page: 1, limit: 20, total: 1, totalPages: 1 });
+      expect(result.items).toHaveLength(1);
+    });
+
+    it('resolves a PRODUCT referenceLabel from the already-joined product name (no extra query)', async () => {
+      stockMovementCountMock.mockResolvedValueOnce(1);
+      stockMovementFindManyMock.mockResolvedValueOnce([
+        buildMovementRow({ referenceType: 'PRODUCT', referenceId: PRODUCT_ID }, { name: 'Screen Protector' }),
+      ]);
+
+      const result = await service().listMovements({ page: 1, limit: 20 });
+
+      expect(result.items[0]?.referenceLabel).toBe('Screen Protector');
+      expect(stockAdjustmentFindManyMock).not.toHaveBeenCalled();
+    });
+
+    it('resolves an ADJUSTMENT referenceLabel via a batched StockAdjustment lookup', async () => {
+      stockMovementCountMock.mockResolvedValueOnce(1);
+      stockMovementFindManyMock.mockResolvedValueOnce([
+        buildMovementRow({ referenceType: 'ADJUSTMENT', referenceId: ADJUSTMENT_ID }),
+      ]);
+      stockAdjustmentFindManyMock.mockResolvedValueOnce([{ id: ADJUSTMENT_ID, reference: 'ADJ-2026-0001' }]);
+
+      const result = await service().listMovements({ page: 1, limit: 20 });
+
+      expect(result.items[0]?.referenceLabel).toBe('ADJ-2026-0001');
+      expect(stockAdjustmentFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [ADJUSTMENT_ID] } } }),
+      );
+    });
+
+    it('falls back to "type shortId" for reference types with no backing lookup yet (e.g. SALE)', async () => {
+      const saleRefId = '99999999-9999-4999-8999-999999999999';
+      stockMovementCountMock.mockResolvedValueOnce(1);
+      stockMovementFindManyMock.mockResolvedValueOnce([buildMovementRow({ referenceType: 'SALE', referenceId: saleRefId })]);
+
+      const result = await service().listMovements({ page: 1, limit: 20 });
+
+      expect(result.items[0]?.referenceLabel).toBe('SALE 99999999');
+    });
+
+    it('maps productId/type/staffId/date-range filters onto the Prisma where clause', async () => {
+      stockMovementCountMock.mockResolvedValueOnce(0);
+      stockMovementFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listMovements({
+        productId: PRODUCT_ID,
+        type: MovementType.SALE,
+        staffId: STAFF_ID,
+        from: '2026-01-01',
+        to: '2026-01-02',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(stockMovementFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            productId: PRODUCT_ID,
+            type: MovementType.SALE,
+            staffId: STAFF_ID,
+            createdAt: { gte: new Date('2026-01-01'), lt: new Date('2026-01-03') },
+          },
+        }),
+      );
+    });
+  });
+
+  describe('listReservations', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('aggregates open PENDING movements: holderType from referenceType, ageHours from the earliest reserve', async () => {
+      vi.useFakeTimers().setSystemTime(new Date('2026-01-01T03:00:00.000Z'));
+      stockMovementGroupByMock.mockResolvedValueOnce([
+        {
+          productId: PRODUCT_ID,
+          referenceType: 'ORDER',
+          referenceId: ORDER_ID,
+          _sum: { quantity: 5 },
+          _min: { createdAt: new Date('2026-01-01T00:00:00.000Z') },
+        },
+      ]);
+      productFindManyMock.mockResolvedValueOnce([{ id: PRODUCT_ID, name: 'Screen Protector' }]);
+
+      const result = await service().listReservations({ page: 1, limit: 20 });
+
+      expect(result.items).toEqual([
+        {
+          productId: PRODUCT_ID,
+          productName: 'Screen Protector',
+          quantity: 5,
+          holderType: ReservationHolderType.ORDER,
+          holderReference: `ORDER ${ORDER_ID.slice(0, 8)}`,
+          ageHours: 3,
+        },
+      ]);
+    });
+
+    it('derives holderType REPAIR for a REPAIR referenceType', async () => {
+      stockMovementGroupByMock.mockResolvedValueOnce([
+        {
+          productId: PRODUCT_ID,
+          referenceType: 'REPAIR',
+          referenceId: REPAIR_ID,
+          _sum: { quantity: 2 },
+          _min: { createdAt: new Date('2026-01-01T00:00:00.000Z') },
+        },
+      ]);
+      productFindManyMock.mockResolvedValueOnce([{ id: PRODUCT_ID, name: 'Screen Protector' }]);
+
+      const result = await service().listReservations({ page: 1, limit: 20 });
+
+      expect(result.items[0]?.holderType).toBe(ReservationHolderType.REPAIR);
+    });
+
+    it('excludes fully-released holders (net summed quantity <= 0)', async () => {
+      stockMovementGroupByMock.mockResolvedValueOnce([
+        {
+          productId: PRODUCT_ID,
+          referenceType: 'ORDER',
+          referenceId: ORDER_ID,
+          _sum: { quantity: 0 },
+          _min: { createdAt: new Date() },
+        },
+      ]);
+
+      const result = await service().listReservations({ page: 1, limit: 20 });
+
+      expect(result.items).toHaveLength(0);
+      expect(result.meta.total).toBe(0);
+    });
+  });
+
+  describe('createAdjustment', () => {
+    it('creates an ADJUSTMENT_IN layer for a positive delta, defaulting unitCost to the current averageCost', async () => {
+      sequenceMock.nextNumber.mockResolvedValueOnce('ADJ-2026-0001');
+      stockAdjustmentCreateMock.mockResolvedValueOnce({ id: ADJUSTMENT_ID, reference: 'ADJ-2026-0001' });
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow({ quantityOnHand: 10, averageCost: new Prisma.Decimal(120) }));
+      engineMock.addLayer.mockResolvedValueOnce({ movementId: MOVEMENT_ID });
+
+      const result = await service().createAdjustment(
+        { reason: AdjustmentReason.COUNT, lines: [{ productId: PRODUCT_ID, countedQuantity: 15 }] },
+        STAFF_ID,
+      );
+
+      expect(engineMock.addLayer).toHaveBeenCalledWith(
+        prismaMock,
+        PRODUCT_ID,
+        5,
+        120,
+        MovementType.ADJUSTMENT_IN,
+        expect.objectContaining({ referenceType: 'ADJUSTMENT', referenceId: ADJUSTMENT_ID, staffId: STAFF_ID }),
+      );
+      expect(result.reference).toBe('ADJ-2026-0001');
+      expect(result.lines).toEqual([{ productId: PRODUCT_ID, delta: 5, movementId: MOVEMENT_ID }]);
+    });
+
+    it('honours an explicit unitCost over the current averageCost for a positive delta', async () => {
+      sequenceMock.nextNumber.mockResolvedValueOnce('ADJ-2026-0002');
+      stockAdjustmentCreateMock.mockResolvedValueOnce({ id: ADJUSTMENT_ID, reference: 'ADJ-2026-0002' });
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow({ quantityOnHand: 10, averageCost: new Prisma.Decimal(120) }));
+      engineMock.addLayer.mockResolvedValueOnce({ movementId: MOVEMENT_ID });
+
+      await service().createAdjustment(
+        { reason: AdjustmentReason.COUNT, lines: [{ productId: PRODUCT_ID, countedQuantity: 15, unitCost: 200 }] },
+        STAFF_ID,
+      );
+
+      expect(engineMock.addLayer).toHaveBeenCalledWith(prismaMock, PRODUCT_ID, 5, 200, MovementType.ADJUSTMENT_IN, expect.anything());
+    });
+
+    it('consumes FIFO for a negative delta with revenue=null, keeping profit null', async () => {
+      sequenceMock.nextNumber.mockResolvedValueOnce('ADJ-2026-0003');
+      stockAdjustmentCreateMock.mockResolvedValueOnce({ id: ADJUSTMENT_ID, reference: 'ADJ-2026-0003' });
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow({ quantityOnHand: 10 }));
+      engineMock.consumeFifo.mockResolvedValueOnce({ movementId: MOVEMENT_ID, costOfGoods: 500, profit: null, consumptions: [] });
+
+      const result = await service().createAdjustment(
+        { reason: AdjustmentReason.DAMAGE, lines: [{ productId: PRODUCT_ID, countedQuantity: 5 }] },
+        STAFF_ID,
+      );
+
+      expect(engineMock.consumeFifo).toHaveBeenCalledWith(
+        prismaMock,
+        PRODUCT_ID,
+        5,
+        null,
+        MovementType.ADJUSTMENT_OUT,
+        expect.objectContaining({ referenceType: 'ADJUSTMENT' }),
+      );
+      expect(result.lines).toEqual([{ productId: PRODUCT_ID, delta: -5, movementId: MOVEMENT_ID }]);
+    });
+
+    it('a zero-delta reprice-only line calls applyPricing but produces no result line', async () => {
+      sequenceMock.nextNumber.mockResolvedValueOnce('ADJ-2026-0004');
+      stockAdjustmentCreateMock.mockResolvedValueOnce({ id: ADJUSTMENT_ID, reference: 'ADJ-2026-0004' });
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow({ quantityOnHand: 10 }));
+
+      const result = await service().createAdjustment(
+        {
+          reason: AdjustmentReason.CORRECTION,
+          lines: [{ productId: PRODUCT_ID, countedQuantity: 10, prices: { guestPrice: 999 } }],
+        },
+        STAFF_ID,
+      );
+
+      expect(catalogPricingMock.applyPricing).toHaveBeenCalledWith(prismaMock, PRODUCT_ID, { guestPrice: 999 });
+      expect(engineMock.addLayer).not.toHaveBeenCalled();
+      expect(engineMock.consumeFifo).not.toHaveBeenCalled();
+      expect(result.lines).toHaveLength(0);
+    });
+
+    it('applies the reprice in the same transaction as a non-zero delta', async () => {
+      sequenceMock.nextNumber.mockResolvedValueOnce('ADJ-2026-0005');
+      stockAdjustmentCreateMock.mockResolvedValueOnce({ id: ADJUSTMENT_ID, reference: 'ADJ-2026-0005' });
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow({ quantityOnHand: 10, averageCost: new Prisma.Decimal(100) }));
+      engineMock.addLayer.mockResolvedValueOnce({ movementId: MOVEMENT_ID });
+
+      await service().createAdjustment(
+        {
+          reason: AdjustmentReason.COUNT,
+          lines: [{ productId: PRODUCT_ID, countedQuantity: 15, prices: { guestPrice: 500 } }],
+        },
+        STAFF_ID,
+      );
+
+      expect(catalogPricingMock.applyPricing).toHaveBeenCalledWith(prismaMock, PRODUCT_ID, { guestPrice: 500 });
+      expect(engineMock.addLayer).toHaveBeenCalledWith(prismaMock, PRODUCT_ID, 5, 100, MovementType.ADJUSTMENT_IN, expect.anything());
+    });
+
+    it('flushes engine events and emits inventory.adjusted exactly once after commit', async () => {
+      sequenceMock.nextNumber.mockResolvedValueOnce('ADJ-2026-0006');
+      stockAdjustmentCreateMock.mockResolvedValueOnce({ id: ADJUSTMENT_ID, reference: 'ADJ-2026-0006' });
+      productFindUniqueMock.mockResolvedValueOnce(buildProductRow({ quantityOnHand: 10 }));
+      engineMock.addLayer.mockResolvedValueOnce({ movementId: MOVEMENT_ID });
+
+      await service().createAdjustment(
+        { reason: AdjustmentReason.COUNT, lines: [{ productId: PRODUCT_ID, countedQuantity: 15 }] },
+        STAFF_ID,
+      );
+
+      expect(engineMock.flushEvents).toHaveBeenCalledTimes(1);
+      expect(engineMock.flushEvents).toHaveBeenCalledWith(prismaMock);
+      expect(eventBusEmitMock).toHaveBeenCalledTimes(1);
+      expect(eventBusEmitMock).toHaveBeenCalledWith(
+        'inventory.adjusted',
+        expect.objectContaining({ reference: 'ADJ-2026-0006' }),
+      );
+    });
+
+    it('rejects when a line references an unknown product', async () => {
+      sequenceMock.nextNumber.mockResolvedValueOnce('ADJ-2026-0007');
+      stockAdjustmentCreateMock.mockResolvedValueOnce({ id: ADJUSTMENT_ID, reference: 'ADJ-2026-0007' });
+      productFindUniqueMock.mockResolvedValueOnce(null);
+
+      await expect(
+        service().createAdjustment(
+          { reason: AdjustmentReason.COUNT, lines: [{ productId: 'missing-id', countedQuantity: 5 }] },
+          STAFF_ID,
+        ),
+      ).rejects.toMatchObject({ statusCode: 404 });
     });
   });
 });
