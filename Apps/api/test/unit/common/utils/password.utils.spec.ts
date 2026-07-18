@@ -8,6 +8,11 @@ describe('password.utils', () => {
     expect(hash.length).toBeGreaterThan(0);
   });
 
+  it('hashes using Argon2id', async () => {
+    const hash = await hashPassword('Password123!');
+    expect(hash.startsWith('$argon2id$')).toBe(true);
+  });
+
   it('compare returns true for the correct password', async () => {
     const hash = await hashPassword('Password123!');
     await expect(comparePassword('Password123!', hash)).resolves.toBe(true);

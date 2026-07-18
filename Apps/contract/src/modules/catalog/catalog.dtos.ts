@@ -29,6 +29,12 @@ export const ProductWithPricingResponseSchema = z.object({
 });
 export type ProductWithPricingDto = z.infer<typeof ProductWithPricingResponseSchema>;
 
+// Detail view — the public DTO plus related-product ids (spec API Interface: "+ related ids").
+export const ProductDetailResponseSchema = ProductWithPricingResponseSchema.extend({
+  relatedIds: z.array(z.uuid()),
+});
+export type ProductDetailDto = z.infer<typeof ProductDetailResponseSchema>;
+
 // Staff — read-only qty + the 4 sale prices, still no cost.
 export const StaffProductResponseSchema = z.object({
   id: z.uuid(),
@@ -97,6 +103,9 @@ export const FamilyResponseSchema = z.object({
   isUniversal: z.boolean(),
   isFeatured: z.boolean(),
   isEnabled: z.boolean(),
+  // Only populated when the `withCount=true` query flag is set (FAMILIES route); omitted
+  // otherwise, so existing callers that never pass the flag see no shape change.
+  productCount: z.number().int().min(0).optional(),
 });
 export type FamilyDto = z.infer<typeof FamilyResponseSchema>;
 

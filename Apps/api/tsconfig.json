@@ -17,6 +17,6 @@
       "@dragon-telecom/contract": ["../contract/src/index.ts"]
     }
   },
-  "include": ["src", "test"],
+  "include": ["src", "test", "prisma"],
   "exclude": ["node_modules", "dist"]
 }

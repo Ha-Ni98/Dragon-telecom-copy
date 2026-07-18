@@ -55,3 +55,31 @@ export const PublicSettingsResponseSchema = z.object({
   }),
 });
 export type PublicSettingsDto = z.infer<typeof PublicSettingsResponseSchema>;
+
+// ADMIN_FEES route note: "wilaya rows + commune overrides" — the editable grid.
+// Named for the admin fee-editor UI, distinct from WilayaDto (public catalog listing):
+// every wilaya row carries its own resolved fee (falls back to the settings default when
+// no DeliveryFee row exists yet) plus only the communes that have an explicit override.
+export const AdminFeesResponseSchema = z.object({
+  wilayas: z.array(
+    z.object({
+      wilayaId: z.uuid(),
+      wilayaCode: z.string(),
+      frName: z.string(),
+      arName: z.string(),
+      deliveryHome: z.number(),
+      deliveryOffice: z.number(),
+      communes: z.array(
+        z.object({
+          communeId: z.uuid(),
+          communeCode: z.string(),
+          frName: z.string(),
+          arName: z.string(),
+          deliveryHome: z.number(),
+          deliveryOffice: z.number(),
+        }),
+      ),
+    }),
+  ),
+});
+export type AdminFeesDto = z.infer<typeof AdminFeesResponseSchema>;
