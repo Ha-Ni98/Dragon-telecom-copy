@@ -123,22 +123,22 @@ inventory module documented — see the inventory-complete handoff.
 
 ---
 
-### Sprint 5: Purchasing — Foundation (mapper, interface, factories)   — Status: ⬜ Pending
+### Sprint 5: Purchasing — Foundation (mapper, interface, factories)   — Status: ✅ Done
 
 **Goals**
 - Pure `purchasing.mapper.ts`, `IPurchasingService` + `ICatalogRepricePort`, factories, mapper tests.
 
 **Tasks**
-- [ ] Impl: `src/modules/purchasing/purchasing.mapper.ts` — `toSupplierDto` (`invoiceCount` from `_count`), `toSupplierInvoiceDto` (`invoiceDate`/`dueDate` → **`z.iso.date()`** date-only; `previousCredit?/newCredit?` only when CONFIRMED; `lines[].projectedNewAverageCost?` on DRAFT reads only), `toConfirmResultDto`, `toSupplierPaymentDto`, `toSupplierDetailDto`, `toSupplierStatsDto`. Field-listing; `Decimal→number`; `SupplierInvoiceStatus` passthrough; `.parse` guard. (plan §II.1)
-- [ ] Impl: `src/modules/purchasing/purchasing.interface.ts` — `IPurchasingService` (plan §II.2) + `ICatalogRepricePort` (consumer-side typing of `getRepriceCandidates`/`getCostBasis`).
-- [ ] Impl: factories `test/data/supplier.factory.ts`, `supplier-invoice.factory.ts` (+ lines), `supplier-payment.factory.ts` (codes/refs = random strings; real allocation is SequenceService's job under test). (plan §A)
-- [ ] Test: `test/unit/modules/purchasing/purchasing.mapper.spec.ts` — `Decimal→number`; `@db.Date → date-only`; `projectedNewAverageCost` present only on DRAFT input, absent when CONFIRMED; snapshots present only when CONFIRMED; `.parse` never throws on valid input.
+- [x] Impl: `src/modules/purchasing/purchasing.mapper.ts` — `toSupplierDto` (`invoiceCount`/`lastDeliveryAt` supplied as caller-computed `extras` — **`lastDeliveryAt` isn't a `Supplier` column at all**, derived from `MAX(SupplierInvoice.updatedAt)` instead of a schema migration, see report), `toSupplierInvoiceDto` (`invoiceDate`/`dueDate` → **`z.iso.date()`** date-only; `previousCredit?/newCredit?` only when CONFIRMED; `lines[].projectedNewAverageCost?` on DRAFT reads only), `toConfirmResultDto`, `toSupplierPaymentDto`, `toSupplierDetailDto`, `toSupplierStatsDto`. Field-listing; `Decimal→number`; `SupplierInvoiceStatus` passthrough; `.parse` guard. (plan §II.1)
+- [x] Impl: `src/modules/purchasing/purchasing.interface.ts` — `IPurchasingService` (plan §II.2) + `ICatalogRepricePort` (consumer-side typing of `getRepriceCandidates`/`getCostBasis`, matching catalog's real signatures exactly). **Listener-invoked methods named per-event** (`applySupplierInvoiceConfirmed`/`applySupplierInvoiceCancelled`/`applyPaymentSupplierRecorded`) instead of the plan's `recomputeSupplierCaches` — mirrors clients' Sprint 3 precedent (purchasing controls both the emit and listen sides, so single-emission-guarantee suffices over a ledger recompute; see report).
+- [x] Impl: factories `test/data/supplier.factory.ts`, `supplier-invoice.factory.ts` (+ lines), `supplier-payment.factory.ts` (codes/refs = random strings; real allocation is SequenceService's job under test). (plan §A)
+- [x] Test: `test/unit/modules/purchasing/purchasing.mapper.spec.ts` (13 tests) — `Decimal→number`; `@db.Date → date-only`; `projectedNewAverageCost` present only on DRAFT input, absent when CONFIRMED; snapshots present only when CONFIRMED; `.parse` never throws on valid input.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (mapper + conformance).
-- [ ] Mapper pure/field-listing; returns contract DTOs only.
-- [ ] Committed on green (`purchasing: sprint 5 — foundation (mapper, interface, factories)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (mapper + conformance — 375/375, 26 files).
+- [x] Mapper pure/field-listing; returns contract DTOs only.
+- [x] Committed on green (`purchasing: sprint 5 — foundation (mapper, interface, factories)`).
 
 ---
 
