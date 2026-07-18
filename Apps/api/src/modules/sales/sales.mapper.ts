@@ -113,19 +113,27 @@ export class SalesMapper {
       ...(cmd.note != null ? { note: cmd.note } : {}),
       staffId: ctx.staffId,
       lines: {
-        create: cmd.lines.map((line) => {
-          const serialNumbers = SalesMapper.serializeSerials(line.serialNumbers);
-          return {
-            productId: line.productId,
-            productNameSnapshot: ctx.productNames.get(line.productId) ?? '',
-            quantity: line.quantity,
-            resolvedPrice: 0,
-            unitPrice: line.unitPrice,
-            lineTotal: line.unitPrice * line.quantity,
-            ...(serialNumbers != null ? { serialNumbers } : {}),
-          };
-        }),
+        create: cmd.lines.map((line) => SalesMapper.toLineCreateInput(line, ctx.productNames)),
       },
+    };
+  }
+
+  // Shared by toPersistenceDraft (create) and the service's updateDraft (full line replacement,
+  // Sprint 3) — the one place a line-input command shape becomes a SaleLine create-input, so the
+  // resolvedPrice=0/lineTotal-preview/serial-serialization rules live in exactly one spot.
+  static toLineCreateInput(
+    line: { productId: string; quantity: number; unitPrice: number; serialNumbers?: string[] | undefined },
+    productNames: Map<string, string>,
+  ): Prisma.SaleLineUncheckedCreateWithoutSaleInput {
+    const serialNumbers = SalesMapper.serializeSerials(line.serialNumbers);
+    return {
+      productId: line.productId,
+      productNameSnapshot: productNames.get(line.productId) ?? '',
+      quantity: line.quantity,
+      resolvedPrice: 0,
+      unitPrice: line.unitPrice,
+      lineTotal: line.unitPrice * line.quantity,
+      ...(serialNumbers != null ? { serialNumbers } : {}),
     };
   }
 
