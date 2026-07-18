@@ -410,4 +410,27 @@ describe('route conformance', () => {
     // CLIENT_PAYMENTS_LIST; verified for real, authenticated, in
     // test/integration/repairs.integration.spec.ts instead.
   });
+
+  // Every STATS_ROUTES path is guarded (STAFF_DASHBOARD is STAFF-only, every other route
+  // ADMIN-only) — no public routes at all, same precedent as sales/purchasing/repairs.
+  describe('statistics route resolution (mounted, no DB required)', () => {
+    it('every STATS_ROUTES path resolves on `app`, not a raw unmatched-route 404', async () => {
+      const cases: { method: 'get'; path: string }[] = [
+        { method: 'get', path: STATS_ROUTES.ADMIN_DASHBOARD },
+        { method: 'get', path: STATS_ROUTES.STAFF_DASHBOARD },
+        { method: 'get', path: STATS_ROUTES.OVERVIEW },
+        { method: 'get', path: STATS_ROUTES.FILTERED },
+        { method: 'get', path: STATS_ROUTES.CHARTS.replace(':chart', 'revenue') },
+        { method: 'get', path: STATS_ROUTES.TOP_PRODUCTS },
+        { method: 'get', path: STATS_ROUTES.REPORT.replace(':type', 'sales-by-product') },
+      ];
+
+      for (const { method, path } of cases) {
+        const res = await request(app)[method](`${env.API_PREFIX}${path}`);
+        expect(res.body, `${method.toUpperCase()} ${path} (status ${res.status})`).toHaveProperty('success');
+      }
+    });
+    // verified for real, authenticated, in test/integration/statistics.integration.spec.ts
+    // instead.
+  });
 });
