@@ -56,7 +56,7 @@ message; **no** `Co-Authored-By`.
 
 ---
 
-### Sprint 2: Logic A — the FIFO engine (`InventoryService`)   — Status: ⬜ Pending
+### Sprint 2: Logic A — the FIFO engine (`InventoryService`)   — Status: ✅ Done
 
 **Goals**
 - Implement the injected FIFO engine (constructor DI on `PrismaClient`): `reserve`/`release`/`addLayer`/
@@ -64,18 +64,20 @@ message; **no** `Co-Authored-By`.
   with the full invariant test matrix. `InventoryReadService` is a typed stub this sprint.
 
 **Tasks**
-- [ ] Impl: create `src/modules/inventory/inventory.service.ts` with `InventoryService implements IInventoryService` (constructor DI on `PrismaClient`); `InventoryReadService` present as **typed stubs that throw `"...not implemented yet (see Sprint 3)"`** so the file compiles its `implements`. (plan §5 item 3; catalog Sprint 3 stub precedent)
-- [ ] Impl (engine, all take `tx` + `ref: MovementRef`): `addLayer` (insert `IN` movement, `remainingQuantity = quantity`, `unitCost`; recompute `averageCost` **IN-only** `(oldQty×oldAvg + inQty×unitCost)/(oldQty+inQty)`, guard `oldQty+inQty=0`; `quantityOnHand += qty`; `balanceAfter`). `consumeFifo` (precondition `qty ≤ onHand − reserved`, else **409 `INSUFFICIENT_STOCK { productId, requested, available }` with zero rows**; drain oldest `remainingQuantity > 0` layers FIFO by `createdAt`, write a `StockMovementConsumption` per drained layer + decrement its `remainingQuantity`; `costOfGoods = Σ(consumed×layerUnitCost)`; `profit = revenue − COGS` or `null`; `quantityOnHand −= qty`). `reserve`/`release` (write `PENDING_*`; `quantityReserved ± qty`; **onHand untouched**; reject over-reserve; release idempotent, never below 0). `returnIn` (re-enter layer(s) at the **original consumed unit costs**, `RETURN_IN`; `quantityOnHand += qty`). Every write stamps `balanceAfter` from the freshly-read onHand inside the passed `tx`. (plan §1.2, §3.1–3.3, §3.6–3.7)
-- [ ] Impl (events): the tx-scoped event buffer — append `inventory.stockChanged { productId, onHand, reserved }` after every change + `inventory.lowStock { productId, available, threshold }` **edge-triggered** on the downward cross `available ≤ reorderThreshold`; expose the **post-commit flush seam** (buffer flushed after the owning `$transaction` resolves, discarded on rollback) that the injected callers and Sprint-3 adjustment path use. (plan §2.2, §3.5, §7.3)
-- [ ] Impl (errors): `INSUFFICIENT_STOCK` → `ConflictError` (409) carrying `{ productId, requested, available }` in `details`; unknown product → `NotFoundError`; `isKnownRequestError` P2002/P2025 mapped. (plan §5 item 3, §7.6)
-- [ ] Test: `test/unit/modules/inventory/inventory.service.spec.ts` (engine portion) — mock Prisma (incl. `$transaction`) + spy `@common/events/event-bus`: `10@100 + 10@150` consume `15` ⇒ **COGS 1750**, remaining **5@150**, correct consumption rows; over-consume ⇒ **409 `INSUFFICIENT_STOCK`, zero rows**; `reserve→release` restores available (onHand untouched); `returnIn` at **150, not avgCost**; `balanceAfter` chain under interleaving; invariants `onHand=Σmovements`, `Σremaining=onHand`, `reserved=ΣPENDING`; avgCost **IN-only**; `stockChanged` on every change, `lowStock` **only** on the downward threshold cross. (plan §4.2, §4.5)
+- [x] Impl: create `src/modules/inventory/inventory.service.ts` with `InventoryService implements IInventoryService` (constructor DI on `PrismaClient`); `InventoryReadService` present as **typed stubs that throw `"...not implemented yet (see Sprint 3)"`** so the file compiles its `implements`. (plan §5 item 3; catalog Sprint 3 stub precedent)
+- [x] Impl (engine, all take `tx` + `ref: MovementRef`): `addLayer` (insert `IN` movement, `remainingQuantity = quantity`, `unitCost`; recompute `averageCost` **IN-only** `(oldQty×oldAvg + inQty×unitCost)/(oldQty+inQty)`, guard `oldQty+inQty=0`; `quantityOnHand += qty`; `balanceAfter`). `consumeFifo` (precondition `qty ≤ onHand − reserved`, else **409 `INSUFFICIENT_STOCK { productId, requested, available }` with zero rows**; drain oldest `remainingQuantity > 0` layers FIFO by `createdAt`, write a `StockMovementConsumption` per drained layer + decrement its `remainingQuantity`; `costOfGoods = Σ(consumed×layerUnitCost)`; `profit = revenue − COGS` or `null`; `quantityOnHand −= qty`). `reserve`/`release` (write `PENDING_*`; `quantityReserved ± qty`; **onHand untouched**; reject over-reserve; release idempotent, never below 0). `returnIn` (re-enter layer(s) at the **original consumed unit costs**, `RETURN_IN`, one new layer per distinct original cost; `quantityOnHand += qty`). Every write stamps `balanceAfter` from the freshly-read onHand inside the passed `tx`, locked via `SELECT ... FOR UPDATE` (SequenceService precedent — see report). (plan §1.2, §3.1–3.3, §3.6–3.7)
+- [x] Impl (events): the tx-scoped event buffer — append `inventory.stockChanged { productId, onHand, reserved }` after every change + `inventory.lowStock { productId, available, threshold }` **edge-triggered** on the downward cross `available ≤ reorderThreshold`; expose the **post-commit flush seam** (`flushEvents(tx)`, added to `IInventoryService` this sprint — see report) that the injected callers and Sprint-3 adjustment path use. (plan §2.2, §3.5, §7.3)
+- [x] Impl (errors): `INSUFFICIENT_STOCK` → `ConflictError` (409) carrying `{ productId, requested, available }` in `details`; unknown product → `NotFoundError`. (plan §5 item 3, §7.6) *(`isKnownRequestError` P2002/P2025 not needed this sprint — the engine has no unique-constraint-prone writes; revisit if one emerges.)*
+- [x] Test: `test/unit/modules/inventory/inventory.service.spec.ts` (engine portion, 25 tests) — a stateful in-memory fake `tx` (not per-call mocks) + spy `@common/events/event-bus`: `10@100 + 10@150` consume `15` ⇒ **COGS 1750**, remaining **5@150**, correct consumption rows; over-consume ⇒ **409 `INSUFFICIENT_STOCK`, zero rows** (incl. a reservation-aware variant); `reserve→release` restores available (onHand untouched); `returnIn` at **150, not avgCost** (incl. a multi-cost-group variant); `balanceAfter` chain + all three invariants over one interleaved sequence; avgCost **IN-only**; `stockChanged` on every change, `lowStock` **only** on the downward threshold cross; `flushEvents` buffering semantics. (plan §4.2, §4.5)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (engine spec + prior suites).
-- [ ] `npm run lint --no-color` clean.
-- [ ] Engine writes movement rows **and** the `Product` columns inside the **passed `tx`** (never opens its own for injected paths); throws `AppError` subclasses; buffers events (no emit before commit); zero rows on `INSUFFICIENT_STOCK`; inventory is the sole writer of `quantityOnHand`/`quantityReserved`/`averageCost`.
-- [ ] Committed on green (`api: inventory sprint 2 — fifo engine`).
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green (271/271, 22 files — 25 new engine tests + prior suites).
+- [x] `npm run lint --no-color` clean.
+- [x] Engine writes movement rows **and** the `Product` columns inside the **passed `tx`** (never opens its own for injected paths); throws `AppError` subclasses; buffers events (no emit before commit — explicitly tested); zero rows on `INSUFFICIENT_STOCK`; inventory is the sole writer of `quantityOnHand`/`quantityReserved`/`averageCost`.
+- [x] Committed on green (`api: inventory sprint 2 — fifo engine`).
+
+**Report:** [`results-inventory-04/report-sprint-02-04.md`](./results-inventory-04/report-sprint-02-04.md)
 
 ---
 

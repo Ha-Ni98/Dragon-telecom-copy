@@ -76,6 +76,15 @@ export interface IInventoryService {
     qty: number,
     ref: MovementRef,
   ): Promise<ReturnInResult>;
+
+  // The post-commit flush seam (plan §7.3, §8 #6): the engine never owns the caller's
+  // transaction, so it can't emit events itself once that transaction actually commits — Prisma
+  // has no "after commit" hook reachable from inside the transaction callback. Every write above
+  // buffers its stockChanged/lowStock payloads keyed by this same `tx` reference instead; the
+  // caller must call flushEvents(tx) immediately after its own `$transaction(...)` call resolves.
+  // A caller whose transaction throws never calls this, so the buffer is simply discarded
+  // (garbage-collected with the `tx` object) — no phantom events on rollback.
+  flushEvents(tx: Prisma.TransactionClient): void;
 }
 
 // Injected dependency inventory needs (implemented by catalog) — lets an adjustment line's
