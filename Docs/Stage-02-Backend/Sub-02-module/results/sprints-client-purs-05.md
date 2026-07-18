@@ -142,27 +142,27 @@ inventory module documented — see the inventory-complete handoff.
 
 ---
 
-### Sprint 6: Purchasing — Logic (service + listener)   — Status: ⬜ Pending
+### Sprint 6: Purchasing — Logic (service + listener)   — Status: ✅ Done
 
 **Goals**
 - `PurchasingService implements IPurchasingService` + `PurchasingListener`; all §II.3 logic;
   confirm reuses the inventory engine in-tx; unit tests.
 
 **Tasks**
-- [ ] Impl: `src/modules/purchasing/purchasing.service.ts` — constructor DI `(prisma, sequence: ISequenceService, inventory: IInventoryService, catalogReprice: ICatalogRepricePort)`:
+- [x] Impl: `src/modules/purchasing/purchasing.service.ts` — constructor DI `(prisma, sequence: ISequenceService, inventory: IInventoryService, catalogReprice: ICatalogRepricePort)`:
   - supplier CRUD (`code` via `DocType.SUPPLIER`, `initialCredit` opening, `isEnabled` toggle), `supplierStats`, `getSupplier` aggregate.
-  - invoice DRAFT create/update (`amountOnly` **XOR** `lines`; DRAFT-only PATCH else `409`; `supplierId` not reassignable); **landed-cost** math + `totalAmount = Σ lineTotal + shippingCost`; `productNameSnapshot` + `projectedNewAverageCost` via `catalogReprice` (DRAFT reads).
-  - **confirm** — one tx, supplier `FOR UPDATE` lock: double-confirm no-op / CANCELLED `409`; per line `inventory.addLayer(tx, …, MovementType.SUPPLIER_INVOICE, ref)`; credit snapshot `previous→new`; `reference` via `DocType.SUPPLIER_INVOICE`; `CONFIRMED`; commit → `inventory.flushEvents(tx)` → emit `supplierInvoice.confirmed`; return `repriceCandidates` (post-`addLayer` avg). Zero-line ⇒ credit up, zero movements.
-  - cancel (emit `supplierInvoice.cancelled`; **no** automatic stock reversal); payments (snapshot math, on-account, overpayment ⇒ negative credit flagged, `reference` via `DocType.SUPPLIER_PAYMENT`, emit `payment.supplierRecorded`); `recomputeSupplierCaches` internal. (plan §II.3, §II.5)
-- [ ] Impl: `src/modules/purchasing/purchasing.listener.ts` — injects `IPurchasingService`, subscribes to its **own** post-commit `supplierInvoice.confirmed`/`.cancelled`/`payment.supplierRecorded`; maintains supplier caches by **recompute-from-ledger** (idempotent by document id); `safeRun` guard. (plan §II.4, §D-3)
-- [ ] Test: `test/unit/modules/purchasing/purchasing.service.spec.ts` (mock Prisma + mock `ISequenceService` + **mock the inventory engine** + mock `ICatalogRepricePort` + spy bus) — `amountOnly+lines → 400`; landed-cost vs hand calc; confirm adds one layer per line at landed cost + avg matches hand calc + emits once; **double-confirm no-op**; zero-line confirm ⇒ credit up, zero `addLayer` calls; `PATCH` after confirm `409`; payment snapshot math; overpayment ⇒ negative credit flagged.
-- [ ] Test: `test/unit/modules/purchasing/purchasing.listener.spec.ts` — confirmed/cancelled/paymentRecorded update caches; replay is a no-op (`cache = ledger`).
+  - invoice DRAFT create/update (`amountOnly` **XOR** `lines`; DRAFT-only PATCH else `409`; `supplierId` not reassignable); **landed-cost** math + `totalAmount = Σ lineTotal + shippingCost`; `productNameSnapshot` + `projectedNewAverageCost` via `catalogReprice` (DRAFT reads). **DRAFT rows need a placeholder `reference`** before confirm allocates the real one — schema/spec tension resolved without a migration, see report.
+  - **confirm** — one tx, supplier `FOR UPDATE` lock: double-confirm no-op / CANCELLED `409`; per line `inventory.addLayer(tx, …, MovementType.SUPPLIER_INVOICE, ref)`; credit snapshot `previous→new`; `reference` via `DocType.SUPPLIER_INVOICE`; `CONFIRMED`; commit → `inventory.flushEvents(tx)` → emit `supplierInvoice.confirmed`; return `repriceCandidates` (post-`addLayer` avg, computed **inside** the tx via the `capturedTx` pattern). Zero-line ⇒ credit up, zero movements.
+  - cancel (emits `supplierInvoice.cancelled` **only when the invoice was previously CONFIRMED** — a DRAFT cancel has nothing to reverse and must never emit, see report; **no** automatic stock reversal); payments (snapshot math, on-account, overpayment ⇒ negative credit — the negative number itself is the "flag", no dedicated DTO field exists — `reference` via `DocType.SUPPLIER_PAYMENT`, emit `payment.supplierRecorded`). **`recomputeSupplierCaches` replaced by three named listener-invoked methods** (mirrors clients' Sprint 3 precedent — purchasing controls both the emit and listen sides, so single-emission-guarantee suffices). (plan §II.3, §II.5)
+- [x] Impl: `src/modules/purchasing/purchasing.listener.ts` — injects `IPurchasingService`, subscribes to its **own** post-commit `supplierInvoice.confirmed`/`.cancelled`/`payment.supplierRecorded`; `credit` set from each event's own snapshot (idempotent by construction), `totalInvoiced`/`totalPaid` plain increments relying on single-emission (documented, same as clients' Sprint 3 revision — not a ledger recompute); `safeRun` guard. (plan §II.4)
+- [x] Test: `test/unit/modules/purchasing/purchasing.service.spec.ts` (18 tests) — landed-cost vs hand calc; confirm adds one layer per line at landed cost + emits once; **double-confirm no-op**; zero-line confirm ⇒ credit up, zero `addLayer` calls; `PATCH` after confirm `409`; cancel emits only when previously CONFIRMED; payment snapshot math; overpayment ⇒ negative credit; unknown productId/supplierId 400s; `updateSupplier` P2025→404.
+- [x] Test: `test/unit/modules/purchasing/purchasing.listener.spec.ts` (5 tests) — each handler's exact delta; replayed `supplierInvoice.confirmed` sets the identical final credit (genuinely idempotent — a snapshot `set`); a handler throw is swallowed.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (service + listener + conformance).
-- [ ] Engine reused via injected `IInventoryService` (no re-implementation); events post-commit; listener idempotent.
-- [ ] Committed on green (`purchasing: sprint 6 — logic (service + listener)`).
+- [x] `tsc --noEmit` clean (one real Prisma nested-create type fix needed — see report).
+- [x] `npm run test:unit` green (service + listener + conformance — 398/398, 28 files).
+- [x] Engine reused via injected `IInventoryService` (no re-implementation); events post-commit; listener idempotent (credit) / single-emission-reliant (counters, documented).
+- [x] Committed on green (`purchasing: sprint 6 — logic (service + listener)`).
 
 ---
 
