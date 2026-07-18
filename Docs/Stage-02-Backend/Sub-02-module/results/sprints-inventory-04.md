@@ -32,25 +32,27 @@ message; **no** `Co-Authored-By`.
 
 ---
 
-### Sprint 1: Foundation — mapper, interfaces, factories   — Status: ⬜ Pending
+### Sprint 1: Foundation — mapper, interfaces, factories   — Status: ✅ Done
 
 **Goals**
 - Pure Entity⇄DTO transformation for the four inventory DTOs, the two service contracts + the injected
   engine port + injected pricing port, and contract-shaped test data — no business logic.
 
 **Tasks**
-- [ ] Impl: `src/modules/inventory/inventory.mapper.ts` — pure/static `toStockRowDto(product)`, `toMovementDto(movement, product, staff, referenceLabel)`, `toReservationDto(group, product)`, `toAdjustmentResultDto(adjustment, lines)`. `Decimal.toNumber()`, `Date.toISOString()`, 1:1 enum casts (`direction`/`type`/`holderType`), derived `availableQuantity`/`stockValue`/`isLow`/`ageHours`/reservation `quantity`; optional `unitCost`/`remainingQuantity`/`costOfGoods`/`profit` **omitted when null**; `staffName = firstName + ' ' + lastName`; **never spreads the entity**; each `toDto` ends `…ResponseSchema.parse(dto)`. (plan §1.1, §1.3, §5 item 1)
-- [ ] Impl: the pure per-`referenceType` `referenceLabel` resolver used by `toMovementDto` — `ADJUSTMENT → StockAdjustment.reference`, `PRODUCT → Product.name`, `SUPPLIER_INVOICE → SupplierInvoice.reference`, fallback `` `${referenceType} ${referenceId.slice(0,8)}` `` for not-yet-built document modules. (plan §1.4, §8 #2)
-- [ ] Impl: `src/modules/inventory/inventory.interface.ts` — `IInventoryReadService` (`getStock`/`listMovements`/`listReservations`/`createAdjustment`, returning contract DTOs / `PaginatedResult<T>` / `ExportResult`); `IInventoryService` (the engine — `reserve`/`release`/`addLayer`/`consumeFifo`/`returnIn` returning the spec's internal transactional shapes); the internal `MovementRef { referenceType; referenceId; staffId; reason? }` + engine result types; and `ICatalogPricingPort` (`applyPricing(tx, productId, cmd)`). Reuse platform's `ExportResult` shape or declare a local equivalent. (plan §2.1, §8 #1, §8 #3)
-- [ ] Test (factories): `test/data/stock-movement.factory.ts` (IN-layer / OUT / PENDING variants), `test/data/stock-adjustment.factory.ts` (command + persistence); reuse/extend `test/data/product.factory.ts` and add `test/data/staff.factory.ts` if absent (for `staffId`/`staffName`). Each returns a valid persistence payload + a matching command payload. (plan §4.1)
-- [ ] Test: `test/unit/modules/inventory/inventory.mapper.spec.ts` — each `toDto` parses its schema; `Decimal→number`, `Date→ISO`; `availableQuantity`/`stockValue`/`isLow`/`ageHours` math; enum passthrough; `staffName` composition; optional cost/qty fields omitted when null; `referenceLabel` resolver incl. fallback. (plan §4.2)
+- [x] Impl: `src/modules/inventory/inventory.mapper.ts` — pure/static `toStockRowDto(product)`, `toMovementDto(movement, product, staff, referenceLabel)`, `toReservationDto(group, product)`, `toAdjustmentResultDto(adjustment, lines)`. `Decimal.toNumber()`, `Date.toISOString()`, 1:1 enum casts (`direction`/`type`/`holderType`), derived `availableQuantity`/`stockValue`/`isLow`/`ageHours`/reservation `quantity`; optional `unitCost`/`remainingQuantity`/`costOfGoods`/`profit` **omitted when null**; `staffName = firstName + ' ' + lastName`; **never spreads the entity**; each `toDto` ends `…ResponseSchema.parse(dto)`. (plan §1.1, §1.3, §5 item 1)
+- [x] Impl: the pure per-`referenceType` `referenceLabel` resolver used by `toMovementDto` — **scope note:** the mapper's `resolveReferenceLabel(referenceType, referenceId, resolvedName?)` owns only the resolved-vs-fallback decision (`` `${referenceType} ${referenceId.slice(0,8)}` `` when absent); the actual per-type table dispatch (`ADJUSTMENT → StockAdjustment.reference`, `PRODUCT → Product.name`, `SUPPLIER_INVOICE → SupplierInvoice.reference`) requires DB joins and is deferred to the service (Sprint 3), since mappers stay I/O-free (rules §3). (plan §1.4, §8 #2)
+- [x] Impl: `src/modules/inventory/inventory.interface.ts` — `IInventoryReadService` (`getStock`/`listMovements`/`listReservations`/`createAdjustment`, returning contract DTOs / `PaginatedResult<T>` / `ExportResult`); `IInventoryService` (the engine — `reserve`/`release`/`addLayer`/`consumeFifo`/`returnIn` returning the spec's internal transactional shapes); the internal `MovementRef { referenceType; referenceId; staffId; reason? }` + engine result types; and `ICatalogPricingPort` (`applyPricing(tx, productId, cmd)`). **`ExportResult` declared locally** (platform's isn't barrel-exported for cross-module reuse — see report). (plan §2.1, §8 #1, §8 #3)
+- [x] Test (factories): `test/data/stock-movement.factory.ts` (IN-layer / OUT / PENDING variants, **persistence-only** — no HTTP command creates a movement), `test/data/stock-adjustment.factory.ts` (command + persistence); reused `test/data/product.factory.ts` unchanged and added `test/data/staff.factory.ts` (wraps `seedUser(type: STAFF)`, `Staff.userId` is a required FK). (plan §4.1)
+- [x] Test: `test/unit/modules/inventory/inventory.mapper.spec.ts` — each `toDto` parses its schema; `Decimal→number`, `Date→ISO`; `availableQuantity`/`stockValue`/`isLow`/`ageHours` math; enum passthrough; `staffName` composition; optional cost/qty fields omitted when null; `referenceLabel` resolver incl. fallback. (plan §4.2)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (mapper spec + contract conformance + existing suites).
-- [ ] `npm run lint --no-color` clean.
-- [ ] Mapper never spreads the entity and returns `.parse()`d contract DTOs; the HTTP-facing interface returns DTOs (the engine's non-DTO returns are the spec-mandated exception, plan §8 #1); no service/route logic yet.
-- [ ] Committed on green (`api: inventory sprint 1 — foundation`).
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green (246/246, 21 files — 20 new mapper tests + contract conformance + existing suites).
+- [x] `npm run lint --no-color` clean.
+- [x] Mapper never spreads the entity and returns `.parse()`d contract DTOs; the HTTP-facing interface returns DTOs (the engine's non-DTO returns are the spec-mandated exception, plan §8 #1); no service/route logic yet.
+- [x] Committed on green (`api: inventory sprint 1 — foundation`).
+
+**Report:** [`results-inventory-04/report-sprint-01-04.md`](./results-inventory-04/report-sprint-01-04.md)
 
 ---
 
