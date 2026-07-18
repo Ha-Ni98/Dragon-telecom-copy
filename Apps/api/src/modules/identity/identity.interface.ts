@@ -38,6 +38,14 @@ export interface IIdentityService {
   updateUser(id: string, cmd: UpdateUserCommand): Promise<UserDto>;
   resetPassword(userId: string, newPassword: string, tx?: Prisma.TransactionClient): Promise<void>;
 
+  // Provisions a bare `type: CLIENT` User row (no Staff profile) — CreateUserCommand can't
+  // express CLIENT (its `type` is ADMIN|STAFF only), and a client's profile lives entirely on
+  // the clients module's own `Client` row, not on Staff. Always called inside the clients
+  // module's own transaction (the approve flow's injected-service connection rule) — `tx` is
+  // required, unlike createUser/resetPassword's optional one, since there is no standalone
+  // (non-transactional) caller for this method.
+  provisionClientUser(input: { username: string; password: string }, tx: Prisma.TransactionClient): Promise<{ userId: string }>;
+
   // Roles & pages
   listRoles(): Promise<RoleDto[]>;
   createRole(cmd: CreateRoleCommand): Promise<RoleDto>;

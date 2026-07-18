@@ -626,4 +626,79 @@ describe('CatalogProductService', () => {
       });
     });
   });
+
+  // Read ports for clients (cart) and purchasing (confirm/DRAFT projection) — plan §C-3.
+  describe('getCartProducts', () => {
+    it('returns [] without touching Prisma when given no ids', async () => {
+      const result = await service().getCartProducts([], undefined);
+
+      expect(result).toEqual([]);
+      expect(productFindManyMock).not.toHaveBeenCalled();
+    });
+
+    it('resolves per-viewer pricing the same way listProducts does, for the exact id set', async () => {
+      const product = buildProductRow({ guestPrice: new Prisma.Decimal(1000) });
+      productFindManyMock.mockResolvedValueOnce([product]);
+
+      const result = await service().getCartProducts([PRODUCT_ID], undefined);
+
+      expect(productFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [PRODUCT_ID] } } }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ id: PRODUCT_ID, guestPrice: 1000, currentPrice: 1000 });
+    });
+  });
+
+  describe('getRepriceCandidates', () => {
+    it('returns [] without touching the tx when given no ids', async () => {
+      const result = await service().getRepriceCandidates(prismaMock as never, []);
+
+      expect(result).toEqual([]);
+      expect(productFindManyMock).not.toHaveBeenCalled();
+    });
+
+    it('builds repriceCandidates from the (post-addLayer) averageCost, reading through the caller tx', async () => {
+      const product = buildProductRow({
+        averageCost: new Prisma.Decimal(2500),
+        guestPrice: new Prisma.Decimal(3000),
+        defaultSalePrice: new Prisma.Decimal(3200),
+        prices: [{ productId: PRODUCT_ID, clientCategoryId: CATEGORY_ID, price: new Prisma.Decimal(2800), category: { name: 'Wholesale' } }],
+      });
+      productFindManyMock.mockResolvedValueOnce([product]);
+
+      const result = await service().getRepriceCandidates(prismaMock as never, [PRODUCT_ID]);
+
+      expect(result).toEqual([
+        {
+          productId: PRODUCT_ID,
+          name: product.name,
+          averageCost: 2500,
+          current: {
+            guestPrice: 3000,
+            defaultSalePrice: 3200,
+            categoryPrices: [{ categoryId: CATEGORY_ID, categoryName: 'Wholesale', price: 2800 }],
+          },
+        },
+      ]);
+    });
+  });
+
+  describe('getCostBasis', () => {
+    it('returns [] without touching Prisma when given no ids', async () => {
+      const result = await service().getCostBasis([]);
+
+      expect(result).toEqual([]);
+      expect(productFindManyMock).not.toHaveBeenCalled();
+    });
+
+    it('projects id/name/averageCost/quantityOnHand for the DRAFT-read projection', async () => {
+      const product = buildProductRow({ averageCost: new Prisma.Decimal(1800), quantityOnHand: 25 });
+      productFindManyMock.mockResolvedValueOnce([product]);
+
+      const result = await service().getCostBasis([PRODUCT_ID]);
+
+      expect(result).toEqual([{ productId: PRODUCT_ID, name: product.name, averageCost: 1800, quantityOnHand: 25 }]);
+    });
+  });
 });

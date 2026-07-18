@@ -477,6 +477,45 @@ describe('IdentityService', () => {
     });
   });
 
+  describe('provisionClientUser', () => {
+    const txMock = { user: { create: userCreateMock } };
+
+    it('creates a CLIENT user with no Staff row, hashing the password, honouring the passed tx', async () => {
+      userCreateMock.mockResolvedValueOnce(buildClientUser({ id: USER_ID }));
+
+      const result = await service().provisionClientUser(
+        { username: 'newclient', password: 'ClientPass123!' },
+        txMock as never,
+      );
+
+      expect(hashPasswordMock).toHaveBeenCalledWith('ClientPass123!');
+      expect(userCreateMock).toHaveBeenCalledWith({
+        data: { username: 'newclient', passwordHash: 'hashed(ClientPass123!)', type: PrismaUserType.CLIENT },
+      });
+      expect(userCreateMock.mock.calls[0]?.[0]?.data).not.toHaveProperty('staff');
+      expect(result).toEqual({ userId: USER_ID });
+    });
+
+    it('emits nothing — the caller emits once its own transaction commits', async () => {
+      userCreateMock.mockResolvedValueOnce(buildClientUser({ id: USER_ID }));
+
+      await service().provisionClientUser({ username: 'newclient', password: 'ClientPass123!' }, txMock as never);
+
+      expect(eventBusEmitMock).not.toHaveBeenCalled();
+    });
+
+    it('maps a duplicate username (P2002) to a ConflictError', async () => {
+      userCreateMock.mockRejectedValueOnce(prismaKnownError('P2002'));
+
+      const err = await expectRejection(
+        service().provisionClientUser({ username: 'dup', password: 'ClientPass123!' }, txMock as never),
+      );
+
+      expect(err.statusCode).toBe(409);
+      expect(err.code).toBe(ErrorCode.RESOURCE_CONFLICT);
+    });
+  });
+
   describe('updateUser', () => {
     it('blocks disabling the last enabled admin with a 409', async () => {
       userFindUniqueMock.mockResolvedValueOnce(buildStaffUser({ type: PrismaUserType.ADMIN, userRoles: [] }));

@@ -29,6 +29,11 @@ const router = Router();
 const service = new IdentityService(prisma);
 const controller = new IdentityController(service);
 
+// Exported for the aggregator (modules/index.ts) to inject into the clients module's
+// composition root — clients' approve flow calls provisionClientUser/resetPassword through
+// this same singleton (plan §C-1), never a second IdentityService instance.
+export const identityService = service;
+
 // checkDB:true closes the "disabled admin's still-valid access token" window (refresh tokens
 // are already revoked on disable — see plan §5.1).
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });

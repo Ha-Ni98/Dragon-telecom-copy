@@ -709,6 +709,96 @@ export class CatalogProductService implements ICatalogProductService {
     return CatalogMapper.toProductStatsDto(counts);
   }
 
+  // Read port for clients' cart hydration (plan §C-3, §I.5) — an id-set counterpart to
+  // listProducts' pagination-shaped query, reusing the exact same viewer-pricing resolution
+  // (no separate price-matrix logic to keep in sync). No isEnabled/isPublished filter: a
+  // favorited product staying visible in the cart even if later disabled/unpublished is the
+  // safer default (silently dropping it would look like data loss to the client).
+  async getCartProducts(productIds: string[], viewer: Viewer): Promise<ProductWithPricingDto[]> {
+    if (productIds.length === 0) return [];
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      include: PRODUCT_INCLUDE,
+    });
+
+    const ctx = await this.resolveViewerContext(viewer);
+    const ids = products.map((product) => product.id);
+    const [priceMap, cartSet] = await Promise.all([
+      this.loadPriceMap(ids, ctx.categoryId),
+      this.loadCartSet(ids, ctx.clientId),
+    ]);
+
+    return products.map((product) =>
+      CatalogMapper.toProductWithPricingDto(product, this.resolvePricing(product, priceMap), {
+        inStock: CatalogMapper.availableQuantity(product) > 0,
+        inCart: cartSet.has(product.id),
+      }),
+    );
+  }
+
+  // Read port for purchasing's confirm step (plan §C-3, §II.5) — runs inside the *caller's*
+  // transaction (`tx`) so it observes each line's `addLayer`-updated `averageCost` before the
+  // caller's own commit, matching the spec's "post-addLayer average" requirement for
+  // ConfirmResultDto.repriceCandidates.
+  async getRepriceCandidates(
+    tx: Prisma.TransactionClient,
+    productIds: string[],
+  ): Promise<
+    {
+      productId: string;
+      name: string;
+      averageCost: number;
+      current: {
+        guestPrice?: number;
+        defaultSalePrice?: number;
+        categoryPrices: { categoryId: string; categoryName: string; price: number }[];
+      };
+    }[]
+  > {
+    if (productIds.length === 0) return [];
+
+    const products = await tx.product.findMany({
+      where: { id: { in: productIds } },
+      include: { prices: { include: { category: true } } },
+    });
+
+    return products.map((product) => ({
+      productId: product.id,
+      name: product.name,
+      averageCost: product.averageCost.toNumber(),
+      current: {
+        ...(product.guestPrice != null ? { guestPrice: product.guestPrice.toNumber() } : {}),
+        ...(product.defaultSalePrice != null ? { defaultSalePrice: product.defaultSalePrice.toNumber() } : {}),
+        categoryPrices: product.prices.map((price) => ({
+          categoryId: price.clientCategoryId,
+          categoryName: price.category.name,
+          price: price.price.toNumber(),
+        })),
+      },
+    }));
+  }
+
+  // Read port for purchasing's DRAFT-read projection (plan §C-3, §II.3 #2) — plain read (no
+  // tx), feeds projectedNewAverageCost + productNameSnapshot before any layer is added.
+  async getCostBasis(
+    productIds: string[],
+  ): Promise<{ productId: string; name: string; averageCost: number; quantityOnHand: number }[]> {
+    if (productIds.length === 0) return [];
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, name: true, averageCost: true, quantityOnHand: true },
+    });
+
+    return products.map((product) => ({
+      productId: product.id,
+      name: product.name,
+      averageCost: product.averageCost.toNumber(),
+      quantityOnHand: product.quantityOnHand,
+    }));
+  }
+
   private staffAdminWhere(query: ProductListQuery, extra: Prisma.ProductWhereInput = {}): Prisma.ProductWhereInput {
     return {
       ...extra,

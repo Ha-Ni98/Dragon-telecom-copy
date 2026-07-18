@@ -72,3 +72,13 @@ export const CartItemResponseSchema = z.object({
   product: ProductWithPricingResponseSchema,
 });
 export type CartItemDto = z.infer<typeof CartItemResponseSchema>;
+
+// ADMIN_STATS has no field list in the spec beyond the route note ("+ stats route") — modelled
+// minimally on the client pipeline's own status breakdown (plan-client-purch.md §I.2, §D-1).
+export const ClientStatsResponseSchema = z.object({
+  totalClients: z.number().int().min(0),
+  pending: z.number().int().min(0),
+  approved: z.number().int().min(0),
+  rejected: z.number().int().min(0),
+});
+export type ClientStatsDto = z.infer<typeof ClientStatsResponseSchema>;
