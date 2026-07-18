@@ -19,7 +19,10 @@ import { seedWilayas } from '../data/wilaya.factory';
 
 const mintToken = async (type: (typeof UserType)[keyof typeof UserType]): Promise<string> => {
   const { user } = await seedUser({ type: type as never });
-  return generateToken({ sub: user.id, type: user.type });
+  // Real logins always carry staffId when the user has a Staff profile (identity's
+  // buildJwtPayload) — every ADMIN/STAFF seeded user does (seedUser creates one unconditionally).
+  // Needed now that createProduct's inventory.addLayer call requires an acting staffId.
+  return generateToken({ sub: user.id, type: user.type, ...(user.staff ? { staffId: user.staff.id } : {}) });
 };
 
 describe('catalog integration', () => {

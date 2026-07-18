@@ -186,4 +186,25 @@ describe('route conformance', () => {
     // `validateRequest` ever runs on an unauthenticated request. Verified for real, authenticated,
     // in test/integration/catalog.integration.spec.ts instead (§4.3).
   });
+
+  // Every INVENTORY_ROUTES path is admin-guarded (no public routes at all) — the platform/
+  // identity precedent applies directly: requireAuth's missing-token check short-circuits
+  // before any Prisma call, so all four routes stay DB-free. Response-shape + authenticated
+  // behavior (stock/movements/reservations/adjustments) are covered in
+  // test/integration/inventory.integration.spec.ts instead, where a real test DB is already up.
+  describe('inventory route resolution (mounted, no DB required)', () => {
+    it('every INVENTORY_ROUTES path resolves on `app`, not a raw unmatched-route 404', async () => {
+      const cases: { method: 'get' | 'post'; path: string }[] = [
+        { method: 'get', path: INVENTORY_ROUTES.STOCK },
+        { method: 'get', path: INVENTORY_ROUTES.MOVEMENTS },
+        { method: 'get', path: INVENTORY_ROUTES.RESERVATIONS },
+        { method: 'post', path: INVENTORY_ROUTES.ADJUSTMENTS },
+      ];
+
+      for (const { method, path } of cases) {
+        const res = await request(app)[method](`${env.API_PREFIX}${path}`);
+        expect(res.body, `${method.toUpperCase()} ${path} (status ${res.status})`).toHaveProperty('success');
+      }
+    });
+  });
 });

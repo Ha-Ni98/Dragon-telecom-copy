@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { sendSuccess } from '@common/http/response';
+import { AuthError } from '@common/errors';
 import type {
   AddProductImagesCommand,
   BrandIdParams,
@@ -112,7 +113,9 @@ export class CatalogController {
 
   createProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await this.products.createProduct(req.validated.body as CreateProductCommand, filesOf(req));
+      const staffId = req.user?.staffId;
+      if (!staffId) throw new AuthError('Admin user has no staff profile');
+      const result = await this.products.createProduct(req.validated.body as CreateProductCommand, filesOf(req), staffId);
       sendSuccess(res, result, 201);
     } catch (error) {
       next(error);

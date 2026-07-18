@@ -107,7 +107,7 @@ message; **no** `Co-Authored-By`.
 
 ---
 
-### Sprint 4: API — controller, routes, wiring, catalog cross-wiring, integration & conformance   — Status: ⬜ Pending
+### Sprint 4: API — controller, routes, wiring, catalog cross-wiring, integration & conformance   — Status: ✅ Done
 
 **Goals**
 - Expose the HTTP surface, wire the composition root (admin guards, CSV export, exported
@@ -115,24 +115,26 @@ message; **no** `Co-Authored-By`.
   the module end-to-end + against the contract.
 
 **Tasks**
-- [ ] Impl: `src/modules/inventory/inventory.controller.ts` — thin; `try/catch → next(error)`; reads `req.validated`; `getStock` branches on `export==='csv'` (set `Content-Type: text/csv` + `Content-Disposition`, send the buffer — platform `exportFees` mirror) else `sendSuccess(rows)`; `createAdjustment` reads `req.user.staffId` → `sendSuccess(result, 201)`; reads → `sendSuccess(…, 200)`. (plan §5 item 5)
-- [ ] Impl: `src/modules/inventory/inventory.routes.ts` — composition root: `const engine = new InventoryService(prisma)`; import `sequenceService` from `platform.routes` + `catalogPricingService` from `catalog.routes`; `const readService = new InventoryReadService(prisma, sequenceService, catalogPricingService)`; controller; register the 4 routes via `INVENTORY_ROUTES` constants + `validateRequest` per segment + the `admin` guard (`requireAuth({ types:[UserType.ADMIN], checkDB:true })`, plan §5.1 map); **`export const inventoryService = engine;`** for downstream DI; `export { router }`. (plan §5.1, §6)
-- [ ] Impl (wiring): add `inventoryRouter` to `src/modules/index.ts` `registerModules` at the EXTENSION POINT. (plan §6)
-- [ ] Impl (catalog-side enabling changes, cross-module — plan §6, §7.1–§7.2, §8 #5): (a) **widen catalog's `IInventoryPort.addLayer`** to carry `staffId` + `{ referenceType:'PRODUCT', referenceId: product.id }`; (b) **extract a tx-aware `applyPricing(tx, productId, cmd)`** from catalog's `updatePricing` (no event emit inside — the caller emits) and **export `catalogPricingService`**; (c) in `modules/index.ts`, inject the real `inventoryService` into catalog's product service via the one-line setter, **replacing `inventory.port.stub.ts`**. *(Inventory's own unit tests use a mock port, so these are needed only for real wiring + integration — not a blocker for Sprints 1–3.)*
-- [ ] Test: `test/integration/inventory.integration.spec.ts` (real test DB, `ApiResponse` envelope asserted, admin guard 401/403) — `GET /stock` levels + `stockValue` + `isLow` + `lowStockOnly` + `export=csv` headers/body; `GET /movements` filters (product/type/date/staff) + pagination; `GET /reservations` holder + `ageHours`; `POST /adjustments` COUNT/DAMAGE mixed IN/OUT ⇒ real column deltas + `ADJUSTMENT` reference + an IN line with `prices` repricing the product **atomically** (assert via catalog read); over-consume adjustment ⇒ **409, no partial write**. Auth via `auth.fixture`. (plan §4.3)
-- [ ] Test: cross-module engine proof (plan §4.5) — a mock caller runs the engine inside `prisma.$transaction`: **commit** ⇒ movements + column deltas persist + buffered events flush; **throw** ⇒ full rollback, nothing persists, no events. Also assert catalog's `createProduct` (`initialQuantity>0`) now writes a real `INITIAL_STOCK` movement via the swapped-in `inventoryService`.
-- [ ] Test: extend `test/contract/routes.conformance.spec.ts` — every inventory response parses against its `*ResponseSchema`; every registered route uses an `INVENTORY_ROUTES` constant (no string literals); guarded routes resolve DB-free (mirror the identity/platform/observability/catalog blocks). (plan §4.4)
+- [x] Impl: `src/modules/inventory/inventory.controller.ts` — thin; `try/catch → next(error)`; reads `req.validated`; `getStock` branches on the service's return shape (`'body' in result`) to send CSV (`Content-Type`/`Content-Disposition`, platform mirror) or `sendSuccess(rows)`; `createAdjustment` reads `req.user?.staffId` (guards with `AuthError` if absent) → `sendSuccess(result, 201)`; reads → `sendSuccess(…, 200)`. (plan §5 item 5)
+- [x] Impl: `src/modules/inventory/inventory.routes.ts` — composition root: `const engine = new InventoryService(prisma)`; import `sequenceService` from `platform.routes` + `catalogPricingService` from `catalog.routes`; `const readService = new InventoryReadService(prisma, sequenceService, catalogPricingService, engine)`; controller; register the 4 routes via `INVENTORY_ROUTES` constants + `validateRequest` per segment + the `admin` guard; **`export const inventoryService = engine;`**; `export { router }`. (plan §5.1, §6)
+- [x] Impl (wiring): added `inventoryRouter` to `src/modules/index.ts` `registerModules` at the EXTENSION POINT. (plan §6)
+- [x] Impl (catalog-side enabling changes, cross-module — plan §6, §7.1–§7.2, §8 #5): (a) **widened `IInventoryPort.addLayer`** with `staffId`; (b) **`ICatalogProductService.createProduct` gained a `staffId` param** (threaded from `req.user.staffId` in the controller) — needed since the port widening cascades to every caller; (c) **extracted tx-aware `applyPricing`** from `updatePricing` (behavior-preserving refactor) and **exported `catalogPricingService`** (structurally satisfies `ICatalogPricingPort` — no reverse type import); (d) added a **`useInventory` setter** to `CatalogProductService` (not on the interface); (e) in `modules/index.ts`, built a small **inline adapter** (object-input↔positional-args, `IInventoryPort`↔`IInventoryService` are structurally incompatible so a widened interface alone can't bridge them) and called `catalogProductService.useInventory(adapter)` at the aggregator — replacing `inventory.port.stub.ts`'s effect (the stub file itself is left in place; still compiles under TS's bivariant method-parameter checking, and is unreachable once the aggregator wires the real adapter before any request is served). Fixed the 2 catalog unit tests and 1 integration test (`mintToken` now carries a real `staffId`, matching what a real login actually issues) that the signature change touched — all pre-existing catalog suites still green. (see report)
+- [x] Test: `test/integration/inventory.integration.spec.ts` (12 tests, real test DB, `ApiResponse` envelope, admin guard 401/403) — `GET /stock` levels + `stockValue` + `isLow` + `lowStockOnly` + `export=csv`; `GET /movements` (incl. a real `POST /admin/products` proving a genuine `INITIAL_STOCK` row via the swapped-in engine) + filters/pagination; `GET /reservations` holder + `ageHours` (seeded via the real engine directly, no order/repair module exists yet); `POST /adjustments` COUNT/DAMAGE mixed IN/OUT ⇒ real column deltas, `ADJUSTMENT` reference, atomic reprice (verified via a catalog read), over-consume ⇒ 409 with the earlier line **and** the adjustment header rolled back, `inventory.adjusted` emitted once. (plan §4.3)
+- [x] Test: `test/integration/inventory-engine.integration.spec.ts` (3 tests) — the cross-module engine proof against a **real** Postgres transaction (not the fake tx from Sprint 2): commit ⇒ persists + flushes; caller throws after a successful call ⇒ nothing persists, the already-buffered event never fires; a two-step document with a genuine engine rejection ⇒ the earlier successful step is rolled back too. Also proven via the HTTP integration spec's `INITIAL_STOCK` assertion above. (plan §4.5)
+- [x] Test: extended `test/contract/routes.conformance.spec.ts` (+1 test) — all four `INVENTORY_ROUTES` resolve DB-free (every route is admin-guarded, no public-route carve-out needed). (plan §4.4)
 
 **Validation**
-- [ ] `npx tsc --noEmit` clean; `npm run lint --no-color` clean.
-- [ ] `npm run test:unit` green (incl. conformance).
-- [ ] `npm run test:int` green against the test DB (routes wired, module mounted, catalog cross-wiring live).
-- [ ] Routes use `INVENTORY_ROUTES` constants only (no string literals); all responses go through `sendSuccess`; the `admin` guard is on all four routes; `inventoryService` singleton exported and catalog's `inventory.port.stub.ts` swapped for it; the in-tx reprice is proven atomic.
-- [ ] Committed on green (`api: inventory sprint 4 — api and wiring`).
+- [x] `npx tsc --noEmit` clean; `npm run lint --no-color` clean.
+- [x] `npm run test:unit` green (290/290, 22 files, incl. conformance).
+- [x] `npm run test:int` green (70/70, 7 files — all pre-existing suites re-verified alongside the 2 new inventory files; sandbox test DB on port 5544, not the 5433 default).
+- [x] Routes use `INVENTORY_ROUTES` constants only (no string literals); all responses go through `sendSuccess`; the `admin` guard is on all four routes; `inventoryService` singleton exported and catalog's `inventory.port.stub.ts` superseded by the real adapter; the in-tx reprice is proven atomic (integration + engine-proof tests).
+- [x] Committed on green (`api: inventory sprint 4 — api and wiring`).
+
+**Report:** [`results-inventory-04/report-sprint-04-04.md`](./results-inventory-04/report-sprint-04-04.md)
 
 ---
 
-## Definition of done (module) — 4 sprints
+## Definition of done (module) — ✅ All 4 sprints done
 
 - `Apps/api/src/modules/inventory/` has the **5 core files** (mapper, interface, service, controller,
   routes) — **no listener**; `inventory.service.ts` co-locates the FIFO **engine** (`InventoryService`) +
@@ -150,7 +152,8 @@ message; **no** `Co-Authored-By`.
 - **Events**: `stockChanged` on every change, `lowStock` edge-triggered on the downward threshold cross,
   `adjusted` once per document — all emitted **after commit** (buffered for injected paths); inventory
   **listens to nothing**.
-- **`inventoryService` singleton exported** for downstream DI; catalog's stub swapped for it at the
-  aggregator (its `IInventoryPort` widened with `staffId`, `catalogPricingService` exported).
-- Unit + integration + conformance + cross-module engine suites green; each sprint committed on green in
-  order.
+- **`inventoryService` singleton exported** for downstream DI; catalog's stub superseded by a real
+  adapter at the aggregator (its `IInventoryPort` widened with `staffId`, `catalogPricingService`
+  exported) — verified end-to-end via a real `POST /admin/products` writing a genuine `StockMovement` row.
+- Unit (290) + integration (70, all suites) + conformance + cross-module engine suites green; each
+  sprint committed on green in order.
