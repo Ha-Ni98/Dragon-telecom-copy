@@ -8,6 +8,7 @@ import type {
   OrderStatsDto,
   PaginatedResult,
   PlaceOrderCommand,
+  ProductWithPricingDto,
   ReturnOrderCommand,
   UpdateOrderStatusCommand,
 } from '@dragon-telecom/contract';
@@ -16,6 +17,25 @@ import type {
 // would accept fields CANCEL never uses); a minimal local type, validated in orders.routes.ts
 // via an inline z.object, same "no new contract schema" resolution as §C-5 in set 06.
 export type CancelOrderCommand = { reason?: string };
+
+// `undefined` = guest — mirrors catalog's own Viewer alias (getCartProducts' resolution
+// branches on this exact shape).
+export type Viewer = JWTPayload | undefined;
+
+// Injected port (dependency inversion, Sprint 2 discovery — the plan's §I.2 "direct
+// Product/ProductPrice read" undersold what's actually needed): catalog's own
+// `resolvePricing` — tier price via the client's linked PosClient category, else
+// `guestPrice`, else hidden — is *already* the exact viewer-price rule orders.md BL#1
+// describes for guests, and catalog's own `getCartProducts` doc comment explicitly names
+// "storefront/POS/orders" as its three consumers. Reusing it (rather than re-deriving
+// guestPrice-only logic here) avoids duplicating a business rule catalog already owns and
+// keeps a registered client's order-time price consistent with what they saw browsing the
+// storefront. Real implementation: `CatalogProductService.getCartProducts` (already public,
+// already consumed this same way by clients' `ICatalogCartPort`) — assembled directly in
+// orders.routes.ts (Sprint 3), no adapter (one-directional DI, set-05/06 precedent).
+export interface ICatalogViewerPricingPort {
+  getCartProducts(productIds: string[], viewer: Viewer): Promise<ProductWithPricingDto[]>;
+}
 
 export interface IOrdersService {
   // public|client — actor absent for a guest placement (plan §I.2/§D-2).
