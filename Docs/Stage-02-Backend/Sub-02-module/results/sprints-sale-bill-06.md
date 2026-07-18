@@ -148,29 +148,29 @@ same direct-sibling-import DI as set 05 (`clients`/`purchasing`).
 
 ---
 
-### Sprint 6: Billing — Logic (service + listener)   — Status: ⬜ Pending
+### Sprint 6: Billing — Logic (service + listener)   — Status: ✅ Done
 
 **Goals**
 - `BillingService implements IBillingService` + `BillingListener`; all §II.3 logic; PDF render;
   emits/handles events; unit tests with mock Prisma + spy bus.
 
 **Tasks**
-- [ ] Impl: `src/modules/billing/billing.service.ts` — constructor DI `(prisma, sequence: ISequenceService)`:
-  - **`issueFromSale`** (listener-invoked) — skip `payload.origin===REPAIR`; else one tx: read the persisted `Sale`/`SaleLine` rows for `sourceReference` + per-line `costSnapshot`/`profit` the event omits (§C-3), snapshot client name/address from `PosClient`, copy previous/new credit from the event, `number = sequence.nextNumber(tx, DocType.INVOICE)` → `FAC-YYYY-NNNN`; commit → emit `invoice.issued`. **Idempotent** via `Invoice @@unique(sourceType, sourceId)` — duplicate insert P2002 swallowed as no-op.
-  - **`issueFromOrder`** (listener-invoked, dormant until orders emits) — `sourceType ORDER`; read `Order`/`PosClient` for the thin-payload fields, `totalCost/totalProfit` default 0 (§C-4); same idempotency.
-  - **`cancelInvoice`** (admin) — `status → CANCELLED` only; sequence counter never rolled back (gaps survive); emit `invoice.cancelled`.
-  - **`createClientPayment`** (staff/admin) — one tx serialized on the `PosClient` row (`FOR UPDATE`): snapshot `previousCredit`, `newCredit = previous − amount`, persist `ClientPayment` (`reference = nextNumber(tx, DocType.CLIENT_PAYMENT)`; `invoiceId` from `invoiceNumber?` — **on-account allowed** when absent; **overpayment allowed** ⇒ negative credit, the negative number is the flag); commit → emit `payment.clientRecorded`.
-  - Reads: `getMyInvoices`/`getMyInvoice` (scoped `posClientId` — **404 on foreign**), `listStaffInvoices` (`staffId=me`), `listAdminInvoices` (filters), `listClientPayments` (admin ledger); all via `paginated(schema)`.
-  - **PDF** (`get*InvoicePdf`) — render from the invoice snapshot + settings-store header into a `Buffer` `PdfResult`; **never recomputed** from live product/price data. Introduce a small `@common` PDF render util (+ its dependency, e.g. `pdfkit`), MIME/size bounded — infra like the password util, not a 6-file concern (§D-6).
-- [ ] Impl: `src/modules/billing/billing.listener.ts` — injects `IBillingService`, `setup()` subscribes: `sale.confirmed` → `issueFromSale` (skip REPAIR), `order.confirmed` → `issueFromOrder`, and its **own** `payment.clientRecorded` → `applyClientPaymentRecorded` (when `invoiceNumber` present, **recompute** `invoice.paidAmount = Σ ClientPayment.amount` and set `status` `ISSUED→PARTIALLY_PAID→PAID` — idempotent by construction, §D-7; on-account = no-op). All wrapped in `safeRun`. (plan §II.2)
-- [ ] Test: `test/unit/modules/billing/billing.service.spec.ts` — `sale.confirmed` REPAIR origin → no invoice; `sale.confirmed` replay → one invoice (P2002 swallowed); order path issues with no sale row; cancel changes status only + leaves the sequence gap; `createClientPayment` snapshot math; **overpayment ⇒ negative credit flagged**; on-account (no `invoiceNumber`) persists but updates no invoice.
-- [ ] Test: `test/unit/modules/billing/billing.listener.spec.ts` — `payment.clientRecorded` recompute flips `ISSUED→PARTIALLY_PAID→PAID` and is **idempotent on replay** (recompute-from-ledger); REPAIR `sale.confirmed` ignored; a handler throw is swallowed.
+- [x] Impl: `src/modules/billing/billing.service.ts` — constructor DI `(prisma, sequence: ISequenceService, settings: IStoreSettingsPort)`:
+  - **`issueFromSale`** (listener-invoked) — skip `payload.origin===REPAIR`; else read the persisted `Sale`/`SaleLine` rows for `sourceReference` + per-line `costSnapshot`/`profit` the event omits (§C-3), resolve client name/address snapshot, issue via shared `issueInvoice`. **Idempotent** via `Invoice @@unique(sourceType, sourceId)` — P2002 caught **after** the transaction rejects (not inside it), so the sequence bump rolls back atomically with the failed insert.
+  - **`issueFromOrder`** (listener-invoked, dormant until orders emits) — `sourceType ORDER`; reads `Order` (no `Sale` touched at all), `totalCost/totalProfit` default 0 (§C-4).
+  - **`cancelInvoice`** (admin) — `status → CANCELLED` only, skipped entirely (no re-emit) when already cancelled; sequence counter never touched.
+  - **`createClientPayment`** (staff/admin) — locks the `PosClient` row, snapshot `previousCredit`, `newCredit = previous − amount` (**overpayment allowed** ⇒ negative), validates a supplied `invoiceNumber` belongs to the same `posClientId`, persists via `DocType.CLIENT_PAYMENT`, emits `payment.clientRecorded`.
+  - Reads: `getMyInvoice` (404 on foreign posClientId), `getStaffInvoice` (403 on non-owner staff), `listAdminInvoices` (filters), `listClientPayments` — all resolve the two Sprint-5-flagged gaps first (see report): `resolveSourceReferences` (batch-joins `sourceId`→`Sale.reference`/`Order.reference`, grouped by `sourceType`) and `resolveCurrentAverageCosts` (admin-only, SALE-origin only — correlates `InvoiceLine`↔`SaleLine` by label/quantity/unitPrice; ORDER-origin left dormant, orders unbuilt).
+  - **PDF** — new `@common/utils/pdf.utils.ts` (`renderInvoicePdf`) + real `pdfkit`/`@types/pdfkit` dependencies (installed, network confirmed reachable); reads the store header via a new narrow `IStoreSettingsPort` (platform.routes.ts exports no `platformService` singleton — Sprint 7 constructs a second stateless `PlatformService(prisma)` locally instead of modifying the already-complete platform module).
+- [x] Impl: `src/modules/billing/billing.listener.ts` — injects `IBillingService`, `setup()` subscribes `sale.confirmed`→`issueFromSale`, `order.confirmed`→`issueFromOrder`, own `payment.clientRecorded`→`applyClientPaymentRecorded`. `safeRun` guard throughout.
+- [x] Test: `test/unit/modules/billing/billing.service.spec.ts` (17 tests) — REPAIR skip (no sequence call); POS issue reads real cost/profit off SaleLine; replay swallowed as no-op; ORDER issue touches no Sale row; cancel status-only + idempotent; payment snapshot math + overpayment + on-account + unknown-invoice 400; ledger-recompute flips status + never revives CANCELLED; 404/403 read scoping; real `%PDF`-prefixed Buffer returned.
+- [x] Test: `test/unit/modules/billing/billing.listener.spec.ts` (4 tests) — `sale.confirmed(POS)` → one invoice/one emit; `sale.confirmed(REPAIR)` ignored entirely; `payment.clientRecorded` genuinely idempotent across two real `eventBus.emit` calls; a handler throw is swallowed.
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (service + listener + conformance).
-- [ ] Events emitted **post-commit**; issue idempotent by `@@unique(sourceType, sourceId)`; invoice `paidAmount` recomputed from the ledger (not incremented); no cross-module folder import (billing reads `Sale`/`Order` rows via the shared `prisma` singleton — a pure read, §D-4).
-- [ ] Committed on green (`billing: sprint 6 — logic (service + listener)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (service + listener + conformance — 481/481, 34 files).
+- [x] Events emitted **post-commit**; issue idempotent by `@@unique(sourceType, sourceId)`; invoice `paidAmount` recomputed from the ledger (not incremented); no cross-module folder import (billing reads `Sale`/`Order`/`Client`/`Product` rows via the shared `prisma` singleton — a pure read, §D-4).
+- [x] Committed on green (`billing: sprint 6 — logic (service + listener)`).
 
 ---
 

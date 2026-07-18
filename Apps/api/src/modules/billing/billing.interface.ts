@@ -9,6 +9,7 @@ import type {
   OrdersEvents,
   PaginatedResult,
   SalesEvents,
+  SettingsDto,
 } from '@dragon-telecom/contract';
 
 // Mirrors platform/inventory's ExportResult — not a contract DTO; PDFs bypass the
@@ -40,4 +41,14 @@ export interface IBillingService {
   issueFromSale(payload: SalesEvents['sale.confirmed']): Promise<void>;
   issueFromOrder(payload: OrdersEvents['order.confirmed']): Promise<void>;
   applyClientPaymentRecorded(payload: BillingEvents['payment.clientRecorded']): Promise<void>;
+}
+
+// Injected port (dependency inversion) — real implementation is platform's own PlatformService,
+// constructed a second time directly in billing.routes.ts (Sprint 7): PlatformService needs only
+// `prisma`, so a second instance alongside platform's own is harmless (no owned state, no
+// duplicated writes — billing only ever calls getSettings). Narrowed to the one method the PDF
+// header needs, not platform's whole surface (updateSettings/getPublicSettings are none of
+// billing's business) — same narrowing precedent as inventory's ICatalogPricingPort.
+export interface IStoreSettingsPort {
+  getSettings(): Promise<SettingsDto>;
 }
