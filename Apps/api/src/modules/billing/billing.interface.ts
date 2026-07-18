@@ -17,10 +17,14 @@ import type {
 export type PdfResult = { filename: string; mime: 'application/pdf'; body: Buffer };
 
 export interface IBillingService {
-  // Client — via linked posClientId; 404 on foreign invoice numbers.
-  getMyInvoices(query: InvoiceListQuery, posClientId: string): Promise<PaginatedResult<InvoiceDto>>;
-  getMyInvoice(number: string, posClientId: string): Promise<InvoiceDto>;
-  getMyInvoicePdf(number: string, posClientId: string): Promise<PdfResult>;
+  // Client — `req.user` (JWTPayload) carries `clientId`, never a `posClientId` directly (that's
+  // `Client.posClientId`, a separate FK materialized at approval) — the service resolves it
+  // internally, same "proxy through the linked PosClient" precedent clients' own getMe uses.
+  // A client with no linked PosClient yet (never approved) simply has no invoices: empty list /
+  // 404 on single reads, never an error.
+  getMyInvoices(query: InvoiceListQuery, clientId: string): Promise<PaginatedResult<InvoiceDto>>;
+  getMyInvoice(number: string, clientId: string): Promise<InvoiceDto>;
+  getMyInvoicePdf(number: string, clientId: string): Promise<PdfResult>;
 
   // Staff — issued-by-me only.
   listStaffInvoices(query: InvoiceListQuery, staffId: string): Promise<PaginatedResult<InvoiceDto>>;

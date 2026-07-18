@@ -10,6 +10,7 @@ import { router as inventoryRouter, inventoryService } from './inventory/invento
 import { router as clientsRouter } from './clients/clients.routes';
 import { router as purchasingRouter } from './purchasing/purchasing.routes';
 import { router as salesRouter } from './sales/sales.routes';
+import { router as billingRouter } from './billing/billing.routes';
 
 // Adapts the real FIFO engine (IInventoryService) to the shape catalog's createProduct expects
 // (IInventoryPort) — object-input vs. positional args, and discards the returned movementId
@@ -52,4 +53,10 @@ export const registerModules = (apiRouter: Router): void => {
   // same one-directional shape (catalogProductService satisfies ICatalogPosPricingPort
   // structurally — set-06 Sprint 1's resolvePosPrices — no adapter needed).
   apiRouter.use(salesRouter);
+  // billing.routes.ts imports sequenceService directly and constructs its own second
+  // PlatformService(prisma) for IStoreSettingsPort (platform.routes.ts exports no service
+  // singleton) — same one-directional shape, no adapter needed. No listener registration here:
+  // billing.routes.ts wires its own BillingListener, matching every prior module; clients' and
+  // observability's dormant handlers for invoice.issued/payment.clientRecorded wake automatically.
+  apiRouter.use(billingRouter);
 };

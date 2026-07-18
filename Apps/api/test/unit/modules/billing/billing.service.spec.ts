@@ -395,7 +395,9 @@ describe('BillingService', () => {
   });
 
   describe('read scoping', () => {
-    it('getMyInvoice 404s on a foreign posClientId', async () => {
+    it('getMyInvoice 404s when the caller\'s linked posClientId does not match the invoice\'s', async () => {
+      const CALLING_CLIENT_ID = 'client-1';
+      clientFindUniqueMock.mockResolvedValueOnce({ posClientId: POS_CLIENT_ID });
       invoiceFindUniqueMock.mockResolvedValueOnce({
         number: 'FAC-2026-0001',
         posClientId: 'someone-elses-pos-client',
@@ -415,9 +417,45 @@ describe('BillingService', () => {
         lines: [],
       });
 
-      const err = await expectRejection(service().getMyInvoice('FAC-2026-0001', POS_CLIENT_ID));
+      const err = await expectRejection(service().getMyInvoice('FAC-2026-0001', CALLING_CLIENT_ID));
 
       expect(err.statusCode).toBe(404);
+    });
+
+    it('getMyInvoice 404s a client with no linked PosClient at all (never approved)', async () => {
+      clientFindUniqueMock.mockResolvedValueOnce({ posClientId: null });
+      invoiceFindUniqueMock.mockResolvedValueOnce({
+        number: 'FAC-2026-0001',
+        posClientId: POS_CLIENT_ID,
+        sourceType: 'SALE',
+        sourceId: SALE_ID,
+        totalAmount: new Prisma.Decimal(2000),
+        paidAmount: new Prisma.Decimal(2000),
+        totalCost: new Prisma.Decimal(400),
+        totalProfit: new Prisma.Decimal(1600),
+        clientNameSnapshot: 'Karim Store',
+        clientAddressSnapshot: null,
+        previousCredit: null,
+        newCredit: null,
+        issuedAt: new Date(),
+        dueDate: null,
+        staff: { firstName: 'A', lastName: 'B' },
+        lines: [],
+      });
+
+      const err = await expectRejection(service().getMyInvoice('FAC-2026-0001', 'unapproved-client'));
+
+      expect(err.statusCode).toBe(404);
+    });
+
+    it('getMyInvoices returns an empty page for a client with no linked PosClient (no error)', async () => {
+      clientFindUniqueMock.mockResolvedValueOnce({ posClientId: null });
+
+      const result = await service().getMyInvoices({ page: 1, limit: 20 } as never, 'unapproved-client');
+
+      expect(result.items).toEqual([]);
+      expect(result.meta.total).toBe(0);
+      expect(invoiceFindManyMock).not.toHaveBeenCalled();
     });
 
     it('getStaffInvoice 403s a staff member who did not issue it', async () => {

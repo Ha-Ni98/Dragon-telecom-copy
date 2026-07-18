@@ -46,20 +46,30 @@ export class BillingService implements IBillingService {
 
   // --- Client (via linked posClientId; 404 on foreign) ---
 
-  async getMyInvoices(query: InvoiceListQuery, posClientId: string): Promise<PaginatedResult<InvoiceDto>> {
+  async getMyInvoices(query: InvoiceListQuery, clientId: string): Promise<PaginatedResult<InvoiceDto>> {
+    const posClientId = await this.resolvePosClientIdForClient(clientId);
+    // No linked PosClient yet (never approved) — genuinely no invoices possible, not an error.
+    if (posClientId == null) {
+      return paginated(InvoiceResponseSchema).parse({
+        items: [],
+        meta: { page: query.page, limit: query.limit, total: 0, totalPages: 0 },
+      });
+    }
     return this.listInvoicesFor(query, 'client', { posClientId });
   }
 
-  async getMyInvoice(number: string, posClientId: string): Promise<InvoiceDto> {
+  async getMyInvoice(number: string, clientId: string): Promise<InvoiceDto> {
+    const posClientId = await this.resolvePosClientIdForClient(clientId);
     const invoice = await this.findInvoiceOrThrow(number);
-    if (invoice.posClientId !== posClientId) throw new NotFoundError('Invoice');
+    if (posClientId == null || invoice.posClientId !== posClientId) throw new NotFoundError('Invoice');
     const [dto] = await this.toInvoiceDtos([invoice], 'client');
     return dto!;
   }
 
-  async getMyInvoicePdf(number: string, posClientId: string): Promise<PdfResult> {
+  async getMyInvoicePdf(number: string, clientId: string): Promise<PdfResult> {
+    const posClientId = await this.resolvePosClientIdForClient(clientId);
     const invoice = await this.findInvoiceOrThrow(number);
-    if (invoice.posClientId !== posClientId) throw new NotFoundError('Invoice');
+    if (posClientId == null || invoice.posClientId !== posClientId) throw new NotFoundError('Invoice');
     return this.toPdfResult(invoice, 'client');
   }
 
@@ -460,6 +470,14 @@ export class BillingService implements IBillingService {
       if (averageCost != null) result.set(invoiceLineId, averageCost);
     }
     return result;
+  }
+
+  // JWTPayload carries `clientId`, never a `posClientId` — `Client.posClientId` is a separate FK,
+  // null until the client is approved (materialized by clients' own listener). Mirrors clients'
+  // own getMe, which proxies credit/totalPaid/totalSold through this same linked row.
+  private async resolvePosClientIdForClient(clientId: string): Promise<string | null> {
+    const client = await this.prisma.client.findUnique({ where: { id: clientId }, select: { posClientId: true } });
+    return client?.posClientId ?? null;
   }
 
   private async resolvePosClientSnapshot(posClientId: string): Promise<{ name?: string; address?: string }> {
