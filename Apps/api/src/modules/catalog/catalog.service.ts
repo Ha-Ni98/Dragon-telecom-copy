@@ -799,6 +799,42 @@ export class CatalogProductService implements ICatalogProductService {
     }));
   }
 
+  // Read port for sales' confirm step (plan §C-2, §I.2) — POS-tier price (attached POS client's
+  // category) else `defaultSalePrice`, never `guestPrice`/the storefront viewer split. Named
+  // `resolvePosPrices` (not `getPosPrices`) to match `ICatalogPosPricingPort`'s declared method
+  // exactly — structural typing needs the name, not just the shape. Mirrors
+  // getRepriceCandidates/getCostBasis: a plain read, no throw — an unresolved price is simply
+  // omitted from `resolvedPrice`; sales' own business rule decides what to do about it.
+  async resolvePosPrices(
+    productIds: string[],
+    categoryId: string | null,
+  ): Promise<{ productId: string; productName: string; resolvedPrice?: number }[]> {
+    if (productIds.length === 0) return [];
+
+    const [products, tierPriceRows] = await Promise.all([
+      this.prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, name: true, defaultSalePrice: true },
+      }),
+      categoryId != null
+        ? this.prisma.productPrice.findMany({
+            where: { productId: { in: productIds }, clientCategoryId: categoryId },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const tierPriceMap = new Map(tierPriceRows.map((row) => [row.productId, row.price.toNumber()]));
+
+    return products.map((product) => {
+      const resolvedPrice = tierPriceMap.get(product.id) ?? product.defaultSalePrice?.toNumber();
+      return {
+        productId: product.id,
+        productName: product.name,
+        ...(resolvedPrice != null ? { resolvedPrice } : {}),
+      };
+    });
+  }
+
   private staffAdminWhere(query: ProductListQuery, extra: Prisma.ProductWhereInput = {}): Prisma.ProductWhereInput {
     return {
       ...extra,

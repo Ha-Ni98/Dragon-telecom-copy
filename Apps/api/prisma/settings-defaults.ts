@@ -12,6 +12,8 @@ export const DEFAULT_INVOICING_PREFIXES: Record<DocType, string> = {
   [DocType.CLIENT]: 'CLI',
   [DocType.SUPPLIER]: 'FRN',
   [DocType.SUPPLIER_PAYMENT]: 'PAY',
+  [DocType.RETURN]: 'RET',
+  [DocType.CLIENT_PAYMENT]: 'REG',
 };
 
 export const DEFAULT_NEXT_SEQUENCES: Record<DocType, number> = Object.fromEntries(

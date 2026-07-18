@@ -414,6 +414,20 @@ describe('SequenceService', () => {
     expect(await service.nextNumber(tx, DocType.SUPPLIER)).toBe(`FRN-${year}-0001`);
     expect(await service.nextNumber(tx, DocType.SUPPLIER_PAYMENT)).toBe(`PAY-${year}-0001`);
   });
+
+  // plan §C-1 — the two new sales/billing DocTypes must resolve through the same allocator.
+  it('allocates RETURN and CLIENT_PAYMENT references using the seeded default prefixes', async () => {
+    const row = {
+      prefixes: DEFAULT_SETTINGS.invoicing.prefixes,
+      nextSequences: { ...DEFAULT_SETTINGS.invoicing.nextSequences },
+    };
+    const tx = buildTx(row);
+    const service = new SequenceService(prismaMock as never);
+    const year = new Date().getFullYear();
+
+    expect(await service.nextNumber(tx, DocType.RETURN)).toBe(`RET-${year}-0001`);
+    expect(await service.nextNumber(tx, DocType.CLIENT_PAYMENT)).toBe(`REG-${year}-0001`);
+  });
 });
 
 describe('DeliveryFeeService', () => {

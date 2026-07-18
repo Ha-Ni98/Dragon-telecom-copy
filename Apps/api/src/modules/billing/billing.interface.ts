@@ -1,0 +1,58 @@
+import type {
+  BillingEvents,
+  CancelInvoiceCommand,
+  ClientPaymentDto,
+  ClientPaymentListQuery,
+  CreateClientPaymentCommand,
+  InvoiceDto,
+  InvoiceListQuery,
+  OrdersEvents,
+  PaginatedResult,
+  SalesEvents,
+  SettingsDto,
+} from '@dragon-telecom/contract';
+
+// Mirrors platform/inventory's ExportResult — not a contract DTO; PDFs bypass the
+// ApiResponse<T> envelope (plan §D-6), streamed by the controller instead of sendSuccess.
+export type PdfResult = { filename: string; mime: 'application/pdf'; body: Buffer };
+
+export interface IBillingService {
+  // Client — `req.user` (JWTPayload) carries `clientId`, never a `posClientId` directly (that's
+  // `Client.posClientId`, a separate FK materialized at approval) — the service resolves it
+  // internally, same "proxy through the linked PosClient" precedent clients' own getMe uses.
+  // A client with no linked PosClient yet (never approved) simply has no invoices: empty list /
+  // 404 on single reads, never an error.
+  getMyInvoices(query: InvoiceListQuery, clientId: string): Promise<PaginatedResult<InvoiceDto>>;
+  getMyInvoice(number: string, clientId: string): Promise<InvoiceDto>;
+  getMyInvoicePdf(number: string, clientId: string): Promise<PdfResult>;
+
+  // Staff — issued-by-me only.
+  listStaffInvoices(query: InvoiceListQuery, staffId: string): Promise<PaginatedResult<InvoiceDto>>;
+  getStaffInvoice(number: string, staffId: string): Promise<InvoiceDto>;
+  getStaffInvoicePdf(number: string, staffId: string): Promise<PdfResult>;
+
+  // Admin — all filters, no scoping.
+  listAdminInvoices(query: InvoiceListQuery): Promise<PaginatedResult<InvoiceDto>>;
+  getAdminInvoice(number: string): Promise<InvoiceDto>;
+  getAdminInvoicePdf(number: string): Promise<PdfResult>;
+  cancelInvoice(number: string, cmd: CancelInvoiceCommand, staffId: string): Promise<InvoiceDto>;
+
+  // Client-payments ledger (staff|admin create; admin lists).
+  createClientPayment(cmd: CreateClientPaymentCommand, staffId: string): Promise<ClientPaymentDto>;
+  listClientPayments(query: ClientPaymentListQuery): Promise<PaginatedResult<ClientPaymentDto>>;
+
+  // Internal — invoked only by this module's own listener (post-commit), never by HTTP routes.
+  issueFromSale(payload: SalesEvents['sale.confirmed']): Promise<void>;
+  issueFromOrder(payload: OrdersEvents['order.confirmed']): Promise<void>;
+  applyClientPaymentRecorded(payload: BillingEvents['payment.clientRecorded']): Promise<void>;
+}
+
+// Injected port (dependency inversion) — real implementation is platform's own PlatformService,
+// constructed a second time directly in billing.routes.ts (Sprint 7): PlatformService needs only
+// `prisma`, so a second instance alongside platform's own is harmless (no owned state, no
+// duplicated writes — billing only ever calls getSettings). Narrowed to the one method the PDF
+// header needs, not platform's whole surface (updateSettings/getPublicSettings are none of
+// billing's business) — same narrowing precedent as inventory's ICatalogPricingPort.
+export interface IStoreSettingsPort {
+  getSettings(): Promise<SettingsDto>;
+}

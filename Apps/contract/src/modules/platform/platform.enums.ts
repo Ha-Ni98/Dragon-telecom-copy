@@ -9,6 +9,8 @@ export enum DocType {
   CLIENT = 'CLIENT',
   SUPPLIER = 'SUPPLIER',
   SUPPLIER_PAYMENT = 'SUPPLIER_PAYMENT',
+  RETURN = 'RETURN',
+  CLIENT_PAYMENT = 'CLIENT_PAYMENT',
 }
 
 export enum FeeSource {

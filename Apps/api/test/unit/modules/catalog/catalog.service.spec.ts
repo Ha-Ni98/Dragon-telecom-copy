@@ -701,4 +701,58 @@ describe('CatalogProductService', () => {
       expect(result).toEqual([{ productId: PRODUCT_ID, name: product.name, averageCost: 1800, quantityOnHand: 25 }]);
     });
   });
+
+  // Read port for sales' confirm step (plan §C-2, §I.2) — POS-tier price else defaultSalePrice
+  // (never guestPrice, unlike the storefront matrix).
+  describe('resolvePosPrices', () => {
+    it('returns [] without touching Prisma when given no ids', async () => {
+      const result = await service().resolvePosPrices([], null);
+
+      expect(result).toEqual([]);
+      expect(productFindManyMock).not.toHaveBeenCalled();
+    });
+
+    it('uses the category ProductPrice row over defaultSalePrice when both exist', async () => {
+      const product = buildProductRow({ defaultSalePrice: new Prisma.Decimal(3200) });
+      productFindManyMock.mockResolvedValueOnce([product]);
+      productPriceFindManyMock.mockResolvedValueOnce([{ productId: PRODUCT_ID, price: new Prisma.Decimal(2800) }]);
+
+      const result = await service().resolvePosPrices([PRODUCT_ID], CATEGORY_TIER_ID);
+
+      expect(productPriceFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { productId: { in: [PRODUCT_ID] }, clientCategoryId: CATEGORY_TIER_ID } }),
+      );
+      expect(result).toEqual([{ productId: PRODUCT_ID, productName: product.name, resolvedPrice: 2800 }]);
+    });
+
+    it('falls back to defaultSalePrice when no tier price row exists', async () => {
+      const product = buildProductRow({ defaultSalePrice: new Prisma.Decimal(3200) });
+      productFindManyMock.mockResolvedValueOnce([product]);
+      productPriceFindManyMock.mockResolvedValueOnce([]);
+
+      const result = await service().resolvePosPrices([PRODUCT_ID], CATEGORY_TIER_ID);
+
+      expect(result).toEqual([{ productId: PRODUCT_ID, productName: product.name, resolvedPrice: 3200 }]);
+    });
+
+    it('falls back to defaultSalePrice (never queries ProductPrice) when categoryId is null', async () => {
+      const product = buildProductRow({ defaultSalePrice: new Prisma.Decimal(1500) });
+      productFindManyMock.mockResolvedValueOnce([product]);
+
+      const result = await service().resolvePosPrices([PRODUCT_ID], null);
+
+      expect(productPriceFindManyMock).not.toHaveBeenCalled();
+      expect(result).toEqual([{ productId: PRODUCT_ID, productName: product.name, resolvedPrice: 1500 }]);
+    });
+
+    it('omits resolvedPrice when neither a tier price nor defaultSalePrice exists', async () => {
+      const product = buildProductRow({ defaultSalePrice: null });
+      productFindManyMock.mockResolvedValueOnce([product]);
+
+      const result = await service().resolvePosPrices([PRODUCT_ID], null);
+
+      expect(result).toEqual([{ productId: PRODUCT_ID, productName: product.name }]);
+      expect(result[0]).not.toHaveProperty('resolvedPrice');
+    });
+  });
 });
