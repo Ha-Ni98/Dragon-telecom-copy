@@ -1,14 +1,42 @@
 import type { Router } from 'express';
+import type { Prisma } from '@prisma/client';
+import type { MovementType } from '@dragon-telecom/contract';
 import { router as identityRouter } from './identity/identity.routes';
 import { router as platformRouter } from './platform/platform.routes';
 import { router as observabilityRouter } from './observability/observability.routes';
-import { router as catalogRouter } from './catalog/catalog.routes';
+import { router as catalogRouter, catalogProductService } from './catalog/catalog.routes';
+import type { IInventoryPort } from './catalog/catalog.interface';
+import { router as inventoryRouter, inventoryService } from './inventory/inventory.routes';
+
+// Adapts the real FIFO engine (IInventoryService) to the shape catalog's createProduct expects
+// (IInventoryPort) — object-input vs. positional args, and discards the returned movementId
+// catalog has no use for. Lives here (not in either module's own folder) so neither module
+// imports the other: only the aggregator is allowed to know about both (inventory plan §6, §8 #5).
+const inventoryPortAdapter: IInventoryPort = {
+  addLayer: (
+    tx: Prisma.TransactionClient,
+    input: { productId: string; quantity: number; unitCost: number; type: MovementType; staffId: string },
+  ) =>
+    inventoryService
+      .addLayer(tx, input.productId, input.quantity, input.unitCost, input.type, {
+        referenceType: 'PRODUCT',
+        referenceId: input.productId,
+        staffId: input.staffId,
+      })
+      .then(() => undefined),
+};
 
 // Aggregates every module router into one mount call at app.ts's extension point, so app.ts
 // stays stable as later modules (clients, ...) are added here.
 export const registerModules = (apiRouter: Router): void => {
+  // Replaces catalog's InventoryPortStub with the real inventory engine, now that it exists
+  // (inventory plan §6) — must run before any request is served, which module-load-time wiring
+  // here guarantees.
+  catalogProductService.useInventory(inventoryPortAdapter);
+
   apiRouter.use(identityRouter);
   apiRouter.use(platformRouter);
   apiRouter.use(observabilityRouter);
   apiRouter.use(catalogRouter);
+  apiRouter.use(inventoryRouter);
 };

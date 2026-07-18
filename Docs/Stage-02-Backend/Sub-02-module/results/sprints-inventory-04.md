@@ -1,0 +1,159 @@
+# Stage 02 · Sub-02 — Inventory Module Sprint Plan (set 04)
+
+Dependency-ordered decomposition of [`plan-inventory.md`](./plan-inventory.md) into sprints, following
+the phase-02 backbone **foundation (mapper/interface) → logic (service) → API (controller/wiring)**.
+**No code in this document.** Each sprint ends green (compiles + tests pass) and is committed before the
+next begins. Per-sprint reports land in `results-inventory-04/report-sprint-0N-04.md` (folder created
+when the sprint runs).
+
+## Sprint sequence & rationale
+
+The phase file's suggested 3-sprint shape (Foundation / Logic / API) is **adjusted to 4**: the module
+adds **zero contract types** (plan §0, so no pre-foundation contract sprint like catalog's), but its
+**logic layer splits in two** because the FIFO **engine** is the most algorithmically dense slice built
+so far *and* it is the cross-module **injected dependency** (orders/sales/purchasing/repairs/catalog all
+call it). It must be independently green and reviewable before the adjustment path — the engine's only
+in-module caller — builds on it.
+
+| # | Sprint | Layer | Why separate |
+|---|---|---|---|
+| 1 | Foundation — mapper, interfaces, factories | foundation | Pure Entity⇄DTO transforms for the 4 DTOs, the two service contracts + the injected engine port + `MovementRef`/`ICatalogPricingPort`, and contract-shaped test data; no business logic. |
+| 2 | Logic A — the FIFO engine (`InventoryService`) | logic | `reserve/release/addLayer/consumeFifo/returnIn` + avgCost recompute + `balanceAfter` chain + the tx-scoped event buffer, with the full FIFO invariant test matrix. The heaviest, highest-risk slice and the injected seam downstream modules depend on — kept standalone. |
+| 3 | Logic B — reads + adjustments (`InventoryReadService`) | logic | `getStock`(+CSV) / `listMovements` / `listReservations` and the `createAdjustment` orchestration (sequence + engine delegation + in-tx reprice + `adjusted` event). Builds on the Sprint-2 engine; the HTTP-facing service that returns contract DTOs. |
+| 4 | API — controller, routes, wiring, catalog cross-wiring, integration & conformance | API | HTTP surface + composition root (admin guards, CSV export, exported `inventoryService` singleton) + mount + the catalog↔inventory enabling changes (stub swap, tx-aware `applyPricing`) + end-to-end / cross-module / contract proof. |
+
+**Gate rule:** a sprint starts only when the previous one is green and committed. `test:int` first runs
+in Sprint 4 (once routes are wired + the test DB is up) — **there is no Prisma migration** (all
+inventory models are pre-built, plan §0), so earlier sprints run `test:unit` (+ contract conformance)
+only.
+
+**Commit style** (per project convention): `git add .` then a short `api: inventory sprint N — <topic>`
+message; **no** `Co-Authored-By`.
+
+---
+
+### Sprint 1: Foundation — mapper, interfaces, factories   — Status: ✅ Done
+
+**Goals**
+- Pure Entity⇄DTO transformation for the four inventory DTOs, the two service contracts + the injected
+  engine port + injected pricing port, and contract-shaped test data — no business logic.
+
+**Tasks**
+- [x] Impl: `src/modules/inventory/inventory.mapper.ts` — pure/static `toStockRowDto(product)`, `toMovementDto(movement, product, staff, referenceLabel)`, `toReservationDto(group, product)`, `toAdjustmentResultDto(adjustment, lines)`. `Decimal.toNumber()`, `Date.toISOString()`, 1:1 enum casts (`direction`/`type`/`holderType`), derived `availableQuantity`/`stockValue`/`isLow`/`ageHours`/reservation `quantity`; optional `unitCost`/`remainingQuantity`/`costOfGoods`/`profit` **omitted when null**; `staffName = firstName + ' ' + lastName`; **never spreads the entity**; each `toDto` ends `…ResponseSchema.parse(dto)`. (plan §1.1, §1.3, §5 item 1)
+- [x] Impl: the pure per-`referenceType` `referenceLabel` resolver used by `toMovementDto` — **scope note:** the mapper's `resolveReferenceLabel(referenceType, referenceId, resolvedName?)` owns only the resolved-vs-fallback decision (`` `${referenceType} ${referenceId.slice(0,8)}` `` when absent); the actual per-type table dispatch (`ADJUSTMENT → StockAdjustment.reference`, `PRODUCT → Product.name`, `SUPPLIER_INVOICE → SupplierInvoice.reference`) requires DB joins and is deferred to the service (Sprint 3), since mappers stay I/O-free (rules §3). (plan §1.4, §8 #2)
+- [x] Impl: `src/modules/inventory/inventory.interface.ts` — `IInventoryReadService` (`getStock`/`listMovements`/`listReservations`/`createAdjustment`, returning contract DTOs / `PaginatedResult<T>` / `ExportResult`); `IInventoryService` (the engine — `reserve`/`release`/`addLayer`/`consumeFifo`/`returnIn` returning the spec's internal transactional shapes); the internal `MovementRef { referenceType; referenceId; staffId; reason? }` + engine result types; and `ICatalogPricingPort` (`applyPricing(tx, productId, cmd)`). **`ExportResult` declared locally** (platform's isn't barrel-exported for cross-module reuse — see report). (plan §2.1, §8 #1, §8 #3)
+- [x] Test (factories): `test/data/stock-movement.factory.ts` (IN-layer / OUT / PENDING variants, **persistence-only** — no HTTP command creates a movement), `test/data/stock-adjustment.factory.ts` (command + persistence); reused `test/data/product.factory.ts` unchanged and added `test/data/staff.factory.ts` (wraps `seedUser(type: STAFF)`, `Staff.userId` is a required FK). (plan §4.1)
+- [x] Test: `test/unit/modules/inventory/inventory.mapper.spec.ts` — each `toDto` parses its schema; `Decimal→number`, `Date→ISO`; `availableQuantity`/`stockValue`/`isLow`/`ageHours` math; enum passthrough; `staffName` composition; optional cost/qty fields omitted when null; `referenceLabel` resolver incl. fallback. (plan §4.2)
+
+**Validation**
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green (246/246, 21 files — 20 new mapper tests + contract conformance + existing suites).
+- [x] `npm run lint --no-color` clean.
+- [x] Mapper never spreads the entity and returns `.parse()`d contract DTOs; the HTTP-facing interface returns DTOs (the engine's non-DTO returns are the spec-mandated exception, plan §8 #1); no service/route logic yet.
+- [x] Committed on green (`api: inventory sprint 1 — foundation`).
+
+**Report:** [`results-inventory-04/report-sprint-01-04.md`](./results-inventory-04/report-sprint-01-04.md)
+
+---
+
+### Sprint 2: Logic A — the FIFO engine (`InventoryService`)   — Status: ✅ Done
+
+**Goals**
+- Implement the injected FIFO engine (constructor DI on `PrismaClient`): `reserve`/`release`/`addLayer`/
+  `consumeFifo`/`returnIn`, avgCost recompute, the `balanceAfter` chain, and the tx-scoped event buffer —
+  with the full invariant test matrix. `InventoryReadService` is a typed stub this sprint.
+
+**Tasks**
+- [x] Impl: create `src/modules/inventory/inventory.service.ts` with `InventoryService implements IInventoryService` (constructor DI on `PrismaClient`); `InventoryReadService` present as **typed stubs that throw `"...not implemented yet (see Sprint 3)"`** so the file compiles its `implements`. (plan §5 item 3; catalog Sprint 3 stub precedent)
+- [x] Impl (engine, all take `tx` + `ref: MovementRef`): `addLayer` (insert `IN` movement, `remainingQuantity = quantity`, `unitCost`; recompute `averageCost` **IN-only** `(oldQty×oldAvg + inQty×unitCost)/(oldQty+inQty)`, guard `oldQty+inQty=0`; `quantityOnHand += qty`; `balanceAfter`). `consumeFifo` (precondition `qty ≤ onHand − reserved`, else **409 `INSUFFICIENT_STOCK { productId, requested, available }` with zero rows**; drain oldest `remainingQuantity > 0` layers FIFO by `createdAt`, write a `StockMovementConsumption` per drained layer + decrement its `remainingQuantity`; `costOfGoods = Σ(consumed×layerUnitCost)`; `profit = revenue − COGS` or `null`; `quantityOnHand −= qty`). `reserve`/`release` (write `PENDING_*`; `quantityReserved ± qty`; **onHand untouched**; reject over-reserve; release idempotent, never below 0). `returnIn` (re-enter layer(s) at the **original consumed unit costs**, `RETURN_IN`, one new layer per distinct original cost; `quantityOnHand += qty`). Every write stamps `balanceAfter` from the freshly-read onHand inside the passed `tx`, locked via `SELECT ... FOR UPDATE` (SequenceService precedent — see report). (plan §1.2, §3.1–3.3, §3.6–3.7)
+- [x] Impl (events): the tx-scoped event buffer — append `inventory.stockChanged { productId, onHand, reserved }` after every change + `inventory.lowStock { productId, available, threshold }` **edge-triggered** on the downward cross `available ≤ reorderThreshold`; expose the **post-commit flush seam** (`flushEvents(tx)`, added to `IInventoryService` this sprint — see report) that the injected callers and Sprint-3 adjustment path use. (plan §2.2, §3.5, §7.3)
+- [x] Impl (errors): `INSUFFICIENT_STOCK` → `ConflictError` (409) carrying `{ productId, requested, available }` in `details`; unknown product → `NotFoundError`. (plan §5 item 3, §7.6) *(`isKnownRequestError` P2002/P2025 not needed this sprint — the engine has no unique-constraint-prone writes; revisit if one emerges.)*
+- [x] Test: `test/unit/modules/inventory/inventory.service.spec.ts` (engine portion, 25 tests) — a stateful in-memory fake `tx` (not per-call mocks) + spy `@common/events/event-bus`: `10@100 + 10@150` consume `15` ⇒ **COGS 1750**, remaining **5@150**, correct consumption rows; over-consume ⇒ **409 `INSUFFICIENT_STOCK`, zero rows** (incl. a reservation-aware variant); `reserve→release` restores available (onHand untouched); `returnIn` at **150, not avgCost** (incl. a multi-cost-group variant); `balanceAfter` chain + all three invariants over one interleaved sequence; avgCost **IN-only**; `stockChanged` on every change, `lowStock` **only** on the downward threshold cross; `flushEvents` buffering semantics. (plan §4.2, §4.5)
+
+**Validation**
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green (271/271, 22 files — 25 new engine tests + prior suites).
+- [x] `npm run lint --no-color` clean.
+- [x] Engine writes movement rows **and** the `Product` columns inside the **passed `tx`** (never opens its own for injected paths); throws `AppError` subclasses; buffers events (no emit before commit — explicitly tested); zero rows on `INSUFFICIENT_STOCK`; inventory is the sole writer of `quantityOnHand`/`quantityReserved`/`averageCost`.
+- [x] Committed on green (`api: inventory sprint 2 — fifo engine`).
+
+**Report:** [`results-inventory-04/report-sprint-02-04.md`](./results-inventory-04/report-sprint-02-04.md)
+
+---
+
+### Sprint 3: Logic B — reads + adjustments (`InventoryReadService`)   — Status: ✅ Done
+
+**Goals**
+- Complete `inventory.service.ts`: `InventoryReadService` with `getStock` (+CSV), `listMovements`
+  (filters + pagination), `listReservations` (PENDING aggregation), and `createAdjustment` (transaction:
+  sequence + engine delegation + in-tx reprice + `adjusted` event). Replace the Sprint-2 stubs.
+
+**Tasks**
+- [x] Impl: `InventoryReadService implements IInventoryReadService`; `constructor(prisma, sequence: ISequenceService, catalogPricing: ICatalogPricingPort, engine: IInventoryService)`. Replace the Sprint-2 stubs. **`engine` added** beyond the plan's listed constructor — the next task line requires it (see report). (plan §2.1, §5 item 3)
+- [x] Impl (`getStock`): read `Product` rows → `toStockRowDto`; `lowStockOnly` filters to `isLow`; `export='csv'` returns `ExportResult { filename, mime, body }` (CSV of the `StockRowDto` columns, platform `exportFees` pattern); otherwise the row list (**unpaginated per contract** — `StockQuery` has no page/limit, plan §8 #4). (plan §3, §5.1, §7.4)
+- [x] Impl (`listMovements`): map `MovementsQuery` (`productId`/`type`/`from`/`to`/`staffId`) → Prisma `where`; paginate via count+findMany; join `Product.name` + `Staff` + resolve `referenceLabel` (PRODUCT from the join directly, ADJUSTMENT/SUPPLIER_INVOICE via one batched lookup each, else the mapper's fallback) → `toMovementDto`. (plan §1.1, §3 cross-cutting)
+- [x] Impl (`listReservations`): aggregate **live PENDING** movements via `Prisma.groupBy` on `(productId, referenceType, referenceId)`, keep net `quantity > 0`; `holderType` derived from `referenceType` (mirrors the engine's own derivation, inverted); `ageHours` from the earliest reserve; paginated in-memory (flagged in report — groupBy+having+accurate-count don't compose cleanly) → `toReservationDto`. (plan §1.1)
+- [x] Impl (`createAdjustment`): single `$transaction` — `sequence.nextNumber(tx, DocType.ADJUSTMENT)`; create `StockAdjustment` + a `StockAdjustmentLine` per line (`previousQuantity`/`countedQuantity`/`delta = counted − previous`); **delta>0** ⇒ `engine.addLayer(tx, …, unitCost ?? currentAvgCost, ADJUSTMENT_IN, ref)` + if `line.prices` present `catalogPricing.applyPricing(tx, productId, prices)` **in the same tx**; **delta<0** ⇒ `engine.consumeFifo(tx, …, revenue=null, ADJUSTMENT_OUT, ref)` (⇒ `profit=null`); **delta=0** ⇒ reprice-only, no result line (uuid-required `movementId` can't represent "no movement" — see report). After commit (captured `tx` via closure): `engine.flushEvents(tx)` + emit `inventory.adjusted { reference, description }`. Return `toAdjustmentResultDto`. `note?` optional. (plan §3.4, §2.2)
+- [x] Test: extended `inventory.service.spec.ts` (+38 tests, 63 total) — mock Prisma + mock `ISequenceService` + mock `ICatalogPricingPort` + **mock the engine** (its own correctness already proven in Sprint 2) + spy event-bus: `getStock` levels/`stockValue`/`isLow` + `lowStockOnly` + CSV export shape; `listMovements` filters + pagination + all three `referenceLabel` paths; `listReservations` aggregation + `ageHours` + `holderType` + net-zero exclusion; `createAdjustment` IN/OUT/zero-delta lines ⇒ `AdjustmentResultDto`, `ADJUSTMENT` sequence reference, IN-delta default cost = avgCost, reprice calls `applyPricing` **once, in-tx**, `ADJUSTMENT_OUT` `profit=null`, `inventory.adjusted` emitted once after commit. (plan §4.2)
+
+**Validation**
+- [x] `npx tsc --noEmit` clean.
+- [x] `npm run test:unit` green (289/289, 22 files — 63 in the inventory service spec + prior suites).
+- [x] `npm run lint --no-color` clean.
+- [x] Every read-service method returns a `.parse()`d DTO; `createAdjustment` is transactional (sequence + engine + reprice atomic in one tx); `inventory.adjusted` emitted **after commit**; `Decimal→number` + `Date→ISO` at every boundary.
+- [x] Committed on green (`api: inventory sprint 3 — reads and adjustments`).
+
+**Report:** [`results-inventory-04/report-sprint-03-04.md`](./results-inventory-04/report-sprint-03-04.md)
+
+---
+
+### Sprint 4: API — controller, routes, wiring, catalog cross-wiring, integration & conformance   — Status: ✅ Done
+
+**Goals**
+- Expose the HTTP surface, wire the composition root (admin guards, CSV export, exported
+  `inventoryService` singleton), mount the router, complete the catalog↔inventory cross-wiring, and prove
+  the module end-to-end + against the contract.
+
+**Tasks**
+- [x] Impl: `src/modules/inventory/inventory.controller.ts` — thin; `try/catch → next(error)`; reads `req.validated`; `getStock` branches on the service's return shape (`'body' in result`) to send CSV (`Content-Type`/`Content-Disposition`, platform mirror) or `sendSuccess(rows)`; `createAdjustment` reads `req.user?.staffId` (guards with `AuthError` if absent) → `sendSuccess(result, 201)`; reads → `sendSuccess(…, 200)`. (plan §5 item 5)
+- [x] Impl: `src/modules/inventory/inventory.routes.ts` — composition root: `const engine = new InventoryService(prisma)`; import `sequenceService` from `platform.routes` + `catalogPricingService` from `catalog.routes`; `const readService = new InventoryReadService(prisma, sequenceService, catalogPricingService, engine)`; controller; register the 4 routes via `INVENTORY_ROUTES` constants + `validateRequest` per segment + the `admin` guard; **`export const inventoryService = engine;`**; `export { router }`. (plan §5.1, §6)
+- [x] Impl (wiring): added `inventoryRouter` to `src/modules/index.ts` `registerModules` at the EXTENSION POINT. (plan §6)
+- [x] Impl (catalog-side enabling changes, cross-module — plan §6, §7.1–§7.2, §8 #5): (a) **widened `IInventoryPort.addLayer`** with `staffId`; (b) **`ICatalogProductService.createProduct` gained a `staffId` param** (threaded from `req.user.staffId` in the controller) — needed since the port widening cascades to every caller; (c) **extracted tx-aware `applyPricing`** from `updatePricing` (behavior-preserving refactor) and **exported `catalogPricingService`** (structurally satisfies `ICatalogPricingPort` — no reverse type import); (d) added a **`useInventory` setter** to `CatalogProductService` (not on the interface); (e) in `modules/index.ts`, built a small **inline adapter** (object-input↔positional-args, `IInventoryPort`↔`IInventoryService` are structurally incompatible so a widened interface alone can't bridge them) and called `catalogProductService.useInventory(adapter)` at the aggregator — replacing `inventory.port.stub.ts`'s effect (the stub file itself is left in place; still compiles under TS's bivariant method-parameter checking, and is unreachable once the aggregator wires the real adapter before any request is served). Fixed the 2 catalog unit tests and 1 integration test (`mintToken` now carries a real `staffId`, matching what a real login actually issues) that the signature change touched — all pre-existing catalog suites still green. (see report)
+- [x] Test: `test/integration/inventory.integration.spec.ts` (12 tests, real test DB, `ApiResponse` envelope, admin guard 401/403) — `GET /stock` levels + `stockValue` + `isLow` + `lowStockOnly` + `export=csv`; `GET /movements` (incl. a real `POST /admin/products` proving a genuine `INITIAL_STOCK` row via the swapped-in engine) + filters/pagination; `GET /reservations` holder + `ageHours` (seeded via the real engine directly, no order/repair module exists yet); `POST /adjustments` COUNT/DAMAGE mixed IN/OUT ⇒ real column deltas, `ADJUSTMENT` reference, atomic reprice (verified via a catalog read), over-consume ⇒ 409 with the earlier line **and** the adjustment header rolled back, `inventory.adjusted` emitted once. (plan §4.3)
+- [x] Test: `test/integration/inventory-engine.integration.spec.ts` (3 tests) — the cross-module engine proof against a **real** Postgres transaction (not the fake tx from Sprint 2): commit ⇒ persists + flushes; caller throws after a successful call ⇒ nothing persists, the already-buffered event never fires; a two-step document with a genuine engine rejection ⇒ the earlier successful step is rolled back too. Also proven via the HTTP integration spec's `INITIAL_STOCK` assertion above. (plan §4.5)
+- [x] Test: extended `test/contract/routes.conformance.spec.ts` (+1 test) — all four `INVENTORY_ROUTES` resolve DB-free (every route is admin-guarded, no public-route carve-out needed). (plan §4.4)
+
+**Validation**
+- [x] `npx tsc --noEmit` clean; `npm run lint --no-color` clean.
+- [x] `npm run test:unit` green (290/290, 22 files, incl. conformance).
+- [x] `npm run test:int` green (70/70, 7 files — all pre-existing suites re-verified alongside the 2 new inventory files; sandbox test DB on port 5544, not the 5433 default).
+- [x] Routes use `INVENTORY_ROUTES` constants only (no string literals); all responses go through `sendSuccess`; the `admin` guard is on all four routes; `inventoryService` singleton exported and catalog's `inventory.port.stub.ts` superseded by the real adapter; the in-tx reprice is proven atomic (integration + engine-proof tests).
+- [x] Committed on green (`api: inventory sprint 4 — api and wiring`).
+
+**Report:** [`results-inventory-04/report-sprint-04-04.md`](./results-inventory-04/report-sprint-04-04.md)
+
+---
+
+## Definition of done (module) — ✅ All 4 sprints done
+
+- `Apps/api/src/modules/inventory/` has the **5 core files** (mapper, interface, service, controller,
+  routes) — **no listener**; `inventory.service.ts` co-locates the FIFO **engine** (`InventoryService`) +
+  the **read/admin service** (`InventoryReadService`); `inventoryRouter` mounted via `registerModules`.
+- Adds **zero contract types**; all four routes use `INVENTORY_ROUTES` constants and validate each
+  segment against the contract schema; every service method returns a `.parse()`d DTO; `Decimal→number`
+  + `Date→ISO` at every boundary.
+- **FIFO correctness**: `10@100+10@150` consume `15` ⇒ COGS 1750 / layer 5@150; over-consume ⇒ 409
+  `INSUFFICIENT_STOCK` with zero rows; `returnIn` at original cost; `reserve→release` restores available;
+  `balanceAfter` chain holds under interleaving; invariants `onHand=Σmovements`, `Σremaining=onHand`,
+  `reserved=ΣPENDING`; avgCost recomputed on IN only; inventory is the sole writer of the owned columns.
+- **Adjustments** transactional: `ADJUSTMENT` sequence reference; IN-delta default cost = current avgCost;
+  optional per-line reprice through catalog's tx-aware `applyPricing` in the **same tx**; `ADJUSTMENT_OUT`
+  `profit=null`.
+- **Events**: `stockChanged` on every change, `lowStock` edge-triggered on the downward threshold cross,
+  `adjusted` once per document — all emitted **after commit** (buffered for injected paths); inventory
+  **listens to nothing**.
+- **`inventoryService` singleton exported** for downstream DI; catalog's stub superseded by a real
+  adapter at the aggregator (its `IInventoryPort` widened with `staffId`, `catalogPricingService`
+  exported) — verified end-to-end via a real `POST /admin/products` writing a genuine `StockMovement` row.
+- Unit (290) + integration (70, all suites) + conformance + cross-module engine suites green; each
+  sprint committed on green in order.

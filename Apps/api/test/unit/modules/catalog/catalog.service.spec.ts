@@ -376,6 +376,7 @@ describe('CatalogCategoryService', () => {
 const PRODUCT_ID = '77777777-7777-4777-8777-777777777777';
 const CLIENT_ID = '88888888-8888-4888-8888-888888888888';
 const CATEGORY_TIER_ID = '99999999-9999-4999-8999-999999999999';
+const STAFF_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 const buildProductRow = (overrides: Record<string, unknown> = {}) => ({
   id: PRODUCT_ID,
@@ -543,12 +544,18 @@ describe('CatalogProductService', () => {
         initialUnitCost: 1000,
       });
 
-      await service().createProduct(cmd, []);
+      await service().createProduct(cmd, [], STAFF_ID);
 
       expect(inventoryMock.addLayer).toHaveBeenCalledTimes(1);
       expect(inventoryMock.addLayer).toHaveBeenCalledWith(
         prismaMock,
-        expect.objectContaining({ productId: PRODUCT_ID, quantity: 5, unitCost: 1000, type: MovementType.INITIAL_STOCK }),
+        expect.objectContaining({
+          productId: PRODUCT_ID,
+          quantity: 5,
+          unitCost: 1000,
+          type: MovementType.INITIAL_STOCK,
+          staffId: STAFF_ID,
+        }),
       );
       expect(eventBusEmitMock).toHaveBeenCalledWith(
         'product.created',
@@ -567,7 +574,7 @@ describe('CatalogProductService', () => {
         initialQuantity: 0,
       });
 
-      await service().createProduct(cmd, []);
+      await service().createProduct(cmd, [], STAFF_ID);
 
       expect(inventoryMock.addLayer).not.toHaveBeenCalled();
     });

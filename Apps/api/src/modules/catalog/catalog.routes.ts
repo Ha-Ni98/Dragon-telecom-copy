@@ -46,6 +46,14 @@ const taxonomyService = new CatalogTaxonomyService(prisma);
 const categoryService = new CatalogCategoryService(prisma);
 const controller = new CatalogController(productService, taxonomyService, categoryService);
 
+// Exported for the aggregator (modules/index.ts) to inject the real inventory port once it's
+// constructed, replacing the InventoryPortStub above (inventory plan §6, §8 #5).
+export const catalogProductService = productService;
+// Exposes CatalogProductService.applyPricing as the ICatalogPricingPort shape inventory's
+// adjustment flow needs — structural typing means no import of inventory's interface here
+// (single import direction: inventory -> catalog, per plan §6).
+export const catalogPricingService = productService;
+
 // Product images must persist across requests (unlike platform's import file, which is parsed
 // once and discarded from memory) — disk storage with a stable, servable path. No upload env
 // knob exists yet (env-template.md lists only AWS_* generically); an in-code constant is the

@@ -374,6 +374,13 @@ export class CatalogProductService implements ICatalogProductService {
     private inventory: IInventoryPort,
   ) {}
 
+  // Composition-root wiring only (inventory plan §6, §8 #5) — swaps the placeholder
+  // InventoryPortStub for the real inventory module's engine once it's constructed. Not on
+  // ICatalogProductService: controllers never call this, only modules/index.ts does.
+  useInventory(port: IInventoryPort): void {
+    this.inventory = port;
+  }
+
   // Public storefront: enabled + published only, viewer-resolved pricing/inStock/inCart.
   async listProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<ProductWithPricingDto>> {
     const where: Prisma.ProductWhereInput = {
@@ -508,7 +515,11 @@ export class CatalogProductService implements ICatalogProductService {
   // qty>0 -> cost required (schema-enforced), first FIFO layer created in the same tx via the
   // injected port, then pricing unlocked. Catalog never writes quantityOnHand/averageCost itself
   // — inventory.addLayer owns those columns (spec BL#6).
-  async createProduct(cmd: CreateProductCommand, images: Express.Multer.File[]): Promise<AdminProductDto> {
+  async createProduct(
+    cmd: CreateProductCommand,
+    images: Express.Multer.File[],
+    staffId: string,
+  ): Promise<AdminProductDto> {
     try {
       const productId = await this.prisma.$transaction(async (tx) => {
         const brandId = await this.resolveBrandId(tx, cmd);
@@ -536,6 +547,7 @@ export class CatalogProductService implements ICatalogProductService {
             quantity: cmd.initialQuantity,
             unitCost: cmd.initialUnitCost!,
             type: MovementType.INITIAL_STOCK,
+            staffId,
           });
         }
 
@@ -598,33 +610,39 @@ export class CatalogProductService implements ICatalogProductService {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundError('Product');
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.product.update({
-        where: { id },
-        data: {
-          // `null` clears/hides the guest price; omitted leaves it untouched — distinct from
-          // `!= null`, which would drop the caller's explicit null (UpdatePricingCommand.guestPrice
-          // is `number | null | undefined`, each state meaningful).
-          ...(cmd.guestPrice !== undefined ? { guestPrice: cmd.guestPrice } : {}),
-          ...(cmd.defaultSalePrice != null ? { defaultSalePrice: cmd.defaultSalePrice } : {}),
-        },
-      });
-
-      if (cmd.categoryPrices?.length) {
-        await Promise.all(
-          cmd.categoryPrices.map((categoryPrice) =>
-            tx.productPrice.upsert({
-              where: { productId_clientCategoryId: { productId: id, clientCategoryId: categoryPrice.categoryId } },
-              create: { productId: id, clientCategoryId: categoryPrice.categoryId, price: categoryPrice.price },
-              update: { price: categoryPrice.price },
-            }),
-          ),
-        );
-      }
-    });
+    await this.prisma.$transaction((tx) => this.applyPricing(tx, id, cmd));
 
     eventBus.emit('product.repriced', { productId: id, name: product.name });
     return this.getAdminProduct(id);
+  }
+
+  // Tx-aware, no event emit inside (the caller emits after its own commit) — the seam inventory's
+  // adjustment flow needs to reprice atomically in the same transaction as its stock delta
+  // (inventory plan §7.2, §8 #5). Structurally satisfies inventory's ICatalogPricingPort without
+  // catalog importing that type — exported as `catalogPricingService` from catalog.routes.ts.
+  async applyPricing(tx: Prisma.TransactionClient, productId: string, cmd: UpdatePricingCommand): Promise<void> {
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        // `null` clears/hides the guest price; omitted leaves it untouched — distinct from
+        // `!= null`, which would drop the caller's explicit null (UpdatePricingCommand.guestPrice
+        // is `number | null | undefined`, each state meaningful).
+        ...(cmd.guestPrice !== undefined ? { guestPrice: cmd.guestPrice } : {}),
+        ...(cmd.defaultSalePrice != null ? { defaultSalePrice: cmd.defaultSalePrice } : {}),
+      },
+    });
+
+    if (cmd.categoryPrices?.length) {
+      await Promise.all(
+        cmd.categoryPrices.map((categoryPrice) =>
+          tx.productPrice.upsert({
+            where: { productId_clientCategoryId: { productId, clientCategoryId: categoryPrice.categoryId } },
+            create: { productId, clientCategoryId: categoryPrice.categoryId, price: categoryPrice.price },
+            update: { price: categoryPrice.price },
+          }),
+        ),
+      );
+    }
   }
 
   async addImages(id: string, cmd: AddProductImagesCommand, files: Express.Multer.File[]): Promise<AdminProductDto> {
