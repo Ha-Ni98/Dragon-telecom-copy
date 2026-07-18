@@ -138,7 +138,7 @@ pure reads of the shared `prisma` singleton (§D-4).
 
 ---
 
-### Sprint 5: Repairs — Logic (service)   — Status: ⬜ Pending
+### Sprint 5: Repairs — Logic (service)   — Status: ✅ Done
 
 **Goals**
 - `RepairsService implements IRepairsService` (**no listener**); all plan §II.2 business logic;
@@ -146,7 +146,7 @@ pure reads of the shared `prisma` singleton (§D-4).
   + spy bus.
 
 **Tasks**
-- [ ] Impl: `src/modules/repairs/repairs.service.ts` — constructor DI `(prisma, inventory: IInventoryService, sequence: ISequenceService)`:
+- [x] Impl: `src/modules/repairs/repairs.service.ts` — constructor DI `(prisma, inventory: IInventoryService, sequence: ISequenceService)`:
   - **`createRepair`** (intake) — one `$transaction`: `sequence.nextNumber(tx, DocType.REPAIR)` → create `Repair` (INTAKE) → **write the intake `RepairStatusHistory` row** (`fromStatus:INTAKE`, `toStatus:INTAKE`, `staffId`, `note:'intake'`) for §C-1 scoping and downstream staff-resolution; prefill from `PosClient` when `posClientId`. Returns the DTO (claim slip = its `reference`).
   - **`addPart`** — `inventory.reserve(tx, productId, qty, {referenceType:'REPAIR', referenceId: repair.id, staffId})` (shortfall ⇒ **409 naming the product**) + create `RepairPart`; recompute `partsTotal` and `totalAmount = labourPrice + partsTotal`. **`removePart`** — `inventory.release(...)` + remove the part; recompute totals.
   - **`updateRepair`** (PATCH) — `diagnosis?`/`labourPrice?`/`technicianId?`; recompute `totalAmount` when `labourPrice` changes.
@@ -157,14 +157,14 @@ pure reads of the shared `prisma` singleton (§D-4).
     - `→CANCELLED` (from any state, `reason?`): `release` **pending** parts; **already-consumed** parts return **only** via explicit `cmd.consumedPartReturns[]` (`restock ⇒ inventory.returnIn` at consumed cost, reconstruct per §D-7). Emit `repair.cancelled { repairId, reason? }`.
     - Every transition also emits `repair.statusChanged { repairId, fromStatus, toStatus }`; `flushEvents(tx)` after commit for any transition that touched stock.
   - **`listRepairs`** — admin: all; staff: `history: { some: { fromStatus:INTAKE, toStatus:INTAKE, staffId: me } }` (§C-1) + optional `status`/`technicianId` filters. Mutations are page-gated only, **not** creator-scoped (§D-5).
-- [ ] Impl: **no `repairs.listener.ts`** — repairs listens to nothing (rules §2 file-only-if-needed).
-- [ ] Test: `test/unit/modules/repairs/repairs.service.spec.ts` — `PROCESSING` without `technicianId` → 400; part add reserves / delete releases (shortfall 409 names the product); **double COMPLETE ⇒ one consumption**; pickup emits `repair.pickedUp` **once** (spy bus); cancel post-consumption **without** `consumedPartReturns` leaves stock untouched, **with** `restock` re-enters at consumed cost via `returnIn`; totals (`partsTotal`, `totalAmount = labour+parts`) recomputed on every parts/labour change; intake writes the `INTAKE→INTAKE` history row; staff `listRepairs` filter derives created-by-me from that row.
+- [x] Impl: **no `repairs.listener.ts`** — repairs listens to nothing (rules §2 file-only-if-needed).
+- [x] Test: `test/unit/modules/repairs/repairs.service.spec.ts` (15 tests) — `PROCESSING` without `technicianId` → 400; part add reserves / delete releases (shortfall propagates the injected engine's own `ConflictError`); **double COMPLETE ⇒ one consumption**; pickup emits `repair.pickedUp` **once** (spy bus); cancel post-consumption **without** `consumedPartReturns` leaves stock untouched, **with** `restock` re-enters at consumed cost via `returnIn`; totals (`partsTotal`, `totalAmount = labour+parts`) recomputed on every parts/labour change; intake writes the `INTAKE→INTAKE` history row; staff `listRepairs` filter derives created-by-me from that row. See [report-sprint-05-07.md](./results-order-rep-stat-07/report-sprint-05-07.md) for two design decisions: `createRepair` takes the full `actor` (not a bare `staffId`, plan deviation) and CANCELLED is rejected from `PICKED_UP` (spec says "any state," read as "any pre-pickup state").
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (service + conformance).
-- [ ] Events emitted **post-commit**; injected engine reused (no re-implementation); `flushEvents(tx)` after stock-touching transactions; COMPLETE genuinely idempotent; no cross-module folder import (only `IInventoryService`/`ISequenceService`/`ConsumptionLine` + pure `Product`/`PosClient` reads).
-- [ ] Committed on green (`repairs: sprint 5 — logic (service)`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (service + conformance) — 569/569, 39 files.
+- [x] Events emitted **post-commit**; injected engine reused (no re-implementation); `flushEvents(tx)` after stock-touching transactions; COMPLETE genuinely idempotent; no cross-module folder import (only `IInventoryService`/`ISequenceService`/`ConsumptionLine` + the new shared `@common/utils/system-staff.utils` — extracted from orders' Sprint 2 discovery rather than duplicated; `orders.service.ts` refactored to use it too, orders' full unit (54/54) + integration (12/12) suites re-verified green).
+- [x] Committed on green (`repairs: sprint 5 — logic (service)`).
 
 ---
 

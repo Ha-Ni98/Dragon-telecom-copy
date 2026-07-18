@@ -1,10 +1,8 @@
-import { randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import {
   InvoiceSource as PrismaInvoiceSource,
   MovementDirection as PrismaMovementDirection,
   OrderStatus as PrismaOrderStatus,
-  UserType as PrismaUserType,
 } from '@prisma/client';
 import {
   DocType,
@@ -28,7 +26,7 @@ import {
 } from '@dragon-telecom/contract';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '@common/errors';
 import { eventBus } from '@common/events/event-bus';
-import { hashPassword } from '@common/utils/password.utils';
+import { SystemStaffResolver } from '@common/utils/system-staff.utils';
 import type { ConsumptionLine, IInventoryService } from '../inventory/inventory.interface';
 import type { IDeliveryFeeService, ISequenceService } from '../platform/platform.interface';
 import type { CancelOrderCommand, ICatalogViewerPricingPort, IOrdersService } from './orders.interface';
@@ -50,9 +48,7 @@ const STATUS_SEQUENCE: OrderStatus[] = [
 ];
 
 export class OrdersService implements IOrdersService {
-  // Lazily resolved once per process and cached — see resolveSystemStaffId below.
-  private systemStaffId: string | undefined;
-  private static readonly SYSTEM_USERNAME = 'system.storefront';
+  private readonly systemStaff: SystemStaffResolver;
 
   constructor(
     private prisma: PrismaClient,
@@ -60,7 +56,9 @@ export class OrdersService implements IOrdersService {
     private inventory: IInventoryService,
     private sequence: ISequenceService,
     private catalogPricing: ICatalogViewerPricingPort,
-  ) {}
+  ) {
+    this.systemStaff = new SystemStaffResolver(prisma);
+  }
 
   // public|client — actor absent for a guest (plan §I.1 BL#1, §D-2).
   async placeOrder(cmd: PlaceOrderCommand, actor?: JWTPayload): Promise<OrderDto> {
@@ -147,7 +145,7 @@ export class OrdersService implements IOrdersService {
       throw new ConflictError('Order is not cancellable (not PENDING)');
     }
 
-    const staffId = await this.resolveSystemStaffId();
+    const staffId = await this.systemStaff.resolve();
     let capturedTx: Prisma.TransactionClient | undefined;
 
     await this.prisma.$transaction(async (tx) => {
@@ -426,44 +424,9 @@ export class OrdersService implements IOrdersService {
   }
 
   // A STAFF actor's own staffId; an ADMIN (no Staff row) or a guest/client (no actor at all)
-  // falls back to the system placeholder (resolveSystemStaffId).
+  // falls back to the shared system placeholder (@common/utils/system-staff.utils).
   private async movementStaffId(actor?: JWTPayload): Promise<string> {
-    return actor?.staffId ?? this.resolveSystemStaffId();
-  }
-
-  // Genuine gap, not covered by plan §C: StockMovement.staffId is NOT NULL, but PLACE (guest/
-  // client) and an ADMIN-initiated confirm/cancel/return have no natural Staff row at all. No
-  // schema/seed change — a dedicated "system" Staff is lazily bootstrapped once (User.username
-  // is @unique, so `upsert` is race-safe under concurrency) and cached on the instance. See the
-  // Sprint 2 report for the full reasoning and alternatives considered.
-  private async resolveSystemStaffId(): Promise<string> {
-    // The cache is verified, not blindly trusted: a truncated/deleted Staff row (test resets
-    // between cases; theoretically a prod cleanup job too) must self-heal on the next call
-    // rather than 500 forever on a stale FK. One cheap PK lookup on the common (already-
-    // resolved) path, versus a full re-bootstrap only when genuinely needed.
-    if (this.systemStaffId != null) {
-      const stillExists = await this.prisma.staff.findUnique({ where: { id: this.systemStaffId }, select: { id: true } });
-      if (stillExists) return this.systemStaffId;
-      this.systemStaffId = undefined;
-    }
-
-    const passwordHash = await hashPassword(randomUUID());
-    const user = await this.prisma.user.upsert({
-      where: { username: OrdersService.SYSTEM_USERNAME },
-      update: {},
-      create: {
-        username: OrdersService.SYSTEM_USERNAME,
-        passwordHash,
-        type: PrismaUserType.STAFF,
-        isEnabled: false,
-        staff: { create: { firstName: 'System', lastName: 'Storefront' } },
-      },
-      include: { staff: true },
-    });
-    if (!user.staff) throw new Error('resolveSystemStaffId: system User exists without a linked Staff row');
-
-    this.systemStaffId = user.staff.id;
-    return user.staff.id;
+    return actor?.staffId ?? this.systemStaff.resolve();
   }
 
   // Reconstructs the exact FIFO layers an order's placement originally drained (StockMovement +

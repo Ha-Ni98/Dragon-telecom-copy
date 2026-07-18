@@ -16,7 +16,11 @@ export interface IRepairsService {
   listRepairs(query: RepairListQuery, actor: JWTPayload): Promise<RepairDto[]>;
   // + intake history row (§C-1) for both creator-scoping and later staff-resolution
   // (repair.pickedUp carries no staffId — sales' own listener reads this same history).
-  createRepair(cmd: CreateRepairCommand, staffId: string): Promise<RepairDto>;
+  // Takes the full actor (not a bare staffId, deviating from the plan's literal signature):
+  // CREATE is staff(STAFF_REPAIRS)|admin, and an ADMIN JWT never carries a staffId — the
+  // service resolves actor.staffId ?? the shared system-staff fallback for the history row's
+  // NOT NULL staffId column, same as every other mutation method here (Sprint 5 report).
+  createRepair(cmd: CreateRepairCommand, actor: JWTPayload): Promise<RepairDto>;
   updateRepair(id: string, cmd: UpdateRepairCommand, actor: JWTPayload): Promise<RepairDto>;
   // reserve(PENDING_REPAIR).
   addPart(id: string, cmd: AddRepairPartCommand, actor: JWTPayload): Promise<RepairDto>;
