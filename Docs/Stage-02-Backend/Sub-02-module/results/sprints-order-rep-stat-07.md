@@ -168,24 +168,24 @@ pure reads of the shared `prisma` singleton (§D-4).
 
 ---
 
-### Sprint 6: Repairs — API (controller, routes, wiring, integration)   — Status: ⬜ Pending
+### Sprint 6: Repairs — API (controller, routes, wiring, integration)   — Status: ✅ Done
 
 **Goals**
 - HTTP surface + composition root + aggregator wiring; integration (incl. pickup → REPAIR-origin
   sale) & conformance green.
 
 **Tasks**
-- [ ] Impl: `src/modules/repairs/repairs.controller.ts` — thin; acting user from `req.user!` (`staffId`, `type`); `sendSuccess` `201` create / `200` others; `includeMargins = type===UserType.ADMIN`; `STAFF_*`/`ADMIN_*` pairs share one handler each. (plan §II.2)
-- [ ] Impl: `src/modules/repairs/repairs.routes.ts` — composition root: `new RepairsService(prisma, inventoryService, sequenceService)`; `new RepairsController(service)`; **no listener**. Routes use `REPAIR_ROUTES` constants only, per-segment `validateRequest`, guards per plan §II.2 table (`STAFF_* → pages:[STAFF_REPAIRS]`, `ADMIN_* → types:[ADMIN], checkDB`). `STAFF_PART_BY_ID`/`ADMIN_PART_BY_ID` are the `DELETE .../parts/:partId` routes (validate `RepairPartParamsSchema`); `STAFF_PARTS`/`ADMIN_PARTS` are the `POST .../parts` routes. Register the `:id/parts/:partId` and `:id/status` sub-paths so no ordering collision arises (distinct segment counts). (plan §II.2, §D-1/§D-5)
-- [ ] Impl: wire into `src/modules/index.ts` — direct import of `repairsRouter`; `apiRouter.use(repairsRouter)` at the EXTENSION POINT. The dormant `sales` (`repair.pickedUp`) and `observability` handlers wake automatically.
-- [ ] Test: `test/integration/repairs.integration.spec.ts` (real test DB, envelope) — intake→add parts→PROCESSING (technician required)→COMPLETED (real FIFO drop, part cost/profit stored)→PICKED_UP; **`repair.pickedUp` → exactly one REPAIR-origin `Sale`** created by the dormant sales listener with `Repair.saleId` set (polled via `waitFor`), and **no invoice** issued; **staff sees only tickets he created, admin all** (leak test — staff A cannot see staff B's ticket in `STAFF_LIST`); cancel post-consumption with `restock` re-enters stock at consumed cost.
-- [ ] Test: `test/contract/routes.conformance.spec.ts` — add a `repairs route resolution` block; every `REPAIR_ROUTES` path resolves DB-free.
+- [x] Impl: `src/modules/repairs/repairs.controller.ts` — thin; acting user from `req.user!`; `sendSuccess` `201` create/addPart / `200` others (`removePart` returns `200` with the updated `RepairDto`, not `204` — a real body is returned); `STAFF_*`/`ADMIN_*` pairs share one handler each. (plan §II.2)
+- [x] Impl: `src/modules/repairs/repairs.routes.ts` — composition root: `new RepairsService(prisma, inventoryService, sequenceService)`; `new RepairsController(service)`; **no listener**. Routes use `REPAIR_ROUTES` constants only, per-segment `validateRequest`, guards per plan §II.2 table (`STAFF_* → pages:[STAFF_REPAIRS]`, `ADMIN_* → types:[ADMIN], checkDB`). (plan §II.2, §D-1/§D-5)
+- [x] Impl: wired into `src/modules/index.ts` — direct import of `repairsRouter`; `apiRouter.use(repairsRouter)` at the EXTENSION POINT. The dormant `sales` (`repair.pickedUp`) and `observability` handlers wake automatically.
+- [x] Test: `test/integration/repairs.integration.spec.ts` (real test DB, envelope, **5 tests**) — intake→add parts→PROCESSING (technician required)→COMPLETED (real FIFO drop, part cost/profit stored)→PICKED_UP; **`repair.pickedUp` → exactly one REPAIR-origin `Sale`** created by the dormant sales listener with `Repair.saleId` set (polled via `waitFor`), and **no invoice** issued; **staff sees only tickets he created, admin all** (leak test); cancel-from-PROCESSING auto-releases; cancel post-COMPLETED with `restock` re-enters stock at consumed cost, without it leaves stock untouched. A test-writing mistake (asserting `totalCost` on a STAFF response, which correctly omits margins) was caught and fixed — see [report-sprint-06-07.md](./results-order-rep-stat-07/report-sprint-06-07.md).
+- [x] Test: `test/contract/routes.conformance.spec.ts` — added a `repairs route resolution` block (12 cases); every `REPAIR_ROUTES` path resolves DB-free (13/13 conformance tests, up from 12).
 
 **Validation**
-- [ ] `tsc --noEmit` clean.
-- [ ] `npm run test:unit` green (unit + conformance). **Run `npm run test:int`** (DB reachable) — repairs' own suite passes; note unrelated pre-existing failures separately.
-- [ ] Routes use `REPAIR_ROUTES` constants only; JSON via `sendSuccess`; mapper excludes margins when gated; no repair invoice ever created.
-- [ ] Committed on green (`repairs: sprint 6 — api and wiring`).
+- [x] `tsc --noEmit` clean.
+- [x] `npm run test:unit` green (unit + conformance) — 570/570, 39 files. **Ran `npm run test:int`** (DB reachable) — repairs' own suite: **5/5**, run twice to confirm no flakiness. Full `test/integration`: 123/126 — the 3 remaining failures are pre-existing `purchasing.integration.spec.ts` concurrency tests, unrelated to this sprint.
+- [x] Routes use `REPAIR_ROUTES` constants only; JSON via `sendSuccess`; mapper excludes margins when gated; no repair invoice ever created.
+- [x] Committed on green (`repairs: sprint 6 — api and wiring`).
 
 ---
 

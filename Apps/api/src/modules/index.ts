@@ -12,6 +12,7 @@ import { router as purchasingRouter } from './purchasing/purchasing.routes';
 import { router as salesRouter } from './sales/sales.routes';
 import { router as billingRouter } from './billing/billing.routes';
 import { router as ordersRouter } from './orders/orders.routes';
+import { router as repairsRouter } from './repairs/repairs.routes';
 
 // Adapts the real FIFO engine (IInventoryService) to the shape catalog's createProduct expects
 // (IInventoryPort) — object-input vs. positional args, and discards the returned movementId
@@ -69,4 +70,8 @@ export const registerModules = (apiRouter: Router): void => {
   // order.confirmed/order.placed/order.statusChanged/order.cancelled/order.returned wake
   // automatically.
   apiRouter.use(ordersRouter);
+  // repairs.routes.ts imports sequenceService/inventoryService directly, same one-directional
+  // shape. No listener wiring — repairs listens to nothing. The dormant `sales`/observability
+  // handlers for repair.pickedUp/repair.statusChanged/repair.cancelled wake automatically.
+  apiRouter.use(repairsRouter);
 };
