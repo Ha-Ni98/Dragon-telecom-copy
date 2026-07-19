@@ -278,8 +278,8 @@ export default function MyAccount() {
               {/* Orders Navigation */}
               <Card>
                 <CardHeader>
-                  <CardTitle>My Orders</CardTitle>
-                  <CardDescription>View and manage your order history</CardDescription>
+                  <CardTitle>{t('account.myOrders')}</CardTitle>
+                  <CardDescription>{t('account.myOrdersSubtitle')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-8">
@@ -287,9 +287,9 @@ export default function MyAccount() {
                       <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
                         <ArrowRight className="h-8 w-8 text-primary" />
                       </div>
-                      <h3 className="text-lg font-semibold mb-2">View Your Orders</h3>
+                      <h3 className="text-lg font-semibold mb-2">{t('account.viewYourOrders')}</h3>
                       <p className="text-muted-foreground mb-6">
-                        Access your complete order history, track shipments, and manage your purchases.
+                        {t('account.viewYourOrdersBody')}
                       </p>
                     </div>
                     <Button 

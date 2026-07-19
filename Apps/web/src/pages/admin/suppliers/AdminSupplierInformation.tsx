@@ -103,7 +103,7 @@ export default function AdminSupplierInformation() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Supplier Information</h1>
+            <h1 className="text-3xl font-bold">{t('admin.suppliers.information.title')}</h1>
             <p className="text-muted-foreground">
               Error loading supplier data
             </p>
@@ -141,7 +141,7 @@ export default function AdminSupplierInformation() {
 
   return (
     <ErrorBoundary>
-      <main className="space-y-6" role="main" aria-label="Supplier Information">
+      <main className="space-y-6" role="main" aria-label={t('admin.suppliers.information.title')}>
         {/* Header with breadcrumb and actions */}
         <SupplierInformationHeader
           supplier={supplier}

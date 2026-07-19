@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { DollarSign, Edit3, Lock, History, Calculator, Save, X } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { DollarSign, Edit3, History, Calculator, Save, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DataTable } from '@/components/shared/DataTable';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -37,6 +39,8 @@ interface EnhancedPricingSectionProps {
   /** Callback for bulk pricing updates */
   onBulkPricingUpdate: (updates: { noUserPrice?: number; categoryPrices?: Record<number, number> }) => void;
 }
+
+type CategoryPriceRow = AdminProductWithFullDetails['categoryPrices'][number];
 
 /**
  * Enhanced product pricing section component
@@ -99,7 +103,7 @@ export function EnhancedPricingSection({
     if (data.bulkDiscountPercentage && data.bulkDiscountPercentage > 0) {
       const discountMultiplier = 1 - (data.bulkDiscountPercentage / 100);
       const updatedCategoryPrices: Record<number, number> = {};
-      
+
       Object.entries(data.categoryPrices).forEach(([categoryId, price]) => {
         updatedCategoryPrices[parseInt(categoryId)] = price * discountMultiplier;
       });
@@ -120,9 +124,7 @@ export function EnhancedPricingSection({
   };
 
   // Get category name by ID (this would typically come from a categories service)
-  const getCategoryName = (categoryId: number) => {
-    return `Category ${categoryId}`;
-  };
+  const getCategoryName = (categoryId: number) => t('admin.productInfo.pricing.categoryLabel', { id: categoryId });
 
   // Mock pricing history data
   const pricingHistory = [
@@ -149,6 +151,85 @@ export function EnhancedPricingSection({
     },
   ];
 
+  const categoryPriceRows = product.categoryPrices.slice(0, 3);
+
+  const columns = useMemo<ColumnDef<CategoryPriceRow>[]>(() => {
+    const base: ColumnDef<CategoryPriceRow>[] = [
+      {
+        accessorKey: 'idCategory',
+        header: t('admin.productInfo.pricing.category'),
+        cell: ({ row }) => <span className="font-medium">{getCategoryName(row.original.idCategory)}</span>,
+      },
+      {
+        accessorKey: 'price',
+        header: t('admin.productInfo.pricing.currentPrice'),
+        cell: ({ row }) => <span className="font-mono">{row.original.price} DZ</span>,
+      },
+    ];
+
+    if (isEditMode) {
+      base.push({
+        id: 'newPrice',
+        header: t('admin.productInfo.pricing.newPrice'),
+        cell: ({ row }) => (
+          <Controller
+            name={`categoryPrices.${row.original.idCategory}`}
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                disabled={isSaving}
+                className="w-24"
+              />
+            )}
+          />
+        ),
+      });
+    }
+
+    base.push({
+      id: 'status',
+      header: t('common.labels.status'),
+      cell: () => <Badge variant="outline">{t('common.status.active')}</Badge>,
+    });
+
+    return base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, isEditMode, isSaving, control]);
+
+  const renderMobileRow = (categoryPrice: CategoryPriceRow) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="font-medium">{getCategoryName(categoryPrice.idCategory)}</span>
+        <Badge variant="outline">{t('common.status.active')}</Badge>
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-mono">{categoryPrice.price} DZ</span>
+        {isEditMode && (
+          <Controller
+            name={`categoryPrices.${categoryPrice.idCategory}`}
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                disabled={isSaving}
+                className="w-24"
+              />
+            )}
+          />
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -159,22 +240,22 @@ export function EnhancedPricingSection({
               {t('admin.productInfo.pricing')}
             </CardTitle>
             <CardDescription>
-              {isEditMode ? 'Manage product pricing with bulk operations' : 'Current pricing for different client categories'}
+              {isEditMode ? t('admin.productInfo.pricing.manageBulk') : t('admin.productInfo.pricing.currentPricing')}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" aria-label="View pricing history">
+                <Button variant="outline" size="sm" aria-label={t('admin.productInfo.pricing.viewHistory')}>
                   <History className="h-4 w-4 mr-2" />
-                  History
+                  {t('admin.productInfo.pricing.history')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Pricing History</DialogTitle>
+                  <DialogTitle>{t('admin.productInfo.pricing.pricingHistory')}</DialogTitle>
                   <DialogDescription>
-                    Recent changes to product pricing
+                    {t('admin.productInfo.pricing.recentChanges')}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -187,32 +268,32 @@ export function EnhancedPricingSection({
                         </p>
                       </div>
                       <Badge variant={entry.type === 'bulk_discount' ? 'secondary' : 'outline'}>
-                        {entry.type === 'bulk_discount' ? 'Bulk Update' : 'Price Update'}
+                        {entry.type === 'bulk_discount' ? t('admin.productInfo.pricing.bulkUpdate') : t('admin.productInfo.pricing.priceUpdate')}
                       </Badge>
                     </div>
                   ))}
                 </div>
               </DialogContent>
             </Dialog>
-            
+
             {isEditMode && (
               <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" aria-label="Bulk pricing operations">
+                  <Button variant="outline" size="sm" aria-label={t('admin.productInfo.pricing.bulkOperationsAria')}>
                     <Calculator className="h-4 w-4 mr-2" />
-                    Bulk Update
+                    {t('admin.productInfo.pricing.bulkUpdate')}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
-                    <DialogTitle>Bulk Pricing Update</DialogTitle>
+                    <DialogTitle>{t('admin.productInfo.pricing.bulkPricingUpdate')}</DialogTitle>
                     <DialogDescription>
-                      Apply bulk changes to all pricing categories
+                      {t('admin.productInfo.pricing.applyBulkChanges')}
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleSubmit(handleBulkUpdate)} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="bulkDiscountPercentage">Bulk Discount Percentage</Label>
+                      <Label htmlFor="bulkDiscountPercentage">{t('admin.productInfo.pricing.bulkDiscountPercentage')}</Label>
                       <Controller
                         name="bulkDiscountPercentage"
                         control={control}
@@ -235,7 +316,7 @@ export function EnhancedPricingSection({
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        Enter a percentage to apply a discount to all prices
+                        {t('admin.productInfo.pricing.bulkDiscountHelp')}
                       </p>
                     </div>
                     <div className="flex justify-end gap-2">
@@ -244,10 +325,10 @@ export function EnhancedPricingSection({
                         variant="outline"
                         onClick={() => setShowBulkDialog(false)}
                       >
-                        Cancel
+                        {t('common.actions.cancel')}
                       </Button>
                       <Button type="submit" disabled={!isValid}>
-                        Apply Bulk Update
+                        {t('admin.productInfo.pricing.applyBulkUpdate')}
                       </Button>
                     </div>
                   </form>
@@ -264,8 +345,8 @@ export function EnhancedPricingSection({
             <div className="space-y-2">
               <Label htmlFor="noUserPrice" className="text-sm font-medium flex items-center gap-2">
                 <Edit3 className="h-3 w-3" />
-                No User Price (Base Price)
-                {isEditMode && <Badge variant="secondary" className="text-xs">Editable</Badge>}
+                {t('admin.productInfo.pricing.noUserPrice')}
+                {isEditMode && <Badge variant="secondary" className="text-xs">{t('common.editable')}</Badge>}
               </Label>
               {isEditMode ? (
                 <Controller
@@ -302,71 +383,30 @@ export function EnhancedPricingSection({
             <div className="space-y-4">
               <Label className="text-sm font-medium flex items-center gap-2">
                 <Edit3 className="h-3 w-3" />
-                Category Prices
-                {isEditMode && <Badge variant="secondary" className="text-xs">Editable</Badge>}
+                {t('admin.productInfo.pricing.categoryPrices')}
+                {isEditMode && <Badge variant="secondary" className="text-xs">{t('common.editable')}</Badge>}
               </Label>
-              
-              {product.categoryPrices.length > 0 ? (
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Current Price</TableHead>
-                        {isEditMode && <TableHead>New Price</TableHead>}
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {product.categoryPrices.slice(0, 3).map((categoryPrice) => (
-                        <TableRow key={categoryPrice.idCategory}>
-                          <TableCell className="font-medium">
-                            {getCategoryName(categoryPrice.idCategory)}
-                          </TableCell>
-                          <TableCell className="font-mono">
-                            {categoryPrice.price} DZ
-                          </TableCell>
-                          {isEditMode && (
-                            <TableCell>
-                              <Controller
-                                name={`categoryPrices.${categoryPrice.idCategory}`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input
-                                    {...field}
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    placeholder="0.00"
-                                    disabled={isSaving}
-                                    className="w-24"
-                                  />
-                                )}
-                              />
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <Badge variant="outline">Active</Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No category pricing configured</p>
-                  <p className="text-xs">Category prices will be added when suppliers are configured</p>
-                </div>
-              )}
+
+              <DataTable
+                columns={columns}
+                data={categoryPriceRows}
+                getRowKey={(categoryPrice) => String(categoryPrice.idCategory)}
+                renderMobileRow={renderMobileRow}
+                emptyState={
+                  <EmptyState
+                    icon={<DollarSign className="h-6 w-6" />}
+                    title={t('admin.productInfo.pricing.noCategoryPricing')}
+                    body={t('admin.productInfo.pricing.noCategoryPricingBody')}
+                  />
+                }
+              />
             </div>
 
             {/* Form validation summary */}
             {isEditMode && !isValid && (
               <Alert variant="destructive">
                 <AlertDescription>
-                  Please fix the pricing errors above before saving.
+                  {t('admin.productInfo.pricing.fixErrorsBeforeSaving')}
                 </AlertDescription>
               </Alert>
             )}
@@ -381,14 +421,14 @@ export function EnhancedPricingSection({
                   disabled={isSaving}
                 >
                   <X className="h-4 w-4 mr-2" />
-                  Reset Changes
+                  {t('admin.productInfo.pricing.resetChanges')}
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSaving || !isValid}
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? 'Saving...' : 'Save Pricing'}
+                  {isSaving ? t('admin.productInfo.pricing.saving') : t('admin.productInfo.pricing.savePricing')}
                 </Button>
               </div>
             )}

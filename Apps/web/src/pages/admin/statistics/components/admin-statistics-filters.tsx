@@ -197,7 +197,7 @@ export const AdminStatisticsFilters: React.FC<AdminStatisticsFiltersProps> = ({
 
             {/* Current Selection Display */}
             <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-              <div className="font-medium">Current Selection:</div>
+              <div className="font-medium">{t('admin.statistics.filters.currentSelection')}:</div>
               <div>{selectedDateRange.label}</div>
               <div className="text-xs mt-1">
                 {format(selectedDateRange.startDate, 'MMM dd, yyyy')} - {format(selectedDateRange.endDate, 'MMM dd, yyyy')}
@@ -222,7 +222,7 @@ export const AdminStatisticsFilters: React.FC<AdminStatisticsFiltersProps> = ({
                       format(customDateRange.from, 'MMM dd, yyyy')
                     )
                   ) : (
-                    <span>Pick a date range</span>
+                    <span>{t('admin.statistics.filters.pickDateRange')}</span>
                   )}
                   <ChevronDown className="ml-auto h-4 w-4 opacity-50" />
                 </Button>
@@ -256,7 +256,7 @@ export const AdminStatisticsFilters: React.FC<AdminStatisticsFiltersProps> = ({
               disabled={loading}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a family" />
+                <SelectValue placeholder={t('admin.statistics.filters.selectFamily')} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">
@@ -272,7 +272,7 @@ export const AdminStatisticsFilters: React.FC<AdminStatisticsFiltersProps> = ({
 
             {/* Current Family Selection Display */}
             <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-              <div className="font-medium">Current Selection:</div>
+              <div className="font-medium">{t('admin.statistics.filters.currentSelection')}:</div>
               <div>{getFamilyName(selectedFamily)}</div>
             </div>
           </div>
@@ -281,7 +281,7 @@ export const AdminStatisticsFilters: React.FC<AdminStatisticsFiltersProps> = ({
         {/* Filter Summary */}
         {hasActiveFilters && (
           <div className="mt-6 pt-4 border-t">
-            <div className="text-sm font-medium mb-2">Active Filters:</div>
+            <div className="text-sm font-medium mb-2">{t('products.filters.activeFilters')}:</div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />

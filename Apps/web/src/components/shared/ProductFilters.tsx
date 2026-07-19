@@ -131,10 +131,10 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="h-5 w-5 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">Filters</h3>
+          <h3 className="text-lg font-semibold">{t('products.filters.title')}</h3>
           {hasActiveFilters && (
             <Badge variant="secondary" className="ml-2">
-              Active
+              {t('common.status.active')}
             </Badge>
           )}
         </div>
@@ -148,7 +148,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             disabled={isLoading}
           >
             <X className="h-4 w-4" />
-            Clear Filters
+            {t('products.filters.clearAll')}
           </Button>
         )}
       </div>
@@ -162,7 +162,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-10"
           disabled={isLoading}
-          aria-label="Search products"
+          aria-label={t('products.filters.search')}
         />
       </div>
 
@@ -177,7 +177,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             onValueChange={onCategoryChange}
             disabled={isLoading}
           >
-            <SelectTrigger id="category-filter" aria-label="Select category">
+            <SelectTrigger id="category-filter" aria-label={t('products.filters.category')}>
               <SelectValue placeholder={t('products.filters.category')} />
             </SelectTrigger>
             <SelectContent>
@@ -206,7 +206,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             onValueChange={onBrandChange}
             disabled={isLoading}
           >
-            <SelectTrigger id="brand-filter" aria-label="Select brand">
+            <SelectTrigger id="brand-filter" aria-label={t('products.filters.brand')}>
               <SelectValue placeholder={t('products.filters.brand')} />
             </SelectTrigger>
             <SelectContent>
@@ -232,7 +232,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             onValueChange={onModelChange}
             disabled={isLoading || filteredModels.length === 0}
           >
-            <SelectTrigger id="model-filter" aria-label="Select model">
+            <SelectTrigger id="model-filter" aria-label={t('products.filters.model')}>
               <SelectValue placeholder={t('products.filters.model')} />
             </SelectTrigger>
             <SelectContent>
@@ -250,15 +250,15 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
       {/* Active Filters Summary */}
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
-          <span className="text-sm text-muted-foreground">Active filters:</span>
+          <span className="text-sm text-muted-foreground">{t('products.filters.activeFilters')}:</span>
           
           {searchQuery.trim() && (
             <Badge variant="outline" className="flex items-center gap-1">
-              Search: "{searchQuery}"
+              {t('common.labels.search')}: "{searchQuery}"
               <button
                 onClick={() => onSearchChange('')}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label="Remove search filter"
+                aria-label={t('products.filters.removeSearch')}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -267,11 +267,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
           
           {selectedBrand !== 'all' && (
             <Badge variant="outline" className="flex items-center gap-1">
-              Brand: {getBrandName(selectedBrand)}
+              {t('products.filters.brand')}: {getBrandName(selectedBrand)}
               <button
                 onClick={() => onBrandChange('all')}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label="Remove brand filter"
+                aria-label={t('products.filters.removeBrand')}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -280,11 +280,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
           
           {selectedCategory !== 'all' && (
             <Badge variant="outline" className="flex items-center gap-1">
-              Category: {getCategoryName(selectedCategory)}
+              {t('products.filters.category')}: {getCategoryName(selectedCategory)}
               <button
                 onClick={() => onCategoryChange('all')}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label="Remove category filter"
+                aria-label={t('products.filters.removeCategory')}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -293,11 +293,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
           
           {selectedModel !== 'all' && (
             <Badge variant="outline" className="flex items-center gap-1">
-              Model: {getModelName(selectedModel)}
+              {t('products.filters.model')}: {getModelName(selectedModel)}
               <button
                 onClick={() => onModelChange('all')}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label="Remove model filter"
+                aria-label={t('products.filters.removeModel')}
               >
                 <X className="h-3 w-3" />
               </button>

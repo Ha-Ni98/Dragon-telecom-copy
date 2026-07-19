@@ -154,7 +154,7 @@ export function SupplierDetailsSection({
               variant="outline"
               size="sm"
               className="gap-2"
-              aria-label="Edit supplier details"
+              aria-label={t('admin.suppliers.editDetailsAria')}
             >
               <Edit3 className="h-4 w-4" aria-hidden="true" />
               {t('common.edit')}
@@ -164,7 +164,7 @@ export function SupplierDetailsSection({
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" role="form" aria-label="Supplier details form">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" role="form" aria-label={t("admin.suppliers.detailsFormAria")}>
             {/* Supplier Name */}
             <FormField
               control={form.control}

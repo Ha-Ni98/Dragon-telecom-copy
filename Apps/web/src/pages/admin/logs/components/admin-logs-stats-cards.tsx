@@ -3,19 +3,20 @@
  * Displays key metrics and statistics for system logs
  */
 
-import React, { memo, useCallback } from 'react';
+import { memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { 
-  FileText, 
-  RefreshCw, 
-  AlertTriangle, 
+import {
+  FileText,
+  RefreshCw,
+  AlertTriangle,
   Calendar,
   TrendingUp,
   Activity
 } from 'lucide-react';
+import { StatCard } from '@/components/shared/StatCard';
+import { StatCardSkeleton } from '@/components/shared/StatCardSkeleton';
 import { AdminLogsStats } from '@/types/draft-types/logs.types';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -43,92 +44,11 @@ interface AdminLogsStatsCardsProps {
  * Statistics card configuration
  */
 const statsConfig = [
-  {
-    key: 'totalLogs',
-    title: 'Total Logs',
-    description: 'All system logs',
-    icon: FileText,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-  },
-  {
-    key: 'logsToday',
-    title: 'Today',
-    description: 'Logs created today',
-    icon: Calendar,
-    color: 'text-green-600',
-    bgColor: 'bg-green-50',
-  },
-  {
-    key: 'logsThisWeek',
-    title: 'This Week',
-    description: 'Logs created this week',
-    icon: TrendingUp,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-  },
-  {
-    key: 'logsThisMonth',
-    title: 'This Month',
-    description: 'Logs created this month',
-    icon: Activity,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-50',
-  },
+  { key: 'totalLogs' as keyof AdminLogsStats, icon: FileText },
+  { key: 'logsToday' as keyof AdminLogsStats, icon: Calendar },
+  { key: 'logsThisWeek' as keyof AdminLogsStats, icon: TrendingUp },
+  { key: 'logsThisMonth' as keyof AdminLogsStats, icon: Activity },
 ];
-
-/**
- * Loading skeleton for statistics cards
- */
-function StatCardSkeleton() {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-4" />
-      </CardHeader>
-      <CardContent>
-        <Skeleton className="h-8 w-16 mb-1" />
-        <Skeleton className="h-3 w-32" />
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Individual statistics card component
- */
-function StatCard({ 
-  config, 
-  stats, 
-  t 
-}: { 
-  config: typeof statsConfig[0]; 
-  stats: AdminLogsStats; 
-  t: (key: string) => string;
-}) {
-  const Icon = config.icon;
-  const value = stats[config.key as keyof AdminLogsStats];
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">
-          {t(`admin.logs.stats.${config.key}.title`)}
-        </CardTitle>
-        <div className={`p-2 rounded-full ${config.bgColor}`}>
-          <Icon className={`h-4 w-4 ${config.color}`} />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value.toLocaleString()}</div>
-        <p className="text-xs text-muted-foreground">
-          {t(`admin.logs.stats.${config.key}.description`)}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
 
 /**
  * Error state component
@@ -189,8 +109,8 @@ export const AdminLogsStatsCards = memo(function AdminLogsStatsCards({
   if (loading) {
     return (
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 ${className}`}>
-        {statsConfig.map((_, index) => (
-          <StatCardSkeleton key={index} />
+        {statsConfig.map((config) => (
+          <StatCardSkeleton key={config.key} />
         ))}
       </div>
     );
@@ -259,14 +179,23 @@ export const AdminLogsStatsCards = memo(function AdminLogsStatsCards({
 
       {/* Statistics Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsConfig.map((config) => (
-          <StatCard
-            key={config.key}
-            config={config}
-            stats={stats}
-            t={t}
-          />
-        ))}
+        {statsConfig.map((config) => {
+          const Icon = config.icon;
+          const value = stats[config.key];
+          return (
+            <StatCard
+              key={config.key}
+              icon={<Icon className="h-5 w-5" />}
+              label={t(`admin.logs.stats.${config.key}.title`)}
+              value={value.toLocaleString()}
+              trend={
+                <span className="text-xs text-muted-foreground">
+                  {t(`admin.logs.stats.${config.key}.description`)}
+                </span>
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );

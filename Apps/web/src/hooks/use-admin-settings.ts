@@ -5,6 +5,7 @@
 
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useTranslation } from '@/hooks/useTranslation';
 import { AdminSettingsService } from '@/lib/services/admin-settings.service';
 import {
   AdminAccountWithDetails,
@@ -64,6 +65,7 @@ export function useAdminAccounts(
  */
 export function useCreateAdminAccount() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (data: AdminAccountFormData) => AdminSettingsService.createAdminAccount(data),
@@ -72,19 +74,19 @@ export function useCreateAdminAccount() {
         // Invalidate and refetch admin accounts
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.adminAccounts() });
         
-        toast.success('Admin account created successfully', {
-          description: `Account "${response.data?.userName}" has been created.`
+        toast.success(t('common.crud.createSuccess', { entity: t('admin.settings.entities.adminAccount') }), {
+          description: t('common.crud.namedCreatedBody', { item: t('common.nouns.account'), name: response.data?.userName ?? '' })
         });
       } else {
-        toast.error('Failed to create admin account', {
-          description: response.message || 'An error occurred while creating the account.'
+        toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.adminAccount') }), {
+          description: response.message || t('common.crud.createErrorBody', { item: t('common.nouns.account') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error creating admin account:', error);
-      toast.error('Failed to create admin account', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.adminAccount') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -95,6 +97,7 @@ export function useCreateAdminAccount() {
  */
 export function useUpdateAdminAccount() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: AdminAccountFormData }) => 
@@ -104,19 +107,19 @@ export function useUpdateAdminAccount() {
         // Invalidate and refetch admin accounts
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.adminAccounts() });
         
-        toast.success('Admin account updated successfully', {
-          description: `Account "${response.data?.userName}" has been updated.`
+        toast.success(t('common.crud.updateSuccess', { entity: t('admin.settings.entities.adminAccount') }), {
+          description: t('common.crud.namedUpdatedBody', { item: t('common.nouns.account'), name: response.data?.userName ?? '' })
         });
       } else {
-        toast.error('Failed to update admin account', {
-          description: response.message || 'An error occurred while updating the account.'
+        toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.adminAccount') }), {
+          description: response.message || t('common.crud.updateErrorBody', { item: t('common.nouns.account') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error updating admin account:', error);
-      toast.error('Failed to update admin account', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.adminAccount') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -127,6 +130,7 @@ export function useUpdateAdminAccount() {
  */
 export function useDeleteAdminAccount() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (id: number) => AdminSettingsService.deleteAdminAccount(id),
@@ -135,19 +139,19 @@ export function useDeleteAdminAccount() {
         // Invalidate and refetch admin accounts
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.adminAccounts() });
         
-        toast.success('Admin account deleted successfully', {
-          description: 'The admin account has been removed.'
+        toast.success(t('common.crud.deleteSuccess', { entity: t('admin.settings.entities.adminAccount') }), {
+          description: t('common.crud.deletedBody', { item: t('common.nouns.account') })
         });
       } else {
-        toast.error('Failed to delete admin account', {
-          description: response.message || 'An error occurred while deleting the account.'
+        toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.adminAccount') }), {
+          description: response.message || t('common.crud.deleteErrorBody', { item: t('common.nouns.account') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error deleting admin account:', error);
-      toast.error('Failed to delete admin account', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.adminAccount') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -180,6 +184,7 @@ export function useClientCategories(
  */
 export function useCreateClientCategory() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (data: ClientCategoryFormData) => AdminSettingsService.createClientCategory(data),
@@ -188,19 +193,19 @@ export function useCreateClientCategory() {
         // Invalidate and refetch client categories
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.clientCategories() });
         
-        toast.success('Client category created successfully', {
-          description: `Category "${response.data?.categoryName}" has been created.`
+        toast.success(t('common.crud.createSuccess', { entity: t('admin.settings.entities.clientCategory') }), {
+          description: t('common.crud.namedCreatedBody', { item: t('common.nouns.category'), name: response.data?.categoryName ?? '' })
         });
       } else {
-        toast.error('Failed to create client category', {
-          description: response.message || 'An error occurred while creating the category.'
+        toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.clientCategory') }), {
+          description: response.message || t('common.crud.createErrorBody', { item: t('common.nouns.category') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error creating client category:', error);
-      toast.error('Failed to create client category', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.clientCategory') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -211,6 +216,7 @@ export function useCreateClientCategory() {
  */
 export function useUpdateClientCategory() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: ClientCategoryFormData }) => 
@@ -220,19 +226,19 @@ export function useUpdateClientCategory() {
         // Invalidate and refetch client categories
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.clientCategories() });
         
-        toast.success('Client category updated successfully', {
-          description: `Category "${response.data?.categoryName}" has been updated.`
+        toast.success(t('common.crud.updateSuccess', { entity: t('admin.settings.entities.clientCategory') }), {
+          description: t('common.crud.namedUpdatedBody', { item: t('common.nouns.category'), name: response.data?.categoryName ?? '' })
         });
       } else {
-        toast.error('Failed to update client category', {
-          description: response.message || 'An error occurred while updating the category.'
+        toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.clientCategory') }), {
+          description: response.message || t('common.crud.updateErrorBody', { item: t('common.nouns.category') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error updating client category:', error);
-      toast.error('Failed to update client category', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.clientCategory') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -243,6 +249,7 @@ export function useUpdateClientCategory() {
  */
 export function useDeleteClientCategory() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (id: number) => AdminSettingsService.deleteClientCategory(id),
@@ -251,19 +258,19 @@ export function useDeleteClientCategory() {
         // Invalidate and refetch client categories
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.clientCategories() });
         
-        toast.success('Client category deleted successfully', {
-          description: 'The client category has been removed.'
+        toast.success(t('common.crud.deleteSuccess', { entity: t('admin.settings.entities.clientCategory') }), {
+          description: t('common.crud.deletedBody', { item: t('common.nouns.category') })
         });
       } else {
-        toast.error('Failed to delete client category', {
-          description: response.message || 'An error occurred while deleting the category.'
+        toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.clientCategory') }), {
+          description: response.message || t('common.crud.deleteErrorBody', { item: t('common.nouns.category') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error deleting client category:', error);
-      toast.error('Failed to delete client category', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.clientCategory') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -296,6 +303,7 @@ export function useFamilies(
  */
 export function useCreateFamily() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (data: FamilyFormData) => AdminSettingsService.createFamily(data),
@@ -304,19 +312,19 @@ export function useCreateFamily() {
         // Invalidate and refetch families
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.families() });
         
-        toast.success('Product family created successfully', {
-          description: `Family "${response.data?.familyName}" has been created.`
+        toast.success(t('common.crud.createSuccess', { entity: t('admin.settings.entities.productFamily') }), {
+          description: t('common.crud.namedCreatedBody', { item: t('common.nouns.family'), name: response.data?.familyName ?? '' })
         });
       } else {
-        toast.error('Failed to create product family', {
-          description: response.message || 'An error occurred while creating the family.'
+        toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.productFamily') }), {
+          description: response.message || t('common.crud.createErrorBody', { item: t('common.nouns.family') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error creating product family:', error);
-      toast.error('Failed to create product family', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.productFamily') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -327,6 +335,7 @@ export function useCreateFamily() {
  */
 export function useUpdateFamily() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: FamilyFormData }) => 
@@ -336,19 +345,19 @@ export function useUpdateFamily() {
         // Invalidate and refetch families
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.families() });
         
-        toast.success('Product family updated successfully', {
-          description: `Family "${response.data?.familyName}" has been updated.`
+        toast.success(t('common.crud.updateSuccess', { entity: t('admin.settings.entities.productFamily') }), {
+          description: t('common.crud.namedUpdatedBody', { item: t('common.nouns.family'), name: response.data?.familyName ?? '' })
         });
       } else {
-        toast.error('Failed to update product family', {
-          description: response.message || 'An error occurred while updating the family.'
+        toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.productFamily') }), {
+          description: response.message || t('common.crud.updateErrorBody', { item: t('common.nouns.family') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error updating product family:', error);
-      toast.error('Failed to update product family', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.productFamily') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -359,6 +368,7 @@ export function useUpdateFamily() {
  */
 export function useDeleteFamily() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (id: number) => AdminSettingsService.deleteFamily(id),
@@ -367,19 +377,19 @@ export function useDeleteFamily() {
         // Invalidate and refetch families
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.families() });
         
-        toast.success('Product family deleted successfully', {
-          description: 'The product family has been removed.'
+        toast.success(t('common.crud.deleteSuccess', { entity: t('admin.settings.entities.productFamily') }), {
+          description: t('common.crud.deletedBody', { item: t('common.nouns.family') })
         });
       } else {
-        toast.error('Failed to delete product family', {
-          description: response.message || 'An error occurred while deleting the family.'
+        toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.productFamily') }), {
+          description: response.message || t('common.crud.deleteErrorBody', { item: t('common.nouns.family') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error deleting product family:', error);
-      toast.error('Failed to delete product family', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.productFamily') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -408,6 +418,7 @@ export function useBrands(
  */
 export function useCreateBrand() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (data: BrandFormData) => AdminSettingsService.createBrand(data),
@@ -416,19 +427,19 @@ export function useCreateBrand() {
         // Invalidate and refetch brands
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.brands() });
         
-        toast.success('Product brand created successfully', {
-          description: `Brand "${response.data?.brandName}" has been created.`
+        toast.success(t('common.crud.createSuccess', { entity: t('admin.settings.entities.productBrand') }), {
+          description: t('common.crud.namedCreatedBody', { item: t('common.nouns.brand'), name: response.data?.brandName ?? '' })
         });
       } else {
-        toast.error('Failed to create product brand', {
-          description: response.message || 'An error occurred while creating the brand.'
+        toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.productBrand') }), {
+          description: response.message || t('common.crud.createErrorBody', { item: t('common.nouns.brand') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error creating product brand:', error);
-      toast.error('Failed to create product brand', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.productBrand') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -439,6 +450,7 @@ export function useCreateBrand() {
  */
 export function useUpdateBrand() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: BrandFormData }) => 
@@ -448,19 +460,19 @@ export function useUpdateBrand() {
         // Invalidate and refetch brands
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.brands() });
         
-        toast.success('Product brand updated successfully', {
-          description: `Brand "${response.data?.brandName}" has been updated.`
+        toast.success(t('common.crud.updateSuccess', { entity: t('admin.settings.entities.productBrand') }), {
+          description: t('common.crud.namedUpdatedBody', { item: t('common.nouns.brand'), name: response.data?.brandName ?? '' })
         });
       } else {
-        toast.error('Failed to update product brand', {
-          description: response.message || 'An error occurred while updating the brand.'
+        toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.productBrand') }), {
+          description: response.message || t('common.crud.updateErrorBody', { item: t('common.nouns.brand') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error updating product brand:', error);
-      toast.error('Failed to update product brand', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.productBrand') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -471,6 +483,7 @@ export function useUpdateBrand() {
  */
 export function useDeleteBrand() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (id: number) => AdminSettingsService.deleteBrand(id),
@@ -479,19 +492,19 @@ export function useDeleteBrand() {
         // Invalidate and refetch brands
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.brands() });
         
-        toast.success('Product brand deleted successfully', {
-          description: 'The product brand has been removed.'
+        toast.success(t('common.crud.deleteSuccess', { entity: t('admin.settings.entities.productBrand') }), {
+          description: t('common.crud.deletedBody', { item: t('common.nouns.brand') })
         });
       } else {
-        toast.error('Failed to delete product brand', {
-          description: response.message || 'An error occurred while deleting the brand.'
+        toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.productBrand') }), {
+          description: response.message || t('common.crud.deleteErrorBody', { item: t('common.nouns.brand') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error deleting product brand:', error);
-      toast.error('Failed to delete product brand', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.productBrand') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -520,6 +533,7 @@ export function useModels(
  */
 export function useCreateModel() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (data: ModelFormData) => AdminSettingsService.createModel(data),
@@ -528,19 +542,19 @@ export function useCreateModel() {
         // Invalidate and refetch models
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.models() });
         
-        toast.success('Product model created successfully', {
-          description: `Model "${response.data?.modelName}" has been created.`
+        toast.success(t('common.crud.createSuccess', { entity: t('admin.settings.entities.productModel') }), {
+          description: t('common.crud.namedCreatedBody', { item: t('common.nouns.model'), name: response.data?.modelName ?? '' })
         });
       } else {
-        toast.error('Failed to create product model', {
-          description: response.message || 'An error occurred while creating the model.'
+        toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.productModel') }), {
+          description: response.message || t('common.crud.createErrorBody', { item: t('common.nouns.model') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error creating product model:', error);
-      toast.error('Failed to create product model', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.productModel') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -551,6 +565,7 @@ export function useCreateModel() {
  */
 export function useUpdateModel() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: ModelFormData }) => 
@@ -560,19 +575,19 @@ export function useUpdateModel() {
         // Invalidate and refetch models
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.models() });
         
-        toast.success('Product model updated successfully', {
-          description: `Model "${response.data?.modelName}" has been updated.`
+        toast.success(t('common.crud.updateSuccess', { entity: t('admin.settings.entities.productModel') }), {
+          description: t('common.crud.namedUpdatedBody', { item: t('common.nouns.model'), name: response.data?.modelName ?? '' })
         });
       } else {
-        toast.error('Failed to update product model', {
-          description: response.message || 'An error occurred while updating the model.'
+        toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.productModel') }), {
+          description: response.message || t('common.crud.updateErrorBody', { item: t('common.nouns.model') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error updating product model:', error);
-      toast.error('Failed to update product model', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.updateError', { entity: t('admin.settings.entities.productModel') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -583,6 +598,7 @@ export function useUpdateModel() {
  */
 export function useDeleteModel() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (id: number) => AdminSettingsService.deleteModel(id),
@@ -591,19 +607,19 @@ export function useDeleteModel() {
         // Invalidate and refetch models
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.models() });
         
-        toast.success('Product model deleted successfully', {
-          description: 'The product model has been removed.'
+        toast.success(t('common.crud.deleteSuccess', { entity: t('admin.settings.entities.productModel') }), {
+          description: t('common.crud.deletedBody', { item: t('common.nouns.model') })
         });
       } else {
-        toast.error('Failed to delete product model', {
-          description: response.message || 'An error occurred while deleting the model.'
+        toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.productModel') }), {
+          description: response.message || t('common.crud.deleteErrorBody', { item: t('common.nouns.model') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error deleting product model:', error);
-      toast.error('Failed to delete product model', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.deleteError', { entity: t('admin.settings.entities.productModel') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -636,6 +652,7 @@ export function useDeliveryFees(
  */
 export function useImportDeliveryFees() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
     mutationFn: (file: File) => AdminSettingsService.importDeliveryFees(file),
@@ -644,19 +661,19 @@ export function useImportDeliveryFees() {
         // Invalidate and refetch delivery fees
         queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.deliveryFees() });
         
-        toast.success('Delivery fees imported successfully', {
-          description: response.message || `Successfully imported ${response.data?.length || 0} entries.`
+        toast.success(t('common.crud.createSuccess', { entity: t('admin.settings.entities.deliveryFees') }), {
+          description: response.message || t('admin.settings.delivery.importedBody', { count: response.data?.length || 0 })
         });
       } else {
-        toast.error('Failed to import delivery fees', {
-          description: response.message || 'An error occurred while importing the file.'
+        toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.deliveryFees') }), {
+          description: response.message || t('common.crud.createErrorBody', { item: t('common.nouns.file') })
         });
       }
     },
     onError: (error: Error) => {
       console.error('Error importing delivery fees:', error);
-      toast.error('Failed to import delivery fees', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.deliveryFees') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -666,17 +683,19 @@ export function useImportDeliveryFees() {
  * Hook to export delivery fees to Excel file
  */
 export function useExportDeliveryFees() {
+  const { t } = useTranslation();
+
   return useMutation({
     mutationFn: () => AdminSettingsService.exportDeliveryFees(),
     onSuccess: () => {
-      toast.success('Delivery fees exported successfully', {
-        description: 'The Excel file has been generated and downloaded.'
+      toast.success(t('common.crud.createSuccess', { entity: t('admin.settings.entities.deliveryFees') }), {
+        description: t('admin.settings.delivery.exportedBody')
       });
     },
     onError: (error: Error) => {
       console.error('Error exporting delivery fees:', error);
-      toast.error('Failed to export delivery fees', {
-        description: 'An unexpected error occurred. Please try again.'
+      toast.error(t('common.crud.createError', { entity: t('admin.settings.entities.deliveryFees') }), {
+        description: t('common.crud.unexpectedErrorBody')
       });
     },
   });
@@ -691,6 +710,7 @@ export function useExportDeliveryFees() {
  */
 export function useRefreshAdminSettings() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return () => {
     queryClient.invalidateQueries({ queryKey: adminSettingsQueryKeys.all });

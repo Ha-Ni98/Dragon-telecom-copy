@@ -164,9 +164,9 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   const renderError = () => (
     <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
       <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-      <h3 className="text-lg font-semibold mb-2">Error Loading Products</h3>
+      <h3 className="text-lg font-semibold mb-2">{t('products.errorLoading')}</h3>
       <p className="text-muted-foreground mb-4">
-        {error || 'Something went wrong while loading the products.'}
+        {error || t('products.errorLoadingBody')}
       </p>
       <Button 
         variant="outline" 
@@ -174,7 +174,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
         className="flex items-center gap-2"
       >
         <AlertCircle className="h-4 w-4" />
-        Try Again
+        {t('common.actions.tryAgain')}
       </Button>
     </div>
   );
@@ -185,7 +185,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   const renderEmpty = () => (
     <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
       <Package className="h-12 w-12 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-semibold mb-2">No Products Found</h3>
+      <h3 className="text-lg font-semibold mb-2">{t('products.noProductsFound')}</h3>
       <p className="text-muted-foreground mb-4">
         {t('products.results.none')}
       </p>

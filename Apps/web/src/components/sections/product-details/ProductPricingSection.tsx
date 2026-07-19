@@ -70,13 +70,13 @@ export const ProductPricingSection = memo(function ProductPricingSection({
   // Handle add to cart
   const handleAddToCart = async () => {
     if (!authStatus) {
-      toast.error('Please sign in to add items to cart');
+      toast.error(t('cart.signInRequired'));
       //navigate('/login');
       return;
     }
 
     if (!product.inStock) {
-      toast.error('Product is out of stock');
+      toast.error(t('cart.outOfStock'));
       return;
     }
 
@@ -91,7 +91,7 @@ export const ProductPricingSection = memo(function ProductPricingSection({
         removeFromCart(product.idProduct);
       }
     } catch (error) {
-      toast.error('Failed to add product to cart');
+      toast.error(t('cart.addError'));
       console.error('Add to cart error:', error);
     } finally {
       setIsAddingToCart(false);

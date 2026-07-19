@@ -204,10 +204,10 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Modify Client Information
+            {t('admin.clients.modifyDialog.title')}
           </DialogTitle>
           <DialogDescription>
-            Update the client's status, credit, and account information.
+            {t('admin.clients.modifyDialog.subtitle')}
           </DialogDescription>
         </DialogHeader>
 
@@ -215,50 +215,50 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
           {/* Client Information Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Client Details</CardTitle>
-              <CardDescription>Current client information</CardDescription>
+              <CardTitle className="text-lg">{t('admin.clients.modifyDialog.clientDetails')}</CardTitle>
+              <CardDescription>{t('admin.clients.modifyDialog.currentInfo')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Client Name</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">{t('admin.clients.modifyDialog.clientName')}</Label>
                   <div className="flex items-center gap-2">
                     <User className="h-3 w-3" />
                     <span className="text-sm font-medium">{client.fullName}</span>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Current Status</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">{t('admin.clients.modifyDialog.currentStatus')}</Label>
                   <div className="flex items-center gap-2">
                     <UserCheck className="h-3 w-3" />
                     <span className="text-sm">{client.displayStatus}</span>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Phone</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">{t('common.labels.phone')}</Label>
                   <span className="text-sm">{client.clientPhoneNumber}</span>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Email</Label>
-                  <span className="text-sm">{client.clientEmail || 'Not provided'}</span>
+                  <Label className="text-xs font-medium text-muted-foreground">{t('common.labels.email')}</Label>
+                  <span className="text-sm">{client.clientEmail || t('common.labels.notProvided')}</span>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Total Spent</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">{t('admin.clients.modifyDialog.totalSpent')}</Label>
                   <div className="flex items-center gap-2">
                     <CreditCard className="h-3 w-3" />
                     <span className="text-sm font-semibold">{formatCurrency(client.totalSpent)}</span>
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Total Orders</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">{t('admin.clients.modifyDialog.totalOrders')}</Label>
                   <span className="text-sm font-semibold">{client.totalOrders}</span>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Current Category</Label>
-                  <span className="text-sm">{CATEGORY_OPTIONS.find(cat => cat.value === client.idCategory)?.label || 'Not assigned'}</span>
+                  <Label className="text-xs font-medium text-muted-foreground">{t('admin.clients.modifyDialog.currentCategory')}</Label>
+                  <span className="text-sm">{CATEGORY_OPTIONS.find(cat => cat.value === client.idCategory)?.label || t('common.labels.notAssigned')}</span>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-muted-foreground">Created Date</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">{t('common.labels.createdDate')}</Label>
                   <span className="text-sm">{new Date(client.clientCreatedDate).toLocaleDateString()}</span>
                 </div>
               </div>
@@ -278,7 +278,7 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
                   render={({ field }) => (
                     <Select value={field.value.toString()} onValueChange={(value) => field.onChange(parseInt(value))}>
                       <SelectTrigger id="status">
-                        <SelectValue placeholder="Select status..." />
+                        <SelectValue placeholder={t('admin.clients.modifyDialog.selectStatus')} />
                       </SelectTrigger>
                       <SelectContent>
                         {STATUS_OPTIONS.map((option) => {
@@ -343,7 +343,7 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
                   render={({ field }) => (
                     <Select value={field.value?.toString() || ''} onValueChange={(value) => field.onChange(parseInt(value))}>
                       <SelectTrigger id="categoryId">
-                        <SelectValue placeholder="Select category..." />
+                        <SelectValue placeholder={t('admin.clients.modifyDialog.selectCategory')} />
                       </SelectTrigger>
                       <SelectContent>
                         {CATEGORY_OPTIONS.map((option) => (
@@ -380,7 +380,7 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
                     <Input
                       {...field}
                       id="username"
-                      placeholder="Enter username"
+                      placeholder={t('admin.settings.accounts.usernamePlaceholder')}
                     />
                   )}
                 />
@@ -414,7 +414,7 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
                           {...field}
                           id="password"
                           type="password"
-                          placeholder="Enter password"
+                          placeholder={t('admin.settings.accounts.passwordPlaceholder')}
                         />
                       )}
                     />
@@ -424,7 +424,7 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                    <Label htmlFor="confirmPassword">{t('admin.settings.accounts.confirmPassword')} *</Label>
                     <Controller
                       name="confirmPassword"
                       control={control}
@@ -433,7 +433,7 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
                           {...field}
                           id="confirmPassword"
                           type="password"
-                          placeholder="Confirm password"
+                          placeholder={t('admin.settings.accounts.confirmPasswordPlaceholder')}
                         />
                       )}
                     />
@@ -476,7 +476,7 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Label htmlFor="confirmPassword">{t('admin.clients.modifyDialog.confirmNewPassword')}</Label>
                     <Controller
                       name="confirmPassword"
                       control={control}
@@ -485,7 +485,7 @@ export const AdminClientModifyDialog = memo(function AdminClientModifyDialog({
                           {...field}
                           id="confirmPassword"
                           type="password"
-                          placeholder="Confirm new password"
+                          placeholder={t('account.confirmPasswordPlaceholder')}
                         />
                       )}
                     />

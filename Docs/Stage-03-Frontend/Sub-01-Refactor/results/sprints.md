@@ -140,7 +140,7 @@
 
 ---
 
-### Sprint 2: UI Standardization & i18n — Status: ⬜ Pending
+### Sprint 2: UI Standardization & i18n — Status: ✅ Done (2026-07-19)
 
 **Goals**
 - Every ported view uses `Apps/web`'s shared components + `ui` primitives; all text flows through
@@ -148,31 +148,82 @@
   Dragon-Telecom identity; **no inline strings**.
 
 **Tasks**
-- [ ] Repoint ported UI to the shared layer: tables → `DataTable`, cards → `StatCard`(+skeleton),
+- [x] Repoint ported UI to the shared layer: tables → `DataTable`, cards → `StatCard`(+skeleton),
       pagination → `SimplePagination`, empty/error → `EmptyState`/`NotFoundState`, skeletons →
       `TableSkeleton`/`StatCardSkeleton`, toggles → shared `ThemeToggle`/`LanguageToggle`,
       headers → `PageHeader`. Rewrite MVP table column defs to `ColumnDef` (data via props, no
       fetching). (#duplicate #shared-component)
-- [ ] Convert `translations.json` values `[en,fr]` → `{ en, fr, ar: "" }` for all ~1500 keys;
+- [x] Convert `translations.json` values `[en,fr]` → `{ en, fr, ar: "" }` for all ~1500 keys;
       **merge into** `Apps/web/src/config/translations.json`, reusing existing `common.*`/`auth.*`/
       `admin.*` keys; rename divergent keys to `<scope>.<feature>.<element>`. (#inline-string)
-- [ ] Swap every `useLanguage().t` → `useTranslation()`; non-component call sites → `translate()`.
-- [ ] Replace residual inline strings (toast descriptions, `admin-sidebar` titles, raw JSX text)
+- [x] Swap every `useLanguage().t` → `useTranslation()`; non-component call sites → `translate()`.
+      (done in Sprint 1 alongside the file moves.)
+- [x] Replace residual inline strings (toast descriptions, `admin-sidebar` titles, raw JSX text)
       with keys; extend `config/nav-links.ts` to the 8 admin sections. (#inline-string)
-- [ ] Re-skin `index.css` **OKLCH** tokens to the MVP blue/cyan palette; port hero-gradient /
+- [x] Re-skin `index.css` **OKLCH** tokens to the MVP blue/cyan palette; port hero-gradient /
       product-card-hover utilities + brand assets. Keep the OKLCH structure, semantic names, and
       `components.json` `rtl:false`. (#layout)
-- [ ] Mount a **single** `sonner@2` `<Toaster>`; remove the double-toaster and any `sonner@1` usage.
+- [x] Mount a **single** `sonner@2` `<Toaster>`; remove the double-toaster and any `sonner@1` usage.
+      (confirmed already correct from Sprint 1 — one `<Toaster/>` in `App.tsx`, no `sonner@1` left.)
 
 **Validation**
-- [ ] `tsc --noEmit` clean and `npm run build` succeeds; UI renders with the correct theme.
-- [ ] No inline strings in JSX; grep for `useLanguage` is clean; EN/FR toggle re-renders text;
-      every key has an `ar: ""`.
-- [ ] Committed on green.
+- [x] `tsc --noEmit` clean and `npm run build` succeeds; UI renders with the correct theme (verified
+      via headless-Chrome screenshots of `/` and `/login` — themed correctly, no layout breakage;
+      `/` still shows the template placeholder home since routing/wiring is Sprint 3).
+- [x] No inline strings in JSX (final re-scan: only 2 dead/commented-out JSX blocks and 1 legitimate
+      language endonym — `LanguageToggle`'s "English"/"Français" — remain, both accepted); grep for
+      `useLanguage` is clean; EN/FR toggle re-renders text; every key has an `ar: ""`.
+- [x] Committed on green.
 
-**Risks**
-- Key renames can orphan references → grep all `t('…')` keys after the merge.
-- Shared `DataTable`/`StatCard` APIs differ from MVP components → column/prop rewrites needed.
+**Risks (materialized / resolved)**
+- Key renames did not orphan references — new keys were additive, no existing key was renamed.
+- Shared `DataTable`/`StatCard` APIs differ from MVP components → column/prop rewrites needed, done
+  for all 16 tables and 8 stat-card grids (see Deviations).
+
+**Deviations from the plan (discovered during execution):**
+1. **16 raw-`<Table>` admin components converted to `DataTable`**, not just the ones flagged in the
+   codebase map: `admin-clients-table`, `admin-orders-table`, `admin-products-table`,
+   `admin-suppliers-table`, `admin-logs-table`, `recent-clients-table`, `recent-orders-table`,
+   `product-suppliers-table`, `supplier-invoices-table`, `supplier-product-history-table`,
+   `admin-accounts-section`, `client-categories-section`, `delivery-fees-section`,
+   `pricing-history-section`, `enhanced-pricing-section`. Each got a `ColumnDef<T>[]` + a hand-built
+   `renderMobileRow` (the MVP originals mostly had *no* separate mobile layout — mobile card markup
+   was authored fresh per table, following the pattern of the ones that already had one) and an
+   `EmptyState`/`TableSkeleton` swap for the bespoke loading/empty markup.
+2. **`product-hierarchy-section.tsx` was mis-flagged as a table** — it imported `Table`/`Badge` but
+   never rendered either (a three-column card+list layout, not a data table); both were genuinely
+   dead imports, removed rather than converted. Same latent-dead-code pattern as Sprint 1's `Pagination`
+   findings — the MVP was never strictly type-checked, so unused imports accumulated silently.
+3. **`DataTable`'s own design contract has no interactive column-header sorting** (documented in its
+   source comment: sorting is a pre-render, frontend concern applied to `data`). Two MVP tables
+   (`supplier-invoices-table`, `supplier-product-history-table`) had client-side sortable column
+   headers (click header → toggle asc/desc). Converted to a `Select` "sort by" + direction-toggle
+   `Button` in the toolbar, feeding the same pre-existing `useMemo`-sorted `data` — behavior
+   preserved, affordance moved off the table header to match the shared component's contract.
+4. **~35 additional missed inline strings surfaced during the table/stat-card conversion**, on top of
+   the sweep already completed for pages/hooks: literal English fallback branches that render
+   *after* the `t()`-covered loading/error/empty states (e.g. `admin-clients-table`'s success-path
+   `CardTitle`/`CardDescription`, `admin-accounts-section`, `client-categories-section`,
+   `product-hierarchy-section`, `delivery-fees-section` — entire sections with **zero** `t()` calls
+   in their main render path), untranslated `aria-label` template strings (`` `Edit client ${name}` ``
+   style, ~15 instances across 5 files), and literal per-row badge text (`'High'/'Medium'/'Low'`
+   trend labels, stock-status strings bypassing the already-existing `admin.products.statusInStock`
+   family). All fixed with new scoped keys (`translations.json` grew from 1778 → 1891 keys this
+   sprint). This confirms the codebase-map's "MVP already uses `t()` extensively" finding from
+   Sprint 1 was true for the *first* render branch of each component but not reliably for
+   later/success branches — worth double-checking success-path branches specifically in any future
+   similar sweep.
+5. **`StatCard`'s `trend?: ReactNode` slot absorbs both real trend indicators and generic subtext** —
+   used literally for admin-dashboard's `↗/↘ {change}%` comparison arrows, and also repurposed for
+   plain descriptive subtext (`admin.products.*` item-count pluralization, `admin.suppliers.*`
+   description lines) where the MVP card had a second line of muted text with no numeric comparison.
+   No shared-component change needed; the slot's `ReactNode` typing already covers both cases.
+6. **Section-level `isError` states were intentionally left on their pre-existing `Alert`/retry-button
+   markup, not migrated to `NotFoundState`** — `NotFoundState`'s own doc comment scopes section-level
+   `isError` adoption to "Sprint 4 on" (once real hooks replace the mock services and error states
+   become reachable); migrating now would be speculative UI for a state Sprint 2 can't yet exercise.
+   `EmptyState` (a true "nothing to show" state, not an error) *was* adopted now for the various
+   `!data` branches, since those are genuinely reachable today.
 
 ---
 

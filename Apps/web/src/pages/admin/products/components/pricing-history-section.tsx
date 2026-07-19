@@ -1,8 +1,8 @@
-import React from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { History, Clock, User, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DataTable } from '@/components/shared/DataTable';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface PricingHistoryEntry {
@@ -121,6 +121,24 @@ export function PricingHistorySection({
   };
 
   /**
+   * Get action label
+   */
+  const getActionLabel = (action: PricingHistoryEntry['action']) => {
+    switch (action) {
+      case 'price_update':
+        return t('admin.products.pricingHistory.actions.priceUpdate');
+      case 'bulk_discount':
+        return t('admin.products.pricingHistory.actions.bulkDiscount');
+      case 'category_add':
+        return t('admin.products.pricingHistory.actions.categoryAdd');
+      case 'category_remove':
+        return t('admin.products.pricingHistory.actions.categoryRemove');
+      default:
+        return action;
+    }
+  };
+
+  /**
    * Get impact icon
    */
   const getImpactIcon = (impact: string) => {
@@ -135,88 +153,138 @@ export function PricingHistorySection({
   };
 
   /**
+   * Get impact label
+   */
+  const getImpactLabel = (impact: PricingHistoryEntry['impact']) => {
+    switch (impact) {
+      case 'increase':
+        return t('admin.products.pricingHistory.impact.increase');
+      case 'decrease':
+        return t('admin.products.pricingHistory.impact.decrease');
+      default:
+        return t('admin.products.pricingHistory.impact.neutral');
+    }
+  };
+
+  /**
    * Get category name by ID
    */
-  const getCategoryName = (categoryId: number) => {
-    return `Category ${categoryId}`;
-  };
+  const getCategoryName = (categoryId: number) => t('admin.products.pricingHistory.categoryLabel', { id: categoryId });
+
+  const columns: ColumnDef<PricingHistoryEntry>[] = [
+    {
+      accessorKey: 'date',
+      header: t('admin.products.pricingHistory.dateTime'),
+      cell: ({ row }) => <span className="font-mono text-sm">{formatDate(row.original.date)}</span>,
+    },
+    {
+      accessorKey: 'user',
+      header: t('admin.products.pricingHistory.user'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4" />
+          {row.original.user}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'action',
+      header: t('admin.products.pricingHistory.action'),
+      cell: ({ row }) => (
+        <Badge variant={getActionBadgeVariant(row.original.action)}>
+          {getActionLabel(row.original.action)}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'description',
+      header: t('admin.products.pricingHistory.description'),
+      cell: ({ row }) => row.original.description,
+    },
+    {
+      id: 'changes',
+      header: t('admin.products.pricingHistory.changes'),
+      cell: ({ row }) => {
+        const entry = row.original;
+        return (
+          <>
+            {entry.changes.categoryId && (
+              <div className="text-sm">
+                <span className="font-medium">{getCategoryName(entry.changes.categoryId)}</span>
+                {entry.changes.oldPrice && entry.changes.newPrice && (
+                  <div className="text-muted-foreground">
+                    {entry.changes.oldPrice} → {entry.changes.newPrice} DZ
+                  </div>
+                )}
+                {entry.changes.discountPercentage && (
+                  <div className="text-muted-foreground">
+                    {t('admin.products.pricingHistory.discountApplied', { percent: entry.changes.discountPercentage })}
+                  </div>
+                )}
+              </div>
+            )}
+            {!entry.changes.categoryId && entry.changes.oldPrice && entry.changes.newPrice && (
+              <div className="text-sm">
+                {t('admin.products.pricingHistory.noUserPrice', { oldPrice: entry.changes.oldPrice, newPrice: entry.changes.newPrice })}
+              </div>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      accessorKey: 'impact',
+      header: t('admin.products.pricingHistory.impact'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          {getImpactIcon(row.original.impact)}
+          <span className="text-sm">{getImpactLabel(row.original.impact)}</span>
+        </div>
+      ),
+    },
+  ];
+
+  const renderMobileRow = (entry: PricingHistoryEntry) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4" />
+          <span className="text-sm font-medium">{entry.user}</span>
+        </div>
+        <Badge variant={getActionBadgeVariant(entry.action)}>{getActionLabel(entry.action)}</Badge>
+      </div>
+      <p className="text-sm">{entry.description}</p>
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span className="font-mono">{formatDate(entry.date)}</span>
+        <div className="flex items-center gap-2">
+          {getImpactIcon(entry.impact)}
+          <span>{getImpactLabel(entry.impact)}</span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2" id="pricing-history-heading">
           <History className="h-5 w-5" aria-hidden="true" />
-          Pricing History
+          {t('admin.products.pricingHistory.title')}
         </CardTitle>
         <CardDescription>
-          Complete history of pricing changes for this product
+          {t('admin.products.pricingHistory.subtitle')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4" role="region" aria-labelledby="pricing-history-heading">
           {showDetailed ? (
             /* Detailed table view */
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Changes</TableHead>
-                    <TableHead>Impact</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pricingHistory.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="font-mono text-sm">
-                        {formatDate(entry.date)}
-                      </TableCell>
-                      <TableCell className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        {entry.user}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getActionBadgeVariant(entry.action)}>
-                          {entry.action.replace('_', ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{entry.description}</TableCell>
-                      <TableCell>
-                        {entry.changes.categoryId && (
-                          <div className="text-sm">
-                            <span className="font-medium">{getCategoryName(entry.changes.categoryId)}</span>
-                            {entry.changes.oldPrice && entry.changes.newPrice && (
-                              <div className="text-muted-foreground">
-                                {entry.changes.oldPrice} → {entry.changes.newPrice} DZ
-                              </div>
-                            )}
-                            {entry.changes.discountPercentage && (
-                              <div className="text-muted-foreground">
-                                -{entry.changes.discountPercentage}% discount
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {!entry.changes.categoryId && entry.changes.oldPrice && entry.changes.newPrice && (
-                          <div className="text-sm">
-                            No User Price: {entry.changes.oldPrice} → {entry.changes.newPrice} DZ
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getImpactIcon(entry.impact)}
-                          <span className="capitalize text-sm">{entry.impact}</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <DataTable
+              columns={columns}
+              data={pricingHistory}
+              getRowKey={(entry) => String(entry.id)}
+              renderMobileRow={renderMobileRow}
+            />
           ) : (
             /* Compact list view */
             <div className="space-y-3">
@@ -235,15 +303,15 @@ export function PricingHistorySection({
                     </div>
                   </div>
                   <Badge variant={getActionBadgeVariant(entry.action)}>
-                    {entry.action.replace('_', ' ')}
+                    {getActionLabel(entry.action)}
                   </Badge>
                 </div>
               ))}
-              
+
               {pricingHistory.length > 5 && (
                 <div className="text-center py-2">
                   <p className="text-sm text-muted-foreground">
-                    Showing 5 of {pricingHistory.length} entries
+                    {t('admin.products.pricingHistory.showingCount', { shown: 5, total: pricingHistory.length })}
                   </p>
                 </div>
               )}

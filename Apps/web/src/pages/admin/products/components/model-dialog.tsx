@@ -154,25 +154,25 @@ export function ModelDialog({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-4 w-4" />
-                  Current Model Information
+                  {t('admin.products.hierarchy.currentModelInfo')}
                 </CardTitle>
                 <CardDescription>
-                  View current model details
+                  {t('admin.clients.categories.viewCurrentDetails')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Model ID</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{t('admin.products.hierarchy.modelId')}</Label>
                     <p className="text-sm">{model.idModel}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Current Family</Label>
-                    <p className="text-sm">{selectedFamily?.familyName || 'Unknown'}</p>
+                    <Label className="text-sm font-medium text-muted-foreground">{t('admin.products.hierarchy.currentFamily')}</Label>
+                    <p className="text-sm">{selectedFamily?.familyName || t('common.unknown')}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Current Brand</Label>
-                    <p className="text-sm">{selectedBrand?.brandName || 'Unknown'}</p>
+                    <Label className="text-sm font-medium text-muted-foreground">{t('admin.products.hierarchy.currentBrand')}</Label>
+                    <p className="text-sm">{selectedBrand?.brandName || t('common.unknown')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -185,19 +185,19 @@ export function ModelDialog({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-4 w-4" />
-                  Model Details
+                  {t('admin.products.hierarchy.modelDetails')}
                 </CardTitle>
                 <CardDescription>
-                  {isEditMode 
-                    ? 'Update the model information below.'
-                    : 'Enter the model information below.'
+                  {isEditMode
+                    ? t('admin.products.hierarchy.updateModelBelow')
+                    : t('admin.products.hierarchy.enterModelBelow')
                   }
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Model Name Field */}
                 <div className="space-y-2">
-                  <Label htmlFor="modelName">Model Name *</Label>
+                  <Label htmlFor="modelName">{t('admin.products.hierarchy.modelName')} *</Label>
                   <Controller
                     name="modelName"
                     control={control}
@@ -205,7 +205,7 @@ export function ModelDialog({
                       <Input
                         {...field}
                         id="modelName"
-                        placeholder="Enter model name"
+                        placeholder={t('admin.products.hierarchy.modelNamePlaceholder')}
                         className={errors.modelName ? 'border-destructive' : ''}
                         disabled={isSaving}
                       />
@@ -215,7 +215,7 @@ export function ModelDialog({
                     <p className="text-sm text-destructive">{errors.modelName.message}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Model name will be used to identify products in this category
+                    {t('admin.products.hierarchy.modelNameHelp')}
                   </p>
                 </div>
 
@@ -223,7 +223,7 @@ export function ModelDialog({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Family Selection */}
                   <div className="space-y-2">
-                    <Label htmlFor="idFamily">Product Family *</Label>
+                    <Label htmlFor="idFamily">{t('admin.products.hierarchy.productFamily')} *</Label>
                     <Controller
                       name="idFamily"
                       control={control}
@@ -234,7 +234,7 @@ export function ModelDialog({
                           disabled={isSaving}
                         >
                           <SelectTrigger className={errors.idFamily ? 'border-destructive' : ''}>
-                            <SelectValue placeholder="Select family" />
+                            <SelectValue placeholder={t('admin.products.hierarchy.selectFamily')} />
                           </SelectTrigger>
                           <SelectContent>
                             {families.map((family) => (
@@ -253,7 +253,7 @@ export function ModelDialog({
 
                   {/* Brand Selection */}
                   <div className="space-y-2">
-                    <Label htmlFor="idBrand">Product Brand *</Label>
+                    <Label htmlFor="idBrand">{t('admin.products.hierarchy.productBrand')} *</Label>
                     <Controller
                       name="idBrand"
                       control={control}
@@ -264,7 +264,7 @@ export function ModelDialog({
                           disabled={isSaving || !watchedFamilyId}
                         >
                           <SelectTrigger className={errors.idBrand ? 'border-destructive' : ''}>
-                            <SelectValue placeholder={watchedFamilyId ? "Select brand" : "Select family first"} />
+                            <SelectValue placeholder={watchedFamilyId ? t('admin.products.hierarchy.selectBrand') : t('admin.products.hierarchy.selectFamilyFirst')} />
                           </SelectTrigger>
                           <SelectContent>
                             {filteredBrands.map((brand) => (
@@ -281,7 +281,7 @@ export function ModelDialog({
                     )}
                     {!watchedFamilyId && (
                       <p className="text-xs text-muted-foreground">
-                        Please select a family first
+                        {t('admin.products.hierarchy.selectFamilyFirst')}
                       </p>
                     )}
                   </div>
@@ -291,14 +291,14 @@ export function ModelDialog({
                 {(watchedFamilyId || watchedBrandId) && (
                   <div className="p-3 bg-muted rounded-lg">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Preview:</span>
+                      <span className="text-sm font-medium">{t('common.labels.preview')}:</span>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">
-                          {selectedFamily?.familyName || 'No Family'}
+                          {selectedFamily?.familyName || t('admin.products.hierarchy.noFamily')}
                         </Badge>
                         <ChevronDown className="h-3 w-3 text-muted-foreground" />
                         <Badge variant="outline">
-                          {selectedBrand?.brandName || 'No Brand'}
+                          {selectedBrand?.brandName || t('admin.products.hierarchy.noBrand')}
                         </Badge>
                         <ChevronDown className="h-3 w-3 text-muted-foreground" />
                         <Badge variant="default">

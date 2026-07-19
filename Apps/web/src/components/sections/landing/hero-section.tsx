@@ -102,7 +102,7 @@ export function HeroSection() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xl font-bold text-primary">{t('hero.sparePartsPrice')}</span>
-                      <Button size="lg" onClick={() => navigate('/products')} style={{ visibility: 'hidden' }}>View Details</Button>
+                      <Button size="lg" onClick={() => navigate('/products')} style={{ visibility: 'hidden' }}>{t('products.viewDetails')}</Button>
                     </div>
                   </div>
                 </div>

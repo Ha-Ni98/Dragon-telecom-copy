@@ -122,7 +122,7 @@ export function ProductImagesSection({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium">Upload New Image</h3>
+                  <h3 className="text-sm font-medium">{t('admin.products.images.uploadNew')}</h3>
                   <p className="text-xs text-muted-foreground">
                     Supported formats: JPG, PNG, WebP. Max size: {(PRODUCT_INFORMATION_CONSTANTS.MAX_IMAGE_SIZE / (1024 * 1024))}MB
                   </p>
@@ -131,7 +131,7 @@ export function ProductImagesSection({
                   onClick={handleUploadClick}
                   disabled={isUploading || isSaving || !canUploadMore(product.images.length)}
                   className="flex items-center gap-2"
-                  aria-label="Upload new product image"
+                  aria-label={t('admin.products.images.uploadNewAria')}
                 >
                   <Plus className="h-4 w-4" />
                   {t('admin.productInfo.uploadImage')}
@@ -145,7 +145,7 @@ export function ProductImagesSection({
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleFileChange}
                 className="hidden"
-                aria-label="Select image file to upload"
+                aria-label={t('admin.products.images.selectFileAria')}
               />
 
               {/* Upload error display */}
@@ -246,11 +246,11 @@ export function ProductImagesSection({
             /* Empty state */
             <div className="text-center py-12 text-muted-foreground">
               <ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">No images uploaded</p>
+              <p className="text-lg font-medium mb-2">{t('admin.products.images.noImagesUploaded')}</p>
               <p className="text-sm">
-                {isEditMode 
-                  ? 'Upload images to showcase this product'
-                  : 'No images available for this product'
+                {isEditMode
+                  ? t('admin.products.images.uploadToShowcase')
+                  : t('admin.products.images.noImagesAvailable')
                 }
               </p>
             </div>
@@ -301,9 +301,9 @@ export function ProductImagesSection({
           <Dialog open={!!showDeleteDialog} onOpenChange={() => setShowDeleteDialog(null)}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Confirm Image Removal</DialogTitle>
+                <DialogTitle>{t('admin.products.images.confirmRemoval')}</DialogTitle>
                 <DialogDescription>
-                  Are you sure you want to remove this image? This action cannot be undone.
+                  {t('admin.products.images.confirmRemovalBody')}
                 </DialogDescription>
               </DialogHeader>
               <div className="flex justify-end gap-2">

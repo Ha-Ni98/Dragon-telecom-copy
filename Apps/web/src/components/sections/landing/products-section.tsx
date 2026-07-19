@@ -641,11 +641,11 @@ export function ProductsSection() {
               className="mb-4"
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Featured Products
+              {t('public.products.backToFeatured')}
             </Button>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">All Products</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('public.products.allProducts')}</h2>
             <p className="text-lg text-muted-foreground">
-              Discover our complete collection of premium electronics and accessories
+              {t('public.products.allProductsSubtitle')}
             </p>
           </div>
 
@@ -656,7 +656,7 @@ export function ProductsSection() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="Search products..."
+                  placeholder={t('header.search')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -666,7 +666,7 @@ export function ProductsSection() {
               {/* Brand Filter */}
               <Select value={selectedBrand} onValueChange={setSelectedBrand}>
                 <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Select Brand" />
+                  <SelectValue placeholder={t('public.products.selectBrand')} />
                 </SelectTrigger>
                 <SelectContent>
                   {brands.map((brand) => (
@@ -680,7 +680,7 @@ export function ProductsSection() {
               {/* Category Filter */}
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Select Category" />
+                  <SelectValue placeholder={t('public.products.selectCategory')} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((category) => (
@@ -714,7 +714,7 @@ export function ProductsSection() {
 
             {/* Results Count */}
             <p className="text-sm text-muted-foreground">
-              Showing {paginatedProducts.length} of {filteredProducts.length} products
+              {t('public.products.showingCount', { shown: paginatedProducts.length, total: filteredProducts.length })}
             </p>
           </div>
 
@@ -746,7 +746,7 @@ export function ProductsSection() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-lg text-muted-foreground">No products found matching your criteria.</p>
+              <p className="text-lg text-muted-foreground">{t('public.products.noProductsFound')}</p>
             </div>
           )}
 

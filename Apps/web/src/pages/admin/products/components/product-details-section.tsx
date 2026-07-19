@@ -192,7 +192,7 @@ export function ProductDetailsSection({
               <Label htmlFor="productDescription" className="text-sm font-medium flex items-center gap-2">
                 <Edit3 className="h-3 w-3" />
                 Product Description
-                {isEditMode && <Badge variant="secondary" className="text-xs">Editable</Badge>}
+                {isEditMode && <Badge variant="secondary" className="text-xs">{t('common.editable')}</Badge>}
               </Label>
               {isEditMode ? (
                 <Controller
@@ -203,7 +203,7 @@ export function ProductDetailsSection({
                       <Textarea
                         {...field}
                         id="productDescription"
-                        placeholder="Enter product description..."
+                        placeholder={t('admin.products.details.descriptionPlaceholder')}
                         className="min-h-[100px]"
                         disabled={isSaving}
                         aria-describedby={errors.productDescription ? 'description-error' : undefined}
@@ -227,7 +227,7 @@ export function ProductDetailsSection({
               <Label htmlFor="noUserPrice" className="text-sm font-medium flex items-center gap-2">
                 <Edit3 className="h-3 w-3" />
                 No User Price (DZ)
-                {isEditMode && <Badge variant="secondary" className="text-xs">Editable</Badge>}
+                {isEditMode && <Badge variant="secondary" className="text-xs">{t('common.editable')}</Badge>}
               </Label>
               {isEditMode ? (
                 <Controller

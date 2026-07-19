@@ -14,6 +14,7 @@ import {
   Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 /**
  * Props for the PricingSummary component
@@ -38,6 +39,7 @@ export function PricingSummary({
   onShowDetails,
   className
 }: PricingSummaryProps) {
+  const { t } = useTranslation();
   /**
    * Format currency
    */
@@ -77,18 +79,18 @@ export function PricingSummary({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Calculator className="h-5 w-5" />
-            <CardTitle className="text-lg">Pricing Summary</CardTitle>
+            <CardTitle className="text-lg">{t('admin.products.pricingSummary.title')}</CardTitle>
           </div>
           <Badge 
             variant={hasErrors ? "destructive" : hasValidPrices ? "default" : "secondary"}
             className="flex items-center space-x-1"
           >
             {getStatusIcon(calculation.isValid, hasErrors)}
-            <span>{hasErrors ? "Errors" : hasValidPrices ? "Valid" : "Incomplete"}</span>
+            <span>{hasErrors ? t('admin.products.pricingSummary.errors') : hasValidPrices ? t('admin.products.pricingSummary.valid') : t('admin.products.pricingSummary.incomplete')}</span>
           </Badge>
         </div>
         <CardDescription>
-          Overview of pricing calculations and revenue projections
+          {t('admin.products.pricingSummary.subtitle')}
         </CardDescription>
       </CardHeader>
       
@@ -102,7 +104,7 @@ export function PricingSummary({
             <p className="text-2xl font-bold text-primary">
               {formatCurrency(calculation.totalRevenue)}
             </p>
-            <p className="text-sm text-muted-foreground">Total Revenue</p>
+            <p className="text-sm text-muted-foreground">{t('admin.products.pricingSummary.totalRevenue')}</p>
           </div>
           
           <div className="text-center p-4 bg-muted/50 rounded-lg">
@@ -112,7 +114,7 @@ export function PricingSummary({
             <p className="text-2xl font-bold text-green-600">
               {formatCurrency(calculation.averagePrice)}
             </p>
-            <p className="text-sm text-muted-foreground">Average Price</p>
+            <p className="text-sm text-muted-foreground">{t('admin.products.pricingSummary.averagePrice')}</p>
           </div>
           
           <div className="text-center p-4 bg-muted/50 rounded-lg">
@@ -122,7 +124,7 @@ export function PricingSummary({
             <p className="text-2xl font-bold text-blue-600">
               {quantity}
             </p>
-            <p className="text-sm text-muted-foreground">Quantity</p>
+            <p className="text-sm text-muted-foreground">{t('admin.products.pricingSummary.quantity')}</p>
           </div>
         </div>
 
@@ -130,7 +132,7 @@ export function PricingSummary({
         <div className="space-y-3">
           <h4 className="text-sm font-medium flex items-center">
             <TrendingDown className="h-4 w-4 mr-2" />
-            Category Breakdown
+            {t('admin.products.pricingSummary.categoryBreakdown')}
           </h4>
           <div className="space-y-2">
             {categories.map((category) => {
@@ -167,18 +169,18 @@ export function PricingSummary({
                           {formatCurrency(price)}
                         </p>
                         <p className="text-xs text-green-600">
-                          Revenue: {formatCurrency(revenue)}
+                          {t('admin.products.pricingSummary.revenue')}: {formatCurrency(revenue)}
                         </p>
                         {ratio > 0 && (
                           <p className="text-xs text-muted-foreground">
-                            {ratio < 1 ? `${Math.round((1 - ratio) * 100)}% discount` : 
-                             ratio > 1 ? `${Math.round((ratio - 1) * 100)}% markup` : 
-                             "Same as unit price"}
+                            {ratio < 1 ? t('admin.products.pricingSummary.discount', { percent: Math.round((1 - ratio) * 100) }) :
+                             ratio > 1 ? t('admin.products.pricingSummary.markup', { percent: Math.round((ratio - 1) * 100) }) :
+                             t('admin.products.pricingSummary.sameAsUnitPrice')}
                           </p>
                         )}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Not set</p>
+                      <p className="text-sm text-muted-foreground">{t('admin.products.pricingSummary.notSet')}</p>
                     )}
                   </div>
                 </div>
@@ -193,7 +195,7 @@ export function PricingSummary({
             <div className="flex items-start space-x-2">
               <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5" />
               <div className="space-y-1">
-                <p className="text-sm font-medium text-red-800">Validation Errors</p>
+                <p className="text-sm font-medium text-red-800">{t('admin.products.pricingSummary.validationErrors')}</p>
                 <ul className="text-sm text-red-700 space-y-1">
                   {calculation.errors.map((error, index) => (
                     <li key={index}>• {error}</li>
@@ -210,10 +212,10 @@ export function PricingSummary({
             <div className="flex items-center space-x-2">
               <Info className="h-4 w-4 text-blue-500" />
               <div>
-                <p className="text-sm font-medium text-blue-800">Unit Price Reference</p>
+                <p className="text-sm font-medium text-blue-800">{t('admin.products.pricingSummary.unitPriceReference')}</p>
                 <p className="text-sm text-blue-700">
-                  Base unit price: {formatCurrency(unitPrice)} | 
-                  Total at unit price: {formatCurrency(unitPrice * quantity)}
+                  {t('admin.products.pricingSummary.baseUnitPrice')}: {formatCurrency(unitPrice)} |
+                  {t('admin.products.pricingSummary.totalAtUnitPrice')}: {formatCurrency(unitPrice * quantity)}
                 </p>
               </div>
             </div>
@@ -230,7 +232,7 @@ export function PricingSummary({
               className="w-full sm:w-auto"
             >
               <Calculator className="h-4 w-4 mr-2" />
-              View Detailed Calculation
+              {t('admin.products.pricingSummary.viewDetailedCalc')}
             </Button>
           </div>
         )}

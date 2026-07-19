@@ -94,23 +94,23 @@ export function SupplierInformationHeader({
       navigator.clipboard.writeText(window.location.href);
       toast({
         title: t('common.success'),
-        description: 'Link copied to clipboard',
+        description: t('admin.suppliers.linkCopied'),
         variant: 'default',
       });
     }
   };
 
   return (
-    <div className="space-y-4" role="banner" aria-label="Supplier Information Header">
+    <div className="space-y-4" role="banner" aria-label={t('admin.suppliers.informationHeaderAria')}>
       {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb navigation">
+      <nav aria-label={t('admin.suppliers.breadcrumbAria')}>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink 
                 onClick={handleBackToSuppliers}
                 className="cursor-pointer hover:text-primary"
-                aria-label={`Go back to ${t('admin.suppliers.title')}`}
+                aria-label={t('common.goBackTo', { page: t('admin.suppliers.title') })}
               >
                 {t('admin.suppliers.title')}
               </BreadcrumbLink>
@@ -135,7 +135,7 @@ export function SupplierInformationHeader({
               size="sm"
               onClick={handleBackToSuppliers}
               className="p-2"
-              aria-label={`Go back to ${t('admin.suppliers.title')}`}
+              aria-label={t('common.goBackTo', { page: t('admin.suppliers.title') })}
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             </Button>
@@ -143,7 +143,7 @@ export function SupplierInformationHeader({
               <h1 className="text-3xl font-bold tracking-tight" id="supplier-name">
                 {supplier.supplierName}
               </h1>
-              <div className="flex items-center gap-2 text-muted-foreground" aria-label="Supplier information">
+              <div className="flex items-center gap-2 text-muted-foreground" aria-label={t('admin.suppliers.informationAria')}>
                 <span>ID: {supplierId}</span>
                 <Separator orientation="vertical" className="h-4" aria-hidden="true" />
                 <span>{supplier.supplierLocation}</span>
@@ -156,7 +156,7 @@ export function SupplierInformationHeader({
           </div>
           
           {/* Supplier Contact Info */}
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground" aria-label="Contact information">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground" aria-label={t('admin.suppliers.contactInfoAria')}>
             <span>{supplier.supplierPersonName}</span>
             <span>{supplier.supplierPhone}</span>
             <span>{supplier.supplierEmail}</span>
@@ -164,7 +164,7 @@ export function SupplierInformationHeader({
         </div>
 
         {/* Right Side - Action Buttons */}
-        <div className="flex items-center gap-2" role="toolbar" aria-label="Supplier actions">
+        <div className="flex items-center gap-2" role="toolbar" aria-label={t('admin.suppliers.actionsAria')}>
           {/* Edit Mode Toggle */}
           {!isEditMode ? (
             <Button
@@ -172,7 +172,7 @@ export function SupplierInformationHeader({
               variant="outline"
               size="sm"
               className="gap-2"
-              aria-label="Edit supplier information"
+              aria-label={t('admin.suppliers.editInfoAria')}
             >
               <Edit3 className="h-4 w-4" aria-hidden="true" />
               {t('common.edit')}
@@ -184,7 +184,7 @@ export function SupplierInformationHeader({
                 disabled={isSaving || !hasUnsavedChanges}
                 size="sm"
                 className="gap-2"
-                aria-label={isSaving ? 'Saving changes' : 'Save changes'}
+                aria-label={isSaving ? t('admin.suppliers.savingChangesAria') : t('admin.suppliers.saveChangesAria')}
               >
                 <Save className="h-4 w-4" aria-hidden="true" />
                 {isSaving ? t('common.saving') : t('common.save')}
@@ -194,7 +194,7 @@ export function SupplierInformationHeader({
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                aria-label="Cancel editing"
+                aria-label={t('admin.suppliers.cancelEditingAria')}
               >
                 <X className="h-4 w-4" aria-hidden="true" />
                 {t('common.cancel')}
@@ -208,7 +208,7 @@ export function SupplierInformationHeader({
             variant="outline"
             size="sm"
             className="gap-2"
-            aria-label="Refresh supplier data"
+            aria-label={t('admin.products.suppliers.refreshAria')}
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
             {t('common.refresh')}
@@ -217,11 +217,11 @@ export function SupplierInformationHeader({
           {/* More Actions Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" aria-label="More actions">
+              <Button variant="outline" size="sm" aria-label={t('common.moreActions')}>
                 <MoreVertical className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" role="menu" aria-label="Additional actions">
+            <DropdownMenuContent align="end" role="menu" aria-label={t('common.additionalActions')}>
               <DropdownMenuItem onClick={handleExport} role="menuitem">
                 <Download className="h-4 w-4 mr-2" aria-hidden="true" />
                 {t('common.export')}
@@ -248,7 +248,7 @@ export function SupplierInformationHeader({
               {t('admin.suppliers.editMode')}
             </span>
             {hasUnsavedChanges && (
-              <Badge variant="outline" className="ml-2" aria-label="Unsaved changes">
+              <Badge variant="outline" className="ml-2" aria-label={t('common.unsavedChanges')}>
                 {t('common.unsavedChanges')}
               </Badge>
             )}

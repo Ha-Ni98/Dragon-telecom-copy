@@ -49,14 +49,14 @@ export function RegistrationConfirmationDialog({
             {t('register.confirmDetails')}
           </DialogTitle>
           <DialogDescription className="text-center" id="confirmation-dialog-description">
-            Please review your registration details before confirming.
+            {t('register.reviewDetails')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Registration Details</CardTitle>
+              <CardTitle className="text-lg">{t('register.registrationDetails')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Personal Information */}
@@ -116,7 +116,7 @@ export function RegistrationConfirmationDialog({
             onClick={handleCancel}
             disabled={isLoading}
             className="w-full sm:w-auto"
-            aria-label="Cancel registration"
+            aria-label={t('register.cancelAria')}
           >
             {t('register.cancel')}
           </Button>
@@ -124,7 +124,7 @@ export function RegistrationConfirmationDialog({
             onClick={handleConfirm}
             disabled={isLoading}
             className="w-full sm:w-auto"
-            aria-label="Confirm registration"
+            aria-label={t('register.confirmAria')}
           >
             {isLoading ? (
               <>

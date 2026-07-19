@@ -195,7 +195,7 @@ export const AdminOrderEditDialog = memo(function AdminOrderEditDialog({
               onClick={handleClose}
               disabled={isSaving}
               className="h-8 w-8 p-0"
-              aria-label="Close dialog"
+              aria-label={t('common.actions.closeDialog')}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -235,14 +235,14 @@ export const AdminOrderEditDialog = memo(function AdminOrderEditDialog({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="orderStatus">Order Status</Label>
+                  <Label htmlFor="orderStatus">{t('admin.orders.editDialog.orderStatus')}</Label>
                   <Select
                     value={formData.orderStatus.toString()}
                     onValueChange={(value) => handleFieldChange('orderStatus', parseInt(value))}
                     disabled={!canEdit || isSaving}
                   >
                     <SelectTrigger id="orderStatus">
-                      <SelectValue placeholder="Select status" />
+                      <SelectValue placeholder={t('admin.orders.editDialog.selectStatus')} />
                     </SelectTrigger>
                     <SelectContent>
                       {getStatusOptions().map((option) => (
@@ -257,7 +257,7 @@ export const AdminOrderEditDialog = memo(function AdminOrderEditDialog({
                 {/* Status change notice */}
                 {formData.orderStatus !== order.orderStatus && (
                   <div className="text-sm text-muted-foreground">
-                    Status will be changed from <strong>{getStatusLabel(order.orderStatus)}</strong> to <strong>{getStatusLabel(formData.orderStatus)}</strong>
+                    {t('admin.orders.editDialog.statusWillChange')} <strong>{getStatusLabel(order.orderStatus)}</strong> {t('admin.orders.editDialog.to')} <strong>{getStatusLabel(formData.orderStatus)}</strong>
                   </div>
                 )}
               </CardContent>
@@ -270,7 +270,7 @@ export const AdminOrderEditDialog = memo(function AdminOrderEditDialog({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="orderGrandTotal">Total Amount (DA)</Label>
+                  <Label htmlFor="orderGrandTotal">{t('admin.orders.editDialog.totalAmountDA')}</Label>
                   <Input
                     id="orderGrandTotal"
                     type="number"
@@ -285,7 +285,7 @@ export const AdminOrderEditDialog = memo(function AdminOrderEditDialog({
 
                 {/* Original total for reference */}
                 <div className="text-sm text-muted-foreground">
-                  Original total: {formatDZD(order.orderGrandTotal)}
+                  {t('admin.orders.editDialog.originalTotal')}: {formatDZD(order.orderGrandTotal)}
                 </div>
               </CardContent>
             </Card>
@@ -301,7 +301,7 @@ export const AdminOrderEditDialog = memo(function AdminOrderEditDialog({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="pricePaid">Paid Amount (DA)</Label>
+                    <Label htmlFor="pricePaid">{t('admin.orders.editDialog.paidAmountDA')}</Label>
                     <Input
                       id="pricePaid"
                       type="number"
@@ -325,7 +325,7 @@ export const AdminOrderEditDialog = memo(function AdminOrderEditDialog({
                   {/* Payment validation */}
                   {formData.pricePaid > 0 && formData.pricePaid !== formData.orderGrandTotal && (
                     <div className="text-sm text-orange-600">
-                      Partial payment: {formatDZD(formData.pricePaid)} of {formatDZD(formData.orderGrandTotal)}
+                      {t('admin.orders.editDialog.partialPayment')}: {formatDZD(formData.pricePaid)} {t('common.of')} {formatDZD(formData.orderGrandTotal)}
                     </div>
                   )}
                 </CardContent>
@@ -335,29 +335,29 @@ export const AdminOrderEditDialog = memo(function AdminOrderEditDialog({
             {/* Order Summary */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Order Summary</CardTitle>
+                <CardTitle className="text-lg">{t('admin.orders.editDialog.orderSummary')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Order Code:</span>
+                  <span className="text-muted-foreground">{t('admin.orders.editDialog.orderCode')}:</span>
                   <span className="font-mono">{order.orderCode}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Client:</span>
+                  <span className="text-muted-foreground">{t('admin.orders.editDialog.client')}:</span>
                   <span>{order.client.clientFirstName} {order.client.clientLastName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Order Type:</span>
+                  <span className="text-muted-foreground">{t('admin.orders.editDialog.orderType')}:</span>
                   <span>{order.typeLabel}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-medium">
-                  <span>Total Amount:</span>
+                  <span>{t('admin.orders.editDialog.totalAmount')}:</span>
                   <span>{formatDZD(formData.orderGrandTotal)}</span>
                 </div>
                 {isCompleted && (
                   <div className="flex justify-between font-medium">
-                    <span>Paid Amount:</span>
+                    <span>{t('admin.orders.editDialog.paidAmount')}:</span>
                     <span className="text-green-600">{formatDZD(formData.pricePaid)}</span>
                   </div>
                 )}

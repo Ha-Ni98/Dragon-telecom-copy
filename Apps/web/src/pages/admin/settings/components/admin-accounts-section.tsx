@@ -3,15 +3,17 @@
  * Manages admin user accounts with full CRUD functionality
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Plus, Users, Shield, Calendar, Trash2, Edit, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DataTable } from '@/components/shared/DataTable';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AdminAccountWithDetails, AdminAccountFormData } from '@/types/draft-types';
 import { UserRoleCode } from '@/types/draft-types/enums.types';
@@ -37,7 +39,7 @@ interface AdminAccountsSectionProps {
  */
 export function AdminAccountsSection({ className }: AdminAccountsSectionProps) {
   const { t } = useTranslation();
-  
+
   // State management
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -109,24 +111,14 @@ export function AdminAccountsSection({ className }: AdminAccountsSectionProps) {
   };
 
   /**
-   * Close all dialogs
-   */
-  const closeDialogs = () => {
-    setIsAddDialogOpen(false);
-    setIsEditDialogOpen(false);
-    setIsDeleteDialogOpen(false);
-    setSelectedAdmin(null);
-  };
-
-  /**
    * Get role label
    */
   const getRoleLabel = (role: UserRoleCode) => {
     switch (role) {
       case UserRoleCode.admin:
-        return 'Administrator';
+        return t('admin.settings.accounts.administrator');
       default:
-        return 'Unknown';
+        return t('admin.settings.accounts.unknownRole');
     }
   };
 
@@ -158,10 +150,116 @@ export function AdminAccountsSection({ className }: AdminAccountsSectionProps) {
   /**
    * Check if any operation is in progress
    */
-  const isAnyOperationInProgress = 
-    createAdminMutation.isPending || 
-    updateAdminMutation.isPending || 
+  const isAnyOperationInProgress =
+    createAdminMutation.isPending ||
+    updateAdminMutation.isPending ||
     deleteAdminMutation.isPending;
+
+  const columns: ColumnDef<AdminAccountWithDetails>[] = [
+    {
+      accessorKey: 'userName',
+      header: t('admin.settings.accounts.username'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 font-medium">
+          <Shield className="h-4 w-4 text-muted-foreground" />
+          {row.original.userName}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'userRole',
+      header: t('admin.settings.accounts.role'),
+      cell: ({ row }) => (
+        <Badge variant={getRoleBadgeVariant(row.original.userRole)}>
+          {getRoleLabel(row.original.userRole)}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'createdDate',
+      header: t('common.labels.createdDate'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Calendar className="h-4 w-4" />
+          {formatDate(row.original.createdDate)}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'canBeDeleted',
+      header: t('common.labels.status'),
+      cell: ({ row }) => (
+        <Badge variant={row.original.canBeDeleted ? "secondary" : "destructive"}>
+          {row.original.canBeDeleted ? t('common.status.active') : t('admin.settings.accounts.protected')}
+        </Badge>
+      ),
+    },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">{t('common.actions.action')}</div>,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openEditDialog(row.original)}
+            disabled={isAnyOperationInProgress}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openDeleteDialog(row.original)}
+            disabled={!row.original.canBeDeleted || isAnyOperationInProgress}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const renderMobileRow = (admin: AdminAccountWithDetails) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 font-medium">
+          <Shield className="h-4 w-4 text-muted-foreground" />
+          {admin.userName}
+        </div>
+        <Badge variant={getRoleBadgeVariant(admin.userRole)}>{getRoleLabel(admin.userRole)}</Badge>
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Calendar className="h-4 w-4" />
+          {formatDate(admin.createdDate)}
+        </div>
+        <Badge variant={admin.canBeDeleted ? "secondary" : "destructive"}>
+          {admin.canBeDeleted ? t('common.status.active') : t('admin.settings.accounts.protected')}
+        </Badge>
+      </div>
+      <div className="flex items-center justify-end gap-2 pt-2 border-t">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => openEditDialog(admin)}
+          disabled={isAnyOperationInProgress}
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => openDeleteDialog(admin)}
+          disabled={!admin.canBeDeleted || isAnyOperationInProgress}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className={className}>
@@ -172,10 +270,10 @@ export function AdminAccountsSection({ className }: AdminAccountsSectionProps) {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Admin Accounts
+                {t('admin.settings.accounts')}
               </CardTitle>
               <CardDescription>
-                Manage administrator accounts and permissions
+                {t('admin.settings.accounts.description')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -186,14 +284,14 @@ export function AdminAccountsSection({ className }: AdminAccountsSectionProps) {
                 disabled={isLoading || isAnyOperationInProgress}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                {t('common.actions.refresh')}
               </Button>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
                 disabled={isAnyOperationInProgress}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Admin
+                {t('admin.settings.accounts.add')}
               </Button>
             </div>
           </div>
@@ -204,114 +302,45 @@ export function AdminAccountsSection({ className }: AdminAccountsSectionProps) {
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Failed to load admin accounts. Please try again.
+                {t('admin.settings.accounts.loadError')}
                 <Button
                   variant="outline"
                   size="sm"
                   className="ml-2"
                   onClick={() => refetch()}
                 >
-                  Retry
+                  {t('common.retry')}
                 </Button>
               </AlertDescription>
             </Alert>
           )}
 
           {/* Loading State */}
-          {isLoading && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-8 w-20" />
-              </div>
-              <div className="space-y-2">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            </div>
-          )}
+          {isLoading && <TableSkeleton rows={3} columns={5} />}
 
           {/* Data Table */}
           {!isLoading && !error && adminAccounts && (
             <div className="space-y-4">
               {/* Stats */}
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>Total Admins: {adminAccounts.length}</span>
-                <span>Active: {adminAccounts.filter(admin => admin.canBeDeleted).length}</span>
+                <span>{t('admin.settings.accounts.totalAdmins', { count: adminAccounts.length })}</span>
+                <span>{t('admin.settings.accounts.activeCount', { count: adminAccounts.filter(admin => admin.canBeDeleted).length })}</span>
               </div>
 
               {/* Table */}
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Created Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {adminAccounts.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          No admin accounts found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      adminAccounts.map((admin) => (
-                        <TableRow key={admin.idUser}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Shield className="h-4 w-4 text-muted-foreground" />
-                              {admin.userName}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={getRoleBadgeVariant(admin.userRole)}>
-                              {getRoleLabel(admin.userRole)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Calendar className="h-4 w-4" />
-                              {formatDate(admin.createdDate)}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={admin.canBeDeleted ? "secondary" : "destructive"}>
-                              {admin.canBeDeleted ? "Active" : "Protected"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openEditDialog(admin)}
-                                disabled={isAnyOperationInProgress}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openDeleteDialog(admin)}
-                                disabled={!admin.canBeDeleted || isAnyOperationInProgress}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataTable
+                columns={columns}
+                data={adminAccounts}
+                getRowKey={(admin) => String(admin.idUser)}
+                renderMobileRow={renderMobileRow}
+                emptyState={
+                  <EmptyState
+                    icon={<Users className="h-6 w-6" />}
+                    title={t('admin.settings.accounts.noAccountsFound')}
+                    body={t('admin.settings.accounts.description')}
+                  />
+                }
+              />
             </div>
           )}
         </CardContent>
@@ -343,11 +372,10 @@ export function AdminAccountsSection({ className }: AdminAccountsSectionProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Delete Admin Account
+              {t('admin.settings.accounts.deleteTitle')}
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the admin account "{selectedAdmin?.userName}"? 
-              This action cannot be undone.
+              {t('admin.settings.accounts.deleteConfirm', { name: selectedAdmin?.userName ?? '' })}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
@@ -356,7 +384,7 @@ export function AdminAccountsSection({ className }: AdminAccountsSectionProps) {
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={deleteAdminMutation.isPending}
             >
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -366,12 +394,12 @@ export function AdminAccountsSection({ className }: AdminAccountsSectionProps) {
               {deleteAdminMutation.isPending ? (
                 <>
                   <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-background border-t-foreground" />
-                  Deleting...
+                  {t('common.deleting')}
                 </>
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {t('common.delete')}
                 </>
               )}
             </Button>

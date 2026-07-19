@@ -106,7 +106,7 @@ export function SupplierModifyDialog({
             Modify Supplier Information
           </DialogTitle>
           <DialogDescription>
-            Update the unit price and quantity for this supplier relationship.
+            {t('admin.suppliers.modifyDialog.subtitle')}
           </DialogDescription>
         </DialogHeader>
 
@@ -114,41 +114,41 @@ export function SupplierModifyDialog({
           {/* Supplier Information Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Supplier Details</CardTitle>
-              <CardDescription>Read-only supplier information</CardDescription>
+              <CardTitle className="text-lg">{t('admin.suppliers.modifyDialog.supplierDetails')}</CardTitle>
+              <CardDescription>{t('admin.suppliers.modifyDialog.readOnlyInfo')}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Supplier Name</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('admin.suppliers.modifyDialog.supplierName')}</Label>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     <span className="font-medium">{supplier.supplier.supplierName}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Contact Person</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('admin.suppliers.modifyDialog.contactPerson')}</Label>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     <span>{supplier.supplier.supplierPersonName}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('common.labels.phone')}</Label>
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4" />
                     <span>{supplier.supplier.supplierPhone}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('common.labels.email')}</Label>
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4" />
                     <span>{supplier.supplier.supplierEmail}</span>
                   </div>
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Location</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('admin.suppliers.modifyDialog.location')}</Label>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
                     <span>{supplier.supplier.supplierLocation}</span>
@@ -161,8 +161,8 @@ export function SupplierModifyDialog({
           {/* Editable Fields */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Editable Information</CardTitle>
-              <CardDescription>Update the pricing and quantity information</CardDescription>
+              <CardTitle className="text-lg">{t('admin.suppliers.modifyDialog.editableInfo')}</CardTitle>
+              <CardDescription>{t('admin.suppliers.modifyDialog.updatePricingQty')}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -237,10 +237,10 @@ export function SupplierModifyDialog({
 
                 {/* Supply Date (Read-only) */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Supply Date</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">{t('admin.products.suppliers.supplyDate')}</Label>
                   <div className="flex items-center gap-2">
                     <span className="text-sm">{formatDate(supplier.issueDate)}</span>
-                    <Badge variant="outline">Read Only</Badge>
+                    <Badge variant="outline">{t('common.readOnly')}</Badge>
                   </div>
                 </div>
 

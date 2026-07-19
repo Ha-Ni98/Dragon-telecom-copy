@@ -3,19 +3,21 @@
  * Displays system logs in a data table with all required columns and states
  */
 
-import React, { memo, useMemo, useCallback } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { memo, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { SimplePagination } from '@/components/shared/SimplePagination';
-import { 
-  FileText, 
-  RefreshCw, 
-  AlertTriangle, 
-  User, 
+import { DataTable } from '@/components/shared/DataTable';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
+import {
+  FileText,
+  RefreshCw,
+  AlertTriangle,
+  User,
   Calendar,
   Activity,
   MessageSquare
@@ -66,21 +68,6 @@ const getActionTypeBadgeVariant = (actionType: string) => {
 };
 
 /**
- * Loading skeleton for table rows
- */
-function TableRowSkeleton() {
-  return (
-    <TableRow>
-      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-48" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-    </TableRow>
-  );
-}
-
-/**
  * Error state component
  */
 function LogsErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {
@@ -122,23 +109,6 @@ function LogsErrorState({ error, onRetry }: { error: string; onRetry?: () => voi
 }
 
 /**
- * Empty state component
- */
-function LogsEmptyState() {
-  const { t } = useTranslation();
-
-  return (
-    <div className="text-center py-12">
-      <div className="mx-auto mb-4 w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-        <FileText className="w-6 h-6 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg font-semibold mb-2">{t('admin.logs.empty.title')}</h3>
-      <p className="text-muted-foreground mb-4">{t('admin.logs.empty.description')}</p>
-    </div>
-  );
-}
-
-/**
  * Main Admin Logs Table Component
  */
 export const AdminLogsTable = memo(function AdminLogsTable({
@@ -157,59 +127,138 @@ export const AdminLogsTable = memo(function AdminLogsTable({
   const logs = data?.logs || [];
   const pagination = data;
 
-  // Memoize formatted logs to avoid recalculation on every render
-  const formattedLogs = useMemo(() => {
-    return logs.map(log => ({
-      ...log,
-      // Logs already come with formatted date from mock data
-    }));
-  }, [logs]);
+  const columns = useMemo<ColumnDef<AdminLogWithDetails>[]>(() => [
+    {
+      id: 'user',
+      header: () => (
+        <div className="flex items-center space-x-2">
+          <User className="h-4 w-4" aria-hidden="true" />
+          <span>{t('admin.logs.user')}</span>
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center" aria-hidden="true">
+            <User className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <div className="font-medium text-sm">{row.original.user.userName}</div>
+            <div className="text-xs text-muted-foreground">ID: {row.original.user.idUser}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'actionTypeLabel',
+      header: () => (
+        <div className="flex items-center space-x-2">
+          <Activity className="h-4 w-4" aria-hidden="true" />
+          <span>{t('admin.logs.actionType')}</span>
+        </div>
+      ),
+      cell: ({ row }) => (
+        <Badge
+          variant={getActionTypeBadgeVariant(row.original.actionTypeLabel)}
+          aria-label={t('admin.logs.actionTypeAria', { type: row.original.actionTypeLabel })}
+        >
+          {row.original.actionTypeLabel}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'actionDetails',
+      header: () => (
+        <div className="flex items-center space-x-2">
+          <MessageSquare className="h-4 w-4" aria-hidden="true" />
+          <span>{t('admin.logs.actionDescription')}</span>
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="max-w-[400px]">
+          <p
+            className="text-sm text-foreground line-clamp-2"
+            aria-label={t('admin.logs.actionDescriptionAria', { description: row.original.actionDetails })}
+          >
+            {row.original.actionDetails}
+          </p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'formattedDate',
+      header: () => (
+        <div className="flex items-center space-x-2">
+          <Calendar className="h-4 w-4" aria-hidden="true" />
+          <span>{t('admin.logs.dateTime')}</span>
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="text-sm text-muted-foreground">
+          <time
+            dateTime={row.original.logCreatedDate}
+            aria-label={t('admin.logs.dateTimeAria', { date: row.original.formattedDate })}
+          >
+            {row.original.formattedDate}
+          </time>
+        </div>
+      ),
+    },
+  ], [t]);
+
+  const renderMobileRow = (log: AdminLogWithDetails) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+            <User className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <div className="font-medium text-sm">{log.user.userName}</div>
+            <div className="text-xs text-muted-foreground">ID: {log.user.idUser}</div>
+          </div>
+        </div>
+        <Badge variant={getActionTypeBadgeVariant(log.actionTypeLabel)}>{log.actionTypeLabel}</Badge>
+      </div>
+      <p className="text-sm text-foreground line-clamp-2">{log.actionDetails}</p>
+      <time dateTime={log.logCreatedDate} className="text-xs text-muted-foreground">
+        {log.formattedDate}
+      </time>
+    </div>
+  );
+
+  const header = (
+    <div className="flex items-center justify-between">
+      <div>
+        <CardTitle className="flex items-center space-x-2">
+          <FileText className="h-5 w-5" />
+          <span>{t('admin.logs.title')}</span>
+        </CardTitle>
+        <CardDescription>
+          {pagination ? `${t('admin.logs.description')} • ${pagination.total || 0} ${t('admin.logs.totalLogs')}` : t('admin.logs.description')}
+        </CardDescription>
+      </div>
+      {showRefresh && onRefresh && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={loading}
+          className="flex items-center space-x-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          <span>{t('common.refresh')}</span>
+        </Button>
+      )}
+    </div>
+  );
 
   // Loading state
   if (loading) {
     return (
       <Card className={className}>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5" />
-                <span>{t('admin.logs.title')}</span>
-              </CardTitle>
-              <CardDescription>{t('admin.logs.description')}</CardDescription>
-            </div>
-            {showRefresh && onRefresh && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRefresh}
-                className="flex items-center space-x-2"
-                disabled
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span>{t('common.refresh')}</span>
-              </Button>
-            )}
-          </div>
-        </CardHeader>
+        <CardHeader>{header}</CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table role="table" aria-label={t('admin.logs.title')}>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]" scope="col">{t('admin.logs.user')}</TableHead>
-                  <TableHead className="w-[150px]" scope="col">{t('admin.logs.actionType')}</TableHead>
-                  <TableHead className="min-w-[300px]" scope="col">{t('admin.logs.actionDescription')}</TableHead>
-                  <TableHead className="w-[180px]" scope="col">{t('admin.logs.dateTime')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <TableRowSkeleton key={index} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <TableSkeleton rows={5} columns={4} />
         </CardContent>
       </Card>
     );
@@ -220,134 +269,23 @@ export const AdminLogsTable = memo(function AdminLogsTable({
     return <LogsErrorState error={error} onRetry={onRetry} />;
   }
 
-  // Empty state
-  if (!logs || logs.length === 0) {
-    return (
-      <Card className={className}>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5" />
-                <span>{t('admin.logs.title')}</span>
-              </CardTitle>
-              <CardDescription>{t('admin.logs.description')}</CardDescription>
-            </div>
-            {showRefresh && onRefresh && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRefresh}
-                className="flex items-center space-x-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span>{t('common.refresh')}</span>
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <LogsEmptyState />
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className={className}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center space-x-2">
-              <FileText className="h-5 w-5" />
-              <span>{t('admin.logs.title')}</span>
-            </CardTitle>
-            <CardDescription>
-              {t('admin.logs.description')} • {pagination?.total || 0} {t('admin.logs.totalLogs')}
-            </CardDescription>
-          </div>
-          {showRefresh && onRefresh && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRefresh}
-              className="flex items-center space-x-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>{t('common.refresh')}</span>
-            </Button>
-          )}
-        </div>
-      </CardHeader>
+      <CardHeader>{header}</CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <Table role="table" aria-label={t('admin.logs.title')}>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]" scope="col">
-                  <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4" aria-hidden="true" />
-                    <span>{t('admin.logs.user')}</span>
-                  </div>
-                </TableHead>
-                <TableHead className="w-[150px]" scope="col">
-                  <div className="flex items-center space-x-2">
-                    <Activity className="h-4 w-4" aria-hidden="true" />
-                    <span>{t('admin.logs.actionType')}</span>
-                  </div>
-                </TableHead>
-                <TableHead className="min-w-[300px]" scope="col">
-                  <div className="flex items-center space-x-2">
-                    <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                    <span>{t('admin.logs.actionDescription')}</span>
-                  </div>
-                </TableHead>
-                <TableHead className="w-[180px]" scope="col">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4" aria-hidden="true" />
-                    <span>{t('admin.logs.dateTime')}</span>
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {formattedLogs.map((log) => (
-                <TableRow key={log.idLog} className="hover:bg-muted/50" role="row">
-                  <TableCell className="font-medium" role="cell">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center" aria-hidden="true">
-                        <User className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm">{log.user.userName}</div>
-                        <div className="text-xs text-muted-foreground">ID: {log.user.idUser}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell role="cell">
-                    <Badge variant={getActionTypeBadgeVariant(log.actionTypeLabel)} aria-label={`Action type: ${log.actionTypeLabel}`}>
-                      {log.actionTypeLabel}
-                    </Badge>
-                  </TableCell>
-                  <TableCell role="cell">
-                    <div className="max-w-[400px]">
-                      <p className="text-sm text-foreground line-clamp-2" aria-label={`Action description: ${log.actionDetails}`}>
-                        {log.actionDetails}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell role="cell">
-                    <div className="text-sm text-muted-foreground">
-                      <time dateTime={log.logCreatedDate} aria-label={`Date and time: ${log.formattedDate}`}>
-                        {log.formattedDate}
-                      </time>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          columns={columns}
+          data={logs}
+          getRowKey={(log) => String(log.idLog)}
+          renderMobileRow={renderMobileRow}
+          emptyState={
+            <EmptyState
+              icon={<FileText className="h-6 w-6" />}
+              title={t('admin.logs.empty.title')}
+              body={t('admin.logs.empty.description')}
+            />
+          }
+        />
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (

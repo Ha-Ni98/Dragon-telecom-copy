@@ -156,8 +156,8 @@ export const ProductListHeader: React.FC<ProductListHeaderProps> = ({
       {hasActiveFilters && (
         <div className="p-3 bg-muted/50 rounded-lg border">
           <p className="text-sm text-muted-foreground">
-            <strong>Filters applied:</strong> Showing {filteredCount} of {totalProducts} products. 
-            Clear filters to see all products.
+            <strong>{t('products.filters.applied')}:</strong> {t('public.products.showingCount', { shown: filteredCount, total: totalProducts })}.
+            {t('products.filters.clearToSeeAll')}
           </p>
         </div>
       )}

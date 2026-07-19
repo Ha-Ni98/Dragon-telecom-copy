@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
+import { translate, getLanguage } from '@/lib/i18n';
 
 /**
  * Error boundary props interface
@@ -160,7 +161,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     
     // Copy to clipboard
     navigator.clipboard.writeText(JSON.stringify(bugReport, null, 2));
-    alert('Bug report copied to clipboard');
+    alert(translate('errorBoundary.bugReportCopied', getLanguage()));
   };
 
   /**
@@ -182,25 +183,25 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <AlertTriangle className="w-8 h-8 text-red-600" />
             </div>
             <CardTitle className="text-2xl font-bold text-red-600">
-              Something went wrong
+              {translate('common.errors.crashTitle', getLanguage())}
             </CardTitle>
             <CardDescription className="text-lg">
-              We're sorry, but something unexpected happened. Our team has been notified.
+              {translate('errorBoundary.notifiedBody', getLanguage())}
             </CardDescription>
           </CardHeader>
           
           <CardContent className="space-y-6">
             {/* Error Details */}
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <h3 className="font-semibold text-red-800 mb-2">Error Details</h3>
+              <h3 className="font-semibold text-red-800 mb-2">{translate('common.errors.details', getLanguage())}</h3>
               <p className="text-sm text-red-700 mb-2">
-                <strong>Error ID:</strong> {errorId}
+                <strong>{translate('errorBoundary.errorId', getLanguage())}:</strong> {errorId}
               </p>
               <p className="text-sm text-red-700 mb-2">
-                <strong>Message:</strong> {error?.message || 'Unknown error'}
+                <strong>{translate('errorBoundary.message', getLanguage())}:</strong> {error?.message || translate('errorBoundary.unknownError', getLanguage())}
               </p>
               <p className="text-sm text-red-700">
-                <strong>Retry Count:</strong> {retryCount}
+                <strong>{translate('errorBoundary.retryCount', getLanguage())}:</strong> {retryCount}
               </p>
             </div>
 
@@ -212,7 +213,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 variant="default"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Try Again
+                {translate('common.actions.tryAgain', getLanguage())}
               </Button>
               
               <Button
@@ -221,7 +222,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 variant="outline"
               >
                 <Home className="w-4 h-4 mr-2" />
-                Go Home
+                {translate('common.actions.goHome', getLanguage())}
               </Button>
               
               <Button
@@ -230,17 +231,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 variant="outline"
               >
                 <Bug className="w-4 h-4 mr-2" />
-                Report Bug
+                {translate('errorBoundary.reportBug', getLanguage())}
               </Button>
             </div>
 
             {/* Help Text */}
             <div className="text-center text-sm text-muted-foreground">
               <p>
-                If this problem persists, please contact support with the Error ID above.
+                {translate('errorBoundary.contactSupport', getLanguage())}
               </p>
               <p className="mt-2">
-                You can also try refreshing the page or going back to the home page.
+                {translate('errorBoundary.tryRefreshOrHome', getLanguage())}
               </p>
             </div>
           </CardContent>

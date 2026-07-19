@@ -5,6 +5,8 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { translate, getLanguage } from '@/lib/i18n';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ClientModificationData } from '@/types/draft-types/client.types';
 import { AdminClientsService } from '@/lib/services/admin-clients.service';
 import { adminClientsQueryKeys } from './use-admin-clients';
@@ -15,6 +17,7 @@ import { adminClientsQueryKeys } from './use-admin-clients';
  */
 export function useModifyClient() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const mutation = useMutation({
     mutationFn: ({ clientId, updates }: { clientId: number; updates: ClientModificationData }) =>
@@ -59,8 +62,8 @@ export function useModifyClient() {
         });
       }
       
-      toast.error('Failed to update client', {
-        description: 'There was an error updating the client information. Please try again.',
+      toast.error(t('admin.clients.updateError'), {
+        description: t('admin.clients.updateErrorBody'),
       });
     },
 
@@ -68,8 +71,8 @@ export function useModifyClient() {
       // Invalidate and refetch client data
       queryClient.invalidateQueries({ queryKey: adminClientsQueryKeys.all });
       
-      toast.success('Client updated successfully', {
-        description: 'The client information has been updated.',
+      toast.success(t('admin.clients.updateSuccess'), {
+        description: t('admin.clients.updateSuccessBody'),
       });
     },
 
@@ -94,11 +97,12 @@ export function useModifyClient() {
  * Get display status from status code
  */
 function getDisplayStatus(status: number): string {
+  const lang = getLanguage();
   const statusMap: Record<number, string> = {
-    0: 'Active',
-    1: 'Pending',
-    2: 'Disabled',
-    3: 'Refused',
+    0: translate('admin.clients.statusActive', lang),
+    1: translate('admin.clients.statusPending', lang),
+    2: translate('admin.clients.statusDisabled', lang),
+    3: translate('admin.clients.statusRefused', lang),
   };
-  return statusMap[status] || 'Unknown';
+  return statusMap[status] || translate('common.unknown', lang);
 }

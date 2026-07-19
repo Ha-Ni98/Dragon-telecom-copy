@@ -52,7 +52,7 @@ export default function ProductDetails() {
       toast.success(t("cart.addSuccess"));
       console.log(`Added ${quantity} of product ${productId} to cart`);
     } catch (error) {
-      toast.error("Failed to add to cart");
+      toast.error(t("cart.addError"));
       console.error("Add to cart error:", error);
     }
   };

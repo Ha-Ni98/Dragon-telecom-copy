@@ -101,10 +101,10 @@ export const OrdersListSection: React.FC<OrdersListSectionProps> = ({
             <div className="w-16 h-16 mx-auto mb-4 bg-red-50 rounded-full flex items-center justify-center">
               <Package className="h-8 w-8 text-red-500" />
             </div>
-            <h3 className="text-lg font-semibold text-red-600 mb-2">Error Loading Orders</h3>
+            <h3 className="text-lg font-semibold text-red-600 mb-2">{t('orders.errorLoading')}</h3>
             <p className="text-muted-foreground mb-4">{error}</p>
             <Button onClick={() => window.location.reload()}>
-              Try Again
+              {t('common.actions.tryAgain')}
             </Button>
           </div>
         </CardContent>
@@ -185,19 +185,19 @@ export const OrdersListSection: React.FC<OrdersListSectionProps> = ({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
           <div className="text-center p-3 bg-muted/50 rounded-lg">
             <div className="text-2xl font-bold text-primary">{statistics.totalOrders}</div>
-            <div className="text-sm text-muted-foreground">Total Orders</div>
+            <div className="text-sm text-muted-foreground">{t('orders.totalOrders')}</div>
           </div>
           <div className="text-center p-3 bg-muted/50 rounded-lg">
             <div className="text-2xl font-bold text-yellow-600">{statistics.pendingOrders}</div>
-            <div className="text-sm text-muted-foreground">Pending</div>
+            <div className="text-sm text-muted-foreground">{t('orders.pending')}</div>
           </div>
           <div className="text-center p-3 bg-muted/50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">{statistics.confirmedOrders}</div>
-            <div className="text-sm text-muted-foreground">Confirmed</div>
+            <div className="text-sm text-muted-foreground">{t('orders.confirmed')}</div>
           </div>
           <div className="text-center p-3 bg-muted/50 rounded-lg">
             <div className="text-2xl font-bold text-green-600">{statistics.completedOrders}</div>
-            <div className="text-sm text-muted-foreground">Completed</div>
+            <div className="text-sm text-muted-foreground">{t('orders.completed')}</div>
           </div>
         </div>
       </CardHeader>

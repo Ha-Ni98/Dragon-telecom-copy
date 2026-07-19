@@ -55,7 +55,7 @@ export function PasswordResetForm({ onSubmit, onCancel, isLoading = false }: Pas
       reset();
       toast.success(t('account.passwordResetSuccess'));
     } catch (error) {
-      toast.error("Password reset failed. Please try again.");
+      toast.error(t('account.passwordResetError'));
     }
   };
 
@@ -72,7 +72,7 @@ export function PasswordResetForm({ onSubmit, onCancel, isLoading = false }: Pas
           {t('account.resetPassword')}
         </CardTitle>
         <CardDescription>
-          Enter a new password for your account. Make sure it's secure and memorable.
+          {t('account.resetPasswordSubtitle')}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -84,7 +84,7 @@ export function PasswordResetForm({ onSubmit, onCancel, isLoading = false }: Pas
                 id="newPassword"
                 type={showNewPassword ? "text" : "password"}
                 {...register("newPassword")}
-                placeholder="Enter new password"
+                placeholder={t('account.newPasswordPlaceholder')}
                 className="pr-10"
                 disabled={isLoading}
               />
@@ -115,7 +115,7 @@ export function PasswordResetForm({ onSubmit, onCancel, isLoading = false }: Pas
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 {...register("confirmPassword")}
-                placeholder="Confirm new password"
+                placeholder={t('account.confirmPasswordPlaceholder')}
                 className="pr-10"
                 disabled={isLoading}
               />
@@ -154,19 +154,19 @@ export function PasswordResetForm({ onSubmit, onCancel, isLoading = false }: Pas
               disabled={isLoading || isSubmitting}
               className="flex-1"
             >
-              {isLoading || isSubmitting ? "Resetting..." : t('account.resetPassword')}
+              {isLoading || isSubmitting ? t('account.resetting') : t('account.resetPassword')}
             </Button>
           </div>
         </form>
 
         {/* Password Requirements */}
         <div className="mt-4 p-3 bg-muted rounded-lg">
-          <h4 className="text-sm font-medium mb-2">Password Requirements:</h4>
+          <h4 className="text-sm font-medium mb-2">{t('account.passwordRequirements.title')}</h4>
           <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• At least 8 characters long</li>
-            <li>• Contains uppercase and lowercase letters</li>
-            <li>• Contains at least one number</li>
-            <li>• Contains at least one special character</li>
+            <li>• {t('account.passwordRequirements.minLength')}</li>
+            <li>• {t('account.passwordRequirements.mixedCase')}</li>
+            <li>• {t('account.passwordRequirements.number')}</li>
+            <li>• {t('account.passwordRequirements.specialChar')}</li>
           </ul>
         </div>
       </CardContent>

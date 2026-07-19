@@ -4,14 +4,17 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Download, Upload, Truck, MapPin, RefreshCw, AlertTriangle, FileSpreadsheet, ChevronLeft, ChevronRight } from 'lucide-react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { Download, Upload, Truck, MapPin, RefreshCw, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DataTable } from '@/components/shared/DataTable';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { SimplePagination } from '@/components/shared/SimplePagination';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DeliveryFee, ExcelImportResult } from '@/types/draft-types';
 import { ExcelFileUploader } from '@/components/shared/excel-file-uploader';
@@ -35,7 +38,7 @@ interface DeliveryFeesSectionProps {
  */
 export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
   const { t } = useTranslation();
-  
+
   // State management
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importResult, setImportResult] = useState<ExcelImportResult | null>(null);
@@ -54,7 +57,7 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
   const handleFileProcessed = (result: ExcelImportResult) => {
     setImportResult(result);
     setIsProcessing(false);
-    
+
     if (result.success) {
       // Refresh data after successful import
       refetch();
@@ -96,32 +99,17 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
   };
 
   /**
-   * Group delivery fees by wilaya
-   */
-  const groupedDeliveryFees = useMemo(() => {
-    if (!deliveryFees) return {};
-    
-    return deliveryFees.reduce((acc, fee) => {
-      if (!acc[fee.wilaya]) {
-        acc[fee.wilaya] = [];
-      }
-      acc[fee.wilaya].push(fee);
-      return acc;
-    }, {} as Record<string, DeliveryFee[]>);
-  }, [deliveryFees]);
-
-  /**
    * Calculate pagination
    */
   const paginationData = useMemo(() => {
-    if (!deliveryFees) return { paginatedData: [], totalPages: 0, totalItems: 0 };
-    
+    if (!deliveryFees) return { paginatedData: [], totalPages: 0, totalItems: 0, startIndex: 0, endIndex: 0 };
+
     const totalItems = deliveryFees.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedData = deliveryFees.slice(startIndex, endIndex);
-    
+
     return {
       paginatedData,
       totalPages,
@@ -136,10 +124,10 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
    */
   const stats = useMemo(() => {
     if (!deliveryFees) return { total: 0, wilayas: 0, communes: 0 };
-    
+
     const wilayas = new Set(deliveryFees.map(fee => fee.wilaya));
     const communes = new Set(deliveryFees.map(fee => fee.commune));
-    
+
     return {
       total: deliveryFees.length,
       wilayas: wilayas.size,
@@ -148,18 +136,71 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
   }, [deliveryFees]);
 
   /**
-   * Handle page change
-   */
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  /**
    * Reset to first page when data changes
    */
   React.useEffect(() => {
     setCurrentPage(1);
   }, [deliveryFees]);
+
+  const columns: ColumnDef<DeliveryFee>[] = [
+    {
+      accessorKey: 'wilaya',
+      header: t('admin.settings.delivery.wilaya'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 font-medium">
+          <MapPin className="h-4 w-4 text-muted-foreground" />
+          {row.original.wilaya}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'commune',
+      header: t('admin.settings.delivery.commune'),
+      cell: ({ row }) => <Badge variant="outline">{row.original.commune}</Badge>,
+    },
+    {
+      accessorKey: 'deliveryOffice',
+      header: t('admin.settings.delivery.deliveryOffice'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Badge variant={getDeliveryTypeBadgeVariant('office')}>{t('admin.settings.delivery.office')}</Badge>
+          <span className="font-medium">{formatCurrency(row.original.deliveryOffice)}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'deliveryHome',
+      header: t('admin.settings.delivery.deliveryHome'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Badge variant={getDeliveryTypeBadgeVariant('home')}>{t('admin.settings.delivery.home')}</Badge>
+          <span className="font-medium">{formatCurrency(row.original.deliveryHome)}</span>
+        </div>
+      ),
+    },
+  ];
+
+  const renderMobileRow = (fee: DeliveryFee) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 font-medium">
+          <MapPin className="h-4 w-4 text-muted-foreground" />
+          {fee.wilaya}
+        </div>
+        <Badge variant="outline">{fee.commune}</Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="flex items-center gap-2">
+          <Badge variant={getDeliveryTypeBadgeVariant('office')}>{t('admin.settings.delivery.office')}</Badge>
+          <span className="font-medium">{formatCurrency(fee.deliveryOffice)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={getDeliveryTypeBadgeVariant('home')}>{t('admin.settings.delivery.home')}</Badge>
+          <span className="font-medium">{formatCurrency(fee.deliveryHome)}</span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className={className}>
@@ -170,10 +211,10 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Truck className="h-5 w-5" />
-                Delivery Fees
+                {t('admin.settings.delivery.title')}
               </CardTitle>
               <CardDescription>
-                Manage delivery fees for different locations
+                {t('admin.settings.delivery.description')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -184,7 +225,7 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
                 disabled={isLoading}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                {t('common.actions.refresh')}
               </Button>
               <Button
                 variant="outline"
@@ -195,12 +236,12 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
                 {exportMutation.isPending ? (
                   <>
                     <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-background border-t-foreground" />
-                    Exporting...
+                    {t('admin.settings.delivery.exporting')}
                   </>
                 ) : (
                   <>
                     <Download className="h-4 w-4 mr-2" />
-                    Export Excel
+                    {t('admin.settings.delivery.exportExcel')}
                   </>
                 )}
               </Button>
@@ -209,7 +250,7 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
                 disabled={isLoading}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Import Excel
+                {t('admin.settings.delivery.importExcel')}
               </Button>
             </div>
           </div>
@@ -220,33 +261,21 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Failed to load delivery fees. Please try again.
+                {t('admin.settings.delivery.loadError')}
                 <Button
                   variant="outline"
                   size="sm"
                   className="ml-2"
                   onClick={() => refetch()}
                 >
-                  Retry
+                  {t('common.retry')}
                 </Button>
               </AlertDescription>
             </Alert>
           )}
 
           {/* Loading State */}
-          {isLoading && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-8 w-20" />
-              </div>
-              <div className="space-y-2">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            </div>
-          )}
+          {isLoading && <TableSkeleton rows={5} columns={4} />}
 
           {/* Data Display */}
           {!isLoading && !error && deliveryFees && (
@@ -256,139 +285,56 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Total Entries</p>
+                    <p className="text-sm font-medium">{t('admin.settings.delivery.totalEntries')}</p>
                     <p className="text-2xl font-bold">{stats.total}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Wilayas</p>
+                    <p className="text-sm font-medium">{t('admin.settings.delivery.wilayas')}</p>
                     <p className="text-2xl font-bold">{stats.wilayas}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <Truck className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Communes</p>
+                    <p className="text-sm font-medium">{t('admin.settings.delivery.communes')}</p>
                     <p className="text-2xl font-bold">{stats.communes}</p>
                   </div>
                 </div>
               </div>
 
               {/* Delivery Fees Table */}
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Wilaya</TableHead>
-                      <TableHead>Commune</TableHead>
-                      <TableHead>Delivery Office</TableHead>
-                      <TableHead>Delivery Home</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginationData.paginatedData.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          No delivery fees found. Import an Excel file to get started.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paginationData.paginatedData.map((fee, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              {fee.wilaya}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {fee.commune}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={getDeliveryTypeBadgeVariant('office')}>
-                                Office
-                              </Badge>
-                              <span className="font-medium">
-                                {formatCurrency(fee.deliveryOffice)}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={getDeliveryTypeBadgeVariant('home')}>
-                                Home
-                              </Badge>
-                              <span className="font-medium">
-                                {formatCurrency(fee.deliveryHome)}
-                              </span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataTable
+                columns={columns}
+                data={paginationData.paginatedData}
+                getRowKey={(fee) => `${fee.wilaya}-${fee.commune}`}
+                renderMobileRow={renderMobileRow}
+                emptyState={
+                  <EmptyState
+                    icon={<Truck className="h-6 w-6" />}
+                    title={t('admin.settings.delivery.noFeesFound')}
+                    body={t('admin.settings.delivery.description')}
+                  />
+                }
+              />
 
               {/* Pagination Controls */}
               {paginationData.totalPages > 1 && (
-                <div className="flex items-center justify-between px-2">
-                  <div className="flex-1 text-sm text-muted-foreground">
-                    Showing {paginationData.startIndex} to {paginationData.endIndex} of {paginationData.totalItems} entries
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    {t('admin.settings.delivery.showingEntries', {
+                      start: paginationData.startIndex,
+                      end: paginationData.endIndex,
+                      total: paginationData.totalItems,
+                    })}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Previous
-                    </Button>
-                    
-                    <div className="flex items-center space-x-1">
-                      {Array.from({ length: Math.min(5, paginationData.totalPages) }, (_, i) => {
-                        let pageNumber;
-                        if (paginationData.totalPages <= 5) {
-                          pageNumber = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNumber = i + 1;
-                        } else if (currentPage >= paginationData.totalPages - 2) {
-                          pageNumber = paginationData.totalPages - 4 + i;
-                        } else {
-                          pageNumber = currentPage - 2 + i;
-                        }
-                        
-                        return (
-                          <Button
-                            key={pageNumber}
-                            variant={currentPage === pageNumber ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handlePageChange(pageNumber)}
-                            className="w-8 h-8 p-0"
-                          >
-                            {pageNumber}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === paginationData.totalPages}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <SimplePagination
+                    page={currentPage}
+                    totalPages={paginationData.totalPages}
+                    onPageChange={setCurrentPage}
+                  />
                 </div>
               )}
             </div>
@@ -402,10 +348,10 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Import Delivery Fees from Excel
+              {t('admin.settings.delivery.importTitle')}
             </DialogTitle>
             <DialogDescription>
-              Upload an Excel file to import delivery fees. The file should contain columns for Wilaya, Commune, Delivery Office, and Delivery Home.
+              {t('admin.settings.delivery.importDescription')}
             </DialogDescription>
           </DialogHeader>
 
@@ -441,11 +387,11 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
                 onClick={handleImportDialogClose}
                 disabled={isProcessing}
               >
-                {importResult ? 'Close' : 'Cancel'}
+                {importResult ? t('admin.settings.delivery.close') : t('common.actions.cancel')}
               </Button>
               {importResult && importResult.success && (
                 <Button onClick={handleImportDialogClose}>
-                  Continue
+                  {t('admin.settings.delivery.continue')}
                 </Button>
               )}
             </div>

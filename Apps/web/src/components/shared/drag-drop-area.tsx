@@ -9,6 +9,7 @@ import {
   CheckCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 /**
  * Props for the DragDropArea component
@@ -35,6 +36,7 @@ export function DragDropArea({
   isUploading = false,
   className
 }: DragDropAreaProps) {
+  const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -156,26 +158,26 @@ export function DragDropArea({
           {/* Content */}
           <div className="text-center space-y-2">
             <h3 className="text-lg font-medium">
-              {isUploading 
-                ? "Processing images..." 
-                : isDragOver 
-                  ? "Drop images here" 
-                  : "Upload Product Images"
+              {isUploading
+                ? t('admin.products.images.processing')
+                : isDragOver
+                  ? t('admin.products.images.dropHere')
+                  : t('admin.products.images.uploadTitle')
               }
             </h3>
             
             <p className="text-sm text-muted-foreground">
-              {isUploading 
-                ? "Please wait while we process your images"
+              {isUploading
+                ? t('admin.products.images.processingBody')
                 : isDragOver
-                  ? "Release to upload"
-                  : "Drag and drop images here, or click to browse"
+                  ? t('admin.products.images.releaseToUpload')
+                  : t('admin.products.images.dragDropBody')
               }
             </p>
             
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>Max {maxImages} images, {maxSize}MB each</p>
-              <p>Supported: {getAllowedTypesDisplay()}</p>
+              <p>{t('admin.products.images.maxImages', { max: maxImages, size: maxSize })}</p>
+              <p>{t('admin.products.images.supported')}: {getAllowedTypesDisplay()}</p>
             </div>
           </div>
 
@@ -188,7 +190,7 @@ export function DragDropArea({
             variant={isDragOver ? "default" : "outline"}
           >
             <ImageIcon className="h-4 w-4 mr-2" />
-            {isUploading ? "Processing..." : "Choose Images"}
+            {isUploading ? t('admin.products.images.processingShort') : t('admin.products.images.chooseImages')}
           </Button>
 
           {/* Hidden File Input */}
@@ -208,7 +210,7 @@ export function DragDropArea({
           <div className="absolute inset-0 bg-primary/10 border-2 border-primary border-dashed rounded-lg flex items-center justify-center">
             <div className="text-center text-primary">
               <CheckCircle className="h-8 w-8 mx-auto mb-2" />
-              <p className="text-sm font-medium">Drop images here</p>
+              <p className="text-sm font-medium">{t('admin.products.images.dropHere')}</p>
             </div>
           </div>
         )}

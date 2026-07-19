@@ -145,7 +145,7 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold" id="dashboard-title">{t('admin.dashboard.overview')}</h1>
           <p className="text-muted-foreground" id="dashboard-subtitle">{t('admin.dashboard.welcome')}</p>
         </div>
-        <div className="flex items-center space-x-2" role="toolbar" aria-label="Dashboard actions">
+        <div className="flex items-center space-x-2" role="toolbar" aria-label={t('admin.dashboard.actionsAria')}>
           {/* <Button 
             variant="outline" 
             onClick={handleRefresh}
@@ -168,22 +168,22 @@ export default function AdminDashboard() {
       </section>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" role="region" aria-label="Dashboard content">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" role="region" aria-label={t('admin.dashboard.contentAria')}>
         {/* Recent Orders - Takes 2 columns on large screens */}
-        <section className="lg:col-span-2" aria-label="Recent orders">
+        <section className="lg:col-span-2" aria-label={t('admin.dashboard.recentOrdersAria')}>
           <RecentOrdersSection />
         </section>
         
         {/* Low Stock Alert */}
           {/* Right Column - Recent Clients and Low Stock Alert */}
-        <aside className="space-y-6" aria-label="Dashboard sidebar">
-          <section aria-label="Low stock alerts">
+        <aside className="space-y-6" aria-label={t('admin.dashboard.sidebarAria')}>
+          <section aria-label={t('admin.dashboard.lowStockAria')}>
             <LowStockAlertSection />
           </section>
         </aside>
         
         {/* Recent Clients */}
-        <section className="lg:col-span-2" aria-label="Recent clients">
+        <section className="lg:col-span-2" aria-label={t('admin.dashboard.recentClientsAria')}>
           <RecentClientsSection />
         </section>
 

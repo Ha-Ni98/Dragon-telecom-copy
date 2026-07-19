@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ExcelImportResult } from '@/types/draft-types/admin-settings.types';
 
 /**
@@ -45,6 +46,7 @@ export function ExcelFileUploader({
     'application/vnd.ms-excel', // .xls
   ],
 }: ExcelFileUploaderProps) {
+  const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -279,16 +281,16 @@ export function ExcelFileUploader({
             {/* Text */}
             <div className="text-center space-y-2">
               <h3 className="text-lg font-semibold">
-                {isProcessing ? 'Processing Excel File...' : 'Upload Excel File'}
+                {isProcessing ? t('admin.settings.delivery.processingFile') : t('admin.settings.delivery.uploadFile')}
               </h3>
               <p className="text-sm text-muted-foreground">
                 {isProcessing
-                  ? 'Please wait while we process your file'
-                  : 'Drag and drop your Excel file here, or click to browse'
+                  ? t('admin.settings.delivery.processingFileBody')
+                  : t('admin.settings.delivery.dragDropBody')
                 }
               </p>
               <p className="text-xs text-muted-foreground">
-                Supported formats: .xlsx, .xls (Max {maxSize}MB)
+                {t('admin.settings.delivery.supportedFormats', { max: maxSize })}
               </p>
             </div>
 
@@ -296,7 +298,7 @@ export function ExcelFileUploader({
             {!isProcessing && (
               <Button variant="outline" disabled={disabled}>
                 <Upload className="h-4 w-4 mr-2" />
-                Choose File
+                {t('admin.settings.delivery.chooseFile')}
               </Button>
             )}
           </div>
@@ -307,7 +309,7 @@ export function ExcelFileUploader({
       {isProcessing && progress > 0 && (
         <div className="mt-4 space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span>Processing file...</span>
+            <span>{t('admin.settings.delivery.processingFileShort')}</span>
             <span>{progress}%</span>
           </div>
           <Progress value={progress} className="w-full" />
@@ -349,13 +351,13 @@ export function ExcelFileUploader({
 
       {/* File Format Instructions */}
       <div className="mt-4 p-4 bg-muted rounded-lg">
-        <h4 className="text-sm font-medium mb-2">Expected Excel Format:</h4>
+        <h4 className="text-sm font-medium mb-2">{t('admin.settings.delivery.expectedFormat')}</h4>
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>• <strong>Column A:</strong> Wilaya (e.g., "Alger", "Oran")</p>
-          <p>• <strong>Column B:</strong> Commune (e.g., "Alger Centre", "Oran Centre")</p>
-          <p>• <strong>Column C:</strong> Delivery Office (numeric value)</p>
-          <p>• <strong>Column D:</strong> Delivery Home (numeric value)</p>
-          <p>• <strong>Note:</strong> Use "Rest" for commune when applicable</p>
+          <p>• <strong>{t('admin.settings.delivery.columnA')}</strong></p>
+          <p>• <strong>{t('admin.settings.delivery.columnB')}</strong></p>
+          <p>• <strong>{t('admin.settings.delivery.columnC')}</strong></p>
+          <p>• <strong>{t('admin.settings.delivery.columnD')}</strong></p>
+          <p>• <strong>{t('admin.settings.delivery.formatNote')}</strong></p>
         </div>
       </div>
     </div>

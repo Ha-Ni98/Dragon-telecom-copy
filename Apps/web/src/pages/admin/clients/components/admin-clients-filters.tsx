@@ -87,12 +87,12 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
               <Input
                 id="search-input"
                 type="text"
-                placeholder="Search by name, phone, or email..."
+                placeholder={t('admin.clients.filters.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 disabled={loading}
                 className="pl-10"
-                aria-label="Search clients"
+                aria-label={t('admin.clients.filters.searchAria')}
               />
               {searchQuery && (
                 <Button
@@ -100,7 +100,7 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
                   size="icon"
                   onClick={() => onSearchChange('')}
                   className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
-                  aria-label="Clear search"
+                  aria-label={t('common.actions.clearSearch')}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -116,7 +116,7 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
               disabled={loading}
             >
               <SelectTrigger id="status-filter" className="w-full">
-                <SelectValue placeholder="All Status" />
+                <SelectValue placeholder={t('admin.clients.filters.allStatus')} />
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((option) => {
@@ -145,7 +145,7 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
                 className="flex items-center gap-2"
               >
                 <X className="h-4 w-4" />
-                Clear
+                {t('common.actions.clear')}
               </Button>
             </div>
           )}
@@ -154,7 +154,7 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
           {loading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>Loading...</span>
+              <span>{t('common.loading')}</span>
             </div>
           )}
         </div>
@@ -166,13 +166,13 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
               {searchQuery && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Search className="h-3 w-3" />
-                  Search: "{searchQuery}"
+                  {t('common.labels.search')}: "{searchQuery}"
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => onSearchChange('')}
                     className="h-4 w-4 p-0 ml-1"
-                    aria-label="Remove search filter"
+                    aria-label={t('products.filters.removeSearch')}
                   >
                     <X className="h-3 w-3" />
                   </Button>
@@ -181,13 +181,13 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
               {selectedStatus !== 'all' && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Filter className="h-3 w-3" />
-                  Status: {selectedStatus}
+                  {t('common.labels.status')}: {selectedStatus}
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => onStatusChange('all')}
                     className="h-4 w-4 p-0 ml-1"
-                    aria-label="Remove status filter"
+                    aria-label={t('admin.clients.filters.removeStatus')}
                   >
                     <X className="h-3 w-3" />
                   </Button>

@@ -137,20 +137,20 @@ export function ClientCategoryDialog({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Tag className="h-4 w-4" />
-                  Current Category Information
+                  {t('admin.clients.categories.currentInfo')}
                 </CardTitle>
                 <CardDescription>
-                  View current category details
+                  {t('admin.clients.categories.viewCurrentDetails')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Category ID</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{t('admin.clients.categories.categoryId')}</Label>
                     <p className="text-sm">{category.idCategory}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Current Status</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{t('admin.clients.modifyDialog.currentStatus')}</Label>
                     <div className="flex items-center gap-2">
                       <Badge variant={getStatusBadgeVariant(category.categoryStatus)}>
                         {getStatusLabel(category.categoryStatus)}
@@ -168,19 +168,19 @@ export function ClientCategoryDialog({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Tag className="h-4 w-4" />
-                  Category Details
+                  {t('admin.clients.categories.categoryDetails')}
                 </CardTitle>
                 <CardDescription>
-                  {isEditMode 
-                    ? 'Update the category information below.'
-                    : 'Enter the category information below.'
+                  {isEditMode
+                    ? t('admin.clients.categories.updateBelow')
+                    : t('admin.clients.categories.enterBelow')
                   }
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Category Name Field */}
                 <div className="space-y-2">
-                  <Label htmlFor="categoryName">Category Name *</Label>
+                  <Label htmlFor="categoryName">{t('admin.clients.categories.name')} *</Label>
                   <Controller
                     name="categoryName"
                     control={control}
@@ -188,7 +188,7 @@ export function ClientCategoryDialog({
                       <Input
                         {...field}
                         id="categoryName"
-                        placeholder="Enter category name"
+                        placeholder={t('admin.clients.categories.namePlaceholder')}
                         className={errors.categoryName ? 'border-destructive' : ''}
                         disabled={isSaving}
                       />
@@ -198,7 +198,7 @@ export function ClientCategoryDialog({
                     <p className="text-sm text-destructive">{errors.categoryName.message}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Category name will be used to identify client pricing tiers
+                    {t('admin.clients.categories.nameHelp')}
                   </p>
                 </div>
 
@@ -210,7 +210,7 @@ export function ClientCategoryDialog({
                     ) : (
                       <ToggleLeft className="h-4 w-4 text-gray-400" />
                     )}
-                    Status
+                    {t('common.labels.status')}
                   </Label>
                   <Controller
                     name="categoryStatus"
@@ -226,7 +226,7 @@ export function ClientCategoryDialog({
                           disabled={isSaving}
                         />
                         <Label htmlFor="categoryStatus" className="text-sm">
-                          {field.value === CategoryStatusCode.active ? 'Active' : 'Disabled'}
+                          {field.value === CategoryStatusCode.active ? t('common.status.active') : t('common.status.disabled')}
                         </Label>
                       </div>
                     )}
@@ -235,17 +235,17 @@ export function ClientCategoryDialog({
                     <p className="text-sm text-destructive">{errors.categoryStatus.message}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Active categories can be assigned to clients. Disabled categories cannot be used for new clients.
+                    {t('admin.clients.categories.statusHelp')}
                   </p>
                 </div>
 
                 {/* Status Preview */}
                 <div className="p-3 bg-muted rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Preview:</span>
+                    <span className="text-sm font-medium">{t('common.labels.preview')}:</span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
-                        {control._formValues.categoryName || 'Category Name'}
+                        {control._formValues.categoryName || t('admin.clients.categories.name')}
                       </span>
                       <Badge variant={getStatusBadgeVariant(control._formValues.categoryStatus)}>
                         {getStatusLabel(control._formValues.categoryStatus)}

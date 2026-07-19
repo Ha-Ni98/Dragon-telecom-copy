@@ -26,6 +26,13 @@ Decision #7).
 > — it doesn't compile against the real contract either, so it couldn't be kept "as a reference"
 > once `tsc` had to pass. See §1.2 and §1.4 below for the resulting fate corrections.
 
+> **Sprint 2 (UI Standardization & i18n) — ✅ done 2026-07-19.** Full report in `sprints.md`'s
+> Sprint 2 section. Notable: 16 admin components (not just the ones flagged in `codebase-map.md`)
+> used raw `<Table>` and were converted to the shared `DataTable`; `translations.json` grew from
+> 1778 → 1891 keys (~35 additional inline strings surfaced mid-conversion, mostly in components'
+> success-path render branches that had zero `t()` calls at all — see Sprint 2 Deviation #4); the
+> OKLCH theme re-skin was visually verified via headless-Chrome screenshots of `/` and `/login`.
+
 ---
 
 ## 1. The Purge

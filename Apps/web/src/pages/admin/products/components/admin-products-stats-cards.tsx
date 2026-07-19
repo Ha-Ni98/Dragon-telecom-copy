@@ -4,10 +4,11 @@
  */
 
 import { Package, CheckCircle, AlertTriangle, XCircle, RefreshCw } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { StatCard } from "@/components/shared/StatCard";
+import { StatCardSkeleton } from "@/components/shared/StatCardSkeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { AdminProductsStats } from "@/types/draft-types/admin.types";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -30,34 +31,10 @@ interface AdminProductsStatsCardsProps {
  * Statistics card configuration for products
  */
 const statsConfig = [
-  {
-    key: 'totalProducts' as keyof AdminProductsStats,
-    icon: Package,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50 dark:bg-blue-950',
-    translationKey: 'admin.products.totalProducts',
-  },
-  {
-    key: 'inStock' as keyof AdminProductsStats,
-    icon: CheckCircle,
-    color: 'text-green-600',
-    bgColor: 'bg-green-50 dark:bg-green-950',
-    translationKey: 'admin.products.inStock',
-  },
-  {
-    key: 'lowStock' as keyof AdminProductsStats,
-    icon: AlertTriangle,
-    color: 'text-yellow-600',
-    bgColor: 'bg-yellow-50 dark:bg-yellow-950',
-    translationKey: 'admin.products.lowStock',
-  },
-  {
-    key: 'outOfStock' as keyof AdminProductsStats,
-    icon: XCircle,
-    color: 'text-red-600',
-    bgColor: 'bg-red-50 dark:bg-red-950',
-    translationKey: 'admin.products.outOfStock',
-  },
+  { key: 'totalProducts' as keyof AdminProductsStats, icon: Package, translationKey: 'admin.products.totalProducts' },
+  { key: 'inStock' as keyof AdminProductsStats, icon: CheckCircle, translationKey: 'admin.products.inStock' },
+  { key: 'lowStock' as keyof AdminProductsStats, icon: AlertTriangle, translationKey: 'admin.products.lowStock' },
+  { key: 'outOfStock' as keyof AdminProductsStats, icon: XCircle, translationKey: 'admin.products.outOfStock' },
 ];
 
 /**
@@ -73,29 +50,11 @@ function formatNumber(value: number): string {
 }
 
 /**
- * Loading skeleton for statistics cards
- */
-function StatsCardSkeleton() {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-4 rounded" />
-      </CardHeader>
-      <CardContent>
-        <Skeleton className="h-8 w-16 mb-2" />
-        <Skeleton className="h-3 w-20" />
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
  * Error state component
  */
 function StatsErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {
   const { t } = useTranslation();
-  
+
   return (
     <div className="col-span-full">
       <Alert variant="destructive">
@@ -120,44 +79,6 @@ function StatsErrorState({ error, onRetry }: { error: string; onRetry?: () => vo
 }
 
 /**
- * Individual statistics card component
- */
-function StatCard({ 
-  config, 
-  stats, 
-  t 
-}: { 
-  config: typeof statsConfig[0]; 
-  stats: AdminProductsStats; 
-  t: (key: string) => string;
-}) {
-  const IconComponent = config.icon;
-  const value = stats[config.key] as number;
-  const formattedValue = formatNumber(value);
-  
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {t(config.translationKey)}
-        </CardTitle>
-        <div className={`p-2 rounded-lg ${config.bgColor}`}>
-          <IconComponent className={`h-4 w-4 ${config.color}`} />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{formattedValue}</div>
-        <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-          <span>
-            {value === 1 ? t('common.item') : t('common.items')}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
  * Main Admin Products Statistics Cards Component
  */
 export function AdminProductsStatsCards({
@@ -174,8 +95,8 @@ export function AdminProductsStatsCards({
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <StatsCardSkeleton key={index} />
+        {statsConfig.map((config) => (
+          <StatCardSkeleton key={config.key} />
         ))}
       </div>
     );
@@ -190,12 +111,11 @@ export function AdminProductsStatsCards({
   if (!stats) {
     return (
       <div className="col-span-full">
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            {t('admin.products.statsError')}
-          </AlertDescription>
-        </Alert>
+        <EmptyState
+          icon={<Package className="h-6 w-6" />}
+          title={t('common.noDataAvailable')}
+          body={t('admin.products.statsError')}
+        />
       </div>
     );
   }
@@ -222,17 +142,26 @@ export function AdminProductsStatsCards({
           </Button>
         </div>
       )}
-      
+
       {/* Statistics cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsConfig.map((config) => (
-          <StatCard
-            key={config.key}
-            config={config}
-            stats={stats}
-            t={t}
-          />
-        ))}
+        {statsConfig.map((config) => {
+          const IconComponent = config.icon;
+          const value = stats[config.key] as number;
+          return (
+            <StatCard
+              key={config.key}
+              icon={<IconComponent className="h-5 w-5" />}
+              label={t(config.translationKey)}
+              value={formatNumber(value)}
+              trend={
+                <span className="text-xs text-muted-foreground">
+                  {value === 1 ? t('common.item') : t('common.items')}
+                </span>
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );

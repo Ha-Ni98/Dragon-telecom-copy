@@ -19,50 +19,59 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 // Error fallback components
-const StatisticsErrorFallback = ({ retry }: { retry: () => void }) => (
-  <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-    <h3 className="text-red-800 font-medium">Statistics Error</h3>
-    <p className="text-red-600 text-sm mt-1">
-      Failed to load order statistics. Please try again.
-    </p>
-    <button
-      onClick={retry}
-      className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
-    >
-      Retry
-    </button>
-  </div>
-);
+const StatisticsErrorFallback = ({ retry }: { retry: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+      <h3 className="text-red-800 font-medium">{t('admin.orders.errors.statisticsTitle')}</h3>
+      <p className="text-red-600 text-sm mt-1">
+        {t('admin.orders.errors.statisticsBody')}
+      </p>
+      <button
+        onClick={retry}
+        className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
+      >
+        {t('common.actions.tryAgain')}
+      </button>
+    </div>
+  );
+};
 
-const TableErrorFallback = ({ retry }: { retry: () => void }) => (
-  <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-    <h3 className="text-red-800 font-medium">Orders Table Error</h3>
-    <p className="text-red-600 text-sm mt-1">
-      Failed to load orders table. Please try again.
-    </p>
-    <button
-      onClick={retry}
-      className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
-    >
-      Retry
-    </button>
-  </div>
-);
+const TableErrorFallback = ({ retry }: { retry: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+      <h3 className="text-red-800 font-medium">{t('admin.orders.errors.tableTitle')}</h3>
+      <p className="text-red-600 text-sm mt-1">
+        {t('admin.orders.errors.tableBody')}
+      </p>
+      <button
+        onClick={retry}
+        className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
+      >
+        {t('common.actions.tryAgain')}
+      </button>
+    </div>
+  );
+};
 
-const DialogErrorFallback = ({ retry }: { retry: () => void }) => (
-  <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-    <h3 className="text-red-800 font-medium">Dialog Error</h3>
-    <p className="text-red-600 text-sm mt-1">
-      Failed to load dialog. Please try again.
-    </p>
-    <button
-      onClick={retry}
-      className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
-    >
-      Retry
-    </button>
-  </div>
-);
+const DialogErrorFallback = ({ retry }: { retry: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+      <h3 className="text-red-800 font-medium">{t('admin.orders.errors.dialogTitle')}</h3>
+      <p className="text-red-600 text-sm mt-1">
+        {t('admin.orders.errors.dialogBody')}
+      </p>
+      <button
+        onClick={retry}
+        className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
+      >
+        {t('common.actions.tryAgain')}
+      </button>
+    </div>
+  );
+};
 
 const AdminOrders = memo(function AdminOrders() {
   const { t } = useTranslation();
@@ -267,7 +276,7 @@ const AdminOrders = memo(function AdminOrders() {
       {/* Statistics Cards */}
       <ErrorBoundary fallback={<StatisticsErrorFallback retry={() => window.location.reload()} />}>
         <section aria-labelledby="stats-heading">
-          <h2 id="stats-heading" className="sr-only">Order Statistics</h2>
+          <h2 id="stats-heading" className="sr-only">{t('admin.orders.statisticsHeading')}</h2>
           <AdminOrdersStatsCards {...statsCardsProps} />
         </section>
       </ErrorBoundary>
@@ -275,7 +284,7 @@ const AdminOrders = memo(function AdminOrders() {
       {/* Orders Table */}
       <ErrorBoundary fallback={<TableErrorFallback retry={() => window.location.reload()} />}>
         <section aria-labelledby="orders-heading">
-          <h2 id="orders-heading" className="sr-only">Orders Management</h2>
+          <h2 id="orders-heading" className="sr-only">{t('admin.orders.managementHeading')}</h2>
           <AdminOrdersTable {...tableProps} />
         </section>
       </ErrorBoundary>

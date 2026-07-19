@@ -4,29 +4,32 @@
  */
 
 import { memo, useMemo } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SimplePagination } from '@/components/shared/SimplePagination';
-import { 
-  Truck, 
-  RefreshCw, 
-  AlertTriangle, 
-  Edit, 
+import { DataTable } from '@/components/shared/DataTable';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
+import {
+  Truck,
+  RefreshCw,
+  AlertTriangle,
+  Edit,
   Plus,
   Trash2,
-  Phone, 
-  Mail, 
+  Phone,
+  Mail,
   MapPin,
   Package,
   FileText,
   Search
 } from 'lucide-react';
-import { 
-  AdminSuppliersPaginatedResponse
+import {
+  AdminSuppliersPaginatedResponse,
+  SupplierWithDetails
 } from '@/types/draft-types';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -62,6 +65,13 @@ interface AdminSuppliersTableProps {
   className?: string;
 }
 
+type FormattedSupplier = SupplierWithDetails & {
+  formattedCredit: string;
+  formattedTotalDue: string;
+  formattedTotalPaid: string;
+  formattedTotalCredit: string;
+};
+
 /**
  * Format currency value for display
  */
@@ -82,84 +92,29 @@ function formatNumber(num: number): string {
 }
 
 /**
- * Loading skeleton for table rows
- */
-const TableLoadingSkeleton = memo(function TableLoadingSkeleton() {
-  return (
-    <>
-      {Array.from({ length: 5 }).map((_, index) => (
-        <TableRow key={index}>
-          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-          <TableCell><Skeleton className="h-8 w-24" /></TableCell>
-        </TableRow>
-      ))}
-    </>
-  );
-});
-
-/**
  * Error state component
  */
-const TableErrorState = memo(function TableErrorState({ 
-  error, 
-  onRetry 
-}: { 
-  error: string; 
-  onRetry?: () => void; 
-}) {
+function TableErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {
   const { t } = useTranslation();
 
   return (
-    <TableRow>
-      <TableCell colSpan={8} className="text-center py-8">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-center space-x-4">
-            <span>{error}</span>
-            {onRetry && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRetry}
-              >
-                {t('common.retry')}
-              </Button>
-            )}
-          </AlertDescription>
-        </Alert>
-      </TableCell>
-    </TableRow>
+    <Alert variant="destructive">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertDescription className="flex items-center justify-center space-x-4">
+        <span>{error}</span>
+        {onRetry && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+          >
+            {t('common.retry')}
+          </Button>
+        )}
+      </AlertDescription>
+    </Alert>
   );
-});
-
-/**
- * Empty state component
- */
-const TableEmptyState = memo(function TableEmptyState() {
-  const { t } = useTranslation();
-
-  return (
-    <TableRow>
-      <TableCell colSpan={8} className="text-center py-8">
-        <div className="flex flex-col items-center space-y-2">
-          <Truck className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            {t('admin.suppliers.table.noSuppliers')}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {t('admin.suppliers.table.noSuppliersDescription')}
-          </p>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-});
+}
 
 /**
  * Main AdminSuppliersTable component
@@ -195,6 +150,177 @@ export const AdminSuppliersTable = memo(function AdminSuppliersTable({
       formattedTotalCredit: formatCurrency(supplier.totalCredit),
     }));
   }, [suppliers]);
+
+  const columns = useMemo<ColumnDef<FormattedSupplier>[]>(() => [
+    {
+      accessorKey: 'supplierName',
+      header: t('admin.suppliers.table.supplier'),
+      cell: ({ row }) => <div className="break-words max-w-[150px] font-medium">{row.original.supplierName}</div>,
+    },
+    {
+      accessorKey: 'supplierPersonName',
+      header: t('admin.suppliers.table.person'),
+      cell: ({ row }) => <div className="break-words max-w-[120px]">{row.original.supplierPersonName || '-'}</div>,
+    },
+    {
+      id: 'contact',
+      header: t('admin.suppliers.table.contact'),
+      cell: ({ row }) => (
+        <div className="space-y-1 max-w-[200px]">
+          {row.original.supplierPhone && (
+            <div className="flex items-center gap-1 text-sm">
+              <Phone className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{row.original.supplierPhone}</span>
+            </div>
+          )}
+          {row.original.supplierEmail && (
+            <div className="flex items-center gap-1 text-sm">
+              <Mail className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{row.original.supplierEmail}</span>
+            </div>
+          )}
+          {!row.original.supplierPhone && !row.original.supplierEmail && (
+            <span className="text-muted-foreground">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'supplierLocation',
+      header: t('admin.suppliers.table.location'),
+      cell: ({ row }) => (
+        row.original.supplierLocation ? (
+          <div className="flex items-center gap-1 text-sm break-words max-w-[100px]">
+            <MapPin className="h-3 w-3 flex-shrink-0" />
+            <span className="break-words">{row.original.supplierLocation}</span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )
+      ),
+    },
+    {
+      accessorKey: 'formattedCredit',
+      header: t('admin.suppliers.table.credit'),
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div className="font-medium">{row.original.formattedCredit}</div>
+          <div className="text-xs text-muted-foreground">
+            {t('admin.suppliers.table.due')}: {row.original.formattedTotalDue}
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'productsSuppliedCount',
+      header: t('admin.suppliers.table.products'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          <Package className="h-3 w-3" />
+          <span>{formatNumber(row.original.productsSuppliedCount)}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'invoicesCount',
+      header: t('admin.suppliers.table.invoices'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          <FileText className="h-3 w-3" />
+          <span>{formatNumber(row.original.invoicesCount)}</span>
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      header: t('admin.suppliers.table.actions'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(row.original.idSupplier)}
+            className="h-8 w-8 p-0"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onAddInvoice(row.original.idSupplier)}
+            className="h-8 w-8 p-0"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(row.original.idSupplier)}
+            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, onEdit, onAddInvoice, onDelete]);
+
+  const renderMobileRow = (supplier: FormattedSupplier) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="font-medium">{supplier.supplierName}</div>
+          <div className="text-sm text-muted-foreground">{supplier.supplierPersonName || '-'}</div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => onEdit(supplier.idSupplier)} className="h-8 w-8 p-0">
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onAddInvoice(supplier.idSupplier)} className="h-8 w-8 p-0">
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onDelete(supplier.idSupplier)} className="h-8 w-8 p-0 text-destructive hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-1">
+        {supplier.supplierPhone && (
+          <div className="flex items-center gap-1 text-sm">
+            <Phone className="h-3 w-3 flex-shrink-0" />
+            <span>{supplier.supplierPhone}</span>
+          </div>
+        )}
+        {supplier.supplierEmail && (
+          <div className="flex items-center gap-1 text-sm">
+            <Mail className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{supplier.supplierEmail}</span>
+          </div>
+        )}
+        {supplier.supplierLocation && (
+          <div className="flex items-center gap-1 text-sm">
+            <MapPin className="h-3 w-3 flex-shrink-0" />
+            <span>{supplier.supplierLocation}</span>
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-3 gap-2 pt-2 border-t text-sm">
+        <div>
+          <div className="font-medium">{supplier.formattedCredit}</div>
+          <div className="text-xs text-muted-foreground">{t('admin.suppliers.table.due')}: {supplier.formattedTotalDue}</div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Package className="h-3 w-3" />
+          <span>{formatNumber(supplier.productsSuppliedCount)}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <FileText className="h-3 w-3" />
+          <span>{formatNumber(supplier.invoicesCount)}</span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <Card className={`${className} `}>
@@ -236,125 +362,25 @@ export const AdminSuppliersTable = memo(function AdminSuppliersTable({
         )}
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <Table className="min-w-4xl">
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('admin.suppliers.table.supplier')}</TableHead>
-                <TableHead>{t('admin.suppliers.table.person')}</TableHead>
-                <TableHead>{t('admin.suppliers.table.contact')}</TableHead>
-                <TableHead>{t('admin.suppliers.table.location')}</TableHead>
-                <TableHead>{t('admin.suppliers.table.credit')}</TableHead>
-                <TableHead>{t('admin.suppliers.table.products')}</TableHead>
-                <TableHead>{t('admin.suppliers.table.invoices')}</TableHead>
-                <TableHead>{t('admin.suppliers.table.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableLoadingSkeleton />
-              ) : error ? (
-                <TableErrorState error={error} onRetry={onRetry} />
-              ) : formattedSuppliers.length === 0 ? (
-                <TableEmptyState />
-              ) : (
-                formattedSuppliers.map((supplier) => (
-                  <TableRow key={supplier.idSupplier} className="h-10">
-                    <TableCell className="font-medium max-w-[150px]">
-                      <div className="break-words">
-                        {supplier.supplierName}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[120px]">
-                      <div className="break-words">
-                        {supplier.supplierPersonName || '-'}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <div className="space-y-1">
-                        {supplier.supplierPhone && (
-                          <div className="flex items-center gap-1 text-sm">
-                            <Phone className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{supplier.supplierPhone}</span>
-                          </div>
-                        )}
-                        {supplier.supplierEmail && (
-                          <div className="flex items-center gap-1 text-sm">
-                            <Mail className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{supplier.supplierEmail}</span>
-                          </div>
-                        )}
-                        {!supplier.supplierPhone && !supplier.supplierEmail && (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[100px]">
-                      {supplier.supplierLocation ? (
-                        <div className="flex items-center gap-1 text-sm break-words">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
-                          <span className="break-words">{supplier.supplierLocation}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="font-medium">
-                          {supplier.formattedCredit}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Due: {supplier.formattedTotalDue}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Package className="h-3 w-3" />
-                        <span>{formatNumber(supplier.productsSuppliedCount)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <FileText className="h-3 w-3" />
-                        <span>{formatNumber(supplier.invoicesCount)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(supplier.idSupplier)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onAddInvoice(supplier.idSupplier)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDelete(supplier.idSupplier)}
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        {loading ? (
+          <TableSkeleton rows={5} columns={8} />
+        ) : error ? (
+          <TableErrorState error={error} onRetry={onRetry} />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={formattedSuppliers}
+            getRowKey={(supplier) => String(supplier.idSupplier)}
+            renderMobileRow={renderMobileRow}
+            emptyState={
+              <EmptyState
+                icon={<Truck className="h-6 w-6" />}
+                title={t('admin.suppliers.table.noSuppliers')}
+                body={t('admin.suppliers.table.noSuppliersDescription')}
+              />
+            }
+          />
+        )}
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (

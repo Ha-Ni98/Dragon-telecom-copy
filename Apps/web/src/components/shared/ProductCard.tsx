@@ -82,13 +82,13 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
    */
   const handleAddToCart = async () => {
     if (!userIsAuthenticated) {
-      toast.error('Please sign in to add items to cart');
+      toast.error(t('cart.signInRequired'));
       navigate('/login');
       return;
     }
 
     if (!product.inStock) {
-      toast.error('Product is out of stock');
+      toast.error(t('cart.outOfStock'));
       return;
     }
 
@@ -103,7 +103,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
         removeFromCart(product.idProduct);
       }
     } catch (error) {
-      toast.error('Failed to add product to cart');
+      toast.error(t('cart.addError'));
       console.error('Add to cart error:', error);
     } finally {
       setIsAddingToCart(false);
@@ -139,7 +139,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
         removeFromCart(product.idProduct);
       }
     } catch (error) {
-      toast.error('Failed to update wishlist');
+      toast.error(t('cart.addError'));
       console.error('Wishlist toggle error:', error);
     }
   };

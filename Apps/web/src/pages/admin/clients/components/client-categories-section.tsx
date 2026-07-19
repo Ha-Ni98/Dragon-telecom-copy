@@ -3,16 +3,18 @@
  * Manages client categories with status management functionality
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Plus, Tag, ToggleLeft, ToggleRight, Trash2, Edit, AlertTriangle, RefreshCw, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
+import { DataTable } from '@/components/shared/DataTable';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ClientCategory, ClientCategoryFormData } from '@/types/draft-types';
 import { CategoryStatusCode } from '@/types/draft-types/enums.types';
@@ -38,7 +40,7 @@ interface ClientCategoriesSectionProps {
  */
 export function ClientCategoriesSection({ className }: ClientCategoriesSectionProps) {
   const { t } = useTranslation();
-  
+
   // State management
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -97,10 +99,10 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
    * Handle status toggle
    */
   const handleStatusToggle = (category: ClientCategory) => {
-    const newStatus = category.categoryStatus === CategoryStatusCode.active 
-      ? CategoryStatusCode.disabled 
+    const newStatus = category.categoryStatus === CategoryStatusCode.active
+      ? CategoryStatusCode.disabled
       : CategoryStatusCode.active;
-    
+
     updateCategoryMutation.mutate({
       id: category.idCategory,
       data: {
@@ -127,26 +129,16 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
   };
 
   /**
-   * Close all dialogs
-   */
-  const closeDialogs = () => {
-    setIsAddDialogOpen(false);
-    setIsEditDialogOpen(false);
-    setIsDeleteDialogOpen(false);
-    setSelectedCategory(null);
-  };
-
-  /**
    * Get status label
    */
   const getStatusLabel = (status: CategoryStatusCode) => {
     switch (status) {
       case CategoryStatusCode.active:
-        return 'Active';
+        return t('common.status.active');
       case CategoryStatusCode.disabled:
-        return 'Disabled';
+        return t('common.status.disabled');
       default:
-        return 'Unknown';
+        return t('common.status.unknown');
     }
   };
 
@@ -181,9 +173,9 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
   /**
    * Check if any operation is in progress
    */
-  const isAnyOperationInProgress = 
-    createCategoryMutation.isPending || 
-    updateCategoryMutation.isPending || 
+  const isAnyOperationInProgress =
+    createCategoryMutation.isPending ||
+    updateCategoryMutation.isPending ||
     deleteCategoryMutation.isPending;
 
   /**
@@ -191,13 +183,123 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
    */
   const categoryStats = useMemo(() => {
     if (!clientCategories) return { total: 0, active: 0, disabled: 0 };
-    
+
     return {
       total: clientCategories.length,
       active: clientCategories.filter(cat => cat.categoryStatus === CategoryStatusCode.active).length,
       disabled: clientCategories.filter(cat => cat.categoryStatus === CategoryStatusCode.disabled).length,
     };
   }, [clientCategories]);
+
+  const columns: ColumnDef<ClientCategory>[] = [
+    {
+      accessorKey: 'categoryName',
+      header: t('admin.clients.categories.name'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 font-medium">
+          <Tag className="h-4 w-4 text-muted-foreground" />
+          {row.original.categoryName}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'categoryStatus',
+      header: t('common.labels.status'),
+      cell: ({ row }) => (
+        <Badge
+          variant={getStatusBadgeVariant(row.original.categoryStatus)}
+          className={getStatusBadgeColor(row.original.categoryStatus)}
+        >
+          {getStatusLabel(row.original.categoryStatus)}
+        </Badge>
+      ),
+    },
+    {
+      id: 'toggle',
+      header: t('admin.clients.categories.toggle'),
+      cell: ({ row }) => (
+        <div className="flex items-center space-x-2">
+          <Switch
+            checked={row.original.categoryStatus === CategoryStatusCode.active}
+            onCheckedChange={() => handleStatusToggle(row.original)}
+            disabled={isAnyOperationInProgress}
+          />
+          <span className="text-sm text-muted-foreground">
+            {getStatusLabel(row.original.categoryStatus)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">{t('common.actions.action')}</div>,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openEditDialog(row.original)}
+            disabled={isAnyOperationInProgress}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openDeleteDialog(row.original)}
+            disabled={isAnyOperationInProgress}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const renderMobileRow = (category: ClientCategory) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 font-medium">
+          <Tag className="h-4 w-4 text-muted-foreground" />
+          {category.categoryName}
+        </div>
+        <Badge
+          variant={getStatusBadgeVariant(category.categoryStatus)}
+          className={getStatusBadgeColor(category.categoryStatus)}
+        >
+          {getStatusLabel(category.categoryStatus)}
+        </Badge>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Switch
+          checked={category.categoryStatus === CategoryStatusCode.active}
+          onCheckedChange={() => handleStatusToggle(category)}
+          disabled={isAnyOperationInProgress}
+        />
+        <span className="text-sm text-muted-foreground">{getStatusLabel(category.categoryStatus)}</span>
+      </div>
+      <div className="flex items-center justify-end gap-2 pt-2 border-t">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => openEditDialog(category)}
+          disabled={isAnyOperationInProgress}
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => openDeleteDialog(category)}
+          disabled={isAnyOperationInProgress}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className={className}>
@@ -208,10 +310,10 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Tag className="h-5 w-5" />
-                Client Categories
+                {t('admin.clients.categories.title')}
               </CardTitle>
               <CardDescription>
-                Manage client categories and their status
+                {t('admin.clients.categories.description')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -222,14 +324,14 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
                 disabled={isLoading || isAnyOperationInProgress}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                {t('common.actions.refresh')}
               </Button>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
                 disabled={isAnyOperationInProgress}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Category
+                {t('admin.clients.categories.add')}
               </Button>
             </div>
           </div>
@@ -240,33 +342,21 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Failed to load client categories. Please try again.
+                {t('admin.clients.categories.loadError')}
                 <Button
                   variant="outline"
                   size="sm"
                   className="ml-2"
                   onClick={() => refetch()}
                 >
-                  Retry
+                  {t('common.retry')}
                 </Button>
               </AlertDescription>
             </Alert>
           )}
 
           {/* Loading State */}
-          {isLoading && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-8 w-20" />
-              </div>
-              <div className="space-y-2">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            </div>
-          )}
+          {isLoading && <TableSkeleton rows={3} columns={4} />}
 
           {/* Data Table */}
           {!isLoading && !error && clientCategories && (
@@ -275,92 +365,32 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Users className="h-4 w-4" />
-                  Total: {categoryStats.total}
+                  {t('admin.clients.categories.totalCount', { count: categoryStats.total })}
                 </span>
                 <span className="flex items-center gap-1">
                   <ToggleRight className="h-4 w-4 text-green-600" />
-                  Active: {categoryStats.active}
+                  {t('admin.clients.categories.activeCount', { count: categoryStats.active })}
                 </span>
                 <span className="flex items-center gap-1">
                   <ToggleLeft className="h-4 w-4 text-gray-400" />
-                  Disabled: {categoryStats.disabled}
+                  {t('admin.clients.categories.disabledCount', { count: categoryStats.disabled })}
                 </span>
               </div>
 
               {/* Table */}
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Category Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Toggle</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {clientCategories.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          No client categories found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      clientCategories.map((category) => (
-                        <TableRow key={category.idCategory}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Tag className="h-4 w-4 text-muted-foreground" />
-                              {category.categoryName}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={getStatusBadgeVariant(category.categoryStatus)}
-                              className={getStatusBadgeColor(category.categoryStatus)}
-                            >
-                              {getStatusLabel(category.categoryStatus)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <Switch
-                                checked={category.categoryStatus === CategoryStatusCode.active}
-                                onCheckedChange={() => handleStatusToggle(category)}
-                                disabled={isAnyOperationInProgress}
-                              />
-                              <span className="text-sm text-muted-foreground">
-                                {category.categoryStatus === CategoryStatusCode.active ? 'Active' : 'Disabled'}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openEditDialog(category)}
-                                disabled={isAnyOperationInProgress}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openDeleteDialog(category)}
-                                disabled={isAnyOperationInProgress}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataTable
+                columns={columns}
+                data={clientCategories}
+                getRowKey={(category) => String(category.idCategory)}
+                renderMobileRow={renderMobileRow}
+                emptyState={
+                  <EmptyState
+                    icon={<Tag className="h-6 w-6" />}
+                    title={t('admin.clients.categories.noCategoriesFound')}
+                    body={t('admin.clients.categories.description')}
+                  />
+                }
+              />
             </div>
           )}
         </CardContent>
@@ -392,11 +422,10 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Delete Client Category
+              {t('admin.clients.categories.deleteTitle')}
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the client category "{selectedCategory?.categoryName}"? 
-              This action cannot be undone and may affect existing clients.
+              {t('admin.clients.categories.deleteConfirm', { name: selectedCategory?.categoryName ?? '' })}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
@@ -405,7 +434,7 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={deleteCategoryMutation.isPending}
             >
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -415,12 +444,12 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
               {deleteCategoryMutation.isPending ? (
                 <>
                   <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-background border-t-foreground" />
-                  Deleting...
+                  {t('common.deleting')}
                 </>
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {t('common.delete')}
                 </>
               )}
             </Button>

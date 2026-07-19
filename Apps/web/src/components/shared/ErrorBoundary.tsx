@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { translate, getLanguage } from "@/lib/i18n";
 
 type ErrorBoundaryState = { 
   hasError: boolean; 
@@ -54,27 +55,27 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-semibold">Something went wrong</h2>
+              <h2 className="text-xl font-semibold">{translate('common.errors.crashTitle', getLanguage())}</h2>
               <p className="text-muted-foreground text-sm">
-                We encountered an unexpected error. Please try refreshing the page.
+                {translate('common.errors.crashBody', getLanguage())}
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               <Button onClick={this.handleRetry} variant="outline" size="sm">
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
+                {translate('common.actions.tryAgain', getLanguage())}
               </Button>
               <Button 
                 onClick={() => window.location.reload()} 
                 variant="default" 
                 size="sm"
               >
-                Refresh Page
+                {translate('common.actions.refreshPage', getLanguage())}
               </Button>
             </div>
             {import.meta.env.DEV && this.state.error && (
               <details className="text-left text-xs text-muted-foreground bg-muted p-3 rounded">
-                <summary className="cursor-pointer font-medium">Error Details</summary>
+                <summary className="cursor-pointer font-medium">{translate('common.errors.details', getLanguage())}</summary>
                 <pre className="mt-2 whitespace-pre-wrap">
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}

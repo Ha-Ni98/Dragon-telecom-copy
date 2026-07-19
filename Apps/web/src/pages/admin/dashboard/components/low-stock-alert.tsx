@@ -126,8 +126,8 @@ function StockEmptyState() {
           <Package className="h-8 w-8 text-green-600" />
         </div>
         <div className="text-muted-foreground">
-          <p className="text-lg font-medium">All products well stocked</p>
-          <p className="text-sm">No low stock alerts at this time</p>
+          <p className="text-lg font-medium">{t('admin.dashboard.lowStock.allWellStocked')}</p>
+          <p className="text-sm">{t('admin.dashboard.lowStock.noAlerts')}</p>
         </div>
       </div>
     </div>

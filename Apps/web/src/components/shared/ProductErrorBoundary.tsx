@@ -199,18 +199,18 @@ function ProductErrorFallback({ error, errorId, onRetry, onGoHome, onGoBack }: P
             <div className="p-3 bg-muted rounded-lg">
               <details className="text-sm">
                 <summary className="cursor-pointer font-medium mb-2">
-                  Error Details (Development)
+                  {t('errorBoundary.detailsDev')}
                 </summary>
                 <div className="space-y-2">
                   <div>
-                    <strong>Error ID:</strong> {errorId}
+                    <strong>{t('errorBoundary.errorId')}:</strong> {errorId}
                   </div>
                   <div>
-                    <strong>Message:</strong> {error.message}
+                    <strong>{t('errorBoundary.message')}:</strong> {error.message}
                   </div>
                   {error.stack && (
                     <div>
-                      <strong>Stack:</strong>
+                      <strong>{t('errorBoundary.stack')}:</strong>
                       <pre className="text-xs mt-1 overflow-auto max-h-32">
                         {error.stack}
                       </pre>

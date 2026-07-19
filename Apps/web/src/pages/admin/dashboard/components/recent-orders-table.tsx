@@ -3,13 +3,16 @@
  * Displays the last 8 submitted orders in a read-only table
  */
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/shared/DataTable";
+import { TableSkeleton } from "@/components/shared/TableSkeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { RecentOrder } from "@/types/draft-types/dashboard.types";
 import { OrderStatusCode, OrderTypeCode } from "@/types/draft-types/enums.types";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -104,28 +107,11 @@ function formatCurrency(value: number): string {
 }
 
 /**
- * Loading skeleton for table rows
- */
-function TableRowSkeleton() {
-  return (
-    <TableRow>
-      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-      <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-    </TableRow>
-  );
-}
-
-/**
  * Error state component
  */
 function OrdersErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {
   const { t } = useTranslation();
-  
+
   return (
     <Alert variant="destructive">
       <AlertTriangle className="h-4 w-4" />
@@ -148,22 +134,6 @@ function OrdersErrorState({ error, onRetry }: { error: string; onRetry?: () => v
 }
 
 /**
- * Empty state component
- */
-function OrdersEmptyState() {
-  const { t } = useTranslation();
-  
-  return (
-    <div className="text-center py-8">
-      <div className="text-muted-foreground">
-        <p className="text-lg font-medium">{t('orders.noOrders')}</p>
-        <p className="text-sm">{t('orders.noOrdersDescription')}</p>
-      </div>
-    </div>
-  );
-}
-
-/**
  * Main Recent Orders Table Component
  */
 export function RecentOrdersTable({
@@ -177,50 +147,105 @@ export function RecentOrdersTable({
 }: RecentOrdersTableProps) {
   const { t } = useTranslation();
 
+  const columns = useMemo<ColumnDef<RecentOrder>[]>(() => [
+    {
+      accessorKey: 'orderCode',
+      header: t('admin.dashboard.orderCode'),
+      cell: ({ row }) => <span className="text-sm font-medium">{row.original.orderCode}</span>,
+    },
+    {
+      accessorKey: 'orderLines',
+      header: t('admin.dashboard.orderLines'),
+      cell: ({ row }) => (
+        <div className="max-w-[200px]">
+          <p className="text-sm truncate" title={row.original.orderLines}>{row.original.orderLines}</p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'clientName',
+      header: t('admin.dashboard.clientName'),
+      cell: ({ row }) => <span className="text-sm">{row.original.clientName}</span>,
+    },
+    {
+      accessorKey: 'orderType',
+      header: t('admin.dashboard.orderType'),
+      cell: ({ row }) => (
+        <Badge variant="outline" className={getOrderTypeBadgeColor(row.original.orderType)}>
+          {row.original.orderTypeLabel}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'totalPrice',
+      header: t('admin.dashboard.totalPrice'),
+      cell: ({ row }) => <span className="font-medium text-sm">{formatCurrency(row.original.totalPrice)}</span>,
+    },
+    {
+      accessorKey: 'orderDate',
+      header: t('admin.dashboard.orderDate'),
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.orderDate}</span>,
+    },
+    {
+      accessorKey: 'orderStatus',
+      header: t('admin.dashboard.status'),
+      cell: ({ row }) => (
+        <Badge variant={getStatusBadgeVariant(row.original.orderStatus)} className={getStatusBadgeColor(row.original.orderStatus)}>
+          {row.original.statusLabel}
+        </Badge>
+      ),
+    },
+  ], [t]);
+
+  const renderMobileRow = (order: RecentOrder) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">{order.orderCode}</span>
+        <Badge variant={getStatusBadgeVariant(order.orderStatus)} className={getStatusBadgeColor(order.orderStatus)}>
+          {order.statusLabel}
+        </Badge>
+      </div>
+      <p className="text-sm text-muted-foreground truncate" title={order.orderLines}>{order.orderLines}</p>
+      <div className="flex items-center justify-between text-sm">
+        <span>{order.clientName}</span>
+        <span className="font-medium">{formatCurrency(order.totalPrice)}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <Badge variant="outline" className={getOrderTypeBadgeColor(order.orderType)}>
+          {order.orderTypeLabel}
+        </Badge>
+        <span className="text-xs text-muted-foreground">{order.orderDate}</span>
+      </div>
+    </div>
+  );
+
+  const header = (
+    <div className="flex items-center justify-between">
+      <div>
+        <CardTitle>{t('admin.dashboard.recentOrders')}</CardTitle>
+        <CardDescription>{t('admin.dashboard.lastOrders')}</CardDescription>
+      </div>
+      {showRefresh && onRefresh && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          className="flex items-center space-x-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          <span>{t('common.refresh')}</span>
+        </Button>
+      )}
+    </div>
+  );
+
   // Loading state
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>{t('admin.dashboard.recentOrders')}</CardTitle>
-              <CardDescription>{t('admin.dashboard.lastOrders')}</CardDescription>
-            </div>
-            {showRefresh && onRefresh && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRefresh}
-                className="flex items-center space-x-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span>{t('common.refresh')}</span>
-              </Button>
-            )}
-          </div>
-        </CardHeader>
+        <CardHeader>{header}</CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('admin.dashboard.orderCode')}</TableHead>
-                  <TableHead>{t('admin.dashboard.orderLines')}</TableHead>
-                  <TableHead>{t('admin.dashboard.clientName')}</TableHead>
-                  <TableHead>{t('admin.dashboard.orderType')}</TableHead>
-                  <TableHead>{t('admin.dashboard.totalPrice')}</TableHead>
-                  <TableHead>{t('admin.dashboard.orderDate')}</TableHead>
-                  <TableHead>{t('admin.dashboard.status')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <TableRowSkeleton key={index} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <TableSkeleton rows={3} columns={7} />
         </CardContent>
       </Card>
     );
@@ -230,10 +255,7 @@ export function RecentOrdersTable({
   if (error) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>{t('admin.dashboard.recentOrders')}</CardTitle>
-          <CardDescription>{t('admin.dashboard.lastOrders')}</CardDescription>
-        </CardHeader>
+        <CardHeader>{header}</CardHeader>
         <CardContent>
           <OrdersErrorState error={error} onRetry={onRetry} />
         </CardContent>
@@ -241,106 +263,26 @@ export function RecentOrdersTable({
     );
   }
 
-  // No data state
-  if (!orders || orders.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('admin.dashboard.recentOrders')}</CardTitle>
-          <CardDescription>{t('admin.dashboard.lastOrders')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <OrdersEmptyState />
-        </CardContent>
-      </Card>
-    );
-  }
-
   // Limit orders to specified number
-  const displayOrders = orders.slice(0, limit);
+  const displayOrders = (orders ?? []).slice(0, limit);
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>{t('admin.dashboard.recentOrders')}</CardTitle>
-            <CardDescription>{t('admin.dashboard.lastOrders')}</CardDescription>
-          </div>
-          {showRefresh && onRefresh && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRefresh}
-              className="flex items-center space-x-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>{t('common.refresh')}</span>
-            </Button>
-          )}
-        </div>
-      </CardHeader>
+      <CardHeader>{header}</CardHeader>
       <CardContent>
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[120px]">{t('admin.dashboard.orderCode')}</TableHead>
-                <TableHead className="min-w-[200px]">{t('admin.dashboard.orderLines')}</TableHead>
-                <TableHead className="min-w-[150px]">{t('admin.dashboard.clientName')}</TableHead>
-                <TableHead className="min-w-[120px]">{t('admin.dashboard.orderType')}</TableHead>
-                <TableHead className="min-w-[100px]">{t('admin.dashboard.totalPrice')}</TableHead>
-                <TableHead className="min-w-[100px]">{t('admin.dashboard.orderDate')}</TableHead>
-                <TableHead className="min-w-[100px]">{t('admin.dashboard.status')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayOrders.map((order) => (
-                <TableRow key={order.idOrder} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">
-                    <span className="text-sm">{order.orderCode}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="max-w-[200px]">
-                      <p className="text-sm truncate" title={order.orderLines}>
-                        {order.orderLines}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{order.clientName}</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant="outline" 
-                      className={getOrderTypeBadgeColor(order.orderType)}
-                    >
-                      {order.orderTypeLabel}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium text-sm">
-                      {formatCurrency(order.totalPrice)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {order.orderDate}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={getStatusBadgeVariant(order.orderStatus)}
-                      className={getStatusBadgeColor(order.orderStatus)}
-                    >
-                      {order.statusLabel}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          columns={columns}
+          data={displayOrders}
+          getRowKey={(order) => String(order.idOrder)}
+          renderMobileRow={renderMobileRow}
+          emptyState={
+            <EmptyState
+              icon={<ShoppingCart className="h-6 w-6" />}
+              title={t('orders.noOrders')}
+              body={t('orders.noOrdersDescription')}
+            />
+          }
+        />
       </CardContent>
     </Card>
   );

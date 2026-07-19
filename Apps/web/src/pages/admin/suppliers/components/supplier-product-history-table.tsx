@@ -1,31 +1,28 @@
 import { useState, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Package, 
-  Search, 
-  Filter, 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DataTable } from '@/components/shared/DataTable';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { SimplePagination } from '@/components/shared/SimplePagination';
+import {
+  Package,
+  Search,
+  Filter,
   Calendar,
   TrendingUp,
   TrendingDown,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Eye,
-  MoreVertical
+  MoreVertical,
+  ArrowUpDown
 } from 'lucide-react';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -74,17 +71,17 @@ export function SupplierProductHistoryTable({
     filtered.sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
-      
+
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
+        return sortDirection === 'asc'
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
-      
+
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
       }
-      
+
       return 0;
     });
 
@@ -96,16 +93,6 @@ export function SupplierProductHistoryTable({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedHistory = filteredHistory.slice(startIndex, endIndex);
-
-  // Handle sort
-  const handleSort = (field: keyof ProductSupplyHistory) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
 
   // Handle view product
   const handleViewProduct = (productId: number) => {
@@ -137,17 +124,127 @@ export function SupplierProductHistoryTable({
   // Get supply trend indicator
   const getSupplyTrend = (quantity: number) => {
     if (quantity >= 100) {
-      return { icon: TrendingUp, color: 'text-green-500', text: 'High' };
+      return { icon: TrendingUp, color: 'text-green-500', badgeClass: 'bg-green-100 text-green-800', text: t('admin.suppliers.trend.high') };
     }
     if (quantity >= 50) {
-      return { icon: TrendingUp, color: 'text-blue-500', text: 'Medium' };
+      return { icon: TrendingUp, color: 'text-blue-500', badgeClass: 'bg-blue-100 text-blue-800', text: t('admin.suppliers.trend.medium') };
     }
-    return { icon: TrendingDown, color: 'text-amber-500', text: 'Low' };
+    return { icon: TrendingDown, color: 'text-amber-500', badgeClass: 'bg-amber-100 text-amber-800', text: t('admin.suppliers.trend.low') };
   };
 
   // Calculate total quantities
   const totalQuantitySupplied = productHistory.reduce((sum, item) => sum + (item.quantitySupplied || 0), 0);
   const averageQuantity = productHistory.length > 0 ? totalQuantitySupplied / productHistory.length : 0;
+
+  const columns = useMemo<ColumnDef<ProductSupplyHistory>[]>(() => [
+    {
+      accessorKey: 'productName',
+      header: t('admin.suppliers.productName'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 font-medium">
+          <Package className="h-4 w-4 text-muted-foreground" />
+          {row.original.productName}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'quantitySupplied',
+      header: t('admin.suppliers.quantitySupplied'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{(row.original.quantitySupplied || 0).toLocaleString()}</span>
+          <span className="text-sm text-muted-foreground">{t('common.units')}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'supplyDate',
+      header: t('admin.suppliers.supplyDate'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          {formatDate(row.original.supplyDate)}
+        </div>
+      ),
+    },
+    {
+      id: 'trend',
+      header: t('admin.suppliers.supplyTrend'),
+      cell: ({ row }) => {
+        const trend = getSupplyTrend(row.original.quantitySupplied);
+        const TrendIcon = trend.icon;
+        return (
+          <div className="flex items-center gap-2">
+            <TrendIcon className={`h-4 w-4 ${trend.color}`} />
+            <Badge variant="outline" className={trend.badgeClass}>
+              {trend.text}
+            </Badge>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">{t('common.actions')}</div>,
+      cell: ({ row }) => (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleViewProduct(row.original.idProduct)}>
+                <Eye className="h-4 w-4 mr-2" />
+                {t('common.view')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t]);
+
+  const renderMobileRow = (item: ProductSupplyHistory) => {
+    const trend = getSupplyTrend(item.quantitySupplied);
+    const TrendIcon = trend.icon;
+    return (
+      <div className="p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 font-medium">
+            <Package className="h-4 w-4 text-muted-foreground" />
+            {item.productName}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleViewProduct(item.idProduct)}>
+                <Eye className="h-4 w-4 mr-2" />
+                {t('common.view')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span>{(item.quantitySupplied || 0).toLocaleString()} {t('common.units')}</span>
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            {formatDate(item.supplyDate)}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <TrendIcon className={`h-4 w-4 ${trend.color}`} />
+          <Badge variant="outline" className={trend.badgeClass}>{trend.text}</Badge>
+        </div>
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -159,11 +256,7 @@ export function SupplierProductHistoryTable({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 bg-muted animate-pulse rounded" />
-            ))}
-          </div>
+          <TableSkeleton rows={3} columns={5} />
         </CardContent>
       </Card>
     );
@@ -188,7 +281,7 @@ export function SupplierProductHistoryTable({
               size="sm"
               onClick={handleExportHistory}
               className="gap-2"
-              aria-label="Export product history"
+              aria-label={t("admin.suppliers.exportHistoryAria")}
             >
               <Download className="h-4 w-4" aria-hidden="true" />
               {t('common.export')}
@@ -198,9 +291,9 @@ export function SupplierProductHistoryTable({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Summary Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg" role="region" aria-label="Product history statistics">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg" role="region" aria-label={t("admin.suppliers.historyStatsAria")}>
           <div className="text-center">
-            <div className="text-2xl font-bold text-primary" aria-label={`${productHistory.length} total products`}>
+            <div className="text-2xl font-bold text-primary" aria-label={t('admin.suppliers.totalProductsAria', { count: productHistory.length })}>
               {productHistory.length}
             </div>
             <div className="text-sm text-muted-foreground">
@@ -208,7 +301,7 @@ export function SupplierProductHistoryTable({
             </div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600" aria-label={`${(totalQuantitySupplied || 0).toLocaleString()} total quantity`}>
+            <div className="text-2xl font-bold text-green-600" aria-label={t('admin.suppliers.totalQuantityAria', { count: (totalQuantitySupplied || 0).toLocaleString() })}>
               {(totalQuantitySupplied || 0).toLocaleString()}
             </div>
             <div className="text-sm text-muted-foreground">
@@ -216,7 +309,7 @@ export function SupplierProductHistoryTable({
             </div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600" aria-label={`${Math.round(averageQuantity || 0).toLocaleString()} average quantity`}>
+            <div className="text-2xl font-bold text-blue-600" aria-label={t('admin.suppliers.averageQuantityAria', { count: Math.round(averageQuantity || 0).toLocaleString() })}>
               {Math.round(averageQuantity || 0).toLocaleString()}
             </div>
             <div className="text-sm text-muted-foreground">
@@ -226,8 +319,8 @@ export function SupplierProductHistoryTable({
         </div>
 
         {/* Search and Filters */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={t('admin.suppliers.searchProducts')}
@@ -236,175 +329,51 @@ export function SupplierProductHistoryTable({
               className="pl-10"
             />
           </div>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Filter className="h-4 w-4" />
-            {t('common.filter')}
+          <Select value={sortField} onValueChange={(v) => setSortField(v as keyof ProductSupplyHistory)}>
+            <SelectTrigger className="w-full sm:w-44" aria-label={t('admin.suppliers.sortBy')}>
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder={t('admin.suppliers.sortBy')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="productName">{t('admin.suppliers.productName')}</SelectItem>
+              <SelectItem value="quantitySupplied">{t('admin.suppliers.quantitySupplied')}</SelectItem>
+              <SelectItem value="supplyDate">{t('admin.suppliers.supplyDate')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+            aria-label={t('admin.suppliers.sortBy')}
+          >
+            <ArrowUpDown className="h-4 w-4" />
+            {sortDirection === 'asc' ? '↑' : '↓'}
           </Button>
         </div>
 
         {/* Product History Table */}
-        {paginatedHistory.length > 0 ? (
-          <div className="space-y-4">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
-                      onClick={() => handleSort('productName')}
-                    >
-                      <div className="flex items-center gap-2">
-                        {t('admin.suppliers.productName')}
-                        {sortField === 'productName' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
-                      onClick={() => handleSort('quantitySupplied')}
-                    >
-                      <div className="flex items-center gap-2">
-                        {t('admin.suppliers.quantitySupplied')}
-                        {sortField === 'quantitySupplied' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
-                      onClick={() => handleSort('supplyDate')}
-                    >
-                      <div className="flex items-center gap-2">
-                        {t('admin.suppliers.supplyDate')}
-                        {sortField === 'supplyDate' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead>{t('admin.suppliers.supplyTrend')}</TableHead>
-                    <TableHead className="text-right">{t('common.actions')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedHistory.map((item) => {
-                    const trend = getSupplyTrend(item.quantitySupplied);
-                    const TrendIcon = trend.icon;
-                    return (
-                      <TableRow key={`${item.idProduct}-${item.supplyDate}`}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            {item.productName}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {(item.quantitySupplied || 0).toLocaleString()}
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                              {t('common.units')}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            {formatDate(item.supplyDate)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <TrendIcon className={`h-4 w-4 ${trend.color}`} />
-                            <Badge 
-                              variant="outline"
-                              className={`${
-                                trend.text === 'High' ? 'bg-green-100 text-green-800' :
-                                trend.text === 'Medium' ? 'bg-blue-100 text-blue-800' :
-                                'bg-amber-100 text-amber-800'
-                              }`}
-                            >
-                              {trend.text}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewProduct(item.idProduct)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                {t('common.view')}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+        <DataTable
+          columns={columns}
+          data={paginatedHistory}
+          getRowKey={(item) => `${item.idProduct}-${item.supplyDate}`}
+          renderMobileRow={renderMobileRow}
+          emptyState={
+            <EmptyState
+              icon={<Package className="h-6 w-6" />}
+              title={t('admin.suppliers.noProductHistory')}
+              body={t('admin.suppliers.noProductHistoryDescription')}
+            />
+          }
+        />
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {t('common.showing')} {startIndex + 1} - {Math.min(endIndex, filteredHistory.length)} {t('common.of')} {filteredHistory.length} {t('common.results')}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    {t('common.previous')}
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                        className="w-8 h-8 p-0"
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    {t('common.next')}
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">{t('admin.suppliers.noProductHistory')}</h3>
-            <p className="text-muted-foreground">{t('admin.suppliers.noProductHistoryDescription')}</p>
-          </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <SimplePagination
+            page={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </CardContent>
     </Card>

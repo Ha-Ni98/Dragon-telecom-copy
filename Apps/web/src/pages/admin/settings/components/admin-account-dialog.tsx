@@ -147,29 +147,29 @@ export function AdminAccountDialog({
                   Current Account Information
                 </CardTitle>
                 <CardDescription>
-                  View current account details
+                  {t('admin.settings.accounts.viewCurrentDetails')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">User ID</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{t('admin.settings.accounts.userId')}</Label>
                     <p className="text-sm">{admin.idUser}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Role</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{t('admin.settings.accounts.role')}</Label>
                     <div className="flex items-center gap-2">
                       <Badge variant="default">{getRoleLabel(admin.userRole)}</Badge>
                     </div>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Created Date</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{t('common.labels.createdDate')}</Label>
                     <p className="text-sm">{formatDate(admin.createdDate)}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Can Be Deleted</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{t('admin.settings.accounts.canBeDeleted')}</Label>
                     <Badge variant={admin.canBeDeleted ? "secondary" : "destructive"}>
-                      {admin.canBeDeleted ? "Yes" : "No"}
+                      {admin.canBeDeleted ? t('common.yes') : t('common.no')}
                     </Badge>
                   </div>
                 </div>
@@ -183,19 +183,19 @@ export function AdminAccountDialog({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Account Details
+                  {t('admin.settings.accounts.accountDetails')}
                 </CardTitle>
                 <CardDescription>
-                  {isEditMode 
-                    ? 'Update the account information below.'
-                    : 'Enter the account information below.'
+                  {isEditMode
+                    ? t('admin.settings.accounts.updateBelow')
+                    : t('admin.settings.accounts.enterBelow')
                   }
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Username Field */}
                 <div className="space-y-2">
-                  <Label htmlFor="userName">Username *</Label>
+                  <Label htmlFor="userName">{t('admin.settings.accounts.username')} *</Label>
                   <Controller
                     name="userName"
                     control={control}
@@ -203,7 +203,7 @@ export function AdminAccountDialog({
                       <Input
                         {...field}
                         id="userName"
-                        placeholder="Enter username"
+                        placeholder={t('admin.settings.accounts.usernamePlaceholder')}
                         className={errors.userName ? 'border-destructive' : ''}
                         disabled={isSaving}
                       />
@@ -219,7 +219,7 @@ export function AdminAccountDialog({
                   <div className="space-y-2">
                     <Label htmlFor="password" className="flex items-center gap-2">
                       <Lock className="h-4 w-4" />
-                      {isEditMode ? 'New Password' : 'Password'} *
+                      {isEditMode ? t('admin.settings.accounts.newPassword') : t('auth.login.password')} *
                     </Label>
                     <Controller
                       name="password"
@@ -229,7 +229,7 @@ export function AdminAccountDialog({
                           {...field}
                           id="password"
                           type="password"
-                          placeholder={isEditMode ? "Enter new password (leave blank to keep current)" : "Enter password"}
+                          placeholder={isEditMode ? t('admin.settings.accounts.newPasswordPlaceholder') : t('admin.settings.accounts.passwordPlaceholder')}
                           className={errors.password ? 'border-destructive' : ''}
                           disabled={isSaving}
                         />
@@ -240,7 +240,7 @@ export function AdminAccountDialog({
                     )}
                     {isEditMode && (
                       <p className="text-xs text-muted-foreground">
-                        Leave blank to keep the current password
+                        {t('admin.settings.accounts.leaveBlankPassword')}
                       </p>
                     )}
                   </div>
@@ -248,7 +248,7 @@ export function AdminAccountDialog({
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword" className="flex items-center gap-2">
                       <Lock className="h-4 w-4" />
-                      Confirm Password *
+                      {t('admin.settings.accounts.confirmPassword')} *
                     </Label>
                     <Controller
                       name="confirmPassword"
@@ -258,7 +258,7 @@ export function AdminAccountDialog({
                           {...field}
                           id="confirmPassword"
                           type="password"
-                          placeholder="Confirm password"
+                          placeholder={t('admin.settings.accounts.confirmPasswordPlaceholder')}
                           className={errors.confirmPassword ? 'border-destructive' : ''}
                           disabled={isSaving}
                         />
@@ -274,7 +274,7 @@ export function AdminAccountDialog({
                 <div className="space-y-2">
                   <Label htmlFor="userRole" className="flex items-center gap-2">
                     <Shield className="h-4 w-4" />
-                    Role *
+                    {t('admin.settings.accounts.role')} *
                   </Label>
                   <Controller
                     name="userRole"
@@ -286,11 +286,11 @@ export function AdminAccountDialog({
                         disabled={isSaving}
                       >
                         <SelectTrigger className={errors.userRole ? 'border-destructive' : ''}>
-                          <SelectValue placeholder="Select role" />
+                          <SelectValue placeholder={t('admin.settings.accounts.selectRole')} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={UserRoleCode.admin.toString()}>
-                            Administrator
+                            {t('admin.settings.accounts.administrator')}
                           </SelectItem>
                         </SelectContent>
                       </Select>

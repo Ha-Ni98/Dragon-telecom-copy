@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,15 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DataTable } from '@/components/shared/DataTable';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { SimplePagination } from '@/components/shared/SimplePagination';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -25,26 +23,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
-  FileText, 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  Trash2, 
-  Eye, 
+import {
+  FileText,
+  Search,
+  Filter,
+  MoreVertical,
+  Trash2,
+  Eye,
   Download,
   Calendar,
   DollarSign,
   CreditCard,
   CheckCircle,
-  ChevronLeft,
-  ChevronRight
+  ArrowUpDown
 } from 'lucide-react';
 import { SupplierInvoice } from '@/types/draft-types/supplier.types';
 
@@ -94,17 +91,17 @@ export function SupplierInvoicesTable({
     filtered.sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
-      
+
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
+        return sortDirection === 'asc'
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       }
-      
+
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
       }
-      
+
       return 0;
     });
 
@@ -116,16 +113,6 @@ export function SupplierInvoicesTable({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
-
-  // Handle sort
-  const handleSort = (field: keyof SupplierInvoice) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
 
   // Handle delete invoice
   const handleDeleteInvoice = async (invoiceId: number) => {
@@ -152,7 +139,7 @@ export function SupplierInvoicesTable({
     } else {
       toast({
         title: t('common.info'),
-        description: 'View invoice functionality will be implemented in a future sprint',
+        description: t('admin.suppliers.viewInvoiceComingSoon'),
         variant: 'default',
       });
     }
@@ -165,7 +152,7 @@ export function SupplierInvoicesTable({
     } else {
       toast({
         title: t('common.info'),
-        description: 'Export invoice functionality will be implemented in a future sprint',
+        description: t('admin.suppliers.exportInvoiceComingSoon'),
         variant: 'default',
       });
     }
@@ -174,12 +161,12 @@ export function SupplierInvoicesTable({
   // Get invoice status
   const getInvoiceStatus = (invoice: SupplierInvoice) => {
     if (invoice.paid >= invoice.Due) {
-      return { status: 'paid', color: 'green', text: t('admin.suppliers.invoiceStatus.paid') };
+      return { status: 'paid', text: t('admin.suppliers.invoiceStatus.paid') };
     }
     if (invoice.paid > 0) {
-      return { status: 'partial', color: 'yellow', text: t('admin.suppliers.invoiceStatus.partial') };
+      return { status: 'partial', text: t('admin.suppliers.invoiceStatus.partial') };
     }
-    return { status: 'unpaid', color: 'red', text: t('admin.suppliers.invoiceStatus.unpaid') };
+    return { status: 'unpaid', text: t('admin.suppliers.invoiceStatus.unpaid') };
   };
 
   // Format currency
@@ -196,6 +183,170 @@ export function SupplierInvoicesTable({
     }
   };
 
+  const actionsMenu = (invoice: SupplierInvoice) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => handleViewInvoice(invoice.idInvoice)}>
+          <Eye className="h-4 w-4 mr-2" />
+          {t('common.view')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExportInvoice(invoice.idInvoice)}>
+          <Download className="h-4 w-4 mr-2" />
+          {t('common.export')}
+        </DropdownMenuItem>
+        <Separator />
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <DropdownMenuItem
+              onSelect={(e) => e.preventDefault()}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {t('common.delete')}
+            </DropdownMenuItem>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('admin.suppliers.deleteInvoice')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('admin.suppliers.deleteInvoiceConfirm').replace('{invoiceId}', invoice.idInvoice.toString())}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => handleDeleteInvoice(invoice.idInvoice)}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {t('common.delete')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const columns = useMemo<ColumnDef<SupplierInvoice>[]>(() => [
+    {
+      accessorKey: 'idInvoice',
+      header: t('admin.suppliers.invoiceId'),
+      cell: ({ row }) => <span className="font-medium">#{row.original.idInvoice}</span>,
+    },
+    {
+      accessorKey: 'Due',
+      header: t('admin.suppliers.due'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          {formatCurrency(row.original.Due)}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'paid',
+      header: t('admin.suppliers.paid'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <CheckCircle className="h-4 w-4 text-green-500" />
+          {formatCurrency(row.original.paid)}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'credit',
+      header: t('admin.suppliers.credit'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-blue-500" />
+          {formatCurrency(row.original.credit)}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'invoiceCreatedDate',
+      header: t('admin.suppliers.date'),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          {formatDate(row.original.invoiceCreatedDate)}
+        </div>
+      ),
+    },
+    {
+      id: 'status',
+      header: t('admin.suppliers.status'),
+      cell: ({ row }) => {
+        const status = getInvoiceStatus(row.original);
+        return (
+          <Badge
+            variant="outline"
+            className={
+              status.status === 'paid' ? 'bg-green-100 text-green-800' :
+              status.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-red-100 text-red-800'
+            }
+          >
+            {status.text}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">{t('common.actions')}</div>,
+      cell: ({ row }) => <div className="text-right">{actionsMenu(row.original)}</div>,
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t]);
+
+  const renderMobileRow = (invoice: SupplierInvoice) => {
+    const status = getInvoiceStatus(invoice);
+    return (
+      <div className="p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="font-medium">#{invoice.idInvoice}</span>
+          <Badge
+            variant="outline"
+            className={
+              status.status === 'paid' ? 'bg-green-100 text-green-800' :
+              status.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-red-100 text-red-800'
+            }
+          >
+            {status.text}
+          </Badge>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-sm">
+          <div className="flex items-center gap-1">
+            <DollarSign className="h-3 w-3 text-muted-foreground" />
+            {formatCurrency(invoice.Due)}
+          </div>
+          <div className="flex items-center gap-1">
+            <CheckCircle className="h-3 w-3 text-green-500" />
+            {formatCurrency(invoice.paid)}
+          </div>
+          <div className="flex items-center gap-1">
+            <CreditCard className="h-3 w-3 text-blue-500" />
+            {formatCurrency(invoice.credit)}
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            {formatDate(invoice.invoiceCreatedDate)}
+          </div>
+          {actionsMenu(invoice)}
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -206,11 +357,7 @@ export function SupplierInvoicesTable({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 bg-muted animate-pulse rounded" />
-            ))}
-          </div>
+          <TableSkeleton rows={3} columns={7} />
         </CardContent>
       </Card>
     );
@@ -233,250 +380,64 @@ export function SupplierInvoicesTable({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Search and Filters */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <Input
               placeholder={t('admin.suppliers.searchInvoices')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
-              aria-label="Search invoices"
+              aria-label={t("admin.suppliers.searchInvoicesAria")}
             />
           </div>
-          <Button variant="outline" size="sm" className="gap-2" aria-label="Filter invoices">
-            <Filter className="h-4 w-4" aria-hidden="true" />
-            {t('common.filter')}
+          <Select value={sortField} onValueChange={(v) => setSortField(v as keyof SupplierInvoice)}>
+            <SelectTrigger className="w-full sm:w-44" aria-label={t('admin.suppliers.sortBy')}>
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder={t('admin.suppliers.sortBy')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="idInvoice">{t('admin.suppliers.invoiceId')}</SelectItem>
+              <SelectItem value="Due">{t('admin.suppliers.due')}</SelectItem>
+              <SelectItem value="paid">{t('admin.suppliers.paid')}</SelectItem>
+              <SelectItem value="credit">{t('admin.suppliers.credit')}</SelectItem>
+              <SelectItem value="invoiceCreatedDate">{t('admin.suppliers.date')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+            aria-label={t('admin.suppliers.sortBy')}
+          >
+            <ArrowUpDown className="h-4 w-4" />
+            {sortDirection === 'asc' ? '↑' : '↓'}
           </Button>
         </div>
 
         {/* Invoices Table */}
-        {paginatedInvoices.length > 0 ? (
-          <div className="space-y-4">
-            <div className="rounded-md border">
-              <Table role="table" aria-label="Supplier invoices">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
-                      onClick={() => handleSort('idInvoice')}
-                      role="columnheader"
-                      aria-sort={sortField === 'idInvoice' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSort('idInvoice')}
-                    >
-                      <div className="flex items-center gap-2">
-                        {t('admin.suppliers.invoiceId')}
-                        {sortField === 'idInvoice' && (
-                          <span className="text-xs" aria-hidden="true">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
-                      onClick={() => handleSort('Due')}
-                    >
-                      <div className="flex items-center gap-2">
-                        {t('admin.suppliers.due')}
-                        {sortField === 'Due' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
-                      onClick={() => handleSort('paid')}
-                    >
-                      <div className="flex items-center gap-2">
-                        {t('admin.suppliers.paid')}
-                        {sortField === 'paid' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
-                      onClick={() => handleSort('credit')}
-                    >
-                      <div className="flex items-center gap-2">
-                        {t('admin.suppliers.credit')}
-                        {sortField === 'credit' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:bg-muted"
-                      onClick={() => handleSort('invoiceCreatedDate')}
-                    >
-                      <div className="flex items-center gap-2">
-                        {t('admin.suppliers.date')}
-                        {sortField === 'invoiceCreatedDate' && (
-                          <span className="text-xs">
-                            {sortDirection === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead>{t('admin.suppliers.status')}</TableHead>
-                    <TableHead className="text-right">{t('common.actions')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedInvoices.map((invoice) => {
-                    const status = getInvoiceStatus(invoice);
-                    return (
-                      <TableRow key={invoice.idInvoice}>
-                        <TableCell className="font-medium">
-                          #{invoice.idInvoice}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4 text-muted-foreground" />
-                            {formatCurrency(invoice.Due)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            {formatCurrency(invoice.paid)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="h-4 w-4 text-blue-500" />
-                            {formatCurrency(invoice.credit)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            {formatDate(invoice.invoiceCreatedDate)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant="outline"
-                            className={`${
-                              status.status === 'paid' ? 'bg-green-100 text-green-800' :
-                              status.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}
-                          >
-                            {status.text}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewInvoice(invoice.idInvoice)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                {t('common.view')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleExportInvoice(invoice.idInvoice)}>
-                                <Download className="h-4 w-4 mr-2" />
-                                {t('common.export')}
-                              </DropdownMenuItem>
-                              <Separator />
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem 
-                                    onSelect={(e) => e.preventDefault()}
-                                    className="text-red-600 focus:text-red-600"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    {t('common.delete')}
-                                  </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>{t('admin.suppliers.deleteInvoice')}</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      {t('admin.suppliers.deleteInvoiceConfirm').replace('{invoiceId}', invoice.idInvoice.toString())}
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDeleteInvoice(invoice.idInvoice)}
-                                      className="bg-red-600 hover:bg-red-700"
-                                    >
-                                      {t('common.delete')}
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+        <DataTable
+          columns={columns}
+          data={paginatedInvoices}
+          getRowKey={(invoice) => String(invoice.idInvoice)}
+          renderMobileRow={renderMobileRow}
+          emptyState={
+            <EmptyState
+              icon={<FileText className="h-6 w-6" />}
+              title={t('admin.suppliers.noInvoices')}
+              body={t('admin.suppliers.noInvoicesDescription')}
+            />
+          }
+        />
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {t('common.showing')} {startIndex + 1} - {Math.min(endIndex, filteredInvoices.length)} {t('common.of')} {filteredInvoices.length} {t('common.results')}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    {t('common.previous')}
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                        className="w-8 h-8 p-0"
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    {t('common.next')}
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">{t('admin.suppliers.noInvoices')}</h3>
-            <p className="text-muted-foreground">{t('admin.suppliers.noInvoicesDescription')}</p>
-          </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <SimplePagination
+            page={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </CardContent>
     </Card>

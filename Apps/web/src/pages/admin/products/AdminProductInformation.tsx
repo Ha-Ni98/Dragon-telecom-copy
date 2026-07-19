@@ -259,7 +259,7 @@ export default function AdminProductInformation() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold">{t('admin.productInfo.title')}</h1>
-                <p className="text-muted-foreground">Product not found</p>
+                <p className="text-muted-foreground">{t('admin.productInfo.notFound')}</p>
               </div>
             </div>
           </div>
@@ -268,7 +268,7 @@ export default function AdminProductInformation() {
           <Alert>
             <Package className="h-4 w-4" />
             <AlertDescription>
-              The requested product could not be found. Please check the product ID and try again.
+              {t('admin.productInfo.notFoundBody')}
             </AlertDescription>
           </Alert>
         </div>
@@ -279,7 +279,7 @@ export default function AdminProductInformation() {
   // Main content
   return (
     <ErrorBoundary>
-      <main className="space-y-6" role="main" aria-label="Product Information">
+      <main className="space-y-6" role="main" aria-label={t('admin.productInfo.title')}>
         {/* Page Header */}
         <ProductInformationHeader
           productName={product.productName}
@@ -293,7 +293,7 @@ export default function AdminProductInformation() {
         />
 
         {/* Product Information Content */}
-        <section className="grid gap-6" aria-label="Product Information Sections">
+        <section className="grid gap-6" aria-label={t('admin.productInfo.sectionsAria')}>
           {/* Product Details Section */}
           <ProductDetailsSection
             product={product}
@@ -337,28 +337,28 @@ export default function AdminProductInformation() {
           {/* Stock Information Card */}
           <Card>
             <CardHeader>
-              <CardTitle id="stock-info-heading">Stock Information</CardTitle>
+              <CardTitle id="stock-info-heading">{t('admin.productInfo.stockInformation')}</CardTitle>
               <CardDescription>
-                Current stock levels and supplier information
+                {t('admin.productInfo.stockInformationBody')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3" role="region" aria-labelledby="stock-info-heading">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">
-                    Current Stock
+                    {t('admin.productInfo.currentStock')}
                   </label>
-                  <p className="text-2xl font-bold" aria-label={`Current stock: ${product.stockQuantity} units`}>{product.stockQuantity}</p>
+                  <p className="text-2xl font-bold" aria-label={t('admin.productInfo.currentStockAria', { count: product.stockQuantity })}>{product.stockQuantity}</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">
-                    Status
+                    {t('common.labels.status')}
                   </label>
                   <p className="text-sm capitalize">{product.status.replace('_', ' ')}</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">
-                    Unit Price
+                    {t('admin.productInfo.unitPrice')}
                   </label>
                   <p className="text-sm">{product.suppliers?.[0]?.unitPrice || 0} DZ</p>
                 </div>

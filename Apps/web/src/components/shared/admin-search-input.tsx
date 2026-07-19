@@ -85,7 +85,7 @@ export const AdminSearchInput: React.FC<AdminSearchInputProps> = ({
         onChange={handleChange}
         className={`pl-10 ${className}`}
         disabled={disabled}
-        aria-label="Search products"
+        aria-label={t('admin.products.searchPlaceholder')}
         autoComplete="off"
       />
     </div>

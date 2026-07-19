@@ -470,7 +470,7 @@ function PickupInformationSection({ order }: { order: AdminOrderWithDetails }) {
       <CardContent>
         <div className="text-center py-4">
           <Package className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-          <div className="font-medium">Store Pickup</div>
+          <div className="font-medium">{t('admin.orders.storePickup')}</div>
           <div className="text-sm text-muted-foreground">
             Customer will pick up at our store location
           </div>
@@ -505,7 +505,7 @@ export const AdminOrderShowDialog = memo(function AdminOrderShowDialog({
               size="sm"
               onClick={onClose}
               className="h-8 w-8 p-0"
-              aria-label="Close dialog"
+              aria-label={t('common.actions.closeDialog')}
             >
               <X className="h-4 w-4" />
             </Button>

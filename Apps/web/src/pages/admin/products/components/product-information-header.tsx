@@ -46,7 +46,7 @@ export function ProductInformationHeader({
           size="sm"
           onClick={onBack}
           className="flex items-center gap-2"
-          aria-label="Go back to products list"
+          aria-label={t('admin.productInfo.header.backAria')}
         >
           <ArrowLeft className="h-4 w-4" />
           {t('common.back')}
@@ -67,7 +67,7 @@ export function ProductInformationHeader({
               onClick={onCancel}
               disabled={isSaving}
               className="flex items-center gap-2"
-              aria-label="Cancel editing and discard changes"
+              aria-label={t('admin.productInfo.header.cancelAria')}
             >
               <X className="h-4 w-4" />
               {t('admin.productInfo.cancel')}
@@ -76,7 +76,7 @@ export function ProductInformationHeader({
               onClick={onSave}
               disabled={isSaving}
               className="flex items-center gap-2"
-              aria-label="Save changes"
+              aria-label={t('admin.productInfo.header.saveAria')}
             >
               <Save className="h-4 w-4" />
               {isSaving ? t('common.processing') : t('admin.productInfo.save')}
@@ -87,7 +87,7 @@ export function ProductInformationHeader({
             onClick={onToggleEdit}
             disabled={isSaving}
             className="flex items-center gap-2"
-            aria-label="Edit product information"
+            aria-label={t('admin.productInfo.header.editAria')}
           >
             <Edit3 className="h-4 w-4" />
             {t('admin.productInfo.edit')}

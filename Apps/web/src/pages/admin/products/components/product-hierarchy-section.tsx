@@ -7,13 +7,10 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Package, ChevronRight, Trash2, Edit, AlertTriangle, RefreshCw, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Family, Brand, Model, FamilyFormData, BrandFormData, ModelFormData } from '@/types/draft-types';
 import { ModelDialog } from './model-dialog';
@@ -300,6 +297,20 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
     return brands || [];
   };
 
+  /**
+   * Get translated label for a delete-item type
+   */
+  const deleteItemTypeLabel = (type: 'family' | 'brand' | 'model') => {
+    switch (type) {
+      case 'family':
+        return t('admin.products.hierarchy.typeFamily');
+      case 'brand':
+        return t('admin.products.hierarchy.typeBrand');
+      case 'model':
+        return t('admin.products.hierarchy.typeModel');
+    }
+  };
+
   return (
     <div className={className}>
       {/* Section Header */}
@@ -309,10 +320,10 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Layers className="h-5 w-5" />
-                Product Hierarchy
+                {t('admin.products.hierarchy.title')}
               </CardTitle>
               <CardDescription>
-                Manage product families, brands, and models
+                {t('admin.products.hierarchy.description')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -327,7 +338,7 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
                 disabled={isLoading || isAnyOperationInProgress}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                {t('common.actions.refresh')}
               </Button>
             </div>
           </div>
@@ -338,7 +349,7 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Failed to load product hierarchy data. Please try again.
+                {t('admin.products.hierarchy.loadError')}
                 <Button
                   variant="outline"
                   size="sm"
@@ -349,7 +360,7 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
                     refetchModels();
                   }}
                 >
-                  Retry
+                  {t('common.retry')}
                 </Button>
               </AlertDescription>
             </Alert>
@@ -382,17 +393,17 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Package className="h-4 w-4" />
-                    Families
+                    {t('admin.products.hierarchy.families')}
                   </CardTitle>
                   <CardDescription>
-                    Product categories
+                    {t('admin.products.hierarchy.familiesDescription')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Add Family */}
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Family name"
+                      placeholder={t("admin.products.hierarchy.familyNamePlaceholder")}
                       value={newFamilyName}
                       onChange={(e) => setNewFamilyName(e.target.value)}
                       disabled={isAnyOperationInProgress}
@@ -448,17 +459,17 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Package className="h-4 w-4" />
-                    Brands
+                    {t('admin.products.hierarchy.brands')}
                   </CardTitle>
                   <CardDescription>
-                    Product manufacturers
+                    {t('admin.products.hierarchy.brandsDescription')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Add Brand */}
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Brand name"
+                      placeholder={t("admin.products.hierarchy.brandNamePlaceholder")}
                       value={newBrandName}
                       onChange={(e) => setNewBrandName(e.target.value)}
                       disabled={isAnyOperationInProgress}
@@ -514,10 +525,10 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Package className="h-4 w-4" />
-                    Models
+                    {t('admin.products.hierarchy.models')}
                   </CardTitle>
                   <CardDescription>
-                    Specific product models
+                    {t('admin.products.hierarchy.modelsDescription')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -529,7 +540,7 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
                     className="w-full"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Model
+                    {t('admin.products.hierarchy.addModel')}
                   </Button>
 
                   {/* Models List */}
@@ -599,11 +610,10 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Delete {deleteItem?.type}
+              {t('admin.products.hierarchy.deleteTitle', { type: deleteItem ? deleteItemTypeLabel(deleteItem.type) : '' })}
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this {deleteItem?.type}? 
-              This action cannot be undone and may affect related products.
+              {t('admin.products.hierarchy.deleteConfirm', { type: deleteItem ? deleteItemTypeLabel(deleteItem.type) : '' })}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3">
@@ -612,7 +622,7 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={isAnyOperationInProgress}
             >
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -622,12 +632,12 @@ export function ProductHierarchySection({ className }: ProductHierarchySectionPr
               {isAnyOperationInProgress ? (
                 <>
                   <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-background border-t-foreground" />
-                  Deleting...
+                  {t('common.deleting')}
                 </>
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {t('common.delete')}
                 </>
               )}
             </Button>

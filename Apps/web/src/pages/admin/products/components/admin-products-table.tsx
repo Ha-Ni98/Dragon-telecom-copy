@@ -3,14 +3,16 @@
  * Displays products in a data table with all required columns and actions
  */
 
-import React, { memo, useMemo } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { memo, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, RefreshCw, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/shared/DataTable';
+import { TableSkeleton } from '@/components/shared/TableSkeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { AdminProductWithDetails, AdminProductsPaginatedResponse } from '@/types/draft-types/admin.types';
 import { AdminProductActions } from './admin-product-actions';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -39,6 +41,8 @@ interface AdminProductsTableProps {
   /** Callback when page changes */
   onPageChange: (page: number) => void;
 }
+
+type FormattedProduct = AdminProductWithDetails & { formattedDate: string };
 
 /**
  * Get stock status badge variant and color
@@ -77,47 +81,14 @@ function getStockStatusBadgeColor(status: 'in_stock' | 'low_stock' | 'out_of_sto
  */
 function formatStockQuantity(quantity: number, status: 'in_stock' | 'low_stock' | 'out_of_stock') {
   const formatted = quantity.toString();
-  
+
   if (status === 'out_of_stock') {
     return <span className="text-destructive font-medium">{formatted}</span>;
   } else if (status === 'low_stock') {
     return <span className="text-yellow-600 font-medium">{formatted}</span>;
   }
-  
+
   return <span className="text-green-600 font-medium">{formatted}</span>;
-}
-
-/**
- * Loading skeleton for table rows
- */
-function TableRowSkeleton() {
-  return (
-    <TableRow>
-      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-      <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-      <TableCell><Skeleton className="h-8 w-24" /></TableCell>
-    </TableRow>
-  );
-}
-
-/**
- * Empty state component
- */
-function ProductsEmptyState() {
-  const { t } = useTranslation();
-  
-  return (
-    <div className="text-center py-12">
-      <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-      <h3 className="text-lg font-semibold mb-2">{t('admin.products.noProducts')}</h3>
-      <p className="text-muted-foreground">{t('admin.products.noProductsDescription')}</p>
-    </div>
-  );
 }
 
 /**
@@ -125,7 +96,7 @@ function ProductsEmptyState() {
  */
 function ProductsErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {
   const { t } = useTranslation();
-  
+
   return (
     <div className="col-span-full">
       <Alert variant="destructive">
@@ -178,51 +149,157 @@ export const AdminProductsTable = memo(function AdminProductsTable({
     }));
   }, [products, language]);
 
+  const statusLabel = (status: 'in_stock' | 'low_stock' | 'out_of_stock') => {
+    if (status === 'in_stock') return t('admin.products.statusInStock');
+    if (status === 'low_stock') return t('admin.products.statusLowStock');
+    return t('admin.products.statusOutOfStock');
+  };
+
+  const columns = useMemo<ColumnDef<FormattedProduct>[]>(() => [
+    {
+      accessorKey: 'productCodeBar',
+      header: t('admin.products.productCode'),
+      cell: ({ row }) => (
+        <span className="font-mono text-sm" aria-label={t('admin.products.table.productCodeAria', { code: row.original.productCodeBar })}>
+          {row.original.productCodeBar}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'productName',
+      header: t('admin.products.name'),
+      cell: ({ row }) => (
+        <span className="font-medium" aria-label={t('admin.products.table.productNameAria', { name: row.original.productName })}>
+          {row.original.productName}
+        </span>
+      ),
+    },
+    {
+      id: 'category',
+      header: t('admin.products.category'),
+      cell: ({ row }) => (
+        <span aria-label={t('admin.products.table.categoryAria', { category: row.original.family.familyName })}>
+          {row.original.family.familyName}
+        </span>
+      ),
+    },
+    {
+      id: 'brand',
+      header: t('admin.products.brand'),
+      cell: ({ row }) => (
+        <span aria-label={t('admin.products.table.brandAria', { brand: row.original.brand.brandName })}>
+          {row.original.brand.brandName}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'stockQuantity',
+      header: t('admin.products.stock'),
+      cell: ({ row }) => (
+        <span aria-label={t('admin.products.table.stockQuantityAria', { quantity: row.original.stockQuantity })}>
+          {formatStockQuantity(row.original.stockQuantity, row.original.status)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: t('admin.products.status'),
+      cell: ({ row }) => (
+        <Badge
+          variant={getStockStatusBadgeVariant(row.original.status)}
+          className={getStockStatusBadgeColor(row.original.status)}
+          aria-label={t('admin.products.table.stockStatusAria', { status: row.original.status })}
+        >
+          {statusLabel(row.original.status)}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'formattedDate',
+      header: t('admin.products.createdDate'),
+      cell: ({ row }) => (
+        <span className="text-muted-foreground" aria-label={t('admin.products.table.createdDateAria', { date: row.original.formattedDate })}>
+          {row.original.formattedDate}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: t('admin.products.actions'),
+      cell: ({ row }) => (
+        <AdminProductActions
+          productId={row.original.idProduct}
+          productName={row.original.productName}
+          onEdit={onEdit}
+          onAddStock={onAddStock}
+          onDelete={onDelete}
+        />
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, onEdit, onAddStock, onDelete]);
+
+  const renderMobileRow = (product: FormattedProduct) => (
+    <div className="p-4 space-y-2">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="font-medium">{product.productName}</div>
+          <div className="font-mono text-xs text-muted-foreground">{product.productCodeBar}</div>
+        </div>
+        <Badge
+          variant={getStockStatusBadgeVariant(product.status)}
+          className={getStockStatusBadgeColor(product.status)}
+        >
+          {statusLabel(product.status)}
+        </Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+        <span>{product.family.familyName}</span>
+        <span>{product.brand.brandName}</span>
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        {formatStockQuantity(product.stockQuantity, product.status)}
+        <span className="text-muted-foreground">{product.formattedDate}</span>
+      </div>
+      <AdminProductActions
+        productId={product.idProduct}
+        productName={product.productName}
+        onEdit={onEdit}
+        onAddStock={onAddStock}
+        onDelete={onDelete}
+      />
+    </div>
+  );
+
+  const header = (
+    <div className="flex items-center justify-between">
+      <div>
+        <CardTitle>{t('admin.products.title')}</CardTitle>
+        <CardDescription>
+          {pagination ? `${t('admin.products.description')} (${pagination.totalItems} ${t('common.items')})` : t('admin.products.description')}
+        </CardDescription>
+      </div>
+      {showRefresh && onRefresh && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          className="flex items-center space-x-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          <span>{t('common.refresh')}</span>
+        </Button>
+      )}
+    </div>
+  );
+
   // Loading state
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>{t('admin.products.title')}</CardTitle>
-              <CardDescription>{t('admin.products.description')}</CardDescription>
-            </div>
-            {showRefresh && onRefresh && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRefresh}
-                className="flex items-center space-x-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span>{t('common.refresh')}</span>
-              </Button>
-            )}
-          </div>
-        </CardHeader>
+        <CardHeader>{header}</CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('admin.products.productCode')}</TableHead>
-                  <TableHead>{t('admin.products.name')}</TableHead>
-                  <TableHead>{t('admin.products.category')}</TableHead>
-                  <TableHead>{t('admin.products.brand')}</TableHead>
-                  <TableHead>{t('admin.products.stock')}</TableHead>
-                  <TableHead>{t('admin.products.status')}</TableHead>
-                  <TableHead>{t('admin.products.createdDate')}</TableHead>
-                  <TableHead>{t('admin.products.actions')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <TableRowSkeleton key={index} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <TableSkeleton rows={5} columns={8} />
         </CardContent>
       </Card>
     );
@@ -233,133 +310,24 @@ export const AdminProductsTable = memo(function AdminProductsTable({
     return <ProductsErrorState error={error} onRetry={onRetry} />;
   }
 
-  // Empty state
-  if (!products || products.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>{t('admin.products.title')}</CardTitle>
-              <CardDescription>{t('admin.products.description')}</CardDescription>
-            </div>
-            {showRefresh && onRefresh && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRefresh}
-                className="flex items-center space-x-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span>{t('common.refresh')}</span>
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <ProductsEmptyState />
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>{t('admin.products.title')}</CardTitle>
-            <CardDescription>
-              {t('admin.products.description')} ({pagination?.totalItems || 0} {t('common.items')})
-            </CardDescription>
-          </div>
-          {showRefresh && onRefresh && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRefresh}
-              className="flex items-center space-x-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>{t('common.refresh')}</span>
-            </Button>
-          )}
-        </div>
-      </CardHeader>
+      <CardHeader>{header}</CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <Table role="table" aria-label={t('admin.products.title')}>
-            <TableHeader>
-              <TableRow>
-                <TableHead scope="col">{t('admin.products.productCode')}</TableHead>
-                <TableHead scope="col">{t('admin.products.name')}</TableHead>
-                <TableHead scope="col">{t('admin.products.category')}</TableHead>
-                <TableHead scope="col">{t('admin.products.brand')}</TableHead>
-                <TableHead scope="col">{t('admin.products.stock')}</TableHead>
-                <TableHead scope="col">{t('admin.products.status')}</TableHead>
-                <TableHead scope="col">{t('admin.products.createdDate')}</TableHead>
-                <TableHead scope="col">{t('admin.products.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {formattedProducts.map((product) => (
-                <TableRow key={product.idProduct} role="row">
-                  <TableCell className="font-mono text-sm" role="cell">
-                    <span aria-label={`Product code: ${product.productCodeBar}`}>
-                      {product.productCodeBar}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-medium" role="cell">
-                    <span aria-label={`Product name: ${product.productName}`}>
-                      {product.productName}
-                    </span>
-                  </TableCell>
-                  <TableCell role="cell">
-                    <span aria-label={`Category: ${product.family.familyName}`}>
-                      {product.family.familyName}
-                    </span>
-                  </TableCell>
-                  <TableCell role="cell">
-                    <span aria-label={`Brand: ${product.brand.brandName}`}>
-                      {product.brand.brandName}
-                    </span>
-                  </TableCell>
-                  <TableCell role="cell">
-                    <span aria-label={`Stock quantity: ${product.stockQuantity}`}>
-                      {formatStockQuantity(product.stockQuantity, product.status)}
-                    </span>
-                  </TableCell>
-                  <TableCell role="cell">
-                    <Badge 
-                      variant={getStockStatusBadgeVariant(product.status)}
-                      className={getStockStatusBadgeColor(product.status)}
-                      aria-label={`Stock status: ${product.status}`}
-                    >
-                      {product.status === 'in_stock' && t('admin.products.statusInStock')}
-                      {product.status === 'low_stock' && t('admin.products.statusLowStock')}
-                      {product.status === 'out_of_stock' && t('admin.products.statusOutOfStock')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground" role="cell">
-                    <span aria-label={`Created date: ${product.formattedDate}`}>
-                      {product.formattedDate}
-                    </span>
-                  </TableCell>
-                  <TableCell role="cell">
-                    <AdminProductActions
-                      productId={product.idProduct}
-                      productName={product.productName}
-                      onEdit={onEdit}
-                      onAddStock={onAddStock}
-                      onDelete={onDelete}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        
+        <DataTable
+          columns={columns}
+          data={formattedProducts}
+          getRowKey={(product) => String(product.idProduct)}
+          renderMobileRow={renderMobileRow}
+          emptyState={
+            <EmptyState
+              icon={<Package className="h-6 w-6" />}
+              title={t('admin.products.noProducts')}
+              body={t('admin.products.noProductsDescription')}
+            />
+          }
+        />
+
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <div className="border-t">

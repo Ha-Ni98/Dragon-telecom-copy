@@ -33,50 +33,59 @@ import { AdminLogsFilters as AdminLogsFiltersType } from '@/types/draft-types/lo
 /**
  * Error fallback components
  */
-const StatisticsErrorFallback = ({ retry }: { retry: () => void }) => (
-  <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-    <h3 className="text-red-800 font-medium">Statistics Error</h3>
-    <p className="text-red-600 text-sm mt-1">
-      Failed to load log statistics. Please try again.
-    </p>
-    <button
-      onClick={retry}
-      className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
-    >
-      Retry
-    </button>
-  </div>
-);
+const StatisticsErrorFallback = ({ retry }: { retry: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+      <h3 className="text-red-800 font-medium">{t('admin.logs.errors.statisticsTitle')}</h3>
+      <p className="text-red-600 text-sm mt-1">
+        {t('admin.logs.errors.statisticsBody')}
+      </p>
+      <button
+        onClick={retry}
+        className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
+      >
+        {t('common.actions.tryAgain')}
+      </button>
+    </div>
+  );
+};
 
-const TableErrorFallback = ({ retry }: { retry: () => void }) => (
-  <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-    <h3 className="text-red-800 font-medium">Table Error</h3>
-    <p className="text-red-600 text-sm mt-1">
-      Failed to load logs table. Please try again.
-    </p>
-    <button
-      onClick={retry}
-      className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
-    >
-      Retry
-    </button>
-  </div>
-);
+const TableErrorFallback = ({ retry }: { retry: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+      <h3 className="text-red-800 font-medium">{t('admin.logs.errors.tableTitle')}</h3>
+      <p className="text-red-600 text-sm mt-1">
+        {t('admin.logs.errors.tableBody')}
+      </p>
+      <button
+        onClick={retry}
+        className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
+      >
+        {t('common.actions.tryAgain')}
+      </button>
+    </div>
+  );
+};
 
-const FiltersErrorFallback = ({ retry }: { retry: () => void }) => (
-  <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-    <h3 className="text-red-800 font-medium">Filters Error</h3>
-    <p className="text-red-600 text-sm mt-1">
-      Failed to load filter controls. Please try again.
-    </p>
-    <button
-      onClick={retry}
-      className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
-    >
-      Retry
-    </button>
-  </div>
-);
+const FiltersErrorFallback = ({ retry }: { retry: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+      <h3 className="text-red-800 font-medium">{t('admin.logs.errors.filtersTitle')}</h3>
+      <p className="text-red-600 text-sm mt-1">
+        {t('admin.logs.errors.filtersBody')}
+      </p>
+      <button
+        onClick={retry}
+        className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
+      >
+        {t('common.actions.tryAgain')}
+      </button>
+    </div>
+  );
+};
 
 /**
  * Main AdminLogs page component
@@ -228,7 +237,7 @@ const AdminLogs = memo(function AdminLogs() {
           {/* Statistics Cards */}
           <ErrorBoundary fallback={<StatisticsErrorFallback retry={handleRetry} />}>
             <section aria-labelledby="stats-heading">
-              <h2 id="stats-heading" className="sr-only">Log Statistics</h2>
+              <h2 id="stats-heading" className="sr-only">{t('admin.logs.statisticsHeading')}</h2>
               <AdminLogsStatsCards {...statsCardsProps} />
             </section>
           </ErrorBoundary>
@@ -236,7 +245,7 @@ const AdminLogs = memo(function AdminLogs() {
           {/* Filters Section */}
           <ErrorBoundary fallback={<FiltersErrorFallback retry={handleRetry} />}>
             <section aria-labelledby="filters-heading">
-              <h2 id="filters-heading" className="sr-only">Log Filters</h2>
+              <h2 id="filters-heading" className="sr-only">{t('admin.logs.filtersHeading')}</h2>
               <AdminLogsFilters {...filtersProps} />
             </section>
           </ErrorBoundary>
@@ -244,7 +253,7 @@ const AdminLogs = memo(function AdminLogs() {
           {/* Logs Table */}
           <ErrorBoundary fallback={<TableErrorFallback retry={handleRetry} />}>
             <section aria-labelledby="logs-heading">
-              <h2 id="logs-heading" className="sr-only">System Logs</h2>
+              <h2 id="logs-heading" className="sr-only">{t('admin.logs.tableHeading')}</h2>
               <AdminLogsTable {...tableProps} />
             </section>
           </ErrorBoundary>
