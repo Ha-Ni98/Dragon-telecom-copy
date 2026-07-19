@@ -48,6 +48,13 @@ const service = new ClientsService(prisma, identityService, sequenceService, cat
 const controller = new ClientsController(service);
 new ClientsListener(service).setup();
 
+// Exported for sales/orders/billing to inject as their own locally-declared credit-port
+// interface (structural typing — the same one-directional shape catalogProductService already
+// establishes for purchasing/sales/orders). PosClient belongs to this module; other modules
+// must write it only through applySaleCharge/applyPayment/applyOrderSold/applyReturnRefund
+// (credit-serialization fix, plan §C2).
+export const clientsService = service;
+
 const clientOnly = requireAuth({ types: [UserType.CLIENT] });
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
 // STAFF_POS_CLIENTS is one page — requireAuth's AND semantics collapse to a plain single-page

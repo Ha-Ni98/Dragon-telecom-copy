@@ -30,6 +30,7 @@ const {
   clientCartDeleteManyMock,
   orderAggregateMock,
   saleAggregateMock,
+  queryRawMock,
   transactionMock,
   eventBusEmitMock,
   comparePasswordMock,
@@ -53,6 +54,7 @@ const {
   clientCartDeleteManyMock: vi.fn(),
   orderAggregateMock: vi.fn(),
   saleAggregateMock: vi.fn(),
+  queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
   eventBusEmitMock: vi.fn(),
   comparePasswordMock: vi.fn(),
@@ -87,6 +89,7 @@ const prismaMock = {
   },
   order: { aggregate: orderAggregateMock },
   sale: { aggregate: saleAggregateMock },
+  $queryRaw: queryRawMock,
   $transaction: transactionMock,
 };
 
@@ -172,6 +175,7 @@ describe('ClientsService', () => {
     });
     orderAggregateMock.mockResolvedValue({ _count: 0, _sum: { totalAmount: null }, _max: { placedAt: null } });
     saleAggregateMock.mockResolvedValue({ _sum: { totalAmount: null } });
+    queryRawMock.mockResolvedValue([{ id: POS_CLIENT_ID }]);
   });
 
   const service = () => new ClientsService(prismaMock as never, identityMock, sequenceMock as never, catalogCartMock);
@@ -574,6 +578,86 @@ describe('ClientsService', () => {
     it('applyReturnCreated no-ops when creditEffect is absent', async () => {
       await service().applyReturnCreated({ returnId: 'r1', saleId: 's1', refundAmount: 300, posClientId: POS_CLIENT_ID });
       expect(posClientUpdateMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('injected credit port (credit-serialization fix, plan §C2)', () => {
+    it('applySaleCharge: credit += (totalAmount - paidAmount), totalPaid/totalSold increment', async () => {
+      posClientFindUniqueOrThrowMock.mockResolvedValueOnce(buildPosClientRow({ credit: new Prisma.Decimal(0) }));
+
+      const result = await service().applySaleCharge(prismaMock as never, POS_CLIENT_ID, { totalAmount: 1000, paidAmount: 800 });
+
+      expect(result).toEqual({ previousCredit: 0, newCredit: 200 });
+      expect(posClientUpdateMock).toHaveBeenCalledWith({
+        where: { id: POS_CLIENT_ID },
+        data: { credit: 200, totalPaid: { increment: 800 }, totalSold: { increment: 1000 } },
+      });
+    });
+
+    it('applySaleCharge: underpayment raises credit (client now owes more)', async () => {
+      posClientFindUniqueOrThrowMock.mockResolvedValueOnce(buildPosClientRow({ credit: new Prisma.Decimal(100) }));
+
+      const result = await service().applySaleCharge(prismaMock as never, POS_CLIENT_ID, { totalAmount: 1000, paidAmount: 0 });
+
+      expect(result).toEqual({ previousCredit: 100, newCredit: 1100 });
+    });
+
+    it('applyPayment: credit -= amount, permits overpayment (negative credit — store owes)', async () => {
+      posClientFindUniqueOrThrowMock.mockResolvedValueOnce(buildPosClientRow({ credit: new Prisma.Decimal(100) }));
+
+      const result = await service().applyPayment(prismaMock as never, POS_CLIENT_ID, { amount: 500 });
+
+      expect(result).toEqual({ previousCredit: 100, newCredit: -400 });
+      expect(posClientUpdateMock).toHaveBeenCalledWith({
+        where: { id: POS_CLIENT_ID },
+        data: { credit: -400, totalPaid: { increment: 500 } },
+      });
+    });
+
+    it('applyOrderSold: only increments totalSold, no credit change, no return value', async () => {
+      posClientFindUniqueOrThrowMock.mockResolvedValueOnce(buildPosClientRow());
+
+      const result = await service().applyOrderSold(prismaMock as never, POS_CLIENT_ID, { totalAmount: 500 });
+
+      expect(result).toBeUndefined();
+      expect(posClientUpdateMock).toHaveBeenCalledWith({ where: { id: POS_CLIENT_ID }, data: { totalSold: { increment: 500 } } });
+      expect(posClientUpdateMock.mock.calls[0]?.[0]?.data).not.toHaveProperty('credit');
+    });
+
+    it('applyReturnRefund: newCredit = previousCredit + creditEffect (a negative refund reduces what the client owes)', async () => {
+      posClientFindUniqueOrThrowMock.mockResolvedValueOnce(buildPosClientRow({ credit: new Prisma.Decimal(1000) }));
+
+      const result = await service().applyReturnRefund(prismaMock as never, POS_CLIENT_ID, { creditEffect: -300 });
+
+      expect(result).toEqual({ previousCredit: 1000, newCredit: 700 });
+      expect(posClientUpdateMock).toHaveBeenCalledWith({ where: { id: POS_CLIENT_ID }, data: { credit: 700 } });
+    });
+
+    it('rejects an unknown posClientId with NotFoundError', async () => {
+      queryRawMock.mockResolvedValueOnce([]);
+
+      const err = await expectRejection(service().applyPayment(prismaMock as never, POS_CLIENT_ID, { amount: 100 }));
+
+      expect(err.statusCode).toBe(404);
+    });
+
+    it('rejects a disabled posClientId with the same NotFoundError as unknown', async () => {
+      posClientFindUniqueOrThrowMock.mockResolvedValueOnce(buildPosClientRow({ isEnabled: false }));
+
+      const err = await expectRejection(service().applyPayment(prismaMock as never, POS_CLIENT_ID, { amount: 100 }));
+
+      expect(err.statusCode).toBe(404);
+    });
+
+    it('two sequential calls: the second call\'s previousCredit equals the first call\'s newCredit (the property the old design violated)', async () => {
+      posClientFindUniqueOrThrowMock.mockResolvedValueOnce(buildPosClientRow({ credit: new Prisma.Decimal(1000) }));
+      const first = await service().applyPayment(prismaMock as never, POS_CLIENT_ID, { amount: 300 });
+
+      posClientFindUniqueOrThrowMock.mockResolvedValueOnce(buildPosClientRow({ credit: new Prisma.Decimal(first.newCredit) }));
+      const second = await service().applyPayment(prismaMock as never, POS_CLIENT_ID, { amount: 200 });
+
+      expect(second.previousCredit).toBe(first.newCredit);
+      expect(second.newCredit).toBe(500); // 1000 - 300 - 200
     });
   });
 });

@@ -453,7 +453,88 @@ export class ClientsService implements IClientsService {
     });
   }
 
+  // --- Injected credit port (credit-serialization fix, plan §C2) ---
+  //
+  // PosClient belongs to this module — sales/orders/billing must not write it directly; each
+  // consumes these methods as an injected port (structural typing, the established
+  // ICatalogCartPort precedent: the consumer declares its own narrowed interface locally,
+  // `ClientsService` satisfies it by having the matching methods, no `implements` clause here).
+  // Every method locks the row for the duration of the CALLER's own transaction and writes the
+  // new cache values in that same transaction — the numbers replicate exactly what the former
+  // post-commit listener handlers above computed (do not diverge the math when those handlers
+  // are deleted in C3–C5), only the read-lock-write now all happen atomically together instead
+  // of racing a fire-and-forget event.
+
+  async applySaleCharge(
+    tx: Prisma.TransactionClient,
+    posClientId: string,
+    payload: { totalAmount: number; paidAmount: number },
+  ): Promise<{ previousCredit: number; newCredit: number }> {
+    const locked = await this.lockPosClient(tx, posClientId);
+    const previousCredit = locked.credit.toNumber();
+    const newCredit = previousCredit + (payload.totalAmount - payload.paidAmount);
+    await tx.posClient.update({
+      where: { id: posClientId },
+      data: { credit: newCredit, totalPaid: { increment: payload.paidAmount }, totalSold: { increment: payload.totalAmount } },
+    });
+    return { previousCredit, newCredit };
+  }
+
+  async applyPayment(
+    tx: Prisma.TransactionClient,
+    posClientId: string,
+    payload: { amount: number },
+  ): Promise<{ previousCredit: number; newCredit: number }> {
+    const locked = await this.lockPosClient(tx, posClientId);
+    const previousCredit = locked.credit.toNumber();
+    const newCredit = previousCredit - payload.amount;
+    await tx.posClient.update({
+      where: { id: posClientId },
+      data: { credit: newCredit, totalPaid: { increment: payload.amount } },
+    });
+    return { previousCredit, newCredit };
+  }
+
+  // Orders never touch credit (spec: "totalSold += totalAmount" only) — mirrors
+  // applyOrderConfirmed's own scope exactly, just moved in-tx.
+  async applyOrderSold(tx: Prisma.TransactionClient, posClientId: string, payload: { totalAmount: number }): Promise<void> {
+    await this.lockPosClient(tx, posClientId);
+    await tx.posClient.update({
+      where: { id: posClientId },
+      data: { totalSold: { increment: payload.totalAmount } },
+    });
+  }
+
+  // `creditEffect` is the caller's already-signed delta (mirrors applyReturnCreated's own
+  // payload shape exactly — a negative refund reduces what the client owes) — replicated, not
+  // reinvented; the only change is a locked read first so the returned previousCredit/newCredit
+  // snapshot is consistent under concurrency.
+  async applyReturnRefund(
+    tx: Prisma.TransactionClient,
+    posClientId: string,
+    payload: { creditEffect: number },
+  ): Promise<{ previousCredit: number; newCredit: number }> {
+    const locked = await this.lockPosClient(tx, posClientId);
+    const previousCredit = locked.credit.toNumber();
+    const newCredit = previousCredit + payload.creditEffect;
+    await tx.posClient.update({ where: { id: posClientId }, data: { credit: newCredit } });
+    return { previousCredit, newCredit };
+  }
+
   // --- Private helpers ---
+
+  // Locks the PosClient row for the duration of the caller's transaction (same
+  // `SELECT ... FOR UPDATE` precedent as purchasing's own lockSupplier / platform's
+  // SequenceService) — the serialization point every credit-port method above shares. Disabled
+  // rows are rejected the same as unknown ones (module-implementation-rules: a disabled
+  // POS client is not a valid charge/payment/refund target).
+  private async lockPosClient(tx: Prisma.TransactionClient, posClientId: string) {
+    const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "PosClient" WHERE id = ${posClientId} FOR UPDATE`;
+    if (!rows[0]) throw new NotFoundError('PosClient');
+    const posClient = await tx.posClient.findUniqueOrThrow({ where: { id: posClientId } });
+    if (!posClient.isEnabled) throw new NotFoundError('PosClient');
+    return posClient;
+  }
 
   private async checkPhoneAvailability(phone: string): Promise<{ isValid: boolean; status: PhoneAvailability }> {
     const existing = await this.prisma.client.findUnique({ where: { phone }, select: { status: true } });
