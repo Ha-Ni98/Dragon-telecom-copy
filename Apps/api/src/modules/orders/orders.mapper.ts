@@ -97,10 +97,6 @@ export class OrdersMapper {
 
   // PENDING order, resolvedPrice frozen equal to unitPrice at placement (plan §I.1 BL#1) —
   // unitPrice only diverges from resolvedPrice later, at confirm, if staff adjusts it.
-  // cmd.note is validated by the contract but has no persistence column on Order (schema has
-  // no `note` field) — accepted and silently dropped; flagged in the sprint report as a
-  // genuine, non-blocking gap (same "flagged, not fixed" precedent as set 06's SaleDto.lines
-  // missing `id`).
   static toPersistencePlace(cmd: PlaceOrderCommand, ctx: PlaceOrderContext): Prisma.OrderUncheckedCreateInput {
     const isDelivery = cmd.orderType !== OrderType.PICKUP;
     const subtotal = ctx.resolvedPrice * cmd.quantity;

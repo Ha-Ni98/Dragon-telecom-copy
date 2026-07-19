@@ -373,10 +373,6 @@ export class OrdersService implements IOrdersService {
     const staffId = await this.movementStaffId(actor);
     let capturedTx: Prisma.TransactionClient | undefined;
 
-    // cmd.reason is contract-valid input but Order has no column for a return's reason
-    // (cancellationReason is CANCELLED-specific — reusing it here would misattribute a
-    // return's note as a cancellation in any later audit read); accepted and silently
-    // dropped, same "flagged, not fixed" precedent as PlaceOrderCommand.note (Sprint 1).
     await this.prisma.$transaction(async (tx) => {
       capturedTx = tx;
       if (cmd.restock) {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { OrderStatus, OrderType } from '@dragon-telecom/contract';
+import { OrderStatus, OrderType, PlaceOrderSchema, ReturnOrderSchema } from '@dragon-telecom/contract';
 import { OrdersMapper } from '../../../../src/modules/orders/orders.mapper';
 import { makeOrder } from '../../../data/order.factory';
 import { makePlaceOrderCommand } from '../../../data/place-order.factory';
@@ -210,6 +210,38 @@ describe('OrdersMapper.toPersistencePlace', () => {
 
     const clientInput = OrdersMapper.toPersistencePlace(cmd, { ...ctx, clientId: 'client-1' });
     expect(clientInput.clientId).toBe('client-1');
+  });
+});
+
+// Audit fix B2: `note`/return `reason` never had a persistence column (Order has neither) and
+// were silently dropped by the mapper — dropped from the contract itself instead of migrating a
+// column. Neither schema uses `.strict()` (that's a deliberate one-off elsewhere, clients'
+// UpdateMeSchema, for a spec-mandated 400) — consistent with every other order command here,
+// an unrecognized field is silently stripped by Zod's object default, not rejected.
+describe('PlaceOrderSchema — note removed from the contract (audit fix B2)', () => {
+  it('silently strips a `note` field instead of rejecting the request', () => {
+    const parsed = PlaceOrderSchema.parse({
+      productId: '11111111-1111-4111-8111-111111111111',
+      quantity: 1,
+      orderType: OrderType.PICKUP,
+      contact: { fullName: 'Karim', phone: '0555000000' },
+      note: 'this field no longer exists',
+    });
+
+    expect(parsed).not.toHaveProperty('note');
+  });
+});
+
+describe('ReturnOrderSchema — reason removed from the contract (audit fix B2)', () => {
+  it('silently strips a `reason` field instead of rejecting the request', () => {
+    const parsed = ReturnOrderSchema.parse({
+      quantity: 1,
+      restock: false,
+      refundAmount: 1000,
+      reason: 'this field no longer exists',
+    });
+
+    expect(parsed).not.toHaveProperty('reason');
   });
 });
 
