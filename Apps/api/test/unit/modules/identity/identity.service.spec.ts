@@ -286,6 +286,19 @@ describe('IdentityService', () => {
       );
     });
 
+    it('ADMIN login also mints staffId — admins get a real Staff row too (audit fix A2)', async () => {
+      userFindFirstMock.mockResolvedValueOnce(buildStaffUser({ type: PrismaUserType.ADMIN }));
+      comparePasswordMock.mockResolvedValueOnce(true);
+      userUpdateMock.mockResolvedValueOnce({});
+      refreshTokenCreateMock.mockResolvedValueOnce({});
+
+      await service().login({ username: 'johndoe', password: 'Password123!' }, {});
+
+      expect(generateTokenMock).toHaveBeenCalledWith(
+        expect.objectContaining({ sub: USER_ID, type: ContractUserType.ADMIN, staffId: STAFF_ID }),
+      );
+    });
+
     it('mints a JWT payload with clientId for a CLIENT login', async () => {
       userFindFirstMock.mockResolvedValueOnce(buildClientUser());
       comparePasswordMock.mockResolvedValueOnce(true);
@@ -455,6 +468,29 @@ describe('IdentityService', () => {
         }),
       );
       expect(eventBusEmitMock).toHaveBeenCalledWith('user.created', { user: dto });
+    });
+
+    it('creates a real Staff row for an ADMIN too, from the same profile data (audit fix A2)', async () => {
+      const adminCmd: CreateUserCommand = {
+        username: 'newadmin',
+        email: 'newadmin@example.com',
+        password: 'Password123!',
+        type: ContractUserType.ADMIN,
+        profile: { firstName: 'New', lastName: 'Admin' },
+      };
+      userCreateMock.mockResolvedValueOnce(buildStaffUser({ type: PrismaUserType.ADMIN, userRoles: [] }));
+      pageFindManyMock.mockResolvedValueOnce([]);
+
+      await service().createUser(adminCmd);
+
+      expect(userCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: ContractUserType.ADMIN,
+            staff: { create: expect.objectContaining({ firstName: 'New', lastName: 'Admin' }) },
+          }),
+        }),
+      );
     });
 
     it('does not emit when called with an external tx — the caller owns commit timing', async () => {

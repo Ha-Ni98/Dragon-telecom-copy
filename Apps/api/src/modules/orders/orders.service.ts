@@ -237,10 +237,11 @@ export class OrdersService implements IOrdersService {
           profit,
           status: PrismaOrderStatus.CONFIRMED,
           confirmedAt: new Date(),
-          // No fallback to the system staff here — an admin with no Staff row leaves this
-          // nullable column null (schema supports it), correctly reflecting "an admin, not a
-          // specific staff member, confirmed this" rather than misattributing to the system
-          // placeholder.
+          // ADMIN and STAFF actors both carry a real staffId (audit fix A2 — admins get a real
+          // Staff row from identity.service.ts's createUser), so this is set for every
+          // authenticated confirm. No fallback to the system staff here: this column stays
+          // nullable only to support a hypothetical actor-less confirm, which the route guard
+          // (staffOrdersOrAdmin) never actually allows.
           ...(actor.staffId != null ? { confirmedByStaffId: actor.staffId } : {}),
           ...(cmd.paidAmount != null ? { paidAmount: cmd.paidAmount } : {}),
         },

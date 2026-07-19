@@ -221,6 +221,32 @@ describe('orders integration', () => {
       expect(invoiceCount).toBe(1);
     });
 
+    it('an admin-driven confirm attributes Order.confirmedByStaffId and StockMovement.staffId to the admin\'s own Staff id, not system.internal (audit fix A2)', async () => {
+      const { user: staffUser } = await seedStaffWithPages(['STAFF_ORDERS']);
+      const product = await seedOrderableProduct({ staffId: staffUser.staff!.id, quantity: 5, unitCost: 400, guestPrice: 1000 });
+      const { user: adminUser, token: adminToken } = await mintAdminToken();
+
+      const placeRes = await placeGuestDeliveryOrder(product.id, 1);
+      const orderId = placeRes.body.data.id as string;
+
+      const confirmRes = await request(app)
+        .post(`/api/staff/orders/${orderId}/confirm`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({});
+      expect(confirmRes.status).toBe(200);
+
+      const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(order.confirmedByStaffId).toBe(adminUser.staff!.id);
+
+      const movement = await prisma.stockMovement.findFirstOrThrow({
+        where: { referenceType: 'ORDER', referenceId: orderId, direction: 'OUT' },
+      });
+      expect(movement.staffId).toBe(adminUser.staff!.id);
+
+      const systemStaff = await prisma.staff.findFirst({ where: { user: { username: 'system.internal' } } });
+      expect(movement.staffId).not.toBe(systemStaff?.id);
+    });
+
     it('mirrors Order.paidAmount from a real payment.clientRecorded emission (§C-2)', async () => {
       const { user: staffUser, token: staffToken } = await seedStaffWithPages(['STAFF_ORDERS']);
       const product = await seedOrderableProduct({ staffId: staffUser.staff!.id, guestPrice: 1000 });

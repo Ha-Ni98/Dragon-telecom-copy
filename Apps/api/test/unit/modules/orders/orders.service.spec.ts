@@ -65,6 +65,7 @@ const ORDER_ID = '11111111-1111-4111-8111-111111111111';
 const PRODUCT_ID = '22222222-2222-4222-8222-222222222222';
 const STAFF_ID = '33333333-3333-4333-8333-333333333333';
 const SYSTEM_STAFF_ID = '44444444-4444-4444-8444-444444444444';
+const ADMIN_STAFF_ID = '77777777-7777-4777-8777-777777777777';
 const CLIENT_ID = '55555555-5555-4555-8555-555555555555';
 const POS_CLIENT_ID = '66666666-6666-4666-8666-666666666666';
 const now = new Date('2026-01-01T00:00:00.000Z');
@@ -121,7 +122,8 @@ describe('OrdersService', () => {
   const catalogPricingMock: ICatalogViewerPricingPort = { getCartProducts: vi.fn() };
 
   const staffActor = { sub: STAFF_ID, type: UserType.STAFF, staffId: STAFF_ID };
-  const adminActor = { sub: 'admin-1', type: UserType.ADMIN }; // no staffId — no Staff row for admins
+  // Admins get a real Staff row too (audit fix A2) — their JWT carries staffId just like STAFF's.
+  const adminActor = { sub: 'admin-1', type: UserType.ADMIN, staffId: ADMIN_STAFF_ID };
   const clientActor = { sub: 'client-user-1', type: UserType.CLIENT, clientId: CLIENT_ID };
 
   beforeEach(() => {
@@ -394,7 +396,7 @@ describe('OrdersService', () => {
       expect(payload).not.toHaveProperty('posClientId');
     });
 
-    it('an admin actor (no staffId) leaves confirmedByStaffId untouched, using the system staff for the stock movement only', async () => {
+    it('an admin actor sets confirmedByStaffId to the admin\'s own Staff id, not the system placeholder', async () => {
       orderFindUniqueMock.mockResolvedValueOnce(buildOrderRow());
       (inventoryMock.consumeFifo as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         movementId: 'm1',
@@ -407,12 +409,12 @@ describe('OrdersService', () => {
       await service().confirmOrder(ORDER_ID, {}, adminActor);
 
       const updateArgs = orderUpdateMock.mock.calls[0]?.[0];
-      expect(updateArgs.data).not.toHaveProperty('confirmedByStaffId');
+      expect(updateArgs.data).toHaveProperty('confirmedByStaffId', ADMIN_STAFF_ID);
       expect(inventoryMock.release).toHaveBeenCalledWith(
         prismaMock,
         PRODUCT_ID,
         1,
-        expect.objectContaining({ staffId: SYSTEM_STAFF_ID }),
+        expect.objectContaining({ staffId: ADMIN_STAFF_ID }),
       );
     });
   });

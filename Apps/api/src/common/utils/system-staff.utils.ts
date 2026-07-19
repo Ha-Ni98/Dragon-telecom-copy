@@ -6,12 +6,14 @@ import { hashPassword } from './password.utils';
 const SYSTEM_USERNAME = 'system.internal';
 
 // Bootstraps (and caches) a placeholder "system" Staff row for any stock/history mutation with
-// no natural staff actor — a guest/client storefront order placement, or any ADMIN-initiated
-// mutation (an ADMIN JWT never carries a staffId: Staff rows exist only for UserType.STAFF,
-// confirmed via identity.service.ts, which only sets it `if (user.staff)`). Both
-// StockMovement.staffId and RepairStatusHistory.staffId are NOT NULL FKs to Staff, so a real
-// row must exist — no schema/seed change; a self-bootstrapping row is created once (race-safe
-// under concurrency via User.username's @unique constraint and `upsert`) and reused thereafter.
+// no natural staff actor — a guest/client storefront order placement, or any other mutation
+// whose actor carries no staffId. ADMIN and STAFF users both get a real Staff row from
+// identity.service.ts's createUser (audit fix A2) and their JWT carries staffId via
+// buildJwtPayload's `if (user.staff)`, so in practice this resolver is reached only for
+// actor-less (guest) calls, not ADMIN-initiated ones. Both StockMovement.staffId and
+// RepairStatusHistory.staffId are NOT NULL FKs to Staff, so a real row must exist — no
+// schema/seed change; a self-bootstrapping row is created once (race-safe under concurrency via
+// User.username's @unique constraint and `upsert`) and reused thereafter.
 // Originally introduced in the orders module (Sprint 2); extracted here once repairs needed the
 // identical fallback for its own createRepair/addPart/removePart/changeStatus mutations, rather
 // than duplicating this same bootstrap logic in a second service.
