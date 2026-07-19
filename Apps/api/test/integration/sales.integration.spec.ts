@@ -215,17 +215,24 @@ describe('sales integration', () => {
         .send({ lines: [{ productId: product.id, quantity: 3, unitPrice: 1000 }] });
       const saleId = draftRes.body.data.id as string;
 
-      await request(app)
+      const confirmRes = await request(app)
         .post(`/api/staff/sales/${saleId}/confirm`)
         .set('Authorization', `Bearer ${token}`)
         .send({ paidAmount: 3000 });
+      // Confirming reassigns the reference from its DRAFT-* placeholder to the real SAL-* sequence
+      // number (billing sprint-5 precedent) — the pre-confirm reference is stale for lookup.
+      const saleReference = confirmRes.body.data.reference as string;
 
       const afterConfirm = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
       expect(afterConfirm.quantityOnHand).toBe(7); // 10 - 3
 
-      // SaleDto.lines[] carries no SaleLine id (contract gap, flagged in the sprint report) — the
-      // real DB row is the only way to obtain the saleLineId a return command requires.
-      const saleLine = await prisma.saleLine.findFirstOrThrow({ where: { saleId } });
+      // SaleDto.lines[].id is now the returns screen's line identifier (audit fix A4) — obtained
+      // through the API, not a direct DB query, proving the gap is actually closed.
+      const saleDetailRes = await request(app)
+        .get(`/api/admin/sales/${saleReference}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(saleDetailRes.status).toBe(200);
+      const saleLineId = saleDetailRes.body.data.lines[0].id as string;
 
       const returnRes = await request(app)
         .post('/api/admin/returns')
@@ -233,7 +240,7 @@ describe('sales integration', () => {
         .send({
           saleId,
           type: 'REFUND',
-          lines: [{ saleLineId: saleLine.id, quantity: 2, restock: true, refundAmount: 2000 }],
+          lines: [{ saleLineId, quantity: 2, restock: true, refundAmount: 2000 }],
         });
 
       expect(returnRes.status).toBe(200);

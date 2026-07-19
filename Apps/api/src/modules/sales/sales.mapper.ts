@@ -53,6 +53,7 @@ export class SalesMapper {
       lines: sale.lines.map((line) => {
         const serialNumbers = SalesMapper.parseSerials(line.serialNumbers);
         return {
+          id: line.id,
           productId: line.productId,
           productName: line.productNameSnapshot,
           quantity: line.quantity,

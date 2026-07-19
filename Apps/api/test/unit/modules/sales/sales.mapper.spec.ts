@@ -11,6 +11,7 @@ const SALE_ID = '11111111-1111-4111-8111-111111111111';
 const PRODUCT_ID = '22222222-2222-4222-8222-222222222222';
 const STAFF_ID = '33333333-3333-4333-8333-333333333333';
 const POS_CLIENT_ID = '44444444-4444-4444-8444-444444444444';
+const SALE_LINE_ID = '55555555-5555-4555-8555-555555555555';
 
 const buildStaff = (overrides: Partial<Pick<Staff, 'firstName' | 'lastName'>> = {}) => ({
   firstName: 'Amina',
@@ -19,7 +20,7 @@ const buildStaff = (overrides: Partial<Pick<Staff, 'firstName' | 'lastName'>> = 
 });
 
 const buildLineRow = (overrides: Partial<SaleLine> = {}): SaleLine => ({
-  id: 'line-1',
+  id: SALE_LINE_ID,
   saleId: SALE_ID,
   productId: PRODUCT_ID,
   productNameSnapshot: 'Screen Protector',
@@ -130,6 +131,13 @@ describe('SalesMapper.toSaleDto', () => {
     const dto = SalesMapper.toSaleDto(buildSaleRow(), { includeMargins: false });
 
     expect(dto.lines[0]).not.toHaveProperty('serialNumbers');
+  });
+
+  it('exposes SaleLine.id as a valid uuid (audit fix A4 — the returns screen\'s line identifier)', () => {
+    const dto = SalesMapper.toSaleDto(buildSaleRow(), { includeMargins: false });
+
+    expect(dto.lines[0]?.id).toBe(SALE_LINE_ID);
+    expect(dto.lines[0]?.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });
 
   it('never throws on a valid row (conformance guard)', () => {
