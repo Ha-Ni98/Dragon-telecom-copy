@@ -318,7 +318,7 @@ export default function Products() {
   }, [t, filteredProducts.length]);
 
   return (
-    <div className="min-h-screen">
+    <div>
       <main className="py-8 px-4 sm:px-8 md:px-12">
         <div className="container mx-auto px-4">
           <ErrorBoundary>

@@ -227,7 +227,7 @@
 
 ---
 
-### Sprint 3: Layouts & Boundaries — Status: ⬜ Pending
+### Sprint 3: Layouts & Boundaries — Status: ✅ Done (2026-07-19)
 
 **Goals**
 - Public/admin split enforced via `PublicLayout`/`AdminLayout`; routing merged into `App.tsx`
@@ -235,32 +235,87 @@
   `isError`.
 
 **Tasks**
-- [ ] Merge MVP routes into web's data-router `App.tsx`: public pages under `PublicLayout` (mobile-
+- [x] Merge MVP routes into web's data-router `App.tsx`: public pages under `PublicLayout` (mobile-
       first), admin pages under `RoleGuard allow={[…]}` → `AdminLayout` (desktop-first), login under
       `PublicOnlyRoute`. **Keep the `/products/:productName` slug** (Decision #3). `React.lazy` +
       `<Suspense fallback={<PageLoader/>}>` per top route; `errorElement={<RouteErrorBoundary/>}`.
       (#layout #page)
-- [ ] Replace `RequireAuth`/`RequireClient`/`RequireUser` usages with `RoleGuard`/`ProtectedRoute`
-      (client vs staff derived from `UserType`, not the MVP `authType`). (#layout)
-- [ ] Enforce rules §6C: commerce UI (search + **static/disabled cart shell**, Decision #2) only in
+- [x] Replace `RequireAuth`/`RequireClient`/`RequireUser` usages with `RoleGuard`/`ProtectedRoute`
+      (client vs staff derived from `UserType`, not the MVP `authType`). (#layout) — already done;
+      no such usages existed anywhere in the ported tree (verified by grep), only unrelated
+      `authType` references to the real contract's `AuthType` discriminator.
+- [x] Enforce rules §6C: commerce UI (search + **static/disabled cart shell**, Decision #2) only in
       `PublicLayout`; admin header carries none. Port footer link groups + public header content per
       best-practices §UI/UX into web's layout components.
-- [ ] Wrap every data-driven section so the layout persists: `isLoading` → shape-matched `Skeleton`
+- [x] Wrap every data-driven section so the layout persists: `isLoading` → shape-matched `Skeleton`
       (`TableSkeleton`/`StatCardSkeleton`); `isError`/empty → local `NotFoundState`/`EmptyState`
       inside the content area — never a full-screen spinner or a global 404 redirect. Cover
       dashboards, all tables + their stats cards, statistics charts, and detail pages. (#state)
 
 **Validation**
-- [ ] `tsc --noEmit` clean and `npm run build` succeeds; all routes reachable; layout persists
+- [x] `tsc --noEmit` clean and `npm run build` succeeds; all routes reachable; layout persists
       through loading/error states.
-- [ ] Admin shows no cart/store-locator; public shows commerce UI; guard redirects behave.
-- [ ] Committed on green.
+- [x] Admin shows no cart/store-locator; public shows commerce UI; guard redirects behave (verified
+      `/admin` → redirects to `/login` when unauthenticated; `/login`/`/register` → redirect away
+      when already authenticated).
+- [x] Committed on green.
 
-**Risks**
-- Auth semantics change (`authType` → `UserType`) → verify guard/redirect behavior on protected
-  routes.
-- Sections currently take `loading`/`error` props manually → some rewiring overlaps Sprint 4;
-  keep them prop-driven here, hook-driven there.
+**Risks (materialized / resolved)**
+- Auth semantics change (`authType` → `UserType`) → verified: no legacy guard components existed to
+  migrate; `RoleGuard`/`ProtectedRoute`/`PublicOnlyRoute` (built in Sprint 1) already use `UserType`.
+- Sections currently take `loading`/`error` props manually → confirmed harmless: Sprint 2's
+  DataTable/StatCard conversions already made every section's own loading/error/empty branches
+  layout-safe; this sprint only needed to fix the *page-level* wrapper divs (see Deviations).
+
+**Deviations from the plan (discovered during execution):**
+1. **Admin subtree allows both `ADMIN` and `STAFF`** (`RoleGuard allow={[UserType.ADMIN, UserType.STAFF]}`),
+   not just `ADMIN` as the Sprint-1 template placeholder had it — the identity module's own design
+   (Page registry seeds STAFF-scope keys only; see identity-sprint1-decisions memory) confirms STAFF
+   is meant to reach these back-office pages, with per-page-key restriction being a separate Sub-02
+   concern this sprint doesn't implement.
+2. **`LandingPage.tsx` and `admin/DashboardPage.tsx` (the Sprint-1 template placeholders) were
+   deleted**, replaced by the real ported `Index.tsx` (hero + categories/brands/products sections)
+   and `admin/dashboard/AdminDashboard.tsx` respectively, once their routes were repointed. No other
+   file referenced either.
+3. **`PublicHeader`/`PublicFooter` rebuilt from the MVP's deleted `layout/{header,footer}.tsx`**
+   (recovered from the still-present, untouched `Mvp/frontend` reference tree — only the `Apps/web`
+   copies were deleted in Sprint 1). Ported: mobile `Sheet` menu (matching `AdminHeader`'s existing
+   pattern, not a bespoke `MobileMenu`), desktop nav, Enter-to-navigate search (`useSearchState`/
+   `useRecentSearches`, both self-contained), theme/language toggles, auth-aware account area
+   (`DropdownMenu`, matching `AdminHeader`'s pattern) vs. a Sign-in button, and a **static/disabled**
+   cart icon (Decision #2 — shows a "coming soon" toast, not wired to any cart state). Footer:
+   company blurb + static social icons, session-aware quick links, MVP's placeholder contact info
+   (phone/email/address — already `XXX`-style placeholders in the MVP, ported as-is), copyright via
+   the existing `common.legal.copyright` key (not the MVP's hardcoded "© 2025" string).
+   **Deliberately dropped**: the MVP header's live category/brand hover-mega-menu — it depends on
+   `useProductData()` → a `ProductProvider` context that isn't mounted anywhere in the app (checked
+   `main.tsx`/`App.tsx`); wiring it now would pull forward Sprint 4/Sub-02's data-integration work.
+   Also dropped the live `SearchSuggestions` dropdown (deleted in Sprint 1 as duplicate infra) in
+   favor of plain Enter-to-navigate, for the same reason.
+4. **Found and fixed a real runtime crash**: `Register.tsx` calls `useWilaya()` → `useWilayaContext()`,
+   which throws if no `WilayaProvider` ancestor exists — and none was mounted anywhere. Unlike
+   `ProductProvider` (needs live data), `WilayaProvider` is pure static Algeria geography reference
+   data (two local JSON files, no fetch, no other dependencies), so mounting it is safe and
+   in-scope for this sprint (not a Sprint-4/data-decoupling concern). Wired it **locally inside
+   `Register.tsx`** (wrapping a renamed `RegisterForm` inner component) rather than globally in
+   `main.tsx`, so the ~480KB commune JSON stays in `/register`'s own lazy chunk instead of bloating
+   every route's initial bundle.
+5. **Found and fixed redundant `min-h-screen` page-wrapper divs** in 8 files (`Index`, `Products`,
+   `Orders`, `MyAccount`, `Register`, `ProductDetails` ×3 branches, `AdminClients`, `AdminSuppliers`,
+   `AdminLogs`) — each was a leftover from the MVP's original full-page layout (before `PublicLayout`/
+   `AdminLayout` existed), and, now nested inside those layouts' own `min-h-screen flex` structure,
+   would have forced an extra full-viewport-height of empty space before the footer/next content on
+   any page shorter than the viewport. Also removed doubled `p-4` padding in the same 3 admin pages
+   (their own inner wrapper duplicated `AdminLayout` main's `p-4 sm:p-6 lg:p-8`).
+6. **Found and fixed a copy-paste bug in `AdminSuppliers.tsx`**: its page-wrapper `aria-label` and
+   `aria-describedby` referenced `admin.clients.title` and `id="admin-clients-description"` (copied
+   from `AdminClients.tsx`) instead of its own `admin.suppliers.title`/`admin-suppliers-description`.
+7. **Visual verification**: headless-Chrome screenshots confirmed `/`, `/products`, `/register`,
+   `/login` render correctly with real ported content and the Sprint-2 theme; `/admin` correctly
+   redirects to `/login` when unauthenticated. Two screenshots (`/` and a product-detail page) came
+   back blank on the first attempt — confirmed via DOM dump to be a headless-capture timing artifact
+   (real content was present in both cases), not an app bug; resolved by adding
+   `--run-all-compositor-stages-before-draw` to the screenshot command.
 
 ---
 

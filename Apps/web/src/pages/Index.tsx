@@ -27,7 +27,7 @@ const SectionSkeleton = () => (
 
 const Index = memo(() => {
   return (
-    <div className="min-h-screen">
+    <div>
       <main>
         <HeroSection />
         <div className="px-4 sm:px-8 md:px-12 py-8 ">

@@ -224,21 +224,21 @@ const AdminSuppliers = memo(function AdminSuppliers() {
   const errorMessage = statsError?.message || suppliersError?.message || createSupplierMutation.error?.message || deleteSupplierMutation.error?.message || addInvoiceMutation.error?.message;
 
   return (
-    <div className="w-full h-full min-h-screen">
+    <div className="w-full h-full">
       {/* Error Boundary for the entire page */}
       <ErrorBoundary>
-        <div 
-          className="w-full h-full min-h-screen p-4 space-y-6"
+        <div
+          className="w-full h-full space-y-6"
           role="main"
-          aria-label={t('admin.clients.title')}
-          aria-describedby="admin-clients-description"
+          aria-label={t('admin.suppliers.title')}
+          aria-describedby="admin-suppliers-description"
         >
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">{t('admin.suppliers.stats.title')}</h1>
-            <p 
-              id="admin-clients-description"
+            <p
+              id="admin-suppliers-description"
               className="text-muted-foreground"
             >
                {t('admin.suppliers.stats.description')}

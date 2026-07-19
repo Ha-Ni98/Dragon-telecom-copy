@@ -23,7 +23,7 @@ const OrdersPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div>
       <main>
         {/* Page Header */}
         <section className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

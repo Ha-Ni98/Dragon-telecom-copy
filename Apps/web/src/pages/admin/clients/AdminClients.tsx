@@ -122,11 +122,11 @@ const AdminClients = memo(function AdminClients() {
   
   
   return (
-    <div className="w-full h-full min-h-screen">
+    <div className="w-full h-full">
       {/* Error Boundary for the entire page */}
       <ErrorBoundary>
-        <div 
-          className="w-full h-full min-h-screen p-4 space-y-6"
+        <div
+          className="w-full h-full space-y-6"
           role="main"
           aria-label={t('admin.clients.title')}
           aria-describedby="admin-clients-description"

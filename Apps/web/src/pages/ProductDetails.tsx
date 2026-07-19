@@ -88,8 +88,8 @@ export default function ProductDetails() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <main className="flex-1">
+      <div>
+        <main>
           <div className="container mx-auto px-4 py-8">
           {/* Back Button Skeleton */}
           <div className="mb-6">
@@ -133,8 +133,8 @@ export default function ProductDetails() {
   // Error state
   if (isError || !product) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <main className="flex-1">
+      <div>
+        <main>
           <div className="container mx-auto px-4 py-8">
             {/* Back Button */}
             <Button variant="ghost" asChild className="mb-6">
@@ -168,8 +168,8 @@ export default function ProductDetails() {
 
   return (
     <ProductErrorBoundary resetKeys={[productName ?? ""]}>
-      <div className="min-h-screen bg-background flex flex-col">
-        <main className="flex-1">
+      <div>
+        <main>
       <div className="container mx-auto px-4 py-8">
         {/* Back Button */}
         <Button variant="ghost" asChild className="mb-6">

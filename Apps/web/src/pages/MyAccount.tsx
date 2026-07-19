@@ -112,8 +112,8 @@ export default function MyAccount() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main className="flex-1 container mx-auto px-4 py-8">
+    <div>
+      <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold">{t('account.title')}</h1>

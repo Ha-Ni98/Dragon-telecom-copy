@@ -33,6 +33,16 @@ Decision #7).
 > success-path render branches that had zero `t()` calls at all — see Sprint 2 Deviation #4); the
 > OKLCH theme re-skin was visually verified via headless-Chrome screenshots of `/` and `/login`.
 
+> **Sprint 3 (Layouts & Boundaries) — ✅ done 2026-07-19.** Full report in `sprints.md`'s Sprint 3
+> section. All public/admin routes wired into `App.tsx`; admin subtree allows both `ADMIN` and
+> `STAFF` (matches the identity module's STAFF-scoped Page registry design); `PublicHeader`/
+> `PublicFooter` rebuilt from the MVP's deleted originals (recovered from the still-present
+> `Mvp/frontend` reference tree), deliberately dropping the live category/brand mega-menu and search
+> suggestions (both depend on providers/components not wired — would pull forward Sprint 4/Sub-02
+> work). Found and fixed three real bugs while wiring routes: a `Register.tsx` crash from a missing
+> `WilayaProvider`, redundant `min-h-screen` page-wrapper divs in 8 files (doubling effective page
+> height inside the new layouts), and a copy-paste `aria-label`/`id` bug in `AdminSuppliers.tsx`.
+
 ---
 
 ## 1. The Purge

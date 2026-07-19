@@ -14,9 +14,21 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { RegistrationConfirmationDialog } from "@/components/shared/RegistrationConfirmationDialog";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { WilayaProvider } from "@/components/providers/wilaya-provider";
 import { Client } from "@/types/draft-types/client.types";
 
+// WilayaProvider is mounted here rather than globally in main.tsx — it's the only consumer,
+// and its static Algeria geography data (~480KB JSON) should stay in this page's own lazy
+// chunk instead of bloating every route's initial bundle.
 export default function Register() {
+  return (
+    <WilayaProvider>
+      <RegisterForm />
+    </WilayaProvider>
+  );
+}
+
+function RegisterForm() {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -160,8 +172,8 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main className="flex-1 container mx-auto px-4 py-8">
+    <div>
+      <main className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto">
           <Card>
             <CardHeader className="text-center">

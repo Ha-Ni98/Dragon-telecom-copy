@@ -7074,11 +7074,6 @@
     "fr": "Commander Maintenant",
     "ar": ""
   },
-  "wishlist.ordersAccessDenied": {
-    "en": "Please sign in to view your orders and wishlist",
-    "fr": "Veuillez vous connecter pour voir vos commandes et votre liste de souhaits",
-    "ar": ""
-  },
   "wishlist.removeFromWishlist": {
     "en": "Remove from Wishlist",
     "fr": "Retirer de la liste de souhaits",
@@ -9452,6 +9447,31 @@
   "admin.productInfo.pricing.categoryLabel": {
     "en": "Category {id}",
     "fr": "Catégorie {id}",
+    "ar": ""
+  },
+  "header.ordersAccessDenied": {
+    "en": "Please sign in to view your orders",
+    "fr": "Veuillez vous connecter pour voir vos commandes",
+    "ar": ""
+  },
+  "header.cartComingSoon": {
+    "en": "Cart is not available yet",
+    "fr": "Le panier n'est pas encore disponible",
+    "ar": ""
+  },
+  "header.myOrders": {
+    "en": "My Orders",
+    "fr": "Mes commandes",
+    "ar": ""
+  },
+  "header.signOutConfirm.title": {
+    "en": "Sign out?",
+    "fr": "Se déconnecter ?",
+    "ar": ""
+  },
+  "header.signOutConfirm.body": {
+    "en": "You'll need to sign in again to access your account.",
+    "fr": "Vous devrez vous reconnecter pour accéder à votre compte.",
     "ar": ""
   }
 }
