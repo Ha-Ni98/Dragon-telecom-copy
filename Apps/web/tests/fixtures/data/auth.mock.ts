@@ -4,7 +4,7 @@ import {
   UserRole,
   type AuthTokensDTO,
   type SessionUserDTO,
-} from "@your-app/contract";
+} from "@dragon-telecom/contract";
 
 export const mockAuthTokens: AuthTokensDTO = AuthTokensResponseSchema.parse({
   accessToken: "mock-access-token",

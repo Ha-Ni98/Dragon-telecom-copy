@@ -35,11 +35,11 @@ First sprint not ✅. Re-read `front-end-rules.md` (folder structure, `useTransl
 ### Step 3 — Validate
 `tsc --noEmit` clean · `npm run build` succeeds · UI renders, no layout crash · no leftover `console.*`.
 
-### Step 4 — Commit on Green
-`git commit -m "fe: refactor sprint [N] — [name]"` — the rollback point.
-
-### Step 5 — Update Docs
+### Step 4 — Update Docs
 Mark the sprint ✅ in `sprints.md`; cross off goals in `plan.md`.
+
+### Step 5 — Commit on Green
+`git commit -m "fe: refactor sprint [N] — [name]"` — the rollback point.
 
 ### Step 6 — Pause
 Wait for `next`.

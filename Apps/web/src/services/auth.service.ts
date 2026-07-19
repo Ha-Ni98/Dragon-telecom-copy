@@ -1,26 +1,22 @@
 import {
-  AUTH_ROUTES,
+  IDENTITY_ROUTES,
   type ApiResponse,
   type LoginCommand,
-  type AuthTokensDTO,
-  type SessionUserDTO,
-  type RefreshTokenCommand,
-} from "@your-app/contract";
+  type LoginResultDto,
+  type RefreshCommand,
+} from "@dragon-telecom/contract";
 import { api } from "@/lib/axios";
 import { apiPath } from "@/lib/api-path";
 import * as tokenStore from "@/lib/token-store";
 
-export async function login(command: LoginCommand): Promise<AuthTokensDTO> {
-  const res = await api.post<ApiResponse<AuthTokensDTO>>(
-    apiPath(AUTH_ROUTES.BASE, AUTH_ROUTES.LOGIN),
-    command,
-  );
+export async function login(command: LoginCommand): Promise<LoginResultDto> {
+  const res = await api.post<ApiResponse<LoginResultDto>>(apiPath(IDENTITY_ROUTES.LOGIN), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
-  tokenStore.setTokens(res.data.data);
+  tokenStore.setLoginSession(res.data.data);
   return res.data.data;
 }
 
-// AUTH_ROUTES.LOGOUT requires a RefreshTokenCommand body, but reads it from the token
+// IDENTITY_ROUTES.LOGOUT requires a RefreshCommand body, but reads it from the token
 // store rather than taking a parameter — the only caller today (AuthProvider) invokes this
 // as a zero-argument mutation, mirroring the same "read the store, don't ask the caller"
 // pattern axios.ts's refreshTokens() already uses. Local logout always happens (tokens
@@ -31,21 +27,18 @@ export async function logout(): Promise<void> {
     tokenStore.clear();
     return;
   }
-  const command: RefreshTokenCommand = { refreshToken };
+  const command: RefreshCommand = { refreshToken };
   try {
-    await api.post(apiPath(AUTH_ROUTES.BASE, AUTH_ROUTES.LOGOUT), command);
+    await api.post(apiPath(IDENTITY_ROUTES.LOGOUT), command);
   } finally {
     tokenStore.clear();
   }
 }
 
-export async function me(): Promise<SessionUserDTO> {
-  const res = await api.get<ApiResponse<SessionUserDTO>>(apiPath(AUTH_ROUTES.BASE, AUTH_ROUTES.ME));
-  if (!res.data.success) throw new Error(res.data.error.message); // defensive
-  return res.data.data;
-}
+// No IDENTITY_ROUTES "who am I" route exists (only /me/permissions) — session comes from
+// hooks/useSession.ts reading the JWT locally via token-store.ts, not a service call.
 
-// AUTH_ROUTES.REFRESH's real implementation is axios.ts's own single-flight
+// IDENTITY_ROUTES.REFRESH's real implementation is axios.ts's own single-flight
 // refreshTokens() — re-exported here only so every contract route maps to a service
 // function (plan.md D2). No dedicated hook: calling this outside the 401 interceptor
 // would risk racing a second refresh against the interceptor's own in-flight one.

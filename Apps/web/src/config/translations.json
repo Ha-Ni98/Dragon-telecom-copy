@@ -58,7 +58,6 @@
   "auth.login.network": { "en": "Network error. Please check your connection.", "fr": "Erreur réseau. Vérifiez votre connexion.", "ar": "" },
 
   "admin.nav.dashboard": { "en": "Dashboard", "fr": "Tableau de bord", "ar": "" },
-  "admin.nav.deliveryCompanies": { "en": "Delivery companies", "fr": "Sociétés de livraison", "ar": "" },
   "admin.shell.openMenu": { "en": "Open menu", "fr": "Ouvrir le menu", "ar": "" },
   "admin.shell.signOutConfirm.title": { "en": "Sign out?", "fr": "Se déconnecter ?", "ar": "" },
   "admin.shell.signOutConfirm.body": { "en": "You will need to sign in again to continue.", "fr": "Vous devrez vous reconnecter pour continuer.", "ar": "" },
@@ -66,21 +65,6 @@
   "admin.dashboard.title": { "en": "Dashboard", "fr": "Tableau de bord", "ar": "" },
   "admin.dashboard.subtitle": { "en": "Overview of your app.", "fr": "Aperçu de votre application.", "ar": "" },
   "admin.dashboard.cards.overview": { "en": "Overview", "fr": "Aperçu", "ar": "" },
-  "admin.dashboard.cards.deliveryCompanies": { "en": "Delivery companies", "fr": "Sociétés de livraison", "ar": "" },
   "admin.dashboard.sectionError": { "en": "Couldn't load this section", "fr": "Impossible de charger cette section", "ar": "" },
-  "admin.dashboard.sectionErrorBody": { "en": "Please try again.", "fr": "Veuillez réessayer.", "ar": "" },
-
-  "admin.deliveryCompanies.title": { "en": "Delivery companies", "fr": "Sociétés de livraison", "ar": "" },
-  "admin.deliveryCompanies.subtitle": { "en": "Manage the delivery companies used by your app.", "fr": "Gérez les sociétés de livraison utilisées par votre application.", "ar": "" },
-
-  "admin.settings.companies.create.title": { "en": "Add company", "fr": "Ajouter une société", "ar": "" },
-  "admin.settings.companies.create.name": { "en": "Name", "fr": "Nom", "ar": "" },
-  "admin.settings.companies.create.registeredName": { "en": "Registered name", "fr": "Raison sociale", "ar": "" },
-  "admin.settings.companies.table.name": { "en": "Name", "fr": "Nom", "ar": "" },
-  "admin.settings.companies.table.registeredName": { "en": "Registered name", "fr": "Raison sociale", "ar": "" },
-  "admin.settings.companies.table.status": { "en": "Status", "fr": "Statut", "ar": "" },
-  "admin.settings.companies.table.actions": { "en": "Actions", "fr": "Actions", "ar": "" },
-  "admin.settings.companies.empty.noCompanies": { "en": "No delivery companies yet", "fr": "Aucune société de livraison", "ar": "" },
-  "admin.settings.companies.toggleConfirm.disableTitle": { "en": "Disable this company?", "fr": "Désactiver cette société ?", "ar": "" },
-  "admin.settings.companies.toggleConfirm.enableTitle": { "en": "Enable this company?", "fr": "Activer cette société ?", "ar": "" }
+  "admin.dashboard.sectionErrorBody": { "en": "Please try again.", "fr": "Veuillez réessayer.", "ar": "" }
 }

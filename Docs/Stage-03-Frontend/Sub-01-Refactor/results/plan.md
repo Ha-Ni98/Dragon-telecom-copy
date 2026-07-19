@@ -18,6 +18,14 @@ Decision #7).
 > `@dragon-telecom`** (package.json dep key, `tsconfig` paths, all imports). Remaining items in §6
 > are non-blocking facts handled when data is typed in Sub-02.
 
+> **Sprint 1 (Purge & Structure) — ✅ done 2026-07-19.** Executed with two corrections discovered
+> mid-sprint (full report in `sprints.md`'s Sprint 1 section): **(a)** the pre-built auth engine
+> referenced contract symbols (`AUTH_ROUTES`, `UserRole`, a `/auth/me` endpoint) that don't exist in
+> the real contract — fixed first (JWT-decode session, no backend change) since it blocked
+> everything else; **(b)** `delivery-companies` was removed **in Sprint 1**, not deferred to Sub-02
+> — it doesn't compile against the real contract either, so it couldn't be kept "as a reference"
+> once `tsc` had to pass. See §1.2 and §1.4 below for the resulting fate corrections.
+
 ---
 
 ## 1. The Purge
@@ -46,8 +54,9 @@ Decision #7).
 - Bespoke-infra duplicates: `lib/i18n.ts`, `hooks/use-language.tsx`, `lib/utils.ts` (`cn`),
   `hooks/use-debounce`, `hooks/use-mobile`, `hooks/use-theme`, `providers/theme-provider`,
   `components/ui/{toast,toaster,use-toast,theme-toggle,language-toggle,sidebar,user-dropdown,mobile-menu}`,
-  `components/shared/{DataTable,ErrorBoundary,ProductErrorBoundary}`,
-  `components/admin/{admin-header,admin-sidebar}`, `components/layout/{header,footer}`,
+  `components/shared/DataTable`,
+  `components/admin/{admin-header,admin-sidebar}`, `components/layout/{header,footer}`
+  (chrome stripped from ported pages; `PublicLayout`/`AdminLayout` wiring is Sprint 3),
   `layouts/AdminLayout.tsx`.
 - All `components/admin/*-demo.tsx` (8) and `test-pagination.js`.
 - `src/types/**` — delete after each consumer is repointed to contract DTOs (§4); keep `src/types/`
@@ -77,10 +86,12 @@ Target dirs (rules §1): `pages/`, `pages/admin/`, `components/{ui,shared,layout
 | `config/translations.json` | merged into `Apps/web/src/config/translations.json` |
 | `config/algeria-*.json`, `assets/*` | `src/config/`, `src/assets/` |
 
-### 1.4 Remove `Apps/web` template scaffolding (once real verticals exist)
-Delete the **delivery-companies** worked example (service/hook/pages/nav entry/translations/
+### 1.4 Remove `Apps/web` template scaffolding — ✅ done in Sprint 1 (not deferred)
+Deleted the **delivery-companies** worked example (service/hook/pages/nav entry/translations/
 dashboard card/tests) — it's bound to contract symbols that don't exist in `@dragon-telecom/contract`
-(map §9). Keep it as the copy-me pattern **until** replaced, then remove so the app typechecks.
+(map §9), which meant it didn't compile once the alias pointed at the real package (§1.2b), so it
+couldn't be kept "as a reference" through Sprint 1's own `tsc` gate. The Service→Hook→Page shape is
+still the pattern Sub-02's first real domain should copy — it's just no longer a live example file.
 
 ---
 

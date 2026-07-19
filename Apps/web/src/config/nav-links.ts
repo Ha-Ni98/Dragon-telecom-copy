@@ -1,4 +1,4 @@
-import { LayoutDashboard, Truck, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, type LucideIcon } from "lucide-react";
 
 export interface NavLink {
   to: string;
@@ -22,5 +22,4 @@ export function isNavGroup(item: AdminNavItem): item is NavGroup {
 // EXTENSION POINT (modules): add one nav entry (or a NavGroup) per admin section.
 export const ADMIN_NAV_LINKS: AdminNavItem[] = [
   { to: "/admin", labelKey: "admin.nav.dashboard", icon: LayoutDashboard },
-  { to: "/admin/delivery-companies", labelKey: "admin.nav.deliveryCompanies", icon: Truck },
 ];

@@ -1,7 +1,7 @@
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "sonner";
-import type { ApiResponse } from "@your-app/contract";
+import type { ApiResponse } from "@dragon-telecom/contract";
 import { translate, getLanguage } from "@/lib/i18n";
 
 export const message = (err: unknown): string => {

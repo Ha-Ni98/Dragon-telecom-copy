@@ -15,15 +15,19 @@
   1. **Mock-data deletion runs in Sprint 4**, not Sprint 1 — mocks and their consumers must die
      together (deleting `src/mocks/**` while services still import them breaks `tsc`). Sprint 1
      purges *libraries, duplicate infra, dead files, and folders*; it leaves mock files compiling.
-  2. **The `delivery-companies` template vertical stays through Sub-01** as the copy-me
-     Service→Hook→Page reference. Its removal happens in **Sub-02** once the first real domain is
-     wired (a wired vertical must exist before the reference is deleted). Tracked, not done here.
+  2. **~~The `delivery-companies` template vertical stays through Sub-01~~ — superseded during
+     Sprint 1 execution.** It doesn't compile against the real `@dragon-telecom/contract` (its
+     types/routes don't exist there — delivery is modeled as `PLATFORM_ROUTES` fees + a free-text
+     field on orders), so it was removed in Sprint 1 rather than Sub-02: keeping broken template
+     code around just to preserve it as a "reference" isn't possible once `tsc` must pass. The
+     Service→Hook→Page shape is still the pattern to copy for Sub-02's first real domain — it's
+     just no longer a live, compiling example in the tree.
 
 **Status legend:** ⬜ Pending · 🟡 In progress · ✅ Done.
 
 ---
 
-### Sprint 1: Purge & Structure — Status: ⬜ Pending
+### Sprint 1: Purge & Structure — Status: ✅ Done (2026-07-19)
 
 **Goals**
 - Approved stack only, monorepo on **one Zod major (4)**, alias renamed to
@@ -31,50 +35,108 @@
   `Apps/web` still `tsc`-clean and building.
 
 **Tasks**
-- [ ] Bump `zod → ^4`, `@hookform/resolvers → ^5`; align `sonner → ^2`. Add approved deps a ported
+- [x] Bump `zod → ^4`, `@hookform/resolvers → ^5`; align `sonner → ^2`. Add approved deps a ported
       view needs: `axios`, `recharts`, `embla-carousel-react`, `vaul`, `date-fns`, and the Radix
       primitives from `codebase-map.md §4.8`. (#unapproved-lib)
-- [ ] Purge `lovable-tagger` (+ its `vite.config.ts` hook) and the legacy shadcn toast stack
+- [x] Purge `lovable-tagger` (+ its `vite.config.ts` hook) and the legacy shadcn toast stack
       (`ui/{toast,toaster,use-toast}` → `sonner`). (#bespoke-infra)
-- [ ] **ASK** before keeping `cmdk`, `input-otp`, `react-day-picker`, `react-resizable-panels`
-      (rules §6A); drop unless approved. (#unapproved-lib)
-- [ ] **Alias rename → `@dragon-telecom/contract`** (Decision #7): `Apps/web/package.json` dep key,
-      `tsconfig*.json` paths, Vite `resolve.alias`, and every `from "@your-app/contract"` import in
-      `src/` + `tests/`. No `@your-app`/`@app-template` left. (#bespoke-infra)
-- [ ] Create missing target dirs (`components/sections/`); confirm the strict `/src` layout
-      (rules §1).
-- [ ] DELETE orphans: all `components/admin/*-demo.tsx` (8), `test-pagination.js`. (#duplicate)
-- [ ] DELETE duplicate infra in favor of the `Apps/web` equivalents, **repointing consumers in the
-      same commit** so `tsc` stays green: MVP `lib/i18n` + `hooks/use-language` (→ `lib/i18n` +
-      `useTranslation`), `lib/utils` `cn` (→ web `utils`), `use-debounce`/`use-mobile`/`use-theme`,
-      `providers/{theme-provider,auth-provider,require-auth,require-client,require-user}`,
-      `layout/{header,footer}` + `layouts/AdminLayout`,
-      `ui/{theme-toggle,language-toggle,sidebar,user-dropdown,mobile-menu}`,
-      `shared/{DataTable,ErrorBoundary,ProductErrorBoundary}`, `admin/{admin-header,admin-sidebar}`.
-      (#duplicate #bespoke-infra)
-- [ ] **Delete wishlist entirely** (Decision #1): `providers/wishlist-provider`,
-      `hooks/use-wishlist`, `hooks/use-product-wishlist`, `shared/WishlistItem`,
-      `sections/wishlist-section`, `mocks/wishlist`, and all usages/nav entries. (#state)
-- [ ] Move surviving files to targets and fix import paths (map §1.3): `services/*` → `services/`,
-      server-state `hooks/*`+`hooks-v2/*` → `hooks/`, `sections/*` → `sections/<feature>/`,
-      page-specific `admin/*` → `pages/admin/<feature>/components/`, reusable composites → `shared/`,
-      approved `ui/*` extras → `ui/`, `pages/*` → `pages/`(+`pages/admin/<feature>/`),
-      `assets/*`/`config/*.json` → `assets/`/`config/`.
-- [ ] **Do NOT delete `src/mocks/**` or the `lib/services` mock bodies yet** — deferred to Sprint 4
-      with service stubbing (deleting now breaks `tsc`). They keep compiling meanwhile. (#mock)
+- [x] **ASK** before keeping `cmdk`, `input-otp`, `react-day-picker`, `react-resizable-panels`
+      (rules §6A) — user kept `cmdk`+`react-day-picker`, dropped `input-otp`+`react-resizable-panels`.
+      (#unapproved-lib)
+- [x] **Alias rename → `@dragon-telecom/contract`** (Decision #7): `package.json` dep key and every
+      `@your-app/contract` import in `src/`+`tests/` renamed. No `@your-app`/`@app-template` left.
+      (#bespoke-infra)
+- [x] Created `components/sections/{landing,orders,product-details}/`, `pages/admin/<feature>/components/`
+      for all 8 admin domains (rules §1).
+- [x] DELETE orphans: all `components/admin/*-demo.tsx` (8), `test-pagination.js`. (#duplicate)
+- [x] DELETE duplicate infra in favor of the `Apps/web` equivalents (consumers repointed in the same
+      pass): MVP `lib/i18n`+`hooks/use-language` → `useTranslation`, `lib/utils` `cn` → web `utils`
+      (+`formatDZD` reused for MVP's `formatPrice`), `use-debounce` → `useDebouncedValue`,
+      `use-mobile`/`use-theme` dropped, `providers/{theme-provider,auth-provider,require-auth,
+      require-client,require-user}` → web `AuthProvider`/`RoleGuard`/`ProtectedRoute`,
+      `layout/{header,footer}` + `layouts/AdminLayout` dropped (chrome stripped from ported pages;
+      `PublicLayout`/`AdminLayout` wiring is Sprint 3), `ui/{theme-toggle,language-toggle,sidebar,
+      user-dropdown,mobile-menu}` dropped, `shared/DataTable` dropped (web's TanStack version wins),
+      `admin/{admin-header,admin-sidebar}` dropped. (#duplicate #bespoke-infra)
+- [x] **Delete wishlist entirely** (Decision #1): `providers/wishlist-provider`, `hooks/use-wishlist`,
+      `hooks/use-product-wishlist`, `shared/WishlistItem`, `sections/wishlist-section`,
+      `mocks/wishlist`, `shared/BulkOrderModal` (wishlist-only consumer), and all usages/nav entries
+      (incl. the `Orders.tsx` wishlist tab, collapsed to a single orders view). (#state)
+- [x] Moved all surviving files to targets and fixed import paths (map §1.3) — see **Deviations**
+      below for the handful of files reclassified during execution.
+- [x] Mock layer (`src/mocks/**`, `lib/services/*` mock bodies) ported and kept compiling, per plan —
+      deletion stays deferred to Sprint 4. (#mock)
 
 **Validation**
-- [ ] `tsc --noEmit` clean and `npm run build` succeeds (no broken imports after moves/renames/deletes).
-- [ ] App boots; every route renders (data may still be mock/placeholder).
-- [ ] No `@your-app`/`@app-template` alias anywhere; no unapproved libs in `package.json`; whole
+- [x] `tsc --noEmit` clean and `npm run build` succeeds (no broken imports after moves/renames/deletes).
+- [x] App boots (`npm run dev`, HTTP 200 on `/`); currently-routed pages (Landing/Login/Admin
+      Dashboard/404) unaffected — newly ported pages aren't wired into routes yet (Sprint 3).
+- [x] No `@your-app`/`@app-template` alias anywhere; no unapproved libs in `package.json`; whole
       monorepo on Zod 4.
-- [ ] Committed on green.
+- [x] Committed on green.
+- **Known gap, intentionally out of scope:** ~72 ported MVP files still contain pre-existing
+  `console.*` debug calls (codebase-map §10 heaviest-debt item #6). None of the code authored in
+  this sprint (auth engine, stubs, adapters) has any. Cleanup rides with Sprint 4's data-extraction
+  pass, which touches the same files anyway.
 
-**Risks**
-- Alias rename + folder moves touch nearly every import → run as a coordinated codemod; high churn.
-- Deleting duplicate infra requires repointing consumers to the `Apps/web` versions **in the same
-  commit**, or `tsc` breaks.
-- Some `#mock`/`#legacy-fetch` intentionally survives into Sprint 4 (acceptable, tracked).
+**Deviations from the plan (discovered during execution, not foreseeable from the audit alone):**
+1. **The pre-built auth engine didn't match the real contract at all** — `AUTH_ROUTES`,
+   `AuthTokensDTO`, `SessionUserDTO`, `RefreshTokenCommand`, `UserRole`, and a `/auth/me` session
+   endpoint don't exist anywhere in `@dragon-telecom/contract` or `Apps/api` (identity only exposes
+   `IDENTITY_ROUTES` with `LoginResultDto`/`RefreshResultDto`/`RefreshCommand`/`UserType`, and
+   `/me/permissions` — no full "who am I" route). This blocked every subsequent step (`AuthProvider`
+   wraps the whole app), so it was fixed **before** any MVP file moved, per user decision: session is
+   now derived client-side by decoding the access token's JWT claims (`lib/token-store.ts`
+   `getSession()`), bootstrapped on cold start via the existing single-flight `refreshTokens()` —
+   no backend/contract change. New frontend-only `Session` view model at `src/types/session.ts`.
+   Touched: `lib/axios.ts`, `lib/token-store.ts`, `services/auth.service.ts`, `hooks/useSession.ts`,
+   `hooks/useLogin.ts`, `components/providers/AuthProvider.tsx`, `components/layout/{ProtectedRoute,
+   RoleGuard}.tsx`, `lib/realtime.ts`, `lib/query-keys.ts`, `App.tsx` (`UserRole`→`UserType`).
+2. **The `delivery-companies` template vertical was removed now, not in Sub-02** — it doesn't
+   compile against the real contract either (`DeliveryCompanyDTO` etc. don't exist; delivery is
+   modeled as `PLATFORM_ROUTES` fees + a free-text field on orders), so keeping it would have failed
+   Sprint 1's own `tsc` gate. Deleted its pages/service/hook/tests/nav-link/translation keys.
+3. **Three genuinely-used error-boundary components were ported, not deleted** — `codebase-map.md`
+   originally called `components/error-boundary.tsx`, `shared/ErrorBoundary.tsx`, and
+   `shared/ProductErrorBoundary.tsx` duplicate/superseded infra. In practice 11 real ported pages
+   structurally depend on them (nested `<ErrorBoundary fallback={...}>` wraps, not simple
+   duplicates of route-level `RouteErrorBoundary`), so removing them meant risky JSX surgery across
+   11 files for no benefit. Ported as-is (`process.env.NODE_ENV` → `import.meta.env.DEV/PROD` was
+   the only fix needed). `admin/product-information-error-boundary.tsx` stayed excluded — genuinely
+   unused.
+4. **A temporary `hooks/use-toast.ts` compatibility shim was added** — ~20 ported files call the
+   legacy shadcn `useToast()` object-call shape (`toast({ title, description, variant })`). Rewriting
+   every call site now would pull Sprint 2's "mount a single sonner Toaster" work forward for no
+   reason; the shim adapts that shape onto the app's real `sonner` instance (no second `<Toaster/>`)
+   and is explicitly commented for deletion once Sprint 2 rewrites the call sites directly.
+5. **Cart handling** (Decision #2, deferred): every ported component that touched
+   `hooks/use-cart` (`ProductCard`, `ProductPricingSection`, `products-section`, `Products.tsx`) had
+   its cart calls replaced with local typed-empty-default no-ops (`isProductInCart` → `false`,
+   `addToCart` → no-op async) rather than left unported, so the add-to-cart UI still renders.
+6. **~15 additional MVP files turned out to be dead code** (broken imports to files that don't
+   exist anywhere in the MVP tree, or zero real consumers) and were excluded rather than fixed:
+   `hooks/use-client-categories-query.ts`, `use-data-integration.ts`, `use-form-reset.ts`,
+   `use-family-suggestions.ts`, `use-model-suggestions.ts`, `use-supplier-suggestions.ts`,
+   `use-form-submission.ts`, `use-image-upload-progress.ts`, all of `hooks-v2/clinets-hooks/*` (6
+   files — a whole second, never-wired client-hooks generation), `lib/utils/form-reset.ts`,
+   `lib/services/suggestion.service.ts`, `components/sections/featured-products.tsx`,
+   `components/ui/{search-dialog,search-suggestions}.tsx`.
+7. **A handful of genuine pre-existing MVP type/logic bugs** surfaced only once files compiled
+   under `Apps/web`'s stricter `tsconfig` (MVP's own `tsconfig.app.json` never actually ran clean —
+   the earlier "0 errors" check was against the wrong root config) and were fixed inline: wrong
+   type-import sources (e.g. `Family`/`Brand`/`ClientCategory` imported from the wrong `draft-types`
+   submodule in ~15 files), a `keyof typeof import(...)` anti-pattern on two statistics-card files,
+   Zod 3→4 API drift (`z.record()` arity, `ZodError.errors`→`.issues`, `required_error`→`error`),
+   `NodeJS.Timeout` namespace usage (no `@types/node` globals here — `ReturnType<typeof setTimeout>`
+   instead), TanStack Query v4→v5 `cacheTime`→`gcTime`, and several `Pagination` primitive misuses
+   (MVP's own smart `<Pagination currentPage=…>` vs `Apps/web`'s shadcn primitive — swapped to the
+   shared `SimplePagination` composite throughout).
+
+**Risks (materialized / resolved)**
+- Alias rename + folder moves touched nearly every import — done via targeted `sed`/Python codemods
+  per batch, validated with `tsc` after each.
+- Duplicate-infra deletion required repointing consumers in the same pass — done throughout.
+- `#mock`/`#legacy-fetch` intentionally still present, tracked for Sprint 4 as planned.
 
 ---
 

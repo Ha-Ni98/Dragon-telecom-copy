@@ -4,7 +4,7 @@ import {
   onRealtimeStatusChange,
   connectRoleSocket,
 } from "@/lib/realtime";
-import { UserRole } from "@your-app/contract";
+import { UserRole } from "@dragon-telecom/contract";
 
 // Realtime is opt-in and off by default (VITE_WS_ENABLED unset in tests), so connectRoleSocket
 // is a no-op and no socket is ever opened. These tests cover the always-present status store

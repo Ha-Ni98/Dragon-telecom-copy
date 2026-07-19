@@ -1,10 +1,10 @@
-import { LayoutDashboard, Truck } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { useTranslation } from "@/hooks/useTranslation";
 
-// Placeholder admin dashboard. Replace the static cards with real data hooks as you add
-// modules (the delivery-companies page is the wired reference — copy its shape).
+// Placeholder admin dashboard. Replace the static card with real data hooks as domains are
+// wired (Sub-02) — the first wired vertical becomes the Service→Hook→Page reference.
 export default function DashboardPage() {
   const { t } = useTranslation();
   return (
@@ -14,11 +14,6 @@ export default function DashboardPage() {
         <StatCard
           icon={<LayoutDashboard className="h-5 w-5" />}
           label={t("admin.dashboard.cards.overview")}
-          value="—"
-        />
-        <StatCard
-          icon={<Truck className="h-5 w-5" />}
-          label={t("admin.dashboard.cards.deliveryCompanies")}
           value="—"
         />
       </div>

@@ -1,5 +1,5 @@
 import { HttpResponse } from "msw";
-import type { ApiResponse, ErrorCode } from "@your-app/contract";
+import type { ApiResponse, ErrorCode } from "@dragon-telecom/contract";
 
 // Mirrors Apps/api's sendSuccess()/globalErrorHandler exactly (test-rules §3) so a handler
 // can never drift from what the live API actually sends.

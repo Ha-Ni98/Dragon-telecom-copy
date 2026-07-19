@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, type LazyExoticComponent, type JSX } from "react";
 import { createBrowserRouter, Link, RouterProvider } from "react-router-dom";
-import { UserRole } from "@your-app/contract";
+import { UserType } from "@dragon-telecom/contract";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { RoleGuard } from "@/components/layout/RoleGuard";
@@ -16,9 +16,6 @@ import { setRedirect } from "@/lib/axios";
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const LoginPage = lazy(() => import("@/pages/LoginPage"));
 const AdminDashboardPage = lazy(() => import("@/pages/admin/DashboardPage"));
-const AdminDeliveryCompaniesPage = lazy(
-  () => import("@/pages/admin/delivery-companies/DeliveryCompaniesPage"),
-);
 
 const withSuspense = (Component: LazyExoticComponent<() => JSX.Element>) => (
   <Suspense fallback={<PageLoader />}>
@@ -78,7 +75,7 @@ const router = createBrowserRouter([
   {
     // EXTENSION POINT (auth, role-based): this subtree is admin-only. Add more RoleGuard
     // blocks — or a <ProtectedRoute /> block for any-authenticated pages — as your app grows.
-    element: <RoleGuard allow={[UserRole.ADMIN]} />,
+    element: <RoleGuard allow={[UserType.ADMIN]} />,
     children: [
       {
         element: <AdminLayout />,
@@ -86,11 +83,6 @@ const router = createBrowserRouter([
           {
             path: "/admin",
             element: withSuspense(AdminDashboardPage),
-            errorElement: <RouteErrorBoundary />,
-          },
-          {
-            path: "/admin/delivery-companies",
-            element: withSuspense(AdminDeliveryCompaniesPage),
             errorElement: <RouteErrorBoundary />,
           },
         ],

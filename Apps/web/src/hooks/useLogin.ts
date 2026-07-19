@@ -7,7 +7,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: authService.login,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.auth.me() });
+      queryClient.invalidateQueries({ queryKey: qk.auth.session() });
     },
   });
 }

@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { UserRole } from "@your-app/contract";
+import { UserType } from "@dragon-telecom/contract";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useSession } from "@/hooks/useSession";
 
@@ -25,7 +25,7 @@ export function ProtectedRoute() {
   return <Outlet />;
 }
 
-// Reads useSession() directly rather than useAuth() — AuthCtx doesn't expose `role` (same
+// Reads useSession() directly rather than useAuth() — AuthCtx doesn't expose `type` (same
 // reasoning as RoleGuard's identical comment); this is the one other place that needs it,
 // to send an already-authenticated user away from /login to their home.
 export function PublicOnlyRoute() {
@@ -33,8 +33,8 @@ export function PublicOnlyRoute() {
   const { data: session } = useSession();
   if (!isReady) return <AuthRestoring />;
   if (session) {
-    // EXTENSION POINT (auth): route each role to its home.
-    return <Navigate to={session.role === UserRole.ADMIN ? "/admin" : "/"} replace />;
+    // EXTENSION POINT (auth): route each type to its home.
+    return <Navigate to={session.type === UserType.ADMIN ? "/admin" : "/"} replace />;
   }
   return <Outlet />;
 }

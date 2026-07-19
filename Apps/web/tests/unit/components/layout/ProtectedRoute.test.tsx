@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { UserRole } from "@your-app/contract";
+import { UserRole } from "@dragon-telecom/contract";
 import { ProtectedRoute, PublicOnlyRoute } from "@/components/layout/ProtectedRoute";
 import * as AuthProviderModule from "@/components/providers/AuthProvider";
 import * as useSessionHook from "@/hooks/useSession";
