@@ -191,14 +191,40 @@ describe('BillingService', () => {
   });
 
   describe('issueFromOrder', () => {
-    it('issues an ORDER invoice with no Sale row involved at all, totalCost/totalProfit defaulted to 0', async () => {
-      orderFindUniqueOrThrowMock.mockResolvedValueOnce({ id: 'order-1', reference: 'ORD-2026-0001' });
+    it('issues an ORDER invoice with no Sale row involved at all, copying Order.costOfGoods/profit (audit fix A3)', async () => {
+      orderFindUniqueOrThrowMock.mockResolvedValueOnce({
+        id: 'order-1',
+        reference: 'ORD-2026-0001',
+        costOfGoods: new Prisma.Decimal(400),
+        profit: new Prisma.Decimal(600),
+      });
       sequenceMock.nextNumber.mockResolvedValueOnce('FAC-2026-0003');
       invoiceCreateMock.mockResolvedValueOnce({ id: 'invoice-2' });
 
       await service().issueFromOrder(buildOrderConfirmedEvent({ orderId: 'order-1' }));
 
       expect(saleFindUniqueOrThrowMock).not.toHaveBeenCalled();
+      expect(invoiceCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ sourceType: 'ORDER', totalCost: 400, totalProfit: 600 }) }),
+      );
+      const createArgs = invoiceCreateMock.mock.calls[0]?.[0];
+      expect(createArgs.data.lines.create[0]).toEqual(
+        expect.objectContaining({ costSnapshot: 400, profit: 600 }),
+      );
+    });
+
+    it('defaults totalCost/totalProfit to 0 when a confirmed order is somehow missing them (defensive null-guard, never throws)', async () => {
+      orderFindUniqueOrThrowMock.mockResolvedValueOnce({
+        id: 'order-1',
+        reference: 'ORD-2026-0001',
+        costOfGoods: null,
+        profit: null,
+      });
+      sequenceMock.nextNumber.mockResolvedValueOnce('FAC-2026-0004');
+      invoiceCreateMock.mockResolvedValueOnce({ id: 'invoice-3' });
+
+      await expect(service().issueFromOrder(buildOrderConfirmedEvent({ orderId: 'order-1' }))).resolves.toBeUndefined();
+
       expect(invoiceCreateMock).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ sourceType: 'ORDER', totalCost: 0, totalProfit: 0 }) }),
       );

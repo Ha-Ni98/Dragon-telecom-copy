@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
-import type { UserType as PrismaUserType } from '@prisma/client';
+import type { Prisma, UserType as PrismaUserType } from '@prisma/client';
 import { MovementType, OrderResponseSchema, OrderStatsResponseSchema, UserType } from '@dragon-telecom/contract';
 import { app } from '../../src/app';
 import { prisma } from '../../src/common/db/prisma';
@@ -199,12 +199,19 @@ describe('orders integration', () => {
       expect(afterConfirm.quantityOnHand).toBe(7); // 10 - 3, real FIFO consumption
       expect(afterConfirm.quantityReserved).toBe(0);
 
-      let invoiceRow: { number: string } | null = null;
+      let invoiceRow: { number: string; totalCost: Prisma.Decimal; totalProfit: Prisma.Decimal } | null = null;
       await waitFor(async () => {
         invoiceRow = await prisma.invoice.findUnique({ where: { sourceType_sourceId: { sourceType: 'ORDER', sourceId: orderId } } });
         return invoiceRow != null;
       });
       expect(invoiceRow).not.toBeNull();
+
+      // The issued ORDER invoice's cost/profit must equal the confirmed order's own stored FIFO
+      // figures, not be zeroed out (audit fix A3).
+      const confirmedOrder = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(invoiceRow!.totalCost.toNumber()).toBe(confirmedOrder.costOfGoods!.toNumber());
+      expect(invoiceRow!.totalProfit.toNumber()).toBe(confirmedOrder.profit!.toNumber());
+      expect(invoiceRow!.totalCost.toNumber()).toBe(1200); // 3 units @ unitCost 400 (seedOrderableProduct)
 
       await waitFor(async () => {
         const updated = await prisma.posClient.findUniqueOrThrow({ where: { id: posClient.id } });

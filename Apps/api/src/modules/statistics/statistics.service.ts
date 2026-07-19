@@ -276,9 +276,9 @@ export class StatisticsService implements IStatisticsService {
 
   // Revenue/profit = Σ COMPLETED Sale rows (both origins — a REPAIR-origin sale carries the
   // repair's own revenue once, never the Repair row itself, §C-4) + Σ CONFIRMED-and-later
-  // Order rows (Order.profit/costOfGoods, stamped at confirm — never the ORDER invoice's
-  // zeroed cost, billing's own set-06 handoff). Guarantees "repair sale counted once" and "no
-  // FIFO drift vs stored line profits".
+  // Order rows (Order.profit/costOfGoods, stamped at confirm — the same figures the ORDER
+  // invoice now copies too, audit fix A3, but read directly here rather than via the invoice).
+  // Guarantees "repair sale counted once" and "no FIFO drift vs stored line profits".
   private async computeRevenueProfit(range: { from?: Date; to?: Date }): Promise<{ revenue: number; profit: number }> {
     const soldAtFilter = this.dateRangeFilter(range);
     const confirmedAtFilter = this.dateRangeFilter(range);

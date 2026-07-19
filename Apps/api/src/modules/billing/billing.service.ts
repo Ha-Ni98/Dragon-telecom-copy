@@ -17,6 +17,7 @@ import {
   type SalesEvents,
 } from '@dragon-telecom/contract';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@common/errors';
+import { logger } from '@common/config/logger';
 import { eventBus } from '@common/events/event-bus';
 import { renderInvoicePdf } from '@common/utils/pdf.utils';
 import type { ISequenceService } from '../platform/platform.interface';
@@ -232,10 +233,22 @@ export class BillingService implements IBillingService {
     await this.issueInvoice(input, sale.reference);
   }
 
-  // Dormant until the (unbuilt) orders module emits — thin payload, no per-line cost/profit at
-  // all, so totalCost/totalProfit default to 0 (plan §C-4, a documented handoff, not a bug).
+  // The event payload itself carries no per-line cost/profit — Order.costOfGoods/profit (the
+  // real FIFO figures, stamped at confirm) are the source of truth, read straight off the row
+  // the listener already fetches (audit fix A3). A confirmed order should always have both set
+  // (orders BL#3); null-guarded defensively since this runs inside a listener — never throw,
+  // just default to 0 and log loudly so a genuine data gap surfaces without breaking issuance.
   async issueFromOrder(payload: OrdersEvents['order.confirmed']): Promise<void> {
     const order = await this.prisma.order.findUniqueOrThrow({ where: { id: payload.orderId } });
+
+    if (order.costOfGoods == null || order.profit == null) {
+      logger.warn(
+        { orderId: order.id },
+        'issueFromOrder: confirmed order missing costOfGoods/profit — defaulting invoice cost/profit to 0',
+      );
+    }
+    const totalCost = order.costOfGoods?.toNumber() ?? 0;
+    const totalProfit = order.profit?.toNumber() ?? 0;
 
     let clientNameSnapshot = 'Walk-in Customer';
     let clientAddressSnapshot: string | undefined;
@@ -263,16 +276,16 @@ export class BillingService implements IBillingService {
       ...(clientAddressSnapshot != null ? { clientAddressSnapshot } : {}),
       totalAmount: payload.totals.totalAmount,
       paidAmount: payload.totals.paidAmount,
-      totalCost: 0,
-      totalProfit: 0,
+      totalCost,
+      totalProfit,
       staffId: payload.confirmedByStaffId,
       lines: [
         {
           label: payload.snapshotLine.productName,
           quantity: payload.snapshotLine.quantity,
           unitPrice: payload.snapshotLine.unitPrice,
-          costSnapshot: 0,
-          profit: 0,
+          costSnapshot: totalCost,
+          profit: totalProfit,
           lineTotal: payload.snapshotLine.lineTotal,
         },
       ],
@@ -428,37 +441,56 @@ export class BillingService implements IBillingService {
     return map;
   }
 
-  // `InvoiceLine` has no `productId` (only a free-text `label`) — no FK path to Product at all.
-  // Best-effort: correlate back to the source document's own lines by (label, quantity,
-  // unitPrice). SALE origin only (ORDER origin is dormant, plan §C-4) — not airtight for a sale
-  // with two identical lines entered separately rather than one line at a higher quantity
-  // (documented limitation, Sprint 5 report).
+  // `InvoiceLine` has no `productId` (only a free-text `label`) — no FK path to Product at all
+  // for SALE-origin invoices, so those are correlated back to the source Sale's own lines by
+  // best-effort (label, quantity, unitPrice) matching — not airtight for a sale with two
+  // identical lines entered separately rather than one line at a higher quantity (documented
+  // limitation, Sprint 5 report). ORDER-origin invoices have no such ambiguity: Order.productId
+  // is a direct FK and every ORDER invoice has exactly one line (audit fix A3).
   private async resolveCurrentAverageCosts(invoices: InvoiceRow[]): Promise<Map<string, number>> {
     const result = new Map<string, number>();
     const saleSourced = invoices.filter((invoice) => invoice.sourceType === PrismaInvoiceSource.SALE);
-    if (saleSourced.length === 0) return result;
-
-    const saleLines = await this.prisma.saleLine.findMany({ where: { saleId: { in: saleSourced.map((i) => i.sourceId) } } });
-    const linesBySaleId = new Map<string, typeof saleLines>();
-    for (const line of saleLines) {
-      const list = linesBySaleId.get(line.saleId) ?? [];
-      list.push(line);
-      linesBySaleId.set(line.saleId, list);
-    }
+    const orderSourced = invoices.filter((invoice) => invoice.sourceType === PrismaInvoiceSource.ORDER);
 
     const productIdByInvoiceLineId = new Map<string, string>();
-    for (const invoice of saleSourced) {
-      const candidates = linesBySaleId.get(invoice.sourceId) ?? [];
-      for (const invoiceLine of invoice.lines) {
-        const match = candidates.find(
-          (line) =>
-            line.productNameSnapshot === invoiceLine.label &&
-            line.quantity === invoiceLine.quantity &&
-            line.unitPrice.toNumber() === invoiceLine.unitPrice.toNumber(),
-        );
-        if (match) productIdByInvoiceLineId.set(invoiceLine.id, match.productId);
+
+    if (saleSourced.length > 0) {
+      const saleLines = await this.prisma.saleLine.findMany({ where: { saleId: { in: saleSourced.map((i) => i.sourceId) } } });
+      const linesBySaleId = new Map<string, typeof saleLines>();
+      for (const line of saleLines) {
+        const list = linesBySaleId.get(line.saleId) ?? [];
+        list.push(line);
+        linesBySaleId.set(line.saleId, list);
+      }
+
+      for (const invoice of saleSourced) {
+        const candidates = linesBySaleId.get(invoice.sourceId) ?? [];
+        for (const invoiceLine of invoice.lines) {
+          const match = candidates.find(
+            (line) =>
+              line.productNameSnapshot === invoiceLine.label &&
+              line.quantity === invoiceLine.quantity &&
+              line.unitPrice.toNumber() === invoiceLine.unitPrice.toNumber(),
+          );
+          if (match) productIdByInvoiceLineId.set(invoiceLine.id, match.productId);
+        }
       }
     }
+
+    if (orderSourced.length > 0) {
+      const orders = await this.prisma.order.findMany({
+        where: { id: { in: orderSourced.map((i) => i.sourceId) } },
+        select: { id: true, productId: true },
+      });
+      const productIdByOrderId = new Map(orders.map((order) => [order.id, order.productId]));
+
+      for (const invoice of orderSourced) {
+        const productId = productIdByOrderId.get(invoice.sourceId);
+        const invoiceLine = invoice.lines[0]; // ORDER invoices always have exactly one line
+        if (productId != null && invoiceLine) productIdByInvoiceLineId.set(invoiceLine.id, productId);
+      }
+    }
+
     if (productIdByInvoiceLineId.size === 0) return result;
 
     const productIds = [...new Set(productIdByInvoiceLineId.values())];
