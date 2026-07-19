@@ -284,4 +284,25 @@ describe('purchasing integration', () => {
       expect(finalSupplier.credit.toNumber()).toBe(1000);
     });
   });
+
+  // Credit-serialization fix (plan-credit-serialization.md §C1): the exact scenario the audit
+  // report diagnosed — no Promise.all, just two back-to-back sequential requests fast enough to
+  // race a post-commit listener. Now that the write lives inside the confirm/payment transaction
+  // itself, this is no longer timing-dependent.
+  describe('two sequential rapid payments (no Promise.all)', () => {
+    it('produce the correct final credit', async () => {
+      const supplier = await seedSupplier({ credit: 1000 });
+
+      const first = await request(app).post('/api/admin/supplier-payments').set(auth()).send({ supplierId: supplier.id, amount: 300 });
+      const second = await request(app).post('/api/admin/supplier-payments').set(auth()).send({ supplierId: supplier.id, amount: 200 });
+
+      expect(first.status).toBe(201);
+      expect(second.status).toBe(201);
+      expect(second.body.data.previousCredit).toBe(first.body.data.newCredit);
+
+      const finalSupplier = await prisma.supplier.findUniqueOrThrow({ where: { id: supplier.id } });
+      expect(finalSupplier.credit.toNumber()).toBe(500); // 1000 - 300 - 200
+      expect(finalSupplier.totalPaid.toNumber()).toBe(500);
+    });
+  });
 });

@@ -6,7 +6,6 @@ import type {
   CreateSupplierInvoiceCommand,
   CreateSupplierPaymentCommand,
   PaginatedResult,
-  PurchasingEvents,
   SupplierDetailDto,
   SupplierDto,
   SupplierInvoiceDto,
@@ -38,17 +37,6 @@ export interface IPurchasingService {
   // Payments (admin ledger)
   listPayments(query: SupplierPaymentListQuery): Promise<PaginatedResult<SupplierPaymentDto>>;
   createPayment(cmd: CreateSupplierPaymentCommand, staffId: string): Promise<SupplierPaymentDto>;
-
-  // Internal — invoked only by this module's own listener (post-commit), never by HTTP routes.
-  // Named per-event (mirrors clients.interface.ts's Sprint 3 precedent) rather than the plan's
-  // single `recomputeSupplierCaches` — purchasing owns *both* the emitting side (confirm/cancel/
-  // payment already guard against double-firing — e.g. double-confirm is a no-op that never
-  // re-emits) and the listening side, so idempotency comes from that single-emission guarantee,
-  // not a from-scratch ledger recompute (see purchasing.service.ts's applySupplierInvoiceConfirmed
-  // comment).
-  applySupplierInvoiceConfirmed(payload: PurchasingEvents['supplierInvoice.confirmed']): Promise<void>;
-  applySupplierInvoiceCancelled(payload: PurchasingEvents['supplierInvoice.cancelled']): Promise<void>;
-  applyPaymentSupplierRecorded(payload: PurchasingEvents['payment.supplierRecorded']): Promise<void>;
 }
 
 // Injected port (dependency inversion) — real implementation lives in catalog

@@ -15,7 +15,6 @@ import {
   type CreateSupplierInvoiceCommand,
   type CreateSupplierPaymentCommand,
   type PaginatedResult,
-  type PurchasingEvents,
   type SupplierDetailDto,
   type SupplierDto,
   type SupplierInvoiceDto,
@@ -322,7 +321,12 @@ export class PurchasingService implements IPurchasingService {
     const productIds = existing.lines.map((line) => line.productId);
 
     // Double-confirm — no-op (spec: "double-confirm no-op"): adds no layers, emits nothing
-    // again, just recomputes repriceCandidates fresh off the *current* averageCost.
+    // again, just recomputes repriceCandidates fresh off the *current* averageCost. This pre-
+    // lock check handles the common case cheaply; the in-tx re-check below (after the Supplier
+    // lock) closes the race where a concurrent confirm on the same supplier commits while this
+    // call is still waiting for the lock — same locked-read pattern as the credit write
+    // (credit-serialization fix, plan §C1), just guarding invoice-status idempotency instead of
+    // a money cache.
     if (existing.status === PrismaSupplierInvoiceStatus.CONFIRMED) {
       const repriceCandidates = productIds.length
         ? await this.prisma.$transaction((tx) => this.catalogReprice.getRepriceCandidates(tx, productIds))
@@ -333,14 +337,31 @@ export class PurchasingService implements IPurchasingService {
     let capturedTx: Prisma.TransactionClient | undefined;
     let previousCredit = 0;
     let newCredit = 0;
-    let reference = '';
+    let reference = existing.reference;
     let repriceCandidates: RepriceCandidateRow[] = [];
+    let didConfirm = false;
 
     await this.prisma.$transaction(async (tx) => {
       capturedTx = tx;
       const supplier = await this.lockSupplier(tx, existing.supplierId);
+
+      const current = await tx.supplierInvoice.findUniqueOrThrow({ where: { id }, select: { status: true, reference: true } });
+      if (current.status === PrismaSupplierInvoiceStatus.CONFIRMED) {
+        reference = current.reference;
+        repriceCandidates = productIds.length ? await this.catalogReprice.getRepriceCandidates(tx, productIds) : [];
+        return;
+      }
+
       previousCredit = supplier.credit.toNumber();
       newCredit = previousCredit + existing.totalAmount.toNumber();
+
+      // Written here, inside the same locked transaction, not by a post-commit listener
+      // (credit-serialization fix, plan §C1) — a fast sequential second confirm/cancel/payment
+      // on this supplier now reads a value this write has already committed, never a stale one.
+      await tx.supplier.update({
+        where: { id: existing.supplierId },
+        data: { credit: newCredit, totalInvoiced: { increment: existing.totalAmount.toNumber() } },
+      });
 
       for (const line of existing.lines) {
         await this.inventory.addLayer(tx, line.productId, line.quantity, line.landedUnitCost.toNumber(), MovementType.SUPPLIER_INVOICE, {
@@ -358,7 +379,12 @@ export class PurchasingService implements IPurchasingService {
       });
 
       repriceCandidates = productIds.length ? await this.catalogReprice.getRepriceCandidates(tx, productIds) : [];
+      didConfirm = true;
     });
+
+    if (!didConfirm) {
+      return PurchasingMapper.toConfirmResultDto(reference, repriceCandidates);
+    }
 
     this.inventory.flushEvents(capturedTx!);
 
@@ -381,12 +407,24 @@ export class PurchasingService implements IPurchasingService {
     }
 
     // Only a previously-CONFIRMED invoice touched credit/stock — a DRAFT cancel has nothing to
-    // reverse, so it must never emit (the listener would otherwise wrongly decrement credit that
-    // was never added). Stock reversal is deliberately NOT automatic here (spec BL#4) — the
-    // admin issues a manual ADJUSTMENT_OUT through the inventory module.
+    // reverse, so it must never emit (the receiving side would otherwise wrongly decrement
+    // credit that was never added). Stock reversal is deliberately NOT automatic here (spec
+    // BL#4) — the admin issues a manual ADJUSTMENT_OUT through the inventory module.
     const wasConfirmed = existing.status === PrismaSupplierInvoiceStatus.CONFIRMED;
+    const totalAmount = existing.totalAmount.toNumber();
 
-    await this.prisma.supplierInvoice.update({ where: { id }, data: { status: PrismaSupplierInvoiceStatus.CANCELLED } });
+    // Credit reversal written in-tx, same locked-transaction pattern as confirmInvoice/
+    // createPayment (credit-serialization fix, plan §C1) — no post-commit listener race.
+    await this.prisma.$transaction(async (tx) => {
+      if (wasConfirmed) {
+        await this.lockSupplier(tx, existing.supplierId);
+        await tx.supplier.update({
+          where: { id: existing.supplierId },
+          data: { credit: { decrement: totalAmount }, totalInvoiced: { decrement: totalAmount } },
+        });
+      }
+      await tx.supplierInvoice.update({ where: { id }, data: { status: PrismaSupplierInvoiceStatus.CANCELLED } });
+    });
 
     if (wasConfirmed) {
       eventBus.emit('supplierInvoice.cancelled', {
@@ -444,6 +482,17 @@ export class PurchasingService implements IPurchasingService {
       previousCredit = lockedSupplier.credit.toNumber();
       newCredit = previousCredit - cmd.amount; // overpayment permitted — negative = supplier owes
 
+      // Written here, inside the same locked transaction (credit-serialization fix, plan §C1) —
+      // both the supplier cache and the targeted invoice's paidAmount are purchasing's own data,
+      // so both move with the snapshot computation rather than a post-commit listener.
+      await tx.supplier.update({
+        where: { id: cmd.supplierId },
+        data: { credit: newCredit, totalPaid: { increment: cmd.amount } },
+      });
+      if (invoiceId != null) {
+        await tx.supplierInvoice.update({ where: { id: invoiceId }, data: { paidAmount: { increment: cmd.amount } } });
+      }
+
       const reference = await this.sequence.nextNumber(tx, DocType.SUPPLIER_PAYMENT);
 
       return tx.supplierPayment.create({
@@ -471,55 +520,6 @@ export class PurchasingService implements IPurchasingService {
     });
 
     return PurchasingMapper.toSupplierPaymentDto(created);
-  }
-
-  // --- Listener-invoked (internal — see purchasing.interface.ts) ---
-
-  // Sets credit from the event's own snapshot (idempotent by construction — a replay sets the
-  // same value again); totalInvoiced is a plain increment with no snapshot equivalent, relying
-  // on confirmInvoice's own double-confirm guard for single-emission (same reasoning as
-  // clients.service.ts's applySaleConfirmed).
-  async applySupplierInvoiceConfirmed(payload: PurchasingEvents['supplierInvoice.confirmed']): Promise<void> {
-    await this.prisma.supplier.update({
-      where: { id: payload.supplierId },
-      data: { credit: payload.newCredit, totalInvoiced: { increment: payload.totalAmount } },
-    });
-  }
-
-  // No snapshot in this payload (unlike confirmed/paymentRecorded) — reverses using the
-  // invoice's own stored totalAmount. Only ever emitted for a previously-CONFIRMED invoice
-  // (cancelInvoice's own guard), so this never double-reverses a DRAFT cancel.
-  async applySupplierInvoiceCancelled(payload: PurchasingEvents['supplierInvoice.cancelled']): Promise<void> {
-    const invoice = await this.prisma.supplierInvoice.findUnique({
-      where: { id: payload.invoiceId },
-      select: { totalAmount: true },
-    });
-    if (!invoice) return;
-
-    await this.prisma.supplier.update({
-      where: { id: payload.supplierId },
-      data: {
-        credit: { decrement: invoice.totalAmount.toNumber() },
-        totalInvoiced: { decrement: invoice.totalAmount.toNumber() },
-      },
-    });
-  }
-
-  async applyPaymentSupplierRecorded(payload: PurchasingEvents['payment.supplierRecorded']): Promise<void> {
-    await this.prisma.supplier.update({
-      where: { id: payload.supplierId },
-      data: { credit: payload.newCredit, totalPaid: { increment: payload.amount } },
-    });
-
-    if (payload.supplierInvoiceReference != null) {
-      const invoice = await this.prisma.supplierInvoice.findUnique({
-        where: { reference: payload.supplierInvoiceReference },
-        select: { id: true },
-      });
-      if (invoice) {
-        await this.prisma.supplierInvoice.update({ where: { id: invoice.id }, data: { paidAmount: { increment: payload.amount } } });
-      }
-    }
   }
 
   // --- Private helpers ---

@@ -26,15 +26,14 @@ import { sequenceService } from '../platform/platform.routes';
 import { inventoryService } from '../inventory/inventory.routes';
 import { catalogProductService } from '../catalog/catalog.routes';
 import { PurchasingService } from './purchasing.service';
-import { PurchasingListener } from './purchasing.listener';
 import { PurchasingController } from './purchasing.controller';
 
 const router = Router();
 
-// 1. Manual DI
+// 1. Manual DI — no listener wiring: confirm/cancel/payment write Supplier caches in-transaction
+// now (credit-serialization fix, plan §C1), not via a post-commit listener.
 const service = new PurchasingService(prisma, sequenceService, inventoryService, catalogProductService);
 const controller = new PurchasingController(service);
-new PurchasingListener(service).setup();
 
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
 

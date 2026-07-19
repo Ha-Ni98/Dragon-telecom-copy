@@ -15,6 +15,7 @@ const {
   supplierUpdateMock,
   supplierAggregateMock,
   supplierInvoiceFindUniqueMock,
+  supplierInvoiceFindUniqueOrThrowMock,
   supplierInvoiceFindManyMock,
   supplierInvoiceCountMock,
   supplierInvoiceCreateMock,
@@ -36,6 +37,7 @@ const {
   supplierUpdateMock: vi.fn(),
   supplierAggregateMock: vi.fn(),
   supplierInvoiceFindUniqueMock: vi.fn(),
+  supplierInvoiceFindUniqueOrThrowMock: vi.fn(),
   supplierInvoiceFindManyMock: vi.fn(),
   supplierInvoiceCountMock: vi.fn(),
   supplierInvoiceCreateMock: vi.fn(),
@@ -64,6 +66,7 @@ const prismaMock = {
   },
   supplierInvoice: {
     findUnique: supplierInvoiceFindUniqueMock,
+    findUniqueOrThrow: supplierInvoiceFindUniqueOrThrowMock,
     findMany: supplierInvoiceFindManyMock,
     count: supplierInvoiceCountMock,
     create: supplierInvoiceCreateMock,
@@ -277,6 +280,7 @@ describe('PurchasingService', () => {
       supplierInvoiceFindUniqueMock.mockResolvedValueOnce(invoice);
       queryRawMock.mockResolvedValueOnce([{ id: SUPPLIER_ID }]);
       supplierFindUniqueOrThrowMock.mockResolvedValueOnce(buildSupplierRow());
+      supplierInvoiceFindUniqueOrThrowMock.mockResolvedValueOnce({ status: PrismaSupplierInvoiceStatus.DRAFT, reference: invoice.reference });
       sequenceMock.nextNumber.mockResolvedValueOnce('SUP-2026-0001');
       (inventoryMock.addLayer as ReturnType<typeof vi.fn>).mockResolvedValue({ movementId: 'movement-1' });
 
@@ -304,6 +308,12 @@ describe('PurchasingService', () => {
         }),
       );
       expect(inventoryMock.flushEvents).toHaveBeenCalledTimes(1);
+      // Credit is written in-transaction now (credit-serialization fix, plan §C1) — no
+      // post-commit listener applies it.
+      expect(supplierUpdateMock).toHaveBeenCalledWith({
+        where: { id: SUPPLIER_ID },
+        data: { credit: 1300, totalInvoiced: { increment: 1300 } },
+      });
       expect(eventBusEmitMock).toHaveBeenCalledWith('supplierInvoice.confirmed', {
         invoiceId: INVOICE_ID,
         supplierId: SUPPLIER_ID,
@@ -312,6 +322,27 @@ describe('PurchasingService', () => {
         newCredit: 1300,
       });
       expect(result.reference).toBe('SUP-2026-0001');
+    });
+
+    it('the in-tx re-check treats a concurrently-confirmed invoice as a no-op (closes the two-parallel-confirms race)', async () => {
+      const invoice = buildInvoiceRow({ totalAmount: new Prisma.Decimal(1300) }, [buildLine()]);
+      supplierInvoiceFindUniqueMock.mockResolvedValueOnce(invoice); // pre-lock read still shows DRAFT
+      queryRawMock.mockResolvedValueOnce([{ id: SUPPLIER_ID }]);
+      supplierFindUniqueOrThrowMock.mockResolvedValueOnce(buildSupplierRow({ credit: new Prisma.Decimal(1300) }));
+      // A concurrent confirm on this same supplier committed while this call was waiting for
+      // the Supplier row lock.
+      supplierInvoiceFindUniqueOrThrowMock.mockResolvedValueOnce({
+        status: PrismaSupplierInvoiceStatus.CONFIRMED,
+        reference: 'SUP-2026-0009',
+      });
+
+      const result = await service().confirmInvoice(INVOICE_ID, STAFF_ID);
+
+      expect(inventoryMock.addLayer).not.toHaveBeenCalled();
+      expect(supplierUpdateMock).not.toHaveBeenCalled();
+      expect(inventoryMock.flushEvents).not.toHaveBeenCalled();
+      expect(eventBusEmitMock).not.toHaveBeenCalled();
+      expect(result.reference).toBe('SUP-2026-0009');
     });
 
     it('is a no-op on double-confirm: adds no layers, emits nothing again', async () => {
@@ -337,6 +368,7 @@ describe('PurchasingService', () => {
       const invoice = buildInvoiceRow({ totalAmount: new Prisma.Decimal(5000), amountOnly: new Prisma.Decimal(5000) }, []);
       supplierInvoiceFindUniqueMock.mockResolvedValueOnce(invoice);
       supplierFindUniqueOrThrowMock.mockResolvedValueOnce(buildSupplierRow());
+      supplierInvoiceFindUniqueOrThrowMock.mockResolvedValueOnce({ status: PrismaSupplierInvoiceStatus.DRAFT, reference: invoice.reference });
       sequenceMock.nextNumber.mockResolvedValueOnce('SUP-2026-0002');
 
       await service().confirmInvoice(INVOICE_ID, STAFF_ID);
@@ -345,6 +377,10 @@ describe('PurchasingService', () => {
       expect(supplierInvoiceUpdateMock).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ previousCredit: 0, newCredit: 5000 }) }),
       );
+      expect(supplierUpdateMock).toHaveBeenCalledWith({
+        where: { id: SUPPLIER_ID },
+        data: { credit: 5000, totalInvoiced: { increment: 5000 } },
+      });
     });
   });
 
@@ -353,19 +389,26 @@ describe('PurchasingService', () => {
       supplierInvoiceFindUniqueMock.mockResolvedValueOnce(
         buildInvoiceRow({ status: PrismaSupplierInvoiceStatus.CONFIRMED, totalAmount: new Prisma.Decimal(1300) }),
       );
+      supplierFindUniqueOrThrowMock.mockResolvedValueOnce(buildSupplierRow({ credit: new Prisma.Decimal(1300) }));
       supplierInvoiceFindUniqueMock.mockResolvedValueOnce(buildInvoiceRow({ status: PrismaSupplierInvoiceStatus.CANCELLED }));
 
       await service().cancelInvoice(INVOICE_ID, {}, STAFF_ID);
 
+      // Credit reversal is written in-tx now (credit-serialization fix, plan §C1).
+      expect(supplierUpdateMock).toHaveBeenCalledWith({
+        where: { id: SUPPLIER_ID },
+        data: { credit: { decrement: 1300 }, totalInvoiced: { decrement: 1300 } },
+      });
       expect(eventBusEmitMock).toHaveBeenCalledWith('supplierInvoice.cancelled', { invoiceId: INVOICE_ID, supplierId: SUPPLIER_ID });
     });
 
-    it('cancelling a DRAFT invoice emits nothing (nothing to reverse)', async () => {
+    it('cancelling a DRAFT invoice emits nothing and never touches Supplier (nothing to reverse)', async () => {
       supplierInvoiceFindUniqueMock.mockResolvedValueOnce(buildInvoiceRow({ status: PrismaSupplierInvoiceStatus.DRAFT }));
       supplierInvoiceFindUniqueMock.mockResolvedValueOnce(buildInvoiceRow({ status: PrismaSupplierInvoiceStatus.CANCELLED }));
 
       await service().cancelInvoice(INVOICE_ID, {}, STAFF_ID);
 
+      expect(supplierUpdateMock).not.toHaveBeenCalled();
       expect(eventBusEmitMock).not.toHaveBeenCalled();
     });
 
@@ -405,12 +448,48 @@ describe('PurchasingService', () => {
 
       expect(dto.previousCredit).toBe(1000);
       expect(dto.newCredit).toBe(600);
+      // Credit is written in-tx now (credit-serialization fix, plan §C1) — no post-commit
+      // listener applies it.
+      expect(supplierUpdateMock).toHaveBeenCalledWith({
+        where: { id: SUPPLIER_ID },
+        data: { credit: 600, totalPaid: { increment: 400 } },
+      });
       expect(eventBusEmitMock).toHaveBeenCalledWith('payment.supplierRecorded', {
         paymentId: 'payment-1',
         supplierId: SUPPLIER_ID,
         amount: 400,
         previousCredit: 1000,
         newCredit: 600,
+      });
+    });
+
+    it('targets a linked invoice: increments its paidAmount in the same transaction as the credit write', async () => {
+      const linkedInvoiceId = '66666666-6666-4666-8666-666666666666';
+      supplierFindUniqueMock.mockResolvedValueOnce({ id: SUPPLIER_ID });
+      supplierInvoiceFindUniqueMock.mockResolvedValueOnce({ id: linkedInvoiceId, supplierId: SUPPLIER_ID });
+      queryRawMock.mockResolvedValueOnce([{ id: SUPPLIER_ID }]);
+      supplierFindUniqueOrThrowMock.mockResolvedValueOnce(buildSupplierRow({ credit: new Prisma.Decimal(1000) }));
+      sequenceMock.nextNumber.mockResolvedValueOnce('PAY-2026-0003');
+      supplierPaymentCreateMock.mockResolvedValueOnce({
+        id: 'payment-3',
+        reference: 'PAY-2026-0003',
+        supplierId: SUPPLIER_ID,
+        supplierInvoiceId: linkedInvoiceId,
+        amount: new Prisma.Decimal(400),
+        previousCredit: new Prisma.Decimal(1000),
+        newCredit: new Prisma.Decimal(600),
+        paidAt: new Date('2026-01-01T00:00:00.000Z'),
+        staffId: STAFF_ID,
+        supplier: { name: 'Acme Parts' },
+        supplierInvoice: { reference: 'SUP-2026-0001' },
+        staff: buildStaffRelation(),
+      });
+
+      await service().createPayment({ supplierId: SUPPLIER_ID, supplierInvoiceReference: 'SUP-2026-0001', amount: 400 }, STAFF_ID);
+
+      expect(supplierInvoiceUpdateMock).toHaveBeenCalledWith({
+        where: { id: linkedInvoiceId },
+        data: { paidAmount: { increment: 400 } },
       });
     });
 
@@ -445,56 +524,6 @@ describe('PurchasingService', () => {
       const err = await expectRejection(service().createPayment({ supplierId: SUPPLIER_ID, amount: 100 }, STAFF_ID));
 
       expect(err.statusCode).toBe(400);
-    });
-  });
-
-  describe('listener-invoked cache handlers', () => {
-    it('applySupplierInvoiceConfirmed sets credit from the snapshot and increments totalInvoiced', async () => {
-      await service().applySupplierInvoiceConfirmed({
-        invoiceId: INVOICE_ID,
-        supplierId: SUPPLIER_ID,
-        totalAmount: 1300,
-        previousCredit: 0,
-        newCredit: 1300,
-      });
-
-      expect(supplierUpdateMock).toHaveBeenCalledWith({
-        where: { id: SUPPLIER_ID },
-        data: { credit: 1300, totalInvoiced: { increment: 1300 } },
-      });
-    });
-
-    it('applySupplierInvoiceCancelled reverses credit/totalInvoiced using the invoice\'s own totalAmount', async () => {
-      supplierInvoiceFindUniqueMock.mockResolvedValueOnce({ totalAmount: new Prisma.Decimal(1300) });
-
-      await service().applySupplierInvoiceCancelled({ invoiceId: INVOICE_ID, supplierId: SUPPLIER_ID });
-
-      expect(supplierUpdateMock).toHaveBeenCalledWith({
-        where: { id: SUPPLIER_ID },
-        data: { credit: { decrement: 1300 }, totalInvoiced: { decrement: 1300 } },
-      });
-    });
-
-    it('applyPaymentSupplierRecorded sets credit and increments totalPaid, updating the linked invoice paidAmount', async () => {
-      supplierInvoiceFindUniqueMock.mockResolvedValueOnce({ id: INVOICE_ID, paidAmount: new Prisma.Decimal(0) });
-
-      await service().applyPaymentSupplierRecorded({
-        paymentId: 'payment-1',
-        supplierId: SUPPLIER_ID,
-        supplierInvoiceReference: 'SUP-2026-0001',
-        amount: 400,
-        previousCredit: 1000,
-        newCredit: 600,
-      });
-
-      expect(supplierUpdateMock).toHaveBeenCalledWith({
-        where: { id: SUPPLIER_ID },
-        data: { credit: 600, totalPaid: { increment: 400 } },
-      });
-      expect(supplierInvoiceUpdateMock).toHaveBeenCalledWith({
-        where: { id: INVOICE_ID },
-        data: { paidAmount: { increment: 400 } },
-      });
     });
   });
 });
