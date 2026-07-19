@@ -132,45 +132,62 @@ domain(s), per the pattern above.*
 
 ---
 
-### Sprint 2: Auth / Identity-session — Status: ⬜ Pending
+### Sprint 2: Auth / Identity-session — Status: ✅ Done
 
 **Goals**
 - Prove the auth service + session hooks against the **real** contract.
 - Add the only real "me" endpoint (`ME_PERMISSIONS`) and finish rebuilding the auth integration tests.
 
 **Narrowed scope (Sprint 1 already rebuilt `auth.mock.ts` + `auth.handlers.ts` — see Sprint 1's scope note #2):**
-only the `ME_PERMISSIONS` addition and the two integration test files remain.
+only the `ME_PERMISSIONS` addition and the two integration test files remained.
 
 **Tasks**
-- [ ] **Audit `src/services/auth.service.ts`** (exists): `login → LoginResultDto` (+`setLoginSession`),
-      `logout → void` (204), `refresh` re-export of the single-flight `refreshTokens`. Confirm `IDENTITY_ROUTES`,
-      no `/auth/me` (plan §2.1).
-- [ ] **`src/services/auth.service.ts` — add** `getMyPermissions(): Promise<string[]>` mapping
-      `IDENTITY_ROUTES.ME_PERMISSIONS`.
-- [ ] **Hooks:** audit `useSession` (`qk.auth.session()`, JWT bootstrap via `refreshTokens`), `useLogin`
-      (invalidate `qk.auth.session()`), `useLogout` (`queryClient.clear()`); **add** `usePermissions` →
-      `qk.auth.permissions()`.
-- [ ] **Extend fixtures** `tests/fixtures/data/auth.mock.ts` (already rebuilt to real `LoginResultDto`/`RefreshResultDto`
-      in Sprint 1): add a `ME_PERMISSIONS` string-array fixture.
-- [ ] **Extend handlers** `tests/fixtures/msw/auth.handlers.ts` (already rebuilt in Sprint 1): add the
-      `ME_PERMISSIONS` 200 handler + an `AUTH_UNAUTHORIZED`(401) override.
-- [ ] **🔴 Rebuild stale tests** `tests/integration/services/auth.service.test.ts` (remove `authService.me()`; keep
-      login-stores-tokens, logout-clears-on-500, refresh-is-reexport; add `getMyPermissions` coverage) and
-      `tests/integration/hooks/auth.test.tsx` (remove `qk.auth.me()`/`useSession` "me" assumptions — already
-      exercises `qk.auth.session()` correctly via `useSession`, just needs the nonexistent-`me` call sites removed;
-      add `usePermissions` state-transition tests).
+- [x] **Audit `src/services/auth.service.ts`** (exists): confirmed `login → LoginResultDto` (+`setLoginSession`),
+      `logout → void` (204), `refresh` re-export of the single-flight `refreshTokens`, `IDENTITY_ROUTES`,
+      no `/auth/me` (plan §2.1). No changes needed to the existing three functions.
+- [x] **`src/services/auth.service.ts` — added** `getMyPermissions(): Promise<string[]>` mapping
+      `IDENTITY_ROUTES.ME_PERMISSIONS` (bare `string[]`, no dedicated contract schema — matches
+      `IIdentityService.getEffectivePages` on the backend).
+- [x] **Hooks:** audited `useSession`/`useLogin`/`useLogout` (all correct, no changes); **added**
+      `src/hooks/usePermissions.ts` → `qk.auth.permissions()`.
+- [x] **Extended fixtures** `tests/fixtures/data/auth.mock.ts`: added `mockPermissions` (real `PageKey` values) and
+      — beyond the planned scope, but necessary — a `makeFakeAccessToken()` helper + `mockJwtPayload` so
+      `mockLoginResult`/`mockRefreshResult.accessToken` are now syntactically real (unsigned) JWTs instead of
+      opaque strings. Reason: `useSession`'s real behavior is to **decode** the access token
+      (`token-store.ts#getSession`), so a plain string never exercised that path — every prior "session" fixture
+      assertion was really just checking the JWT-decode failed silently. Added `mockSessionAfterLogin` /
+      `mockSessionAfterRefresh` as the two distinct expected `Session` shapes (profile populated only after a real
+      `login()`/`setLoginSession()`, never after a bare `setTokens()`/refresh).
+- [x] **Extended handlers** `tests/fixtures/msw/auth.handlers.ts`: added `authUrls.mePermissions`, the
+      `ME_PERMISSIONS` 200 handler, and `mePermissionsUnauthorized` 401 override.
+- [x] **Rebuilt** `tests/integration/services/auth.service.test.ts` and `tests/integration/hooks/auth.test.tsx` —
+      see "Finding" below for why this was a behavioral rewrite, not a symbol rename.
+
+**Finding — `useSession`'s queryFn never throws; the old test's "surfaces an error when unauthorized" scenario
+doesn't exist for it.** Reading `src/hooks/useSession.ts` closely: every branch resolves to `Session | null` —
+no access token + no refresh token → `null`; refresh fails → `catch { clear(); return null; }`; refresh succeeds
+or an access token is already present → decode and return. There is no live network call that can surface as
+`isError` for this hook (unlike `usePermissions`, a real authenticated GET with no internal catch, which does
+throw on 401 — used as the contrast case in the new test file). Replaced the fictitious "surfaces an error"
+scenario with the 4 real branches: no-tokens→null, access-token-present→decoded session,
+cold-start-refresh-succeeds→decoded session, cold-start-refresh-fails→null (tokens cleared). `useLogin`'s
+invalidation test now asserts against a real post-login decoded session (not a fixed mock object) — before login
+`useSession` resolves `null` (no tokens), after the invalidated refetch it resolves `mockSessionAfterLogin`.
 
 **Validation**
-- [ ] `tsc --noEmit` clean; **no references to `authService.me`/`qk.auth.me` remain anywhere in `/tests`.**
-- [ ] Services unwrap `ApiResponse` and **throw** on error; logout returns `void` on 204.
-- [ ] Query hooks return `{data,isLoading,isError,error,refetch}`; `useLogin`/`useLogout` invalidate/clear the right keys.
-- [ ] MSW intercepts via the route builder; fixtures parse against contract schemas.
-- [ ] Tests cover 200 **and** 401/500; no test files inside `/src`.
-- [ ] Committed on green: `fe: integration sprint 2 — auth`.
+- [x] `tsc --noEmit` clean (`npm run check`) — **zero errors, whole project**, including the two rebuilt integration files.
+- [x] Services unwrap `ApiResponse` and **throw** on error (`getMyPermissions` included); `logout` returns `void` on 204.
+- [x] Query hooks return `{data,isLoading,isError,error,refetch}`; `useLogin`/`useLogout` invalidate/clear the right keys.
+- [x] MSW intercepts via the route builder; fixtures parse against contract schemas (`LoginResultResponseSchema`,
+      `RefreshResultResponseSchema`, `JWTPayloadSchema`).
+- [x] Tests cover 200 **and** 401/500 (`getMyPermissions`: 200, 401, cold-start-refresh-then-200; `usePermissions`:
+      200, 401). No test files inside `/src`.
+- [x] Full suite: **11/11 files, 76/76 tests passing** (up from 60/72 with 2 failing files at Sprint 1 close).
+- [x] Committed on green: `fe: integration sprint 2 — auth`.
 
-**Risks**
-- The single-flight refresh + cold-start path is subtle; reuse the existing (working) axios engine — don't
-  re-implement token logic in the service (plan §1.1, §4.5).
+**Risks (resolved)**
+- The single-flight refresh + cold-start path is subtle — reused the existing (working) axios engine as-is; no
+  token logic duplicated in the service. Confirmed via the cold-start tests in both rebuilt files.
 
 ---
 

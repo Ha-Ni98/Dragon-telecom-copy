@@ -35,8 +35,15 @@ export async function logout(): Promise<void> {
   }
 }
 
-// No IDENTITY_ROUTES "who am I" route exists (only /me/permissions) — session comes from
-// hooks/useSession.ts reading the JWT locally via token-store.ts, not a service call.
+// The only real "me" endpoint (IDENTITY_ROUTES has no "who am I"/full-profile route) —
+// session itself comes from hooks/useSession.ts reading the JWT locally via token-store.ts,
+// not a service call. Effective page keys still require a server round trip (Role→Page
+// resolution lives in the DB, not the JWT).
+export async function getMyPermissions(): Promise<string[]> {
+  const res = await api.get<ApiResponse<string[]>>(apiPath(IDENTITY_ROUTES.ME_PERMISSIONS));
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
 
 // IDENTITY_ROUTES.REFRESH's real implementation is axios.ts's own single-flight
 // refreshTokens() — re-exported here only so every contract route maps to a service
