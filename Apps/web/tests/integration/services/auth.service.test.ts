@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { http } from "msw";
-import { ErrorCode } from "@your-app/contract";
+import { ErrorCode } from "@dragon-telecom/contract";
 import { server } from "../../fixtures/msw/server";
 import { authUrls, authErrorHandlers } from "../../fixtures/msw/auth.handlers";
 import { ok, fail, noContent } from "../../fixtures/msw/envelope";

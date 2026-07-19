@@ -37,4 +37,4 @@ Read and follow strictly:
 - **Sprints:** /docs/stage-03-frontend/sub-01-refactor/results/sprints.md
 - **Rules:** front-end-rules.md
 
-Constraints: extracted Hooks/Services return **typed empty defaults** so components still render; enforce Component→Hook→Service and `useTranslation` (no inline strings); check `Apps/contract` before creating any type. Take the first sprint not ✅, validate (`tsc`, build), commit on green, update docs, stop and wait for `next`.
+Constraints: extracted Hooks/Services return **typed empty defaults** so components still render; enforce Component→Hook→Service and `useTranslation` (no inline strings); check `Apps/contract` before creating any type. Take the first sprint not ✅, validate (`tsc`, build),  update docs, commit on green, stop and wait for `next`.

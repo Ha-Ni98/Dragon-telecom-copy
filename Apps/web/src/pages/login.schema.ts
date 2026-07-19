@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { LoginCommand } from "@your-app/contract";
+import type { LoginCommand } from "@dragon-telecom/contract";
 import type { useTranslation } from "@/hooks/useTranslation";
 
 // The contract's own LoginSchema is `z.string()` on both fields (no min-length) — this

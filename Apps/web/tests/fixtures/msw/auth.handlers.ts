@@ -1,5 +1,5 @@
 import { http } from "msw";
-import { AUTH_ROUTES, ErrorCode } from "@your-app/contract";
+import { AUTH_ROUTES, ErrorCode } from "@dragon-telecom/contract";
 import { apiUrl } from "./api-url";
 import { ok, fail, noContent } from "./envelope";
 import { mockAuthTokens, mockUserSession } from "../data/auth.mock";

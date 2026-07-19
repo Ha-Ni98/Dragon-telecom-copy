@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http } from "msw";
 import type { ReactNode } from "react";
-import { ErrorCode } from "@your-app/contract";
+import { ErrorCode } from "@dragon-telecom/contract";
 import { server } from "../../fixtures/msw/server";
 import { authUrls } from "../../fixtures/msw/auth.handlers";
 import { ok, fail } from "../../fixtures/msw/envelope";

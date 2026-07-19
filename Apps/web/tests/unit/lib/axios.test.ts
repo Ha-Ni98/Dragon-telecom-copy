@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { http, delay, HttpResponse } from "msw";
-import { AUTH_ROUTES, ErrorCode, UserRole, type AuthTokensDTO } from "@your-app/contract";
+import { AUTH_ROUTES, ErrorCode, UserRole, type AuthTokensDTO } from "@dragon-telecom/contract";
 import { server } from "../../fixtures/msw/server";
 import { apiUrl } from "../../fixtures/msw/api-url";
 import { ok, fail } from "../../fixtures/msw/envelope";
