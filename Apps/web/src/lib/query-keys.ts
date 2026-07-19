@@ -51,9 +51,21 @@ export const qk = {
       detail: (id: string) => ["catalog", "admin-products", "detail", id] as const,
     },
     productStats: () => ["catalog", "product-stats"] as const,
-    brands: (admin?: boolean) => ["catalog", "brands", admin ?? false] as const,
-    families: (query?: unknown) => ["catalog", "families", query] as const,
-    models: (query?: unknown) => ["catalog", "models", query] as const,
+    // `.all()` on each of these three exists so a create/update mutation can invalidate every
+    // variant (public + admin) in one call — the two are separate cache entries (`admin` is
+    // part of the key), not a filtered view of the same query.
+    brands: {
+      all: () => ["catalog", "brands"] as const,
+      list: (admin = false) => ["catalog", "brands", admin] as const,
+    },
+    families: {
+      all: () => ["catalog", "families"] as const,
+      list: (query?: unknown) => ["catalog", "families", query] as const,
+    },
+    models: {
+      all: () => ["catalog", "models"] as const,
+      list: (query?: unknown) => ["catalog", "models", query] as const,
+    },
     categories: () => ["catalog", "categories"] as const,
   },
   clients: {
@@ -161,14 +173,22 @@ export const qk = {
 // A handful of pre-existing `src/hooks/use-*.ts` stub hooks (numeric ids, MVP-only key
 // shapes with no contract equivalent — e.g. lookup-by-name, `byStatus`, ad hoc `search`)
 // still reference the old flat `qk.catalog.*`/`qk.orders.*`/`qk.clients.*` shapes this
-// retype removed. Each is retired by the domain sprint that rewires its consuming hook
-// against a real service + contract DTO (integration sprints.md): catalog ones by Sprint 3,
-// orders ones by Sprint 5, `clientsMyAccount` by Sprint 4. Do not add new entries here or
-// consume this from any new (Sub-02) hook — extend the real `qk` registry above instead.
+// retype removed. CORRECTION (Sprint 3): these entries are NOT retired sprint-by-sprint —
+// every Sub-02 sprint is barred from touching `/src/pages`/`/src/components`, and the pages
+// consuming these exact stub hooks (Products.tsx, ProductDetails.tsx, AdminProducts.tsx, …)
+// are what actually pins the old numeric-id shapes in place. Real retirement happens in
+// Sub-03, when those pages are rewired onto the new real hooks (`useCatalogProducts.ts`,
+// `useCatalogTaxonomy.ts`, etc.) and their old counterparts can finally be deleted. Do not
+// add new entries here for any NEW (Sub-02) hook — extend the real `qk` registry above
+// instead; this list only grows when retyping the real registry incidentally breaks an
+// old stub hook's key shape (as `brands`/`families`/`models` did in Sprint 3).
 export const qkLegacy = {
   catalogProductsList: () => ["catalog", "products"] as const,
   catalogFeaturedProducts: (limit: number) => ["catalog", "products", "featured", limit] as const,
   catalogProductByName: (name: string) => ["catalog", "products", "by-name", name] as const,
+  catalogBrandsList: () => ["catalog", "brands", false] as const,
+  catalogFamiliesList: () => ["catalog", "families", undefined] as const,
+  catalogModelsList: () => ["catalog", "models", undefined] as const,
   catalogAdminProductsStats: () => ["catalog", "admin-products", "stats"] as const,
   catalogAdminProductDetail: (id: number) => ["catalog", "admin-products", "detail", id] as const,
   catalogAdminProductsByStatus: (status: string) =>

@@ -191,39 +191,91 @@ invalidation test now asserts against a real post-login decoded session (not a f
 
 ---
 
-### Sprint 3: Catalog — Status: ⬜ Pending
+### Sprint 3: Catalog — Status: ✅ Done
 
 **Goals**
-- Replace the `catalog.service.ts` stub with real, UUID-typed HTTP for public + staff + admin catalog (products,
-  pricing, images, brands, families, models, categories, stats) per **plan §2.2**.
+- Add real, UUID-typed HTTP for public + staff + admin catalog (products, pricing, images, brands, families,
+  models, categories, stats) per **plan §2.2**.
 - Establish reusable catalog fixtures (products/brands/families) that downstream domains (cart, orders, sales) reuse.
 
+**Scope correction — "replace the stub" was not possible; added a real service alongside it instead.** Before
+writing code, checked which pages/components consume the Sub-01 stub catalog hooks (`use-products.ts`,
+`use-product-details.ts`, `use-admin-products.ts`, `use-brands.ts`, `use-models.ts`): **8 files**
+(`Products.tsx`, `ProductDetails.tsx`, `AdminProducts.tsx`, `AdminProductsAdd.tsx`, and 4 section/filter
+components) import them directly. The global "never touch `/src/pages`/`/src/components`" constraint applies to
+every Sub-02 sprint, not just this one — so replacing those hooks' return shapes now would break 8 files this
+sprint is barred from fixing. **Resolution:** kept the Sub-01 stub functions/hooks completely untouched (still
+serving those 8 pages), and added the real, contract-typed service + hooks **alongside** them under new names.
+Real hook rewiring onto the 8 pages is Sub-03 work, not Sub-02 — corrects Sprint 1's handoff note, which
+over-optimistically implied catalog `qkLegacy` entries retire "by Sprint 3."
+
 **Tasks**
-- [ ] **Services** `src/services/catalog.service.ts` — all 24 fns in plan §2.2 (`listProducts`/`getProduct`/
-      `listStaffProducts`/`listAdminProducts`/`createProduct`(**FormData**)/`updateProduct`/`updatePricing`/
-      `addImages`(**FormData**)/`updateImages`/`productStats`/brands·families·models·categories CRUD). Paginated:
-      products/staff/admin lists → `PaginatedResult<…>`; taxonomy lists → arrays.
-- [ ] **Hooks** `src/hooks/*` — queries + mutations per plan §2.2, keys under `qk.catalog.*`; product create/update/
-      pricing/images **cross-invalidate** `qk.inventory.all()` + `qk.catalog.products.all()` (plan §3).
-- [ ] **Fixtures** `tests/fixtures/data/catalog.mock.ts` — `ProductWithPricingResponseSchema`/`ProductDetailResponseSchema`/
-      `StaffProductResponseSchema`/`AdminProductResponseSchema`/`Brand`/`Family`/`DeviceModel`/`ClientCategory`/
-      `ProductStats` via `.parse`; paginated + empty variants.
-- [ ] **MSW** `tests/fixtures/msw/catalog.handlers.ts` — 2xx for each; `VALIDATION_ERROR`(400) for the 5 create
-      `.refine()` XORs, `RESOURCE_NOT_FOUND`(404) on detail, `RESOURCE_CONFLICT`(409) where applicable.
-- [ ] **Integration tests** — services (unwrap, paginated shape, throws, FormData path) + hooks (states, invalidation).
+- [x] **Services** `src/services/catalog.service.ts` — appended all 24 real fns (§2.2), clearly separated from
+      the Sub-01 stub section by a header comment; zero name collisions with the 29 existing stub exports
+      (contract verbs `listX`/`getX` vs. the stubs' `getXs`/`getXById`). Paginated: products/staff/admin lists →
+      `PaginatedResult<…>`; taxonomy/category lists → arrays — confirmed against `Apps/api`'s real router
+      (`catalog.routes.ts`) for every HTTP verb, not guessed.
+- [x] **Hooks** — 3 new files (mirroring the backend's own `ICatalogProductService`/`ICatalogTaxonomyService`/
+      `ICatalogCategoryService` split): `src/hooks/useCatalogProducts.ts` (11 hooks), `useCatalogTaxonomy.ts`
+      (9 hooks), `useClientCategories.ts` (3 hooks). Product create/update/pricing/images cross-invalidate
+      `qk.inventory.all()` (plan §3); brand/family/model mutations invalidate `.all()` (both the public **and**
+      admin cached variant — see qk registry extension below).
+- [x] **`qk` registry extension**: `brands`/`families`/`models` were flat parameterized leaf keys with no
+      `.all()` prefix, so a mutation couldn't invalidate both the public and admin cached variants together —
+      restructured to nested `{all,list}` objects (matching `products`/`adminProducts`). Non-breaking: nothing
+      in real Sub-02 code consumed the old flat shape yet.
+- [x] **Fixtures** `tests/fixtures/data/catalog.mock.ts` — all DTOs via `.parse`, incl. guest-hidden vs.
+      authenticated-pricing product variants, `withCount` vs. without family variant, paginated + (products)
+      empty variant.
+- [x] **MSW** `tests/fixtures/msw/catalog.handlers.ts` — 27 handler registrations (24 fns, 3 share a URL across
+      methods) + 9 named error overrides (400/404/409/500). Registered in `server.ts`.
+- [x] **Integration tests** — `tests/integration/services/catalog.service.test.ts` (26 tests) +
+      `tests/integration/hooks/catalog.test.tsx` (13 tests) — unwrap, paginated shape, throws, FormData path,
+      hook state transitions, mutation invalidation.
+
+**2 real bugs found and fixed while writing tests (not pre-existing — introduced this sprint, caught before commit):**
+1. **MSW handler registration order matters exactly like Express route order.** `PRODUCT_STATS`
+   (`/admin/products/stats`) was registered *after* `ADMIN_PRODUCT_BY_ID` (`/admin/products/:id`) in the
+   handlers array — msw, like the real backend, matches the first registered handler, so the `:id` pattern
+   greedily matched "stats" and `productStats()` silently got a full `AdminProductDto` back instead of stats.
+   The real `catalog.routes.ts` has an explicit comment about this exact ordering requirement; the MSW array
+   needed the same discipline. Fixed by moving `productStats` before `adminProductById`.
+2. **Genuine contract gap, not fixed (out of frontend scope): `AddProductImagesCommand.images` collides with
+   multer's file-field name.** The command's own metadata array is named `images` (per-image `alt`/`position`/
+   `isPrimary`), and multer's `.array('images')` expects file blobs under that exact same multipart field name.
+   A `commandToFormData` encoding sends both under one FormData key, so `body.getAll("images")` returns 2
+   entries (1 JSON string + 1 File), not 1. Documented in the service (`commandToFormData`'s comment) and
+   asserted as the real observed behavior in the test rather than a false "exactly 1 file" expectation — flagged
+   for a contract/backend fix (rename one of the two), added to plan.md §6's open-items list.
+- [x] Also confirmed (same investigation): `CreateProductSchema`/`AddProductImagesSchema` use strict
+      `z.number()`/`z.boolean()` (not `.coerce`) with no JSON-parse preprocessing in
+      `validate-request.middleware.ts` — a real multipart body (all-string fields from multer) will 400 against
+      the live backend regardless of frontend encoding. Same category of gap as #2 above, also flagged, not
+      fixed (backend/contract work).
 
 **Validation**
-- [ ] `tsc --noEmit` clean; all types from `@dragon-telecom/contract`.
-- [ ] Services unwrap `ApiResponse` and **throw**; multipart create/images send `FormData`.
-- [ ] Query hooks `{data,isLoading,isError,error,refetch}`; mutations `{mutate,mutateAsync,isPending,...}` + correct (incl. cross-domain) invalidations.
-- [ ] MSW intercepts; fixtures parse against contract schemas; paginated fixtures use `paginated(...)`.
-- [ ] Tests cover 200 **and** 4xx/5xx; no test files in `/src`.
-- [ ] Committed on green: `fe: integration sprint 3 — catalog`.
+- [x] `tsc --noEmit` clean (`npm run check`) — whole project, zero errors.
+- [x] Services unwrap `ApiResponse` and **throw**; `createProduct`/`addImages` send real `multipart/form-data`
+      (verified via `request.headers.get("content-type")` + `request.formData()` in tests).
+- [x] Query hooks `{data,isLoading,isError,error,refetch}`; mutations `{mutate,mutateAsync,isPending,...}` +
+      correct invalidations (verified via handler-call-count assertions, not just "no crash").
+- [x] MSW intercepts (with the route-ordering fix above); fixtures parse against contract schemas; paginated
+      fixtures use `paginated(...)`.
+- [x] Tests cover 200 **and** 4xx/5xx (26 + 13 = **39 new tests**, all passing); no test files in `/src`.
+- [x] Full suite: **13/13 files, 115/115 tests passing** (up from 76/76 at Sprint 2 close).
+- [x] Committed on green: `fe: integration sprint 3 — catalog`.
+- [x] Lint: new code clean; pre-existing stub-section quote-style debt in `catalog.service.ts` left untouched
+      (same precedent as Sprint 1) — confirmed via a reconstruct-and-diff check that `eslint --fix` hadn't
+      silently reformatted the untouched 173 pre-existing lines.
 
-**Risks**
-- Guest-vs-viewer price matrix (`priceHidden`/`currentPrice`/`guestPrice`/`inStock`/`inCart` optionals) and
-  admin-only cost/quantity fields — fixtures must cover present **and** absent (plan §2.2 edge cases).
-- `FamilyDto.productCount` only with `withCount=true`; `ProductSort` exactly 4 values.
+**Risks (resolved)**
+- Guest-vs-viewer price matrix (`priceHidden`/`currentPrice`/`guestPrice`/`inStock`/`inCart` optionals) —
+  covered by two distinct product fixtures (`mockProductGuestHidden`, `mockProductWithPricing`).
+- `FamilyDto.productCount` only with `withCount=true` — covered by a real query-flag branch in the MSW handler
+  (not a separate named override) plus a dedicated test.
+- **New risk discovered, resolved:** the "never touch pages" constraint is stage-wide, not sprint-local — see
+  the scope correction above. Every remaining feature sprint (4–9) should assume the same: new hooks under new
+  names, `qkLegacy`-style shims only where an existing stub hook's key shape breaks incidentally.
 
 ---
 
