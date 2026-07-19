@@ -161,6 +161,41 @@ describe('statistics integration', () => {
     });
   });
 
+  describe('GET /api/admin/statistics/top-products — brand/family/averagePrice/image (audit fix B4)', () => {
+    it('joins brand/family/primary image for a real confirmed sale and computes averagePrice', async () => {
+      const { user: staffUser, token: staffToken } = await seedStaffWithPages(['STAFF_POS']);
+      const { token: adminToken } = await mintAdminToken();
+      const product = await seedStockedProduct({ staffId: staffUser.staff!.id, quantity: 10, unitCost: 400 });
+      await prisma.productImage.create({ data: { productId: product.id, url: 'https://cdn.example.com/img.jpg', isPrimary: true } });
+      const productWithJoins = await prisma.product.findUniqueOrThrow({
+        where: { id: product.id },
+        include: { brand: true, family: true },
+      });
+
+      const draftRes = await request(app)
+        .post('/api/staff/sales')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ lines: [{ productId: product.id, quantity: 2, unitPrice: 1000 }] });
+      await request(app)
+        .post(`/api/staff/sales/${draftRes.body.data.id}/confirm`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ paidAmount: 2000 });
+
+      const res = await request(app).get('/api/admin/statistics/top-products').set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      const top = (res.body.data as { productId: string }[]).find((row) => row.productId === product.id);
+      expect(top).toMatchObject({
+        brandName: productWithJoins.brand.name,
+        familyName: productWithJoins.family.name,
+        quantitySold: 2,
+        revenue: 2000,
+        averagePrice: 1000,
+        imageUrl: 'https://cdn.example.com/img.jpg',
+      });
+    });
+  });
+
   describe('REPORT — sales-by-category groups by client-category tier (audit fix A1)', () => {
     it('two confirmed sales under different categories land in different rows with correct discount figures', async () => {
       const { user: staffUser, token: staffToken } = await seedStaffWithPages(['STAFF_POS']);

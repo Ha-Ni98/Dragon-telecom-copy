@@ -130,7 +130,29 @@ export class StatisticsService implements IStatisticsService {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
-    return ranked.map((row) => StatisticsMapper.toTopProductDto(row));
+    // ADM-15 needs brand/family/image too (audit fix B4) — joined only for the 10 ranked
+    // products, not every product ever sold.
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: ranked.map((row) => row.productId) } },
+      select: {
+        id: true,
+        brand: { select: { name: true } },
+        family: { select: { name: true } },
+        images: { orderBy: [{ isPrimary: 'desc' }, { position: 'asc' }], take: 1, select: { url: true } },
+      },
+    });
+    const productById = new Map(products.map((product) => [product.id, product]));
+
+    return ranked.map((row) => {
+      const product = productById.get(row.productId);
+      const imageUrl = product?.images[0]?.url;
+      return StatisticsMapper.toTopProductDto({
+        ...row,
+        brandName: product?.brand.name ?? '',
+        familyName: product?.family.name ?? '',
+        ...(imageUrl != null ? { imageUrl } : {}),
+      });
+    });
   }
 
   async getReport(type: ReportType, query: ReportQuery): Promise<ReportDto | ExportResult> {

@@ -29,6 +29,10 @@ export class ObservabilityController {
     }
   };
 
+  // Recorded decision (audit fix plan §6): the staff-search double-write risk is resolved in
+  // favor of the server-side `product.searched` emission (catalog.service.ts's
+  // emitProductSearched) — this beacon stays implemented but Stage 3 must never call it for
+  // staff/admin product searches, only for whatever non-product-search beacons still need it.
   recordStaffSearch = (req: Request, res: Response, next: NextFunction): void => {
     try {
       const userId = req.user!.sub;

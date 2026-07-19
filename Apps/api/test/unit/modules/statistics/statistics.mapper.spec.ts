@@ -48,12 +48,69 @@ describe('StatisticsMapper.toTopProductDto / toChartPoints', () => {
     const dto = StatisticsMapper.toTopProductDto({
       productId: PRODUCT_ID,
       productName: 'Screen Protector',
+      brandName: 'Dragon',
+      familyName: 'Screen Protectors',
       quantitySold: 12,
       revenue: new Prisma.Decimal(6000),
     });
 
     expect(dto.revenue).toBe(6000);
     expect(dto.quantitySold).toBe(12);
+  });
+
+  it('computes averagePrice as revenue / quantitySold (audit fix B4)', () => {
+    const dto = StatisticsMapper.toTopProductDto({
+      productId: PRODUCT_ID,
+      productName: 'Screen Protector',
+      brandName: 'Dragon',
+      familyName: 'Screen Protectors',
+      quantitySold: 4,
+      revenue: 2000,
+    });
+
+    expect(dto.averagePrice).toBe(500);
+  });
+
+  it('guards against divide-by-zero: quantitySold 0 yields averagePrice 0', () => {
+    const dto = StatisticsMapper.toTopProductDto({
+      productId: PRODUCT_ID,
+      productName: 'Screen Protector',
+      brandName: 'Dragon',
+      familyName: 'Screen Protectors',
+      quantitySold: 0,
+      revenue: 0,
+    });
+
+    expect(dto.averagePrice).toBe(0);
+  });
+
+  it('carries brandName/familyName/imageUrl when a primary image exists', () => {
+    const dto = StatisticsMapper.toTopProductDto({
+      productId: PRODUCT_ID,
+      productName: 'Screen Protector',
+      brandName: 'Dragon',
+      familyName: 'Screen Protectors',
+      quantitySold: 1,
+      revenue: 500,
+      imageUrl: 'https://cdn.example.com/screen-protector.jpg',
+    });
+
+    expect(dto.brandName).toBe('Dragon');
+    expect(dto.familyName).toBe('Screen Protectors');
+    expect(dto.imageUrl).toBe('https://cdn.example.com/screen-protector.jpg');
+  });
+
+  it('omits imageUrl entirely when the product has no image', () => {
+    const dto = StatisticsMapper.toTopProductDto({
+      productId: PRODUCT_ID,
+      productName: 'Screen Protector',
+      brandName: 'Dragon',
+      familyName: 'Screen Protectors',
+      quantitySold: 1,
+      revenue: 500,
+    });
+
+    expect(dto).not.toHaveProperty('imageUrl');
   });
 
   it('validates chart points against ReportDto.chart\'s own shape', () => {

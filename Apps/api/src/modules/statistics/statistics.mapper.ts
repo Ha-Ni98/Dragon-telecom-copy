@@ -35,14 +35,28 @@ export type ChartPoint = z.infer<typeof ChartPointsSchema>[number];
 // CancelOrderCommand / inventory-platform's ExportResult filling a genuine contract gap
 // without touching the frozen contract package. Minimal, defensible inference: products
 // ranked by a sales metric, which is the conventional meaning of "top products".
+// Extended to the ADM-15 page-spec shape (audit fix B4): product, brand, family, totalSold,
+// revenue, averagePrice, image.
 export const TopProductResponseSchema = z.object({
   productId: z.uuid(),
   productName: z.string(),
+  brandName: z.string(),
+  familyName: z.string(),
   quantitySold: z.number().int().min(0),
   revenue: z.number(),
+  averagePrice: z.number(),
+  imageUrl: z.string().optional(),
 });
 export type TopProductDto = z.infer<typeof TopProductResponseSchema>;
-export type TopProductRow = { productId: string; productName: string; quantitySold: number; revenue: Money };
+export type TopProductRow = {
+  productId: string;
+  productName: string;
+  brandName: string;
+  familyName: string;
+  quantitySold: number;
+  revenue: Money;
+  imageUrl?: string;
+};
 
 export class StatisticsMapper {
   static toDashboardOrderSummary(row: DashboardOrderSummaryRow) {
@@ -71,11 +85,16 @@ export class StatisticsMapper {
   }
 
   static toTopProductDto(row: TopProductRow): TopProductDto {
+    const revenue = StatisticsMapper.toMoney(row.revenue);
     const dto: TopProductDto = {
       productId: row.productId,
       productName: row.productName,
+      brandName: row.brandName,
+      familyName: row.familyName,
       quantitySold: row.quantitySold,
-      revenue: StatisticsMapper.toMoney(row.revenue),
+      revenue,
+      averagePrice: row.quantitySold > 0 ? revenue / row.quantitySold : 0,
+      ...(row.imageUrl != null ? { imageUrl: row.imageUrl } : {}),
     };
     return TopProductResponseSchema.parse(dto);
   }

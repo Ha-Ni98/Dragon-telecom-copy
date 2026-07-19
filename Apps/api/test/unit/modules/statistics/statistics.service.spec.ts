@@ -297,6 +297,50 @@ describe('StatisticsService', () => {
     });
   });
 
+  describe('getTopProducts — brand/family/averagePrice/image (audit fix B4)', () => {
+    const TOP_PRODUCT_ID = '88888888-8888-4888-8888-888888888888';
+
+    it('joins brand/family/primary image for the ranked products and computes averagePrice', async () => {
+      saleLineFindManyMock.mockResolvedValueOnce([
+        { productId: TOP_PRODUCT_ID, productNameSnapshot: 'Screen Protector', quantity: 2, lineTotal: new Prisma.Decimal(1000) },
+        { productId: TOP_PRODUCT_ID, productNameSnapshot: 'Screen Protector', quantity: 2, lineTotal: new Prisma.Decimal(1000) },
+      ]);
+      productFindManyMock.mockResolvedValueOnce([
+        {
+          id: TOP_PRODUCT_ID,
+          brand: { name: 'Dragon' },
+          family: { name: 'Screen Protectors' },
+          images: [{ url: 'https://cdn.example.com/img.jpg' }],
+        },
+      ]);
+
+      const [top] = await service().getTopProducts({});
+
+      expect(top).toMatchObject({
+        productId: TOP_PRODUCT_ID,
+        quantitySold: 4,
+        revenue: 2000,
+        averagePrice: 500,
+        brandName: 'Dragon',
+        familyName: 'Screen Protectors',
+        imageUrl: 'https://cdn.example.com/img.jpg',
+      });
+    });
+
+    it('omits imageUrl when the product has no image', async () => {
+      saleLineFindManyMock.mockResolvedValueOnce([
+        { productId: TOP_PRODUCT_ID, productNameSnapshot: 'Screen Protector', quantity: 1, lineTotal: new Prisma.Decimal(500) },
+      ]);
+      productFindManyMock.mockResolvedValueOnce([
+        { id: TOP_PRODUCT_ID, brand: { name: 'Dragon' }, family: { name: 'Screen Protectors' }, images: [] },
+      ]);
+
+      const [top] = await service().getTopProducts({});
+
+      expect(top).not.toHaveProperty('imageUrl');
+    });
+  });
+
   describe('getStaffDashboard — leak test', () => {
     it('scopes mySalesToday/myRevenueToday/myDrafts by staffId, and never reads other staff rows for those fields', async () => {
       const STAFF_ID = '22222222-2222-4222-8222-222222222222';
