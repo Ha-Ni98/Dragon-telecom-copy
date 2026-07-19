@@ -13,7 +13,8 @@ Read and follow strictly:
 - **Contract:** `Apps/contract`
 
 Constraints: no code (audit/plan only); do not invent features — standardize the existing code; output `codebase-map.md` and `plan.md` under /docs/stage-03-frontend/sub-01-refactor/results.
-
+Don't get any code related to the mock data, replace it with what found in front end rules. Also the code already existed of the front end it's just a template you can remove any content that not suits our project
+from the mvp code you can get reusable components, thems, UI/UX Designs.
 ---
 
 ## Phase 2 — Sprints
