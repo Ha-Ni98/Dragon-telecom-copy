@@ -12,10 +12,13 @@ import {
   InvoiceListQuerySchema,
   InvoiceNumberParamsSchema,
 } from '@dragon-telecom/contract';
-// Direct sibling-module imports — billing depends one-directionally on platform (no reverse
-// dependency), same shape as sales/purchasing's own sequenceService import.
+// Direct sibling-module imports — billing depends one-directionally on platform/clients (no
+// reverse dependency), same shape as sales/purchasing's own sequenceService import.
+// clientsService satisfies IClientCreditPort structurally (credit-serialization fix, plan §C5)
+// — no adapter needed.
 import { sequenceService } from '../platform/platform.routes';
 import { PlatformService } from '../platform/platform.service';
+import { clientsService } from '../clients/clients.routes';
 import { BillingService } from './billing.service';
 import { BillingListener } from './billing.listener';
 import { BillingController } from './billing.controller';
@@ -27,7 +30,7 @@ const router = Router();
 // deliveryFeeService); PlatformService is stateless beyond holding `prisma`, so a second
 // instance alongside platform's own is harmless — no owned state, no duplicated writes.
 const settingsPort = new PlatformService(prisma);
-const service = new BillingService(prisma, sequenceService, settingsPort);
+const service = new BillingService(prisma, sequenceService, settingsPort, clientsService);
 const controller = new BillingController(service);
 new BillingListener(service).setup();
 

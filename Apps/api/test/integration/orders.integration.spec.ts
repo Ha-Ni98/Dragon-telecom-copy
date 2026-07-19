@@ -5,7 +5,6 @@ import { MovementType, OrderResponseSchema, OrderStatsResponseSchema, UserType }
 import { app } from '../../src/app';
 import { prisma } from '../../src/common/db/prisma';
 import { generateToken } from '../../src/common/utils/token.utils';
-import { eventBus } from '../../src/common/events/event-bus';
 import { resetDatabase } from '../fixtures/db.fixture';
 import { seedSettings } from '../data/settings.factory';
 import { seedUser } from '../data/user.factory';
@@ -262,14 +261,25 @@ describe('orders integration', () => {
       const product = await seedOrderableProduct({ staffId: staffUser.staff!.id, guestPrice: 1000 });
       const [wilaya] = await seedWilayas();
       const posClient = await seedPosClient();
+      const { token: adminToken } = await mintAdminToken();
+      // The invoice only carries a posClientId when the order's client links to one — a payment
+      // must target the same posClient the invoice is attached to (billing's own guard), so
+      // place as an authenticated client linked to this posClient rather than as a guest.
+      const { user: clientUser, client } = await seedClientUser({
+        wilayaId: wilaya!.wilayaId,
+        communeId: wilaya!.communes[0]!.communeId,
+        posClientId: posClient.id,
+      });
+      const clientToken = generateToken({ sub: clientUser.id, type: UserType.CLIENT, clientId: client.id });
 
       const placeRes = await request(app)
         .post('/api/orders')
+        .set('Authorization', `Bearer ${clientToken}`)
         .send({
           productId: product.id,
           quantity: 2,
           orderType: 'DELIVERY_HOME',
-          contact: { fullName: 'Guest', phone: '0555000000' },
+          contact: { fullName: 'Karim', phone: '0555000000' },
           delivery: { wilayaId: wilaya!.wilayaId, communeId: wilaya!.communes[0]!.communeId },
         });
       const orderId = placeRes.body.data.id as string;
@@ -282,41 +292,17 @@ describe('orders integration', () => {
         return invoiceRow != null;
       });
 
-      await prisma.clientPayment.create({
-        data: {
-          reference: `REG-${orderId.slice(0, 8)}`,
-          posClientId: posClient.id,
-          invoiceId: invoiceRow!.id,
-          amount: 2500,
-          previousCredit: 0,
-          newCredit: -2500,
-          staffId: staffUser.staff!.id,
-        },
-      });
+      // Invoice.paidAmount is now settled synchronously inside createClientPayment's own
+      // transaction (credit-serialization fix, plan §C5) before payment.clientRecorded is even
+      // emitted — orders' own mirror listener (still async/post-commit, unchanged) reads a
+      // correct, already-settled value on this single real emission. No more "settle billing's
+      // recompute, then replay the same event a second time" dance.
+      const paymentRes = await request(app)
+        .post('/api/admin/client-payments')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ posClientId: posClient.id, invoiceNumber: invoiceRow!.number, amount: 2500 });
+      expect(paymentRes.status).toBe(201);
 
-      const paymentPayload = {
-        paymentId: '00000000-0000-4000-8000-000000000001',
-        posClientId: posClient.id,
-        invoiceNumber: invoiceRow!.number,
-        amount: 2500,
-        previousCredit: 0,
-        newCredit: -2500,
-      };
-
-      // billing.listener.ts is subscribed to this same event and independently recomputes
-      // Invoice.paidAmount from Σ ClientPayment.amount — racing orders' own listener (which
-      // just reads whatever Invoice.paidAmount currently holds) on the very same emission.
-      // The accepted §C-2 design is eventually-consistent *across replay*, not atomically
-      // ordered within one emission — so settle billing's recompute first...
-      eventBus.emit('payment.clientRecorded', paymentPayload);
-      await waitFor(async () => {
-        const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceRow!.id } });
-        return invoice.paidAmount.toNumber() === 2500;
-      });
-
-      // ...then replay the identical event: Invoice.paidAmount is now settled, so this second,
-      // otherwise-idempotent emission is what orders' own listener deterministically mirrors.
-      eventBus.emit('payment.clientRecorded', paymentPayload);
       await waitFor(async () => {
         const updated = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
         return updated.paidAmount.toNumber() === 2500;

@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { SaleOrigin } from '@dragon-telecom/contract';
 import type { AppError } from '../../../../src/common/errors';
 import { BillingService } from '../../../../src/modules/billing/billing.service';
-import type { IStoreSettingsPort } from '../../../../src/modules/billing/billing.interface';
+import type { IClientCreditPort, IStoreSettingsPort } from '../../../../src/modules/billing/billing.interface';
 import { buildOrderConfirmedEvent, buildSaleConfirmedEvent } from '../../../data/billing-events.factory';
 
 const {
@@ -17,6 +17,7 @@ const {
   clientFindFirstMock,
   clientFindUniqueMock,
   invoiceFindUniqueMock,
+  invoiceFindUniqueOrThrowMock,
   invoiceCreateMock,
   invoiceUpdateMock,
   invoiceFindManyMock,
@@ -40,6 +41,7 @@ const {
   clientFindFirstMock: vi.fn(),
   clientFindUniqueMock: vi.fn(),
   invoiceFindUniqueMock: vi.fn(),
+  invoiceFindUniqueOrThrowMock: vi.fn(),
   invoiceCreateMock: vi.fn(),
   invoiceUpdateMock: vi.fn(),
   invoiceFindManyMock: vi.fn(),
@@ -64,6 +66,7 @@ const prismaMock = {
   client: { findFirst: clientFindFirstMock, findUnique: clientFindUniqueMock },
   invoice: {
     findUnique: invoiceFindUniqueMock,
+    findUniqueOrThrow: invoiceFindUniqueOrThrowMock,
     create: invoiceCreateMock,
     update: invoiceUpdateMock,
     findMany: invoiceFindManyMock,
@@ -108,6 +111,7 @@ const buildSaleRow = (overrides: Record<string, unknown> = {}) => ({
 
 describe('BillingService', () => {
   const sequenceMock = { nextNumber: vi.fn() };
+  const clientCreditMock: IClientCreditPort = { applyPayment: vi.fn() };
   const settingsMock: IStoreSettingsPort = {
     getSettings: vi.fn().mockResolvedValue({
       store: { name: 'Dragon Telecom', address: '1 Rue Test', phone: '0555000000' },
@@ -134,7 +138,7 @@ describe('BillingService', () => {
     });
   });
 
-  const service = () => new BillingService(prismaMock as never, sequenceMock as never, settingsMock);
+  const service = () => new BillingService(prismaMock as never, sequenceMock as never, settingsMock, clientCreditMock);
 
   const expectRejection = async (promise: Promise<unknown>): Promise<AppError> => {
     try {
@@ -297,8 +301,8 @@ describe('BillingService', () => {
   });
 
   describe('createClientPayment', () => {
-    it('snapshots previousCredit/newCredit and emits payment.clientRecorded', async () => {
-      posClientFindUniqueOrThrowMock.mockResolvedValueOnce({ id: POS_CLIENT_ID, credit: new Prisma.Decimal(1000) });
+    it('snapshots previousCredit/newCredit (via the injected credit port) and emits payment.clientRecorded', async () => {
+      (clientCreditMock.applyPayment as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 1000, newCredit: 600 });
       sequenceMock.nextNumber.mockResolvedValueOnce('REG-2026-0001');
       clientPaymentCreateMock.mockResolvedValueOnce({
         id: 'payment-1',
@@ -317,6 +321,9 @@ describe('BillingService', () => {
 
       const dto = await service().createClientPayment({ posClientId: POS_CLIENT_ID, amount: 400 }, STAFF_ID);
 
+      // Credit is written in-tx via the injected port now (credit-serialization fix, plan §C5)
+      // — no post-commit listener applies it.
+      expect(clientCreditMock.applyPayment).toHaveBeenCalledWith(prismaMock, POS_CLIENT_ID, { amount: 400 });
       expect(dto.previousCredit).toBe(1000);
       expect(dto.newCredit).toBe(600);
       expect(eventBusEmitMock).toHaveBeenCalledWith(
@@ -326,7 +333,7 @@ describe('BillingService', () => {
     });
 
     it('permits overpayment — newCredit goes negative (store owes)', async () => {
-      posClientFindUniqueOrThrowMock.mockResolvedValueOnce({ id: POS_CLIENT_ID, credit: new Prisma.Decimal(100) });
+      (clientCreditMock.applyPayment as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 100, newCredit: -400 });
       sequenceMock.nextNumber.mockResolvedValueOnce('REG-2026-0002');
       clientPaymentCreateMock.mockResolvedValueOnce({
         id: 'payment-2',
@@ -346,11 +353,10 @@ describe('BillingService', () => {
       const dto = await service().createClientPayment({ posClientId: POS_CLIENT_ID, amount: 500 }, STAFF_ID);
 
       expect(dto.newCredit).toBe(-400);
-      expect(posClientUpdateMock).toHaveBeenCalledWith({ where: { id: POS_CLIENT_ID }, data: { credit: -400 } });
     });
 
     it('on-account (no invoiceNumber) persists the payment but never touches an invoice', async () => {
-      posClientFindUniqueOrThrowMock.mockResolvedValueOnce({ id: POS_CLIENT_ID, credit: new Prisma.Decimal(0) });
+      (clientCreditMock.applyPayment as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 0, newCredit: -200 });
       sequenceMock.nextNumber.mockResolvedValueOnce('REG-2026-0003');
       clientPaymentCreateMock.mockResolvedValueOnce({
         id: 'payment-3',
@@ -370,6 +376,7 @@ describe('BillingService', () => {
       await service().createClientPayment({ posClientId: POS_CLIENT_ID, amount: 200 }, STAFF_ID);
 
       expect(invoiceFindUniqueMock).not.toHaveBeenCalled();
+      expect(invoiceFindUniqueOrThrowMock).not.toHaveBeenCalled();
       const createCall = clientPaymentCreateMock.mock.calls[0]?.[0] as { data: { invoiceId?: string } };
       expect(createCall.data).not.toHaveProperty('invoiceId');
     });
@@ -383,40 +390,99 @@ describe('BillingService', () => {
 
       expect(err.statusCode).toBe(400);
     });
-  });
 
-  describe('applyClientPaymentRecorded', () => {
-    it('recomputes paidAmount from Σ ClientPayment.amount and flips status ISSUED→PARTIALLY_PAID', async () => {
-      invoiceFindUniqueMock.mockResolvedValueOnce({ id: 'invoice-1', totalAmount: new Prisma.Decimal(2000), status: 'ISSUED' });
-      clientPaymentAggregateMock.mockResolvedValueOnce({ _sum: { amount: new Prisma.Decimal(800) } });
+    describe('a payment targeting an invoice recomputes paidAmount/status in the same transaction (credit-serialization fix, plan §C5)', () => {
+      const INVOICE_ID = '55555555-5555-4555-8555-555555555555';
 
-      await service().applyClientPaymentRecorded({ invoiceNumber: 'FAC-2026-0001' } as never);
+      it('flips ISSUED → PARTIALLY_PAID when the ledger sum is below totalAmount', async () => {
+        invoiceFindUniqueMock.mockResolvedValueOnce({ id: INVOICE_ID, posClientId: POS_CLIENT_ID });
+        (clientCreditMock.applyPayment as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 2000, newCredit: 1200 });
+        sequenceMock.nextNumber.mockResolvedValueOnce('REG-2026-0004');
+        clientPaymentAggregateMock.mockResolvedValueOnce({ _sum: { amount: new Prisma.Decimal(800) } });
+        invoiceFindUniqueOrThrowMock.mockResolvedValueOnce({ totalAmount: new Prisma.Decimal(2000), status: 'ISSUED' });
+        clientPaymentCreateMock.mockResolvedValueOnce({
+          id: 'payment-4',
+          reference: 'REG-2026-0004',
+          posClientId: POS_CLIENT_ID,
+          invoiceId: INVOICE_ID,
+          amount: new Prisma.Decimal(800),
+          previousCredit: new Prisma.Decimal(2000),
+          newCredit: new Prisma.Decimal(1200),
+          paidAt: new Date(),
+          staffId: STAFF_ID,
+          posClient: { name: 'Karim Store' },
+          invoice: { number: 'FAC-2026-0001' },
+          staff: { firstName: 'A', lastName: 'B' },
+        });
 
-      expect(invoiceUpdateMock).toHaveBeenCalledWith({ where: { id: 'invoice-1' }, data: { paidAmount: 800, status: 'PARTIALLY_PAID' } });
-    });
+        await service().createClientPayment(
+          { posClientId: POS_CLIENT_ID, invoiceNumber: 'FAC-2026-0001', amount: 800 },
+          STAFF_ID,
+        );
 
-    it('flips to PAID once the ledger sum reaches totalAmount', async () => {
-      invoiceFindUniqueMock.mockResolvedValueOnce({ id: 'invoice-1', totalAmount: new Prisma.Decimal(2000), status: 'PARTIALLY_PAID' });
-      clientPaymentAggregateMock.mockResolvedValueOnce({ _sum: { amount: new Prisma.Decimal(2000) } });
+        expect(invoiceUpdateMock).toHaveBeenCalledWith({
+          where: { id: INVOICE_ID },
+          data: { paidAmount: 800, status: 'PARTIALLY_PAID' },
+        });
+      });
 
-      await service().applyClientPaymentRecorded({ invoiceNumber: 'FAC-2026-0001' } as never);
+      it('flips to PAID once the ledger sum reaches totalAmount', async () => {
+        invoiceFindUniqueMock.mockResolvedValueOnce({ id: INVOICE_ID, posClientId: POS_CLIENT_ID });
+        (clientCreditMock.applyPayment as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 1200, newCredit: -800 });
+        sequenceMock.nextNumber.mockResolvedValueOnce('REG-2026-0005');
+        clientPaymentAggregateMock.mockResolvedValueOnce({ _sum: { amount: new Prisma.Decimal(2000) } });
+        invoiceFindUniqueOrThrowMock.mockResolvedValueOnce({ totalAmount: new Prisma.Decimal(2000), status: 'PARTIALLY_PAID' });
+        clientPaymentCreateMock.mockResolvedValueOnce({
+          id: 'payment-5',
+          reference: 'REG-2026-0005',
+          posClientId: POS_CLIENT_ID,
+          invoiceId: INVOICE_ID,
+          amount: new Prisma.Decimal(1200),
+          previousCredit: new Prisma.Decimal(1200),
+          newCredit: new Prisma.Decimal(-800),
+          paidAt: new Date(),
+          staffId: STAFF_ID,
+          posClient: { name: 'Karim Store' },
+          invoice: { number: 'FAC-2026-0001' },
+          staff: { firstName: 'A', lastName: 'B' },
+        });
 
-      expect(invoiceUpdateMock).toHaveBeenCalledWith({ where: { id: 'invoice-1' }, data: { paidAmount: 2000, status: 'PAID' } });
-    });
+        await service().createClientPayment(
+          { posClientId: POS_CLIENT_ID, invoiceNumber: 'FAC-2026-0001', amount: 1200 },
+          STAFF_ID,
+        );
 
-    it('is a no-op for an on-account payment (no invoiceNumber)', async () => {
-      await service().applyClientPaymentRecorded({} as never);
+        expect(invoiceUpdateMock).toHaveBeenCalledWith({ where: { id: INVOICE_ID }, data: { paidAmount: 2000, status: 'PAID' } });
+      });
 
-      expect(invoiceFindUniqueMock).not.toHaveBeenCalled();
-      expect(invoiceUpdateMock).not.toHaveBeenCalled();
-    });
+      it('never revives a CANCELLED invoice', async () => {
+        invoiceFindUniqueMock.mockResolvedValueOnce({ id: INVOICE_ID, posClientId: POS_CLIENT_ID });
+        (clientCreditMock.applyPayment as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 0, newCredit: -500 });
+        sequenceMock.nextNumber.mockResolvedValueOnce('REG-2026-0006');
+        invoiceFindUniqueOrThrowMock.mockResolvedValueOnce({ totalAmount: new Prisma.Decimal(2000), status: 'CANCELLED' });
+        clientPaymentCreateMock.mockResolvedValueOnce({
+          id: 'payment-6',
+          reference: 'REG-2026-0006',
+          posClientId: POS_CLIENT_ID,
+          invoiceId: INVOICE_ID,
+          amount: new Prisma.Decimal(500),
+          previousCredit: new Prisma.Decimal(0),
+          newCredit: new Prisma.Decimal(-500),
+          paidAt: new Date(),
+          staffId: STAFF_ID,
+          posClient: { name: 'Karim Store' },
+          invoice: { number: 'FAC-2026-0001' },
+          staff: { firstName: 'A', lastName: 'B' },
+        });
 
-    it('never revives a CANCELLED invoice', async () => {
-      invoiceFindUniqueMock.mockResolvedValueOnce({ id: 'invoice-1', totalAmount: new Prisma.Decimal(2000), status: 'CANCELLED' });
+        await service().createClientPayment(
+          { posClientId: POS_CLIENT_ID, invoiceNumber: 'FAC-2026-0001', amount: 500 },
+          STAFF_ID,
+        );
 
-      await service().applyClientPaymentRecorded({ invoiceNumber: 'FAC-2026-0001' } as never);
-
-      expect(invoiceUpdateMock).not.toHaveBeenCalled();
+        expect(clientPaymentAggregateMock).not.toHaveBeenCalled();
+        expect(invoiceUpdateMock).not.toHaveBeenCalled();
+      });
     });
   });
 

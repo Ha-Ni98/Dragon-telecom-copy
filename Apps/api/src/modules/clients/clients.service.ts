@@ -12,7 +12,6 @@ import {
   type AdminClientListQuery,
   type AdminUpdateClientCommand,
   type ApproveClientCommand,
-  type BillingEvents,
   type CartItemDto,
   type ChangeMyPasswordCommand,
   type ClientMeDto,
@@ -401,13 +400,6 @@ export class ClientsService implements IClientsService {
         },
       });
       await tx.client.update({ where: { id: clientId }, data: { posClientId: posClient.id } });
-    });
-  }
-
-  async applyClientPaymentRecorded(payload: BillingEvents['payment.clientRecorded']): Promise<void> {
-    await this.prisma.posClient.update({
-      where: { id: payload.posClientId },
-      data: { credit: payload.newCredit, totalPaid: { increment: payload.amount } },
     });
   }
 

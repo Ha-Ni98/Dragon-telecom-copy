@@ -1,5 +1,5 @@
+import type { Prisma } from '@prisma/client';
 import type {
-  BillingEvents,
   CancelInvoiceCommand,
   ClientPaymentDto,
   ClientPaymentListQuery,
@@ -44,7 +44,6 @@ export interface IBillingService {
   // Internal — invoked only by this module's own listener (post-commit), never by HTTP routes.
   issueFromSale(payload: SalesEvents['sale.confirmed']): Promise<void>;
   issueFromOrder(payload: OrdersEvents['order.confirmed']): Promise<void>;
-  applyClientPaymentRecorded(payload: BillingEvents['payment.clientRecorded']): Promise<void>;
 }
 
 // Injected port (dependency inversion) — real implementation is platform's own PlatformService,
@@ -55,4 +54,18 @@ export interface IBillingService {
 // billing's business) — same narrowing precedent as inventory's ICatalogPricingPort.
 export interface IStoreSettingsPort {
   getSettings(): Promise<SettingsDto>;
+}
+
+// Injected port (dependency inversion, credit-serialization fix, plan §C2/§C5) — real
+// implementation is clients' own composition-root singleton (`clientsService`, exported from
+// clients.routes.ts), assembled directly in `billing.routes.ts` (one-directional dependency, no
+// adapter — the same shape as IStoreSettingsPort above). PosClient belongs to the clients
+// module; billing must write it only through this port, always inside its own transaction
+// (`tx`), never via a post-commit listener.
+export interface IClientCreditPort {
+  applyPayment(
+    tx: Prisma.TransactionClient,
+    posClientId: string,
+    payload: { amount: number },
+  ): Promise<{ previousCredit: number; newCredit: number }>;
 }

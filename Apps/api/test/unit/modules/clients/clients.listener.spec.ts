@@ -88,33 +88,11 @@ describe('ClientsListener', () => {
     });
   });
 
-  // sale.confirmed/return.created moved to sales' own transaction via the injected credit port
-  // (credit-serialization fix, plan §C3) — this listener no longer subscribes to either.
-  // order.confirmed/payment.clientRecorded still apply their event's own one-shot delta
-  // (totalSold as a plain increment; credit as a `set` from the emitting module's own snapshot)
-  // — correctness relies on the emitting module firing exactly once per document, the same
-  // single-emission guarantee purchasing's own DRAFT→CONFIRMED guard already provides its
-  // listener. Not tested here as ledger-replay-safe, since that would require SaleStatus/
-  // OrderStatus filtering rules that belong to sales/orders modules.
-  describe('dormant cache handlers — one-shot application', () => {
-    it('payment.clientRecorded sets credit and increments totalPaid', async () => {
-      eventBus.emit('payment.clientRecorded', {
-        paymentId: 'p1',
-        posClientId: POS_CLIENT_ID,
-        amount: 500,
-        previousCredit: 1000,
-        newCredit: 500,
-      });
-      await flush();
-
-      expect(posClientUpdateMock).toHaveBeenCalledWith({
-        where: { id: POS_CLIENT_ID },
-        data: { credit: 500, totalPaid: { increment: 500 } },
-      });
-    });
-  });
-
-  describe('sale.confirmed / return.created — no longer subscribed (credit-serialization fix, plan §C3)', () => {
+  // sale.confirmed/return.created moved to sales' own transaction (C3), order.confirmed to
+  // orders' own (C4), and payment.clientRecorded to billing's own (C5) — all via the injected
+  // credit port (credit-serialization fix, plan §C2 onward). `client.approved` (tested above)
+  // is the only subscription left on this listener.
+  describe('sale.confirmed / order.confirmed / return.created / payment.clientRecorded — no longer subscribed', () => {
     it('emitting sale.confirmed never touches PosClient — sales applies it in-tx via the credit port now', async () => {
       eventBus.emit('sale.confirmed', {
         saleId: 's1',
@@ -136,25 +114,45 @@ describe('ClientsListener', () => {
 
       expect(posClientUpdateMock).not.toHaveBeenCalled();
     });
+
+    it('emitting order.confirmed never touches PosClient — orders applies it in-tx via the credit port now', async () => {
+      eventBus.emit('order.confirmed', {
+        orderId: 'o1',
+        posClientId: POS_CLIENT_ID,
+        snapshotLine: { productId: 'p1', productName: 'X', quantity: 1, unitPrice: 100, lineTotal: 100 },
+        totals: { subtotal: 100, deliveryFee: 0, totalAmount: 100, paidAmount: 0 },
+        confirmedByStaffId: 'staff-1',
+      });
+      await flush();
+
+      expect(posClientUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it('emitting payment.clientRecorded never touches PosClient — billing applies it in-tx via the credit port now', async () => {
+      eventBus.emit('payment.clientRecorded', {
+        paymentId: 'p1',
+        posClientId: POS_CLIENT_ID,
+        amount: 500,
+        previousCredit: 1000,
+        newCredit: 500,
+      });
+      await flush();
+
+      expect(posClientUpdateMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('error isolation', () => {
     it('swallows a handler failure — never propagates back into eventBus.emit', async () => {
-      posClientUpdateMock.mockRejectedValueOnce(new Error('db down'));
+      clientFindUniqueMock.mockRejectedValueOnce(new Error('db down'));
 
       expect(() =>
-        eventBus.emit('payment.clientRecorded', {
-          paymentId: 'p1',
-          posClientId: POS_CLIENT_ID,
-          amount: 500,
-          previousCredit: 1000,
-          newCredit: 500,
-        }),
+        eventBus.emit('client.approved', { clientId: CLIENT_ID, posClientSeed: { name: 'John Doe', categoryId: CATEGORY_ID } }),
       ).not.toThrow();
       await flush();
 
       expect(loggerErrorMock).toHaveBeenCalledWith(
-        expect.objectContaining({ event: 'payment.clientRecorded' }),
+        expect.objectContaining({ event: 'client.approved' }),
         expect.any(String),
       );
     });

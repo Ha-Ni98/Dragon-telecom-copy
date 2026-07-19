@@ -12,7 +12,6 @@ import {
 } from '@dragon-telecom/contract';
 import { app } from '../../src/app';
 import { prisma } from '../../src/common/db/prisma';
-import { eventBus } from '../../src/common/events/event-bus';
 import { generateToken } from '../../src/common/utils/token.utils';
 import { resetDatabase } from '../fixtures/db.fixture';
 import { seedWilayas } from '../data/wilaya.factory';
@@ -334,31 +333,25 @@ describe('clients integration', () => {
     });
   });
 
-  // "PosClient.credit == ledger recompute" (sprints §4 property test), scoped to what's
-  // actually buildable today: credit is a `set` from whichever event's own snapshot last wrote
-  // it (Sprint 3's deliberate design — see clients.service.ts's applyClientPaymentRecorded
-  // comment), not a from-scratch recompute (no stored opening-balance column exists, and
-  // billing/sales don't exist yet to populate a real ledger). The property this proves end to
-  // end, against the real listener wired onto the real eventBus: after `payment.clientRecorded`
-  // fires, the persisted PosClient.credit exactly equals that event's own `newCredit` — the
-  // cache always reflects the last snapshot it was told about.
-  describe('PosClient.credit reflects the emitting event\'s own snapshot (property)', () => {
-    it('credit after payment.clientRecorded equals the event\'s newCredit exactly', async () => {
-      const posClient = await seedPosClient();
+  describe('PosClient.credit reflects a real client payment (credit-serialization fix, plan §C5)', () => {
+    it('credit/totalPaid after POST /api/admin/client-payments equal the ledger exactly, with no wait needed', async () => {
+      // Credit is written inside createClientPayment's own transaction via the injected credit
+      // port now, not a post-commit listener (clients.listener.ts no longer subscribes to
+      // payment.clientRecorded at all) — so no waitFor/polling is needed: it's already settled
+      // by the time the response returns.
+      const { user: adminUser } = await seedUser({ type: UserType.ADMIN });
+      const adminToken = mintTokenFor(adminUser);
+      const posClient = await seedPosClient({});
       await prisma.posClient.update({ where: { id: posClient.id }, data: { credit: 1000 } });
 
-      eventBus.emit('payment.clientRecorded', {
-        paymentId: 'test-payment-1',
-        posClientId: posClient.id,
-        amount: 400,
-        previousCredit: 1000,
-        newCredit: 600,
-      });
+      const paymentRes = await request(app)
+        .post('/api/admin/client-payments')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ posClientId: posClient.id, amount: 400 });
 
-      await waitFor(async () => {
-        const updated = await prisma.posClient.findUnique({ where: { id: posClient.id }, select: { credit: true } });
-        return updated?.credit.toNumber() === 600;
-      });
+      expect(paymentRes.status).toBe(201);
+      expect(paymentRes.body.data.previousCredit).toBe(1000);
+      expect(paymentRes.body.data.newCredit).toBe(600);
 
       const final = await prisma.posClient.findUnique({ where: { id: posClient.id } });
       expect(final?.credit.toNumber()).toBe(600);

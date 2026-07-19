@@ -5,7 +5,6 @@ import type {
   AdminClientListQuery,
   AdminUpdateClientCommand,
   ApproveClientCommand,
-  BillingEvents,
   CartItemDto,
   ChangeMyPasswordCommand,
   ClientMeDto,
@@ -69,7 +68,6 @@ export interface IClientsService {
     clientId: string,
     posClientSeed: ClientsEvents['client.approved']['posClientSeed'],
   ): Promise<void>;
-  applyClientPaymentRecorded(payload: BillingEvents['payment.clientRecorded']): Promise<void>;
 }
 
 // Injected port (dependency inversion, plan §I.5) — real implementation lives in catalog

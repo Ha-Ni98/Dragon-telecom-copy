@@ -4,7 +4,7 @@ import { SaleOrigin } from '@dragon-telecom/contract';
 import { eventBus } from '../../../../src/common/events/event-bus';
 import { BillingService } from '../../../../src/modules/billing/billing.service';
 import { BillingListener } from '../../../../src/modules/billing/billing.listener';
-import type { IStoreSettingsPort } from '../../../../src/modules/billing/billing.interface';
+import type { IClientCreditPort, IStoreSettingsPort } from '../../../../src/modules/billing/billing.interface';
 import { buildSaleConfirmedEvent } from '../../../data/billing-events.factory';
 
 const {
@@ -72,7 +72,8 @@ describe('BillingListener', () => {
     });
     const sequenceMock = { nextNumber: vi.fn().mockResolvedValue('FAC-2026-0001') };
     const settingsMock: IStoreSettingsPort = { getSettings: vi.fn() };
-    const service = new BillingService(prismaMock as never, sequenceMock as never, settingsMock);
+    const clientCreditMock: IClientCreditPort = { applyPayment: vi.fn() };
+    const service = new BillingService(prismaMock as never, sequenceMock as never, settingsMock, clientCreditMock);
     new BillingListener(service).setup();
     eventBus.on('invoice.issued', invoiceIssuedSpy);
   });
@@ -102,20 +103,13 @@ describe('BillingListener', () => {
     expect(invoiceIssuedSpy).not.toHaveBeenCalled();
   });
 
-  it('payment.clientRecorded recompute flips status and is idempotent on replay', async () => {
-    invoiceFindUniqueMock.mockResolvedValue({ id: 'invoice-1', totalAmount: new Prisma.Decimal(1000), status: 'ISSUED' });
-    clientPaymentAggregateMock.mockResolvedValue({ _sum: { amount: new Prisma.Decimal(1000) } });
-
+  it('payment.clientRecorded is no longer subscribed — recompute moved into createClientPayment\'s own transaction (credit-serialization fix, plan §C5)', async () => {
     const payload = { paymentId: 'p1', posClientId: 'pc1', invoiceNumber: 'FAC-2026-0001', amount: 1000, previousCredit: 0, newCredit: 0 };
     eventBus.emit('payment.clientRecorded', payload);
     await flush();
-    eventBus.emit('payment.clientRecorded', payload);
-    await flush();
 
-    expect(invoiceUpdateMock).toHaveBeenCalledTimes(2);
-    for (const call of invoiceUpdateMock.mock.calls) {
-      expect((call as [{ data: { status: string; paidAmount: number } }])[0].data).toEqual({ paidAmount: 1000, status: 'PAID' });
-    }
+    expect(invoiceUpdateMock).not.toHaveBeenCalled();
+    expect(clientPaymentAggregateMock).not.toHaveBeenCalled();
   });
 
   it('swallows a handler failure — never propagates back into eventBus.emit', async () => {

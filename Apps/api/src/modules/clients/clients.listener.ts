@@ -2,11 +2,12 @@ import { logger } from '@common/config/logger';
 import { eventBus } from '@common/events/event-bus';
 import type { IClientsService } from './clients.interface';
 
-// Subscribes to this module's own post-commit `client.approved` (materializes the linked
-// PosClient — plan §I.4) plus the remaining cross-module cache handler not yet moved to the
-// injected credit port (credit-serialization fix, plan §C2 onward — sale.confirmed/
-// return.created moved to sales' own transaction in C3, order.confirmed to orders' own in C4;
-// payment.clientRecorded follows in C5).
+// Subscribes to this module's own post-commit `client.approved` — materializes the linked
+// PosClient (plan §I.4). This is the only subscription left: sale.confirmed/return.created
+// moved to sales' own transaction (C3), order.confirmed to orders' own (C4), and
+// payment.clientRecorded to billing's own (C5) — all via the injected credit port
+// (credit-serialization fix, plan §C2 onward). No money-cache handler is subscribed here
+// anymore; every PosClient cache write now lives inside the writer's own transaction.
 export class ClientsListener {
   constructor(private service: IClientsService) {}
 
@@ -15,10 +16,6 @@ export class ClientsListener {
       this.safeRun('client.approved', () =>
         this.service.materializePosClientForApprovedClient(payload.clientId, payload.posClientSeed),
       ),
-    );
-
-    eventBus.on('payment.clientRecorded', (payload) =>
-      this.safeRun('payment.clientRecorded', () => this.service.applyClientPaymentRecorded(payload)),
     );
   }
 

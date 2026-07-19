@@ -518,21 +518,6 @@ describe('ClientsService', () => {
 
       expect(clientUpdateMock).toHaveBeenCalledWith({ where: { id: CLIENT_ID }, data: { posClientId: POS_CLIENT_ID } });
     });
-
-    it('applyClientPaymentRecorded sets credit and increments totalPaid', async () => {
-      await service().applyClientPaymentRecorded({
-        paymentId: 'p1',
-        posClientId: POS_CLIENT_ID,
-        amount: 500,
-        previousCredit: 1000,
-        newCredit: 500,
-      });
-
-      expect(posClientUpdateMock).toHaveBeenCalledWith({
-        where: { id: POS_CLIENT_ID },
-        data: { credit: 500, totalPaid: { increment: 500 } },
-      });
-    });
   });
 
   describe('injected credit port (credit-serialization fix, plan §C2)', () => {

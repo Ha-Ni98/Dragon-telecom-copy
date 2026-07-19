@@ -21,7 +21,7 @@ import { logger } from '@common/config/logger';
 import { eventBus } from '@common/events/event-bus';
 import { renderInvoicePdf } from '@common/utils/pdf.utils';
 import type { ISequenceService } from '../platform/platform.interface';
-import type { IBillingService, IStoreSettingsPort, PdfResult } from './billing.interface';
+import type { IBillingService, IClientCreditPort, IStoreSettingsPort, PdfResult } from './billing.interface';
 import { BillingMapper, type InvoiceIssueInput, type InvoiceMapContext, type InvoiceRow } from './billing.mapper';
 
 const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaClientKnownRequestError =>
@@ -43,6 +43,7 @@ export class BillingService implements IBillingService {
     private prisma: PrismaClient,
     private sequence: ISequenceService,
     private settings: IStoreSettingsPort,
+    private clientCredit: IClientCreditPort,
   ) {}
 
   // --- Client (via linked posClientId; 404 on foreign) ---
@@ -138,11 +139,11 @@ export class BillingService implements IBillingService {
     let newCredit = 0;
 
     const created = await this.prisma.$transaction(async (tx) => {
-      const locked = await this.lockPosClient(tx, cmd.posClientId);
-      previousCredit = locked.credit.toNumber();
-      // Overpayment permitted — negative newCredit means the store owes the client, mirroring
-      // purchasing's own overpayment-allowed convention.
-      newCredit = previousCredit - cmd.amount;
+      // Written here, inside this same transaction, via the injected credit port
+      // (credit-serialization fix, plan §C5) — no post-commit listener applies it. Overpayment
+      // permitted — negative newCredit means the store owes the client, mirroring purchasing's
+      // own overpayment-allowed convention.
+      ({ previousCredit, newCredit } = await this.clientCredit.applyPayment(tx, cmd.posClientId, { amount: cmd.amount }));
 
       const reference = await this.sequence.nextNumber(tx, DocType.CLIENT_PAYMENT);
       const payment = await tx.clientPayment.create({
@@ -158,7 +159,29 @@ export class BillingService implements IBillingService {
         },
         include: PAYMENT_INCLUDE,
       });
-      await tx.posClient.update({ where: { id: cmd.posClientId }, data: { credit: newCredit } });
+
+      // Invoice.paidAmount/status recompute — also written in-tx now (billing's own data,
+      // credit-serialization fix plan §C5), a real ledger recompute (Σ ClientPayment.amount for
+      // this invoice, including the row just created above), so it's idempotent under replay by
+      // construction, same as before — just no longer racing a post-commit listener. A
+      // CANCELLED invoice is never revived (checked first, same guard order as the former
+      // listener, so a cancelled invoice's ledger is never even aggregated).
+      if (invoiceId != null) {
+        const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { totalAmount: true, status: true } });
+        if (invoice.status !== PrismaInvoiceStatus.CANCELLED) {
+          const aggregate = await tx.clientPayment.aggregate({ where: { invoiceId }, _sum: { amount: true } });
+          const paidAmount = aggregate._sum.amount?.toNumber() ?? 0;
+          const totalAmount = invoice.totalAmount.toNumber();
+          const status =
+            paidAmount <= 0
+              ? PrismaInvoiceStatus.ISSUED
+              : paidAmount >= totalAmount
+                ? PrismaInvoiceStatus.PAID
+                : PrismaInvoiceStatus.PARTIALLY_PAID;
+          await tx.invoice.update({ where: { id: invoiceId }, data: { paidAmount, status } });
+        }
+      }
+
       return payment;
     });
 
@@ -292,27 +315,6 @@ export class BillingService implements IBillingService {
     };
 
     await this.issueInvoice(input, order.reference);
-  }
-
-  // Recomputes paidAmount from the ledger (Σ ClientPayment.amount for this invoice) rather than
-  // incrementing — idempotent by construction under replay (plan §D-7). On-account payments
-  // (no invoiceNumber) are a no-op here; a CANCELLED invoice's status is never revived.
-  async applyClientPaymentRecorded(payload: { invoiceNumber?: string }): Promise<void> {
-    if (payload.invoiceNumber == null) return;
-
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { number: payload.invoiceNumber },
-      select: { id: true, totalAmount: true, status: true },
-    });
-    if (!invoice || invoice.status === PrismaInvoiceStatus.CANCELLED) return;
-
-    const aggregate = await this.prisma.clientPayment.aggregate({ where: { invoiceId: invoice.id }, _sum: { amount: true } });
-    const paidAmount = aggregate._sum.amount?.toNumber() ?? 0;
-    const totalAmount = invoice.totalAmount.toNumber();
-    const status =
-      paidAmount <= 0 ? PrismaInvoiceStatus.ISSUED : paidAmount >= totalAmount ? PrismaInvoiceStatus.PAID : PrismaInvoiceStatus.PARTIALLY_PAID;
-
-    await this.prisma.invoice.update({ where: { id: invoice.id }, data: { paidAmount, status } });
   }
 
   // --- Internal helpers ---
@@ -521,12 +523,5 @@ export class BillingService implements IBillingService {
       ...(posClient != null ? { name: posClient.name } : {}),
       ...(linkedClient?.address != null ? { address: linkedClient.address } : {}),
     };
-  }
-
-  // Row-lock precedent mirrors sales/purchasing's own lockPosClient/lockSupplier.
-  private async lockPosClient(tx: Prisma.TransactionClient, posClientId: string) {
-    const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "PosClient" WHERE id = ${posClientId} FOR UPDATE`;
-    if (!rows[0]) throw new NotFoundError('PosClient');
-    return tx.posClient.findUniqueOrThrow({ where: { id: posClientId } });
   }
 }
