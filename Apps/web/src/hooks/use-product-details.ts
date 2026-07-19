@@ -5,7 +5,7 @@
 
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
 import { getProductByName } from "@/services/catalog.service";
-import { qk } from "@/lib/query-keys";
+import { qkLegacy } from "@/lib/query-keys";
 import type { ProductDetails } from "@/types/draft-types/product.types";
 
 /**
@@ -16,7 +16,7 @@ export function useProductDetails(
   options?: Partial<UseQueryOptions<ProductDetails | null>>
 ) {
   return useQuery({
-    queryKey: qk.catalog.productByName(productName),
+    queryKey: qkLegacy.catalogProductByName(productName),
     queryFn: () => getProductByName(productName),
     enabled: !!productName,
     staleTime: 1000 * 60 * 5, // 5 minutes

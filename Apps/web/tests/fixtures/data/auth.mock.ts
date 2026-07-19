@@ -1,27 +1,21 @@
 import {
-  AuthTokensResponseSchema,
-  SessionUserResponseSchema,
-  UserRole,
-  type AuthTokensDTO,
-  type SessionUserDTO,
+  LoginResultResponseSchema,
+  RefreshResultResponseSchema,
+  AuthType,
+  type LoginResultDto,
+  type RefreshResultDto,
 } from "@dragon-telecom/contract";
 
-export const mockAuthTokens: AuthTokensDTO = AuthTokensResponseSchema.parse({
+// `profile` is polymorphic by authType (identity.dtos.ts) — a staff-shaped profile here so
+// token-store.ts's setLoginSession() caches it (StaffProfileResponseSchema.safeParse succeeds).
+export const mockLoginResult: LoginResultDto = LoginResultResponseSchema.parse({
+  authType: AuthType.STAFF,
   accessToken: "mock-access-token",
   refreshToken: "mock-refresh-token",
-  role: UserRole.USER,
+  profile: { firstName: "Amine", lastName: "B." },
 });
 
-export const mockUserSession: SessionUserDTO = SessionUserResponseSchema.parse({
-  id: "8400b859-fc6c-4a1a-9c1e-1a2b3c4d5e6f",
-  username: "sam.user",
-  role: UserRole.USER,
-  fullName: "Sam User",
-});
-
-export const mockAdminSession: SessionUserDTO = SessionUserResponseSchema.parse({
-  id: "8400b859-fc6c-4a1a-9c1e-2b3c4d5e6f70",
-  username: "alex.admin",
-  role: UserRole.ADMIN,
-  fullName: "Alex Admin",
+export const mockRefreshResult: RefreshResultDto = RefreshResultResponseSchema.parse({
+  accessToken: "fresh-access-token",
+  refreshToken: "fresh-refresh-token",
 });

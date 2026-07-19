@@ -63,7 +63,7 @@ domain(s), per the pattern above.*
 
 ---
 
-### Sprint 1: Core Pipeline — Status: ⬜ Pending
+### Sprint 1: Core Pipeline — Status: ✅ Done
 
 **Goals**
 - Finalize the shared data-layer foundation: one Axios instance, route builder, Query Client, token store, and the
@@ -71,45 +71,75 @@ domain(s), per the pattern above.*
 - Stand up the reusable MSW/Vitest harness so every later sprint only adds a handler set + fixtures.
 
 **Tasks**
-- [ ] **Audit `src/lib/axios.ts`** (exists): confirm one instance, `baseURL=VITE_API_URL`, Bearer request
+- [x] **Audit `src/lib/axios.ts`** (exists): confirmed one instance, `baseURL=VITE_API_URL`, Bearer request
       interceptor, single-flight `refreshTokens()`, 401 → refresh + replay-once → else `clear()`+redirect,
-      `TOKEN_ENDPOINTS` loop-prevention. **Extension:** populate `PUBLIC_PATH_PREFIXES` for anonymous GETs
-      (catalog public, `WILAYAS`, `FEE`, `SETTINGS_PUBLIC`, `VALIDATE_PHONE`, `REGISTER`) so a 401 there isn't
-      treated as an expired session (plan §1.1, §2.5).
-- [ ] **Audit `src/lib/api-path.ts`** (exists, verbatim rules §3B): keep; no fragment composition (plan §0.1 C3).
-- [ ] **Audit `src/lib/query-client.ts`** (exists): confirm cache-level `onError`, background-refetch-only query
-      toasts, `meta.silentErrorToast` escape hatch, 401/`isCancel` silent (plan §1.1).
-- [ ] **Audit `src/lib/token-store.ts` / `src/types/session.ts`** (exist): keep JWT-derived session (plan §1.1).
-- [ ] **`src/lib/query-keys.ts` — retype + extend:** all ids `number → string` (UUID); add one family per domain
-      with `all()` prefixes + list keys embedding the filter object, per the full registry in **plan §3**. Include
-      every key later mutations must sweep (cross-domain matrix) so no forward-reference gaps.
-- [ ] **MSW harness — reuse & verify** (`tests/fixtures/msw/{envelope,api-url,server}.ts`,
-      `tests/fixtures/wrappers/{createQueryWrapper,setup,mockTranslation}.tsx?`): confirm `ok/fail/noContent` mirror
-      `sendSuccess`, `apiUrl` uses the same `apiPath`, `server.ts` extension point, `setup.ts`
-      `onUnhandledRequest:'error'` + per-test `tokenStore.clear()`, `.env.test` `VITE_API_URL` (plan §1.2).
-- [ ] **Verify `vitest.config.ts`** (`include: tests/**`, jsdom, `setupFiles`) and the existing
-      `tests/unit/lib/{axios,api-path,query-client,token-store}.test.ts` still pass after the `qk` retype.
+      `TOKEN_ENDPOINTS` loop-prevention. **Extension done:** populated `PUBLIC_PATH_PREFIXES` (catalog public
+      products/brands/families/models, `WILAYAS`, `FEE`, `SETTINGS_PUBLIC`, `VALIDATE_PHONE`, `REGISTER`).
+- [x] **Audit `src/lib/api-path.ts`** (exists, verbatim rules §3B): kept as-is; no fragment composition (plan §0.1 C3).
+- [x] **Audit `src/lib/query-client.ts`** (exists): confirmed cache-level `onError`, background-refetch-only query
+      toasts, `meta.silentErrorToast` escape hatch, 401/`isCancel` silent (plan §1.1). No changes needed.
+- [x] **Audit `src/lib/token-store.ts` / `src/types/session.ts`** (exist): confirmed JWT-derived session (plan §1.1). No changes.
+- [x] **`src/lib/query-keys.ts` — retyped + extended:** all 13 domains added, ids `string` (UUID), `all()` prefixes +
+      filter-embedding list keys, per the full registry in **plan §3**.
+- [x] **MSW harness — reused & verified** (`tests/fixtures/msw/{envelope,api-url,server}.ts`, `tests/fixtures/wrappers/*`):
+      confirmed `ok/fail/noContent` mirror `sendSuccess`, `apiUrl` uses the same `apiPath`, `server.ts` extension
+      point, `setup.ts` `onUnhandledRequest:'error'` + per-test `tokenStore.clear()`, `.env.test` `VITE_API_URL`.
+- [x] **Verified `vitest.config.ts`** and `tests/unit/lib/{axios,api-path,query-client,token-store,realtime,utils}.test.ts`.
+
+**Scope note — two adjustments made during execution, both documented here rather than silently absorbed:**
+1. **`qkLegacy` compatibility shim added** (not in the original plan). Retyping `qk` broke 5 pre-existing Sub-01
+   stub hooks (`use-products.ts`, `use-product-details.ts`, `use-admin-products.ts`, `use-admin-orders.ts`,
+   `use-my-account.ts`) that reference numeric-id / MVP-only key shapes (`adminList`, `myAccount`, `productByName`,
+   `byStatus`, `search`, numeric `.detail()`) with no contract equivalent. Rewriting those hooks' bodies now would
+   be throwaway work — Sprints 3/5/4 replace them wholesale against real services/DTOs. Instead, `query-keys.ts`
+   now exports a clearly-labeled, temporary `qkLegacy` object (see its header comment) holding exactly the 10 old
+   key-builders those 5 files still need; each entry states which future sprint retires it. The real `qk` registry
+   stays 100% aligned to plan §3 with zero legacy shapes mixed in.
+2. **`tests/fixtures/data/auth.mock.ts` + `tests/fixtures/msw/auth.handlers.ts` rebuilt in Sprint 1, not Sprint 2**
+   (originally planned there). Reason: `tests/fixtures/wrappers/setup.ts` (the global Vitest setup file) imports
+   `server.ts`, which unconditionally imports `auth.handlers.ts`, which imports the (stale) `auth.mock.ts` — a
+   module-load-time crash (`AuthTokensResponseSchema.parse` on `undefined`) there took down **every** test file in
+   the suite at collection time, not just auth-domain tests. This is core-pipeline infrastructure breakage, not an
+   isolated auth-domain gap, so it had to be fixed here. Rebuilt to the real shapes: `IDENTITY_ROUTES.{LOGIN,REFRESH,LOGOUT}`
+   (no `.BASE` split), `LoginResultResponseSchema`/`LoginResultDto`, `RefreshResultResponseSchema`/`RefreshResultDto`.
+   **Scope kept minimal — only what the already-real `auth.service.ts` (`login`/`logout`/`refresh`) needs.**
+   `ME_PERMISSIONS` fixtures/handlers and the two **integration test files**
+   (`tests/integration/services/auth.service.test.ts`, `tests/integration/hooks/auth.test.tsx`, which still call
+   the not-yet-existing `authService.me()`/`qk.auth.me()`) remain Sprint 2's job — see Sprint 2 below, now narrower.
+3. **Also reconciled 3 pre-existing test files** referencing the same stale `AUTH_ROUTES`/`UserRole`/`AuthTokensDTO`
+   symbols directly (not just via the auth fixtures): `tests/unit/lib/axios.test.ts` (→ `IDENTITY_ROUTES`,
+   `RefreshResultDto`, dropped the nonexistent `role` field), `tests/unit/lib/realtime.test.ts` (`UserRole.ADMIN` →
+   `UserType.ADMIN`), `tests/unit/components/layout/ProtectedRoute.test.tsx` (mock session rebuilt to the real
+   `Session` shape `{userId,type,clientId,staffId,profile}` — the component itself, `ProtectedRoute.tsx`, was
+   already correct against `UserType`; only its test was stale). All three are `/src/lib`-scoped or directly
+   blocked `tests/unit/lib/*` from being a meaningful vitest-run gate, so within Sprint 1's own risk note ("existing
+   `axios.test.ts` may assert stale auth shapes — reconcile if so").
 
 **Validation**
-- [ ] `tsc --noEmit` clean; all types from `@dragon-telecom/contract`.
-- [ ] `qk` covers all 13 domains with `string` ids; cross-invalidation targets (plan §3) all exist as keys.
-- [ ] MSW server boots; `onUnhandledRequest:'error'`; harness helpers produce envelope-shaped bodies.
-- [ ] `vitest run` green on existing `tests/unit/lib/*`; no test files inside `/src`.
-- [ ] Committed on green: `fe: integration sprint 1 — core pipeline`.
+- [x] `tsc --noEmit` clean on `/src`; `tsc --noEmit -p tsconfig.test.json` clean **except** the two Sprint-2-owned
+      integration test files (`auth.service.test.ts`, `auth.test.tsx`) — confirmed via `npm run check`.
+- [x] `qk` covers all 13 domains with `string` ids; cross-invalidation targets (plan §3) all exist as keys.
+- [x] MSW server boots; `onUnhandledRequest:'error'`; harness helpers produce envelope-shaped bodies — confirmed:
+      the whole non-Sprint-2 suite (9 files / 60 tests) now runs instead of crashing at collection.
+- [x] `vitest run` green on `tests/unit/lib/*`: **46/46 passing** (6 files).
+- [x] No test files inside `/src`.
+- [x] Committed on green: `fe: integration sprint 1 — core pipeline`.
 
-**Risks**
-- `qk` numeric→string retype ripples into Sub-01 hooks that still pass numeric ids — expected; those hooks are
-  rewritten alongside their domain sprint, not here. Keep Sprint 1 to the registry shape only.
-- Existing `tests/unit/lib/axios.test.ts` may assert cookie behavior or stale auth shapes — reconcile to the real
-  Bearer engine (plan §0.1 C2) if so.
+**Risks (resolved)**
+- `qk` numeric→string retype ripple — resolved via `qkLegacy` (see scope note #1), not by prematurely rewriting
+  Sprint 3/4/5-owned hooks.
+- `tests/unit/lib/axios.test.ts` stale shapes — confirmed and reconciled (see scope note #3).
 
 ---
 
 ### Sprint 2: Auth / Identity-session — Status: ⬜ Pending
 
 **Goals**
-- Prove the auth service + session hooks against the **real** contract and **rebuild the stale auth test harness**.
-- Add the only real "me" endpoint (`ME_PERMISSIONS`).
+- Prove the auth service + session hooks against the **real** contract.
+- Add the only real "me" endpoint (`ME_PERMISSIONS`) and finish rebuilding the auth integration tests.
+
+**Narrowed scope (Sprint 1 already rebuilt `auth.mock.ts` + `auth.handlers.ts` — see Sprint 1's scope note #2):**
+only the `ME_PERMISSIONS` addition and the two integration test files remain.
 
 **Tasks**
 - [ ] **Audit `src/services/auth.service.ts`** (exists): `login → LoginResultDto` (+`setLoginSession`),
@@ -120,17 +150,18 @@ domain(s), per the pattern above.*
 - [ ] **Hooks:** audit `useSession` (`qk.auth.session()`, JWT bootstrap via `refreshTokens`), `useLogin`
       (invalidate `qk.auth.session()`), `useLogout` (`queryClient.clear()`); **add** `usePermissions` →
       `qk.auth.permissions()`.
-- [ ] **🔴 Rebuild stale fixtures** `tests/fixtures/data/auth.mock.ts`: replace nonexistent `AuthTokensResponseSchema`/
-      `SessionUserResponseSchema`/`UserRole` with `LoginResultResponseSchema.parse({...})` / `UserType` / a
-      JWT-shaped access token; add a `ME_PERMISSIONS` string-array fixture (plan §0.1 C5, §1.2).
-- [ ] **🔴 Rebuild stale handlers** `tests/fixtures/msw/auth.handlers.ts`: retarget `AUTH_ROUTES.*` → `IDENTITY_ROUTES.{LOGIN,REFRESH,LOGOUT,ME_PERMISSIONS}`;
-      drop `authUrls.me`; keep 200 + `AUTH_INVALID_CREDENTIALS`(401) / `AUTH_UNAUTHORIZED`(401) / 500 overrides.
+- [ ] **Extend fixtures** `tests/fixtures/data/auth.mock.ts` (already rebuilt to real `LoginResultDto`/`RefreshResultDto`
+      in Sprint 1): add a `ME_PERMISSIONS` string-array fixture.
+- [ ] **Extend handlers** `tests/fixtures/msw/auth.handlers.ts` (already rebuilt in Sprint 1): add the
+      `ME_PERMISSIONS` 200 handler + an `AUTH_UNAUTHORIZED`(401) override.
 - [ ] **🔴 Rebuild stale tests** `tests/integration/services/auth.service.test.ts` (remove `authService.me()`; keep
-      login-stores-tokens, cold-start refresh-and-retry, logout-clears-on-500, refresh-is-reexport) and
-      `tests/integration/hooks/auth.test.tsx` (replace `qk.auth.me()` → `qk.auth.session()`; `usePermissions` states).
+      login-stores-tokens, logout-clears-on-500, refresh-is-reexport; add `getMyPermissions` coverage) and
+      `tests/integration/hooks/auth.test.tsx` (remove `qk.auth.me()`/`useSession` "me" assumptions — already
+      exercises `qk.auth.session()` correctly via `useSession`, just needs the nonexistent-`me` call sites removed;
+      add `usePermissions` state-transition tests).
 
 **Validation**
-- [ ] `tsc --noEmit` clean; **no references to `AUTH_ROUTES`/`AuthTokens*`/`SessionUser*`/`UserRole`/`authService.me`/`qk.auth.me` remain anywhere in `/tests`.**
+- [ ] `tsc --noEmit` clean; **no references to `authService.me`/`qk.auth.me` remain anywhere in `/tests`.**
 - [ ] Services unwrap `ApiResponse` and **throw** on error; logout returns `void` on 204.
 - [ ] Query hooks return `{data,isLoading,isError,error,refetch}`; `useLogin`/`useLogout` invalidate/clear the right keys.
 - [ ] MSW intercepts via the route builder; fixtures parse against contract schemas.
