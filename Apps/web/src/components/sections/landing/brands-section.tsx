@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/hooks/useTranslation';
 import { BrandWithCount } from '@/types/draft-types/main-page.types';
-import { mockBrandsWithCount } from '@/mocks/brands';
+import { useBrands } from '@/hooks/use-brands';
 
 /**
  * BrandsSection component props
@@ -96,27 +96,10 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [brands, setBrands] = useState<BrandWithCount[]>([]);
 
-  // Load brands data (simulate API call)
-  React.useEffect(() => {
-    const loadBrands = async () => {
-      setIsLoading(true);
-      try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setBrands(mockBrandsWithCount.slice(0, maxBrands));
-      } catch (error) {
-        console.error('Error loading brands:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadBrands();
-  }, [maxBrands]);
+  const { data: brandsData, isLoading } = useBrands();
+  const brands = useMemo(() => (brandsData ?? []).slice(0, maxBrands), [brandsData, maxBrands]);
 
   /**
    * Handle brand click - navigate to products page with brand filter
@@ -177,7 +160,7 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
               {t('brands.title')}
             </h2>
             <p className="text-lg text-muted-foreground">
-              No brands available at the moment.
+              {t('brands.noneAvailable')}
             </p>
           </div>
         </div>
@@ -255,7 +238,7 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
               size="lg"
               onClick={handleViewAllBrands}
             >
-              View All Brands
+              {t('brands.viewAll')}
               <ExternalLink className="ml-2 h-5 w-5" />
             </Button>
           </div>

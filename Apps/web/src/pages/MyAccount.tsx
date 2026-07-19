@@ -1,35 +1,52 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/hooks/useTranslation";
 import { User, MapPin, Phone, Mail, Calendar, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { UserAccountData, PasswordResetData } from "@/types/draft-types";
-import { mockUserAccountData } from "@/mocks/clients";
+import { useMyAccount, useUpdateMyAccount, useResetMyAccountPassword } from "@/hooks/use-my-account";
 import { MoneyStatusCard } from "@/components/shared/MoneyStatusCard";
 import { PasswordResetForm } from "@/components/shared/PasswordResetForm";
+import { NotFoundState } from "@/components/shared/NotFoundState";
 
 export default function MyAccount() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  
-  // Use proper UserAccountData structure
-  const [userInfo, setUserInfo] = useState<UserAccountData>(mockUserAccountData);
-  const [originalUserInfo, setOriginalUserInfo] = useState<UserAccountData>(mockUserAccountData);
+
+  const { data: accountData, isLoading } = useMyAccount();
+  const updateMutation = useUpdateMyAccount();
+  const passwordResetMutation = useResetMyAccountPassword();
+
+  const [userInfo, setUserInfo] = useState<UserAccountData | null>(null);
+  const [originalUserInfo, setOriginalUserInfo] = useState<UserAccountData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
-  const [isPasswordResetLoading, setIsPasswordResetLoading] = useState(false);
 
-  const handleSave = () => {
-    // Update original data to current data
-    setOriginalUserInfo(userInfo);
-    toast.success(t('account.updateSuccess'));
-    setIsEditing(false);
+  // Sync local editable copy whenever the fetched account data changes.
+  useEffect(() => {
+    if (accountData) {
+      setUserInfo(accountData);
+      setOriginalUserInfo(accountData);
+    }
+  }, [accountData]);
+
+  const handleSave = async () => {
+    if (!userInfo) return;
+    try {
+      await updateMutation.mutateAsync(userInfo);
+      setOriginalUserInfo(userInfo);
+      toast.success(t('account.updateSuccess'));
+      setIsEditing(false);
+    } catch (error) {
+      toast.error(t('account.updateError'));
+    }
   };
 
   const handleCancel = () => {
@@ -42,30 +59,21 @@ export default function MyAccount() {
     const { name, value } = e.target;
     // Only allow changes to editable fields
     if (name === 'clientEmail' || name === 'clientPhoneNumber' || name === 'clientLocation') {
-      setUserInfo(prev => ({
+      setUserInfo(prev => prev ? ({
         ...prev,
         [name]: value
-      }));
+      }) : prev);
     }
   };
 
   const handlePasswordReset = async (data: PasswordResetData) => {
-    setIsPasswordResetLoading(true);
     try {
-      // Simulate API call for password reset
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // In a real application, this would call the backend API
-      console.log('Password reset data:', data);
-      
-      // Hide the form after successful reset
+      await passwordResetMutation.mutateAsync(data);
+      toast.success(t('account.passwordResetSuccess'));
       setIsResettingPassword(false);
-      
     } catch (error) {
-      console.error('Password reset error:', error);
+      toast.error(t('account.passwordResetError'));
       throw error;
-    } finally {
-      setIsPasswordResetLoading(false);
     }
   };
 
@@ -110,6 +118,35 @@ export default function MyAccount() {
       default: return 'Standard';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div>
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="mb-8 space-y-2">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-72" />
+            </div>
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!userInfo) {
+    return (
+      <div>
+        <main className="container mx-auto px-4 py-8">
+          <NotFoundState
+            title={t('account.notFoundTitle')}
+            body={t('account.notFoundBody')}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -235,7 +272,7 @@ export default function MyAccount() {
                 <PasswordResetForm
                   onSubmit={handlePasswordReset}
                   onCancel={handleCancelPasswordReset}
-                  isLoading={isPasswordResetLoading}
+                  isLoading={passwordResetMutation.isPending}
                 />
               )}
 

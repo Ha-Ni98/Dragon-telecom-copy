@@ -1,14 +1,27 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AdminProductWithDetails, AdminProductsStats, AdminProductsFilters, AdminProductsPaginatedResponse } from '@/types/draft-types/admin.types';
-import { adminProductsService } from '@/lib/services/admin-products.service';
+import { toast } from 'sonner';
+import { AdminProductsFilters } from '@/types/draft-types/admin.types';
+import { SupplyFormData } from '@/types/draft-types/admin-supply.types';
+import {
+  getAdminProducts,
+  getAdminProductsStats,
+  getAdminProductById,
+  getAdminProductsByStockStatus,
+  searchAdminProducts,
+  deleteAdminProduct,
+  updateAdminProductStock,
+  addAdminProductSupply,
+} from '@/services/catalog.service';
+import { qk } from '@/lib/query-keys';
+import { useTranslation } from '@/hooks/useTranslation';
 
 /**
  * Hook to fetch admin products with filtering and pagination
  */
 export function useAdminProducts(filters?: AdminProductsFilters) {
-  return useQuery<AdminProductsPaginatedResponse>({
-    queryKey: ['admin-products', filters],
-    queryFn: () => adminProductsService.getProducts(filters),
+  return useQuery({
+    queryKey: qk.catalog.adminProducts.list(filters),
+    queryFn: () => getAdminProducts(filters),
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
     refetchOnWindowFocus: false,
@@ -20,8 +33,8 @@ export function useAdminProducts(filters?: AdminProductsFilters) {
  */
 export function useAdminProductsStats() {
   return useQuery({
-    queryKey: ['admin-products-stats'],
-    queryFn: adminProductsService.getProductsStats,
+    queryKey: qk.catalog.adminProducts.stats(),
+    queryFn: getAdminProductsStats,
     staleTime: 1000 * 60 * 2, // 2 minutes
     retry: 2,
     refetchOnWindowFocus: false,
@@ -33,8 +46,8 @@ export function useAdminProductsStats() {
  */
 export function useAdminProduct(productId: number) {
   return useQuery({
-    queryKey: ['admin-product', productId],
-    queryFn: () => adminProductsService.getProductById(productId),
+    queryKey: qk.catalog.adminProducts.detail(productId),
+    queryFn: () => getAdminProductById(productId),
     enabled: !!productId,
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
@@ -47,8 +60,8 @@ export function useAdminProduct(productId: number) {
  */
 export function useAdminProductsByStockStatus(status: 'in_stock' | 'low_stock' | 'out_of_stock') {
   return useQuery({
-    queryKey: ['admin-products-by-status', status],
-    queryFn: () => adminProductsService.getProductsByStockStatus(status),
+    queryKey: qk.catalog.adminProducts.byStatus(status),
+    queryFn: () => getAdminProductsByStockStatus(status),
     staleTime: 1000 * 60 * 3, // 3 minutes
     retry: 2,
     refetchOnWindowFocus: false,
@@ -60,8 +73,8 @@ export function useAdminProductsByStockStatus(status: 'in_stock' | 'low_stock' |
  */
 export function useAdminProductsSearch(query: string, filters?: Omit<AdminProductsFilters, 'searchQuery'>) {
   return useQuery({
-    queryKey: ['admin-products-search', query, filters],
-    queryFn: () => adminProductsService.searchProducts(query, filters),
+    queryKey: qk.catalog.adminProducts.search(query, filters),
+    queryFn: () => searchAdminProducts(query, filters),
     enabled: query.length >= 2, // Only search if query is at least 2 characters
     staleTime: 1000 * 60 * 2, // 2 minutes
     retry: 2,
@@ -74,17 +87,45 @@ export function useAdminProductsSearch(query: string, filters?: Omit<AdminProduc
  */
 export function useDeleteAdminProduct() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: (productId: number) => adminProductsService.deleteProduct(productId),
+    mutationFn: (productId: number) => deleteAdminProduct(productId),
     onSuccess: () => {
-      // Invalidate and refetch all admin products queries
-      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-products-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-products-by-status'] });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.all() });
+      toast.success(t('admin.products.deleteSuccess'), {
+        description: t('admin.products.deleteSuccessDescription'),
+      });
     },
-    onError: (error) => {
-      console.error('Failed to delete product:', error);
+    onError: () => {
+      toast.error(t('admin.products.deleteError'), {
+        description: t('admin.products.deleteErrorDescription'),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to add stock supply to a product from a supplier
+ */
+export function useAddAdminProductSupply() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation({
+    mutationFn: ({ productId, supply }: { productId: number; supply: SupplyFormData }) =>
+      addAdminProductSupply(productId, supply),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.detail(productId) });
+      toast.success(t('admin.supply.success'), {
+        description: t('admin.supply.successDescription'),
+      });
+    },
+    onError: () => {
+      toast.error(t('admin.supply.error'), {
+        description: t('admin.supply.errorDescription'),
+      });
     },
   });
 }
@@ -97,16 +138,10 @@ export function useUpdateAdminProductStock() {
 
   return useMutation({
     mutationFn: ({ productId, newQuantity }: { productId: number; newQuantity: number }) =>
-      adminProductsService.updateProductStock(productId, newQuantity),
+      updateAdminProductStock(productId, newQuantity),
     onSuccess: (_, { productId }) => {
-      // Invalidate and refetch relevant queries
-      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-products-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-products-by-status'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-product', productId] });
-    },
-    onError: (error) => {
-      console.error('Failed to update product stock:', error);
+      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.detail(productId) });
     },
   });
 }
@@ -117,14 +152,12 @@ export function useUpdateAdminProductStock() {
 export function useAdminProductsFilters() {
   const queryClient = useQueryClient();
 
-  const setFilters = (filters: AdminProductsFilters) => {
-    // This would typically be managed by a state management solution
-    // For now, we'll just trigger a refetch with new filters
-    queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+  const setFilters = (_filters: AdminProductsFilters) => {
+    queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.list() });
   };
 
   const clearFilters = () => {
-    queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.list() });
   };
 
   return {
@@ -140,17 +173,15 @@ export function useRefreshAdminProducts() {
   const queryClient = useQueryClient();
 
   const refreshAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-    queryClient.invalidateQueries({ queryKey: ['admin-products-stats'] });
-    queryClient.invalidateQueries({ queryKey: ['admin-products-by-status'] });
+    queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.all() });
   };
 
   const refreshStats = () => {
-    queryClient.invalidateQueries({ queryKey: ['admin-products-stats'] });
+    queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.stats() });
   };
 
   const refreshProducts = () => {
-    queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+    queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.list() });
   };
 
   return {

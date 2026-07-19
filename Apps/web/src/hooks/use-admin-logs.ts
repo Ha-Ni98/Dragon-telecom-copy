@@ -4,12 +4,23 @@
  */
 
 import { useQuery, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
-import { AdminLogsService } from '@/lib/services/admin-logs.service';
-import { 
-  AdminLogsFilters, 
-  AdminLogsPaginatedResponse, 
-  AdminLogsStats 
+import { AdminLogsService, getPlatformUsers } from '@/services/admin-logs.service';
+import {
+  AdminLogsFilters,
+  AdminLogsPaginatedResponse,
+  AdminLogsStats
 } from '@/types/draft-types/logs.types';
+
+/**
+ * Hook to fetch the platform user list a logs-filter dropdown lets you narrow by
+ */
+export function usePlatformUsers() {
+  return useQuery({
+    queryKey: ['admin-logs', 'platform-users'],
+    queryFn: getPlatformUsers,
+    staleTime: 1000 * 60 * 10,
+  });
+}
 
 // ============================================================================
 // QUERY KEYS
@@ -135,9 +146,6 @@ export function useRefreshAdminLogs() {
   };
 
   const clearCache = () => {
-    // Clear service cache
-    AdminLogsService.clearCache();
-    
     // Remove all logs queries from React Query cache
     queryClient.removeQueries({
       queryKey: adminLogsQueryKeys.all,
@@ -150,37 +158,4 @@ export function useRefreshAdminLogs() {
     refreshStats,
     clearCache,
   };
-}
-
-// ============================================================================
-// UTILITY HOOKS
-// ============================================================================
-
-/**
- * Hook to get cache statistics for debugging
- */
-export function useAdminLogsCacheStats() {
-  const queryClient = useQueryClient();
-  
-  const getCacheStats = () => {
-    const serviceStats = AdminLogsService.getCacheStats();
-    const queryCache = queryClient.getQueryCache();
-    const logsQueries = queryCache.findAll({
-      queryKey: adminLogsQueryKeys.all,
-    });
-    
-    return {
-      service: serviceStats,
-      reactQuery: {
-        totalQueries: logsQueries.length,
-        queries: logsQueries.map(query => ({
-          queryKey: query.queryKey,
-          state: query.state.status,
-          dataUpdatedAt: query.state.dataUpdatedAt,
-        })),
-      },
-    };
-  };
-
-  return { getCacheStats };
 }

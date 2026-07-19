@@ -6,7 +6,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { deliveryFormSchema } from "./DeliveryForm.schema";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,19 +19,6 @@ import { MapPin, Home, Building, Truck } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAvailableWilayas, useCommunesForWilaya, useDeliveryFeeCalculation } from "@/hooks/use-delivery-fees";
 import type { DeliveryFormData } from "@/types/draft-types";
-
-// Form validation schema
-const deliveryFormSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters"),
- // lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 characters"),
-  wilaya: z.string().min(1, "Please select a wilaya"),
-  commune: z.string().min(1, "Please select a commune"),
-  address: z.string().optional().nullable(),
-  deliveryMode: z.enum(["home", "office"], {
-    error: "Please select a delivery mode"
-  })
-});
 
 interface DeliveryFormProps {
   onSubmit: (data: DeliveryFormData) => void;

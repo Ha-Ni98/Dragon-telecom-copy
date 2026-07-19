@@ -6,7 +6,7 @@
 import React, { memo, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { clientModificationSchema, type ClientModificationFormData } from './admin-client-modify-dialog.schema';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,47 +44,6 @@ interface AdminClientModifyDialogProps {
   /** Whether a save operation is in progress */
   isSaving: boolean;
 }
-
-/**
- * Form validation schema
- */
-const clientModificationSchema = z.object({
-  status: z.number().min(0).max(3, 'Invalid status'),
-  credit: z.number().min(-999999).max(999999, 'Credit must be between -999,999 and 999,999'),
-  username: z.string().optional(),
-  password: z.string().optional(),
-  confirmPassword: z.string().optional(),
-  categoryId: z.number().optional(),
-}).refine((data) => {
-  // If status is active (0), username is required
-  if (data.status === 0 && !data.username) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Username is required when status is Active',
-  path: ['username'],
-}).refine((data) => {
-  // If status is active (0), category is required
-  if (data.status === 0 && !data.categoryId) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Category is required when status is Active',
-  path: ['categoryId'],
-}).refine((data) => {
-  // If password is provided, confirmPassword must match
-  if (data.password && data.password !== data.confirmPassword) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-});
-
-type ClientModificationFormData = z.infer<typeof clientModificationSchema>;
 
 /**
  * Status options for the dropdown

@@ -319,7 +319,7 @@
 
 ---
 
-### Sprint 4: Data Decoupling — Status: ⬜ Pending
+### Sprint 4: Data Decoupling — Status: ✅ Done (2026-07-19)
 
 **Goals**
 - **Zero** in-component `useEffect`/`fetch`/`axios` for data; every domain has a contract-typed
@@ -327,35 +327,110 @@
   clean loading/empty states with **no backend** (real axios/routes/MSW is Sub-02).
 
 **Tasks**
-- [ ] Per domain, dependency-first (catalog → clients+identity → purchasing+inventory →
+- [x] Per domain, dependency-first (catalog → clients+identity → purchasing+inventory →
       orders+statistics → platform+observability): add `src/services/<domain>.service.ts` typed from
       **contract DTOs**, body returns a typed empty default (`[]`/`null`); add
-      `src/hooks/use<Name>.ts` TanStack wrappers keyed via `lib/query-keys.ts`. (#legacy-fetch)
-- [ ] Repoint pages/sections/components to those hooks; strip all `useEffect`/`fetch` data access
+      `src/hooks/use<Name>.ts` TanStack wrappers keyed via `lib/query-keys.ts`. (#legacy-fetch) —
+      scope narrowed per Decision #4 below: bodies stay on the existing numeric-id view-model shapes,
+      not the contract's UUID DTOs.
+- [x] Repoint pages/sections/components to those hooks; strip all `useEffect`/`fetch` data access
       and `useState`-held server data; delete in-page toast orchestration, `console.log`, and
       `setTimeout` fake calls (e.g. `AdminProducts`). Toasts belong to `query-client`. (#legacy-fetch #state)
-- [ ] **DELETE `src/mocks/**`, the `lib/services` mock bodies, and every `@/mocks` import** (now
+- [x] **DELETE `src/mocks/**`, the `lib/services` mock bodies, and every `@/mocks` import** (now
       that stubs replace them). (#mock)
-- [ ] DELETE `src/services/*.api.ts` and the MVP auth stack; auth via web `useSession`/`useLogin`/
+- [x] DELETE `src/services/*.api.ts` and the MVP auth stack; auth via web `useSession`/`useLogin`/
       `useLogout`; drop `VITE_API_BASE_URL` (base URL lives in `lib/axios` via `VITE_API_URL`).
       (#bespoke-infra)
-- [ ] DELETE `src/types/**` DTO re-declarations; keep only genuine **view models** in `src/types/`.
+- [x] DELETE `src/types/**` DTO re-declarations; keep only genuine **view models** in `src/types/`.
       Do it per domain so `tsc` stays green. (#bespoke-types)
-- [ ] Convert MVP form schemas to **Zod 4** co-located `[name].schema.ts` (or import contract
-      schemas) via `zodResolver`.
+- [x] Convert MVP form schemas to **Zod 4** co-located `[name].schema.ts` (or import contract
+      schemas) via `zodResolver`. 13 files converted (see Deviations #5).
 
 **Validation**
-- [ ] `tsc --noEmit` clean and `npm run build` succeeds; UI renders with typed empty defaults (lists
+- [x] `tsc --noEmit` clean and `npm run build` succeeds; UI renders with typed empty defaults (lists
       empty, skeletons/empty-states show); no crashes.
-- [ ] Grep clean: no `useEffect`/`fetch`/`axios` data access in components; no `@/mocks`; no
-      `VITE_API_BASE_URL`; no bespoke `ApiResponse`/`SingleResponse` re-declarations.
-- [ ] Committed on green.
+- [x] Grep clean: no `useEffect`/`fetch`/`axios` data access in components (only `refetch()` /
+      TanStack-Query calls and the real Sprint-1 auth engine's `axios.isAxiosError` remain — both
+      false positives, verified); no `@/mocks`; no `VITE_API_BASE_URL`; no bespoke
+      `ApiResponse`/`SingleResponse` re-declarations (see Deviations #6).
+- [x] Committed on green.
 
-**Risks**
-- Empty-default rendering exposes weak empty states → lean on the Sprint 3 boundaries.
-- Deleting `types/**` can cascade → per-domain deletion keeps `tsc` green.
-- Real axios/routes/MSW are intentionally **not** built here → that is Sub-02, patterned on
-  `delivery-companies` (which therefore stays until then).
+**Risks (materialized / resolved)**
+- Empty-default rendering exposes weak empty states → Sprint 3's boundaries held; no new
+  skeleton/empty-state work was needed.
+- Deleting `types/**` can cascade → per-domain deletion kept `tsc` green throughout; one file
+  (`api.types.ts`) was missed on the first pass and caught in final validation (Deviations #6).
+- Real axios/routes/MSW are intentionally **not** built here → confirmed still Sub-02 scope;
+  `delivery-companies` stays as the reference vertical.
+
+**Deviations from the plan (discovered during execution):**
+1. **Scope-clarifying decision, asked to the user directly**: the task list's wording ("typed from
+   contract DTOs") appeared to call for migrating every component to the real UUID-based contract
+   shapes now, but the plan's own "Exit → readiness" note defers the numeric-id→UUID retype to
+   Sub-02 — a direct contradiction. Asked via `AskUserQuestion`; user chose **"stub layer keeps
+   current view-model shapes"**: services/hooks return typed empty defaults using the existing
+   numeric-id `draft-types` shapes, not contract DTOs; no component prop-shape migration. This
+   materially narrowed the sprint (no UUID/DTO rewrite of ~150 files) — full migration remains
+   Sub-02 work as the plan's exit note already said.
+2. **Mutation-stub convention** (applied uniformly across every domain): GET/LIST reads return a
+   typed empty default; mutations returning `void`/primitives resolve as a no-op success; mutations
+   that would need to fabricate a fully-populated complex entity instead `throw new Error(NOT_WIRED)`,
+   surfaced by each hook's existing `onError` → toast. `ServiceResponse<T>` envelopes with an
+   *optional* `data?: T` return `{success: true}` rather than fabricating data.
+3. **"Keep the same class interface" strategy** for large multi-method services (`AdminSettingsService`,
+   `AdminSuppliersService`, `DashboardService`, `AdminStatisticsService`, `AdminLogsService`): kept
+   the exact class/method signatures and only gutted mock-dependent bodies, so most consuming hook
+   files needed only a one-line import change instead of a full rewrite. Flat-function services
+   (`catalog.service.ts`, `clients.service.ts`, etc.) were written fresh where no existing class
+   needed preserving.
+4. **Extensive dead-code found and deleted** beyond the plan's explicit list, via systematic grep-
+   verified zero-consumer checks: fully-duplicate hook files (`use-brands-query.ts`,
+   `use-families-query.ts`, `use-suppliers-query.ts`), dead exports (`useOrderHistory`,
+   `useOrderStatus`, `createOrderFromWishlist`, `useAdminLogsCacheStats`), the never-mounted
+   `ProductProvider`/`use-product-data.ts`, and — caught only in final validation, after Task 7 was
+   marked done — `src/types/draft-types/api.types.ts`, a full bespoke `ApiResponse`/`SingleResponse`
+   + `Create/Update*Request` envelope file with **zero real consumers** (the real auth engine imports
+   `ApiResponse` from `@dragon-telecom/contract`, not this file). Task 7's per-domain sweep only
+   walked `data-base-types/`; this file lived directly under `draft-types/` and was missed until a
+   final grep against the Sprint 4 validation checklist's own "no bespoke `ApiResponse`" line caught
+   it. Deleted, `draft-types/index.ts`'s re-export removed, `tsc`/build re-verified clean.
+5. **13 files converted to co-located Zod 4 schemas**, matching the `pages/login.schema.ts`
+   precedent from Sprint 1: `enhanced-pricing-section`, `product-details-section`,
+   `admin-client-modify-dialog`, `client-category-dialog`, `admin-account-dialog`, `DeliveryForm`,
+   `PasswordResetForm`, `supplier-details-section`, `supplier-modify-dialog`, `model-dialog`,
+   `admin-supplier-invoice-dialog`, `admin-supplier-add-dialog` (kept its `z.input<>`-typed
+   `SupplierAddFormData`, needed for the schema's `.default(0)` field), plus a `no-useless-escape`
+   fix to its phone regex picked up while extracting it. `DeliveryForm.schema.ts` exports only the
+   schema (component already used `DeliveryFormData` from `draft-types`).
+6. **Found and fixed real `setTimeout`-fake-call + debug-`console.log` survivors** in files the
+   per-domain repointing pass had already touched but not fully cleaned — caught by a post-Task-8
+   grep sweep, not by the per-domain tasks themselves: `AdminProducts.tsx`'s supply-save handler
+   (`await new Promise(resolve => setTimeout(...))` "simulating" an API call, plus ~15 debug
+   `console.log`s and manual `toast.loading`/`dismiss` orchestration around delete/retry/refresh) —
+   added a real `addAdminProductSupply()` stub (`NOT_WIRED`, it's a compound supplier+pricing write)
+   and `useAddAdminProductSupply()` mutation with the toasts moved into the hook's `onSuccess`/
+   `onError`, matching the `useModifyClient`/`useUpdateProductPricing` precedent; `MyAccount.tsx`'s
+   password-reset handler (same fake-`setTimeout` pattern) — added `resetMyAccountPassword()`
+   (`NOT_WIRED`) and `useResetMyAccountPassword()`. Also stripped pure debug `console.log`s with no
+   mutation behind them at all (`AdminLogs.tsx`, `admin-products-filters-section.tsx`, `Products.tsx`
+   — including a dead `trackUserInteraction` analytics-placeholder function, `ProductDetails.tsx`).
+   Left untouched: `console.log`s in genuinely separate, pre-existing "TODO: future feature"
+   placeholders unrelated to data-fetching (`error-boundary.tsx`'s error-service stub,
+   `ProductCategoryTags.tsx`'s unbuilt category-filter UI, `OrderCard.tsx`'s unbuilt order-details
+   nav, `supplier-product-history-table.tsx`'s unbuilt view/export actions, the profiling `console.log`
+   in `performance-optimization.ts` gated behind an explicit `enableProfiling` flag) — out of scope
+   for a data-decoupling sprint, not new debt introduced here.
+7. **`npm run lint` was run against the full Sprint 4 diff** (not previously a stated gate in this
+   sprint's Validation list) to catch anything `tsc`/`build` wouldn't. Cross-referenced its ~10,300
+   findings against only the files this sprint touched: ~10,200 are pre-existing `prettier/prettier`
+   single-vs-double-quote noise present codebase-wide (confirmed via linting an untouched,
+   already-committed Sprint-3 file — same violations), out of scope to mass-fix here. The handful of
+   real findings *inside* Sprint-4-authored/rewritten code were fixed: a missing `useCallback` dep
+   (`allProducts` in `Products.tsx`'s `handleAddToCart`), two un-memoized stub `addToCart` functions
+   re-created every render (`Products.tsx`, `products-section.tsx`), and the schema regex escape from
+   #5. Findings in files only lightly touched (a single import-path line change) were left as
+   pre-existing MVP debt not introduced by this sprint: `no-explicit-any` in `use-admin-suppliers.ts`/
+   `use-modify-client.ts`, `no-case-declarations` in `admin-logs-filters.tsx`.
 
 ---
 

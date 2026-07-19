@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { clientApiService } from '@/services/client.service.api';
-import { Client } from '@/types';
+import { validatePhoneNumber, checkPhoneExists, registerClient as registerClientRequest } from '@/services/clients.service';
+import { Client } from '@/types/draft-types/client.types';
 
 export interface PhoneValidationResult {
   isValid: boolean;
@@ -11,7 +11,6 @@ export interface PhoneValidationResult {
 export interface RegistrationResult {
   success: boolean;
   error?: string;
-  data?: any;
 }
 
 export function useRegistration() {
@@ -28,42 +27,25 @@ export function useRegistration() {
     setPhoneError(null);
 
     try {
-      // First validate format
-      if (!clientApiService.validatePhoneNumber(phone)) {
+      if (!validatePhoneNumber(phone)) {
         const error = 'Invalid phone number format. Please use +213 followed by 9 digits or 0 followed by 9 digits.';
         setPhoneError(error);
-        return {
-          isValid: false,
-          exists: false,
-          error,
-        };
+        return { isValid: false, exists: false, error };
       }
 
-      // Then check if phone exists
-      const exists = await clientApiService.checkPhoneExists(phone);
-      
+      const exists = await checkPhoneExists(phone);
+
       if (exists) {
         const error = 'This phone number is already registered.';
         setPhoneError(error);
-        return {
-          isValid: true,
-          exists: true,
-          error,
-        };
+        return { isValid: true, exists: true, error };
       }
 
-      return {
-        isValid: true,
-        exists: false,
-      };
+      return { isValid: true, exists: false };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Phone validation failed';
       setPhoneError(errorMessage);
-      return {
-        isValid: false,
-        exists: false,
-        error: errorMessage,
-      };
+      return { isValid: false, exists: false, error: errorMessage };
     } finally {
       setIsValidatingPhone(false);
     }
@@ -77,9 +59,8 @@ export function useRegistration() {
     setPhoneError(null);
 
     try {
-      // First validate phone
       const phoneValidation = await validatePhone(formData?.clientPhoneNumber || '');
-      
+
       if (!phoneValidation.isValid || phoneValidation.exists) {
         return {
           success: false,
@@ -87,27 +68,15 @@ export function useRegistration() {
         };
       }
 
-      // Create client
-      const response = await clientApiService.createClient(formData);
-      
-      if (response.success) {
-        setShowSuccess(true);
-        
-        // Hide success message after 5 seconds
-        setTimeout(() => {
-          setShowSuccess(false);
-        }, 5000);
+      await registerClientRequest(formData);
+      setShowSuccess(true);
 
-        return {
-          success: true,
-          data: response.data,
-        };
-      } else {
-        return {
-          success: false,
-          error: response.message || 'Registration failed',
-        };
-      }
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        setShowSuccess(false);
+      }, 5000);
+
+      return { success: true };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Registration failed';
       return {
@@ -139,7 +108,7 @@ export function useRegistration() {
     isValidatingPhone,
     phoneError,
     showSuccess,
-    
+
     // Actions
     validatePhone,
     registerClient,

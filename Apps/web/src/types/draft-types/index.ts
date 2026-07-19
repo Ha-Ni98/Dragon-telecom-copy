@@ -52,6 +52,5 @@ export type {
 } from "./admin-suppliers.types";
 export * from "./admin-settings.types";
 export * from "./admin-statistics.types";
-export * from "./api.types";
 
 

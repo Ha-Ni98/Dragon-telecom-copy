@@ -9,16 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ProductSupplierWithDetails } from '@/types/draft-types/admin-product-information.types';
 import { useForm, Controller } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-
-// Validation schema for supplier modification
-const supplierModificationSchema = z.object({
-  unitPrice: z.number().min(0, 'Unit price must be positive').max(999999, 'Unit price must be reasonable'),
-  quantity: z.number().min(0, 'Quantity must be positive').max(99999, 'Quantity must be reasonable'),
-});
-
-type SupplierModificationFormData = z.infer<typeof supplierModificationSchema>;
+import { supplierModificationSchema, type SupplierModificationFormData } from './supplier-modify-dialog.schema';
 
 interface SupplierModifyDialogProps {
   /** Supplier data to modify */

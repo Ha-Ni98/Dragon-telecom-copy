@@ -5,7 +5,7 @@
 
 import { useQuery, UseQueryOptions, useQueryClient } from "@tanstack/react-query";
 import { DashboardData } from "@/types/draft-types/dashboard.types";
-import { dashboardService } from "@/lib/services/dashboard.service";
+import { dashboardService } from "@/services/dashboard.service";
 
 /**
  * Hook to fetch all dashboard data

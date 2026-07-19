@@ -1,7 +1,7 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { passwordResetSchema, type PasswordResetFormValues } from "./PasswordResetForm.schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,34 +22,17 @@ export function PasswordResetForm({ onSubmit, onCancel, isLoading = false }: Pas
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
-  // Password validation schema
-  const schema = z.object({
-    newPassword: z
-      .string()
-      .min(8, "Password must be at least 8 characters"),
-      //.regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      //.regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      //.regex(/[0-9]/, "Password must contain at least one number")
-     // .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
-    confirmPassword: z.string()
-  }).refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"]
-  });
-
-  type FormValues = z.infer<typeof schema>;
-
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     reset
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  } = useForm<PasswordResetFormValues>({
+    resolver: zodResolver(passwordResetSchema),
     mode: "onBlur"
   });
 
-  const handleFormSubmit = async (data: FormValues) => {
+  const handleFormSubmit = async (data: PasswordResetFormValues) => {
     try {
       await onSubmit(data);
       reset();

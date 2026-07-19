@@ -8,16 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AdminProductWithFullDetails } from '@/types/draft-types/admin-product-information.types';
 import { useForm, Controller } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-
-// Validation schema for product information form
-const productInformationSchema = z.object({
-  productDescription: z.string().min(1, 'Description is required').max(1000, 'Description must be less than 1000 characters'),
-  noUserPrice: z.number().min(0, 'Price must be positive').max(999999, 'Price must be reasonable'),
-});
-
-type ProductInformationFormData = z.infer<typeof productInformationSchema>;
+import { productInformationSchema, type ProductInformationFormData } from './product-details-section.schema';
 
 interface ProductDetailsSectionProps {
   /** Product data to display and edit */

@@ -3,10 +3,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   PricingUpdates,
-  ProductUpdateResponse,
+  AdminProductWithFullDetails,
   validatePricingData,
 } from '@/types/draft-types/admin-product-information.types';
-import { adminProductInformationService } from '@/lib/services/admin-product-information.service';
+import { updateAdminProductPricing } from '@/services/catalog.service';
 
 /**
  * Hook to update product pricing
@@ -16,7 +16,7 @@ export function useUpdateProductPricing(productId: number) {
   const { toast } = useToast();
   const { t } = useTranslation();
 
-  return useMutation<ProductUpdateResponse, Error, PricingUpdates, { previousProduct: unknown }>({
+  return useMutation<AdminProductWithFullDetails, Error, PricingUpdates, { previousProduct: unknown }>({
     mutationFn: async (updates: PricingUpdates) => {
       // Validate pricing data before update
       if (updates.noUserPrice !== undefined) {
@@ -26,7 +26,6 @@ export function useUpdateProductPricing(productId: number) {
         }
       }
 
-      // Validate category prices if provided
       if (updates.categoryPrices) {
         for (const categoryPrice of updates.categoryPrices) {
           if (categoryPrice.price !== undefined) {
@@ -38,31 +37,20 @@ export function useUpdateProductPricing(productId: number) {
         }
       }
 
-      const response = await adminProductInformationService.updateProductPricing(productId, updates);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to update pricing');
-      }
-      return response;
+      return updateAdminProductPricing(productId, updates);
     },
     onMutate: async (updates) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['admin-product-information', productId] });
-
-      // Snapshot the previous value
       const previousProduct = queryClient.getQueryData(['admin-product-information', productId]);
-
-      // Optimistically update the pricing
       if (previousProduct) {
         queryClient.setQueryData(['admin-product-information', productId], {
           ...previousProduct,
           ...updates,
         });
       }
-
       return { previousProduct };
     },
-    onError: (error, updates, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
+    onError: (error, _updates, context) => {
       if (context?.previousProduct) {
         queryClient.setQueryData(['admin-product-information', productId], context.previousProduct);
       }
@@ -72,14 +60,10 @@ export function useUpdateProductPricing(productId: number) {
         variant: 'destructive',
       });
     },
-    onSuccess: (response) => {
-      toast({
-        title: t('admin.productInfo.updateSuccess'),
-        description: response.message,
-      });
+    onSuccess: () => {
+      toast({ title: t('admin.productInfo.updateSuccess') });
     },
     onSettled: () => {
-      // Always refetch after error or success to ensure server state
       queryClient.invalidateQueries({ queryKey: ['admin-product-information', productId] });
     },
   });
@@ -109,7 +93,7 @@ export function useProductPricing(productId: number) {
       idCategory: parseInt(categoryId),
       price,
     }));
-    
+
     await updatePricing({ categoryPrices: pricingUpdates });
   };
 
@@ -118,18 +102,18 @@ export function useProductPricing(productId: number) {
     categoryPrices?: Record<number, number>;
   }) => {
     const pricingUpdates: PricingUpdates = {};
-    
+
     if (updates.noUserPrice !== undefined) {
       pricingUpdates.noUserPrice = updates.noUserPrice;
     }
-    
+
     if (updates.categoryPrices) {
       pricingUpdates.categoryPrices = Object.entries(updates.categoryPrices).map(([categoryId, price]) => ({
         idCategory: parseInt(categoryId),
         price,
       }));
     }
-    
+
     await updatePricing(pricingUpdates);
   };
 

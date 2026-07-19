@@ -16,7 +16,7 @@ import {
   AdminStatisticsResponse,
   UseAdminStatisticsReturn
 } from "@/types/draft-types/admin-statistics.types";
-import { adminStatisticsService } from "@/lib/services/admin-statistics.service";
+import { adminStatisticsService } from "@/services/admin-statistics.service";
 
 /**
  * Query keys for admin statistics

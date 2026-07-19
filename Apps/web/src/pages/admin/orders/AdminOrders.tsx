@@ -11,10 +11,7 @@ import { AdminOrderEditDialog } from '@/pages/admin/orders/components/admin-orde
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AdminOrderWithDetails } from '@/types/draft-types/order.types';
 import { OrderStatusCode } from '@/types/draft-types/enums.types';
-import { 
-  getMockAdminOrdersPaginated, 
-  calculateAdminOrdersStats
-} from '@/mocks/orders';
+import { useAdminOrders, useAdminOrdersStats, useUpdateAdminOrder } from '@/hooks/use-admin-orders';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
@@ -77,66 +74,34 @@ const AdminOrders = memo(function AdminOrders() {
   const { t } = useTranslation();
   
   // State management
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatusCode | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrderWithDetails | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  // Data state
-  const [data, setData] = useState<{
-    orders: AdminOrderWithDetails[];
-    total: number;
-    totalPages: number;
-  } | undefined>(undefined);
-  
-  const [stats, setStats] = useState<{
-    totalOrdersThisMonth: number;
-    pendingOrders: number;
-    confirmedOrders: number;
-    deliveryOrders: number;
-  } | undefined>(undefined);
-
   // Debounced search term for performance
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 300);
 
-  // Load data function
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Get orders data
-      const ordersResult = getMockAdminOrdersPaginated(
-        currentPage,
-        14,
-        debouncedSearchTerm || undefined,
-        statusFilter !== 'all' ? statusFilter : undefined
-      );
-      
-      // Get statistics
-      const statsResult = calculateAdminOrdersStats();
-      
-      setData(ordersResult);
-      setStats(statsResult);
-    } catch (err) {
-      setError('Failed to load orders data');
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, debouncedSearchTerm, statusFilter]);
+  const ordersQuery = useAdminOrders({
+    page: currentPage,
+    limit: 14,
+    search: debouncedSearchTerm || undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+  });
+  const statsQuery = useAdminOrdersStats();
+  const updateOrderMutation = useUpdateAdminOrder();
 
-  // Load data on mount and when dependencies change
-  React.useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const data = ordersQuery.data;
+  const stats = statsQuery.data;
+  const loading = ordersQuery.isLoading || statsQuery.isLoading;
+  const error = ordersQuery.error?.message || statsQuery.error?.message || null;
+  const isSaving = updateOrderMutation.isPending;
+
+  const loadData = useCallback(async () => {
+    await Promise.all([ordersQuery.refetch(), statsQuery.refetch()]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ordersQuery.refetch, statsQuery.refetch]);
 
   // Handle search change
   const handleSearchChange = useCallback((term: string) => {
@@ -176,31 +141,13 @@ const AdminOrders = memo(function AdminOrders() {
 
   // Handle save order
   const handleSaveOrder = useCallback(async (orderData: Partial<AdminOrderWithDetails>) => {
-    setIsSaving(true);
-    
-    try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('Saving order:', selectedOrder?.orderCode, orderData);
-      
-      // In a real app, this would call the API
-      // await ordersService.updateOrder(selectedOrder.idOrder, orderData);
-      
-      // Close dialog and refresh data
-      handleCloseDialogs();
-      await loadData();
-    } catch (error) {
-      console.error('Failed to save order:', error);
-      throw error; // Re-throw to let the dialog handle the error
-    } finally {
-      setIsSaving(false);
-    }
-  }, [selectedOrder, handleCloseDialogs, loadData]);
+    if (!selectedOrder) return;
+    await updateOrderMutation.mutateAsync({ orderId: selectedOrder.idOrder, updates: orderData });
+    handleCloseDialogs();
+  }, [selectedOrder, updateOrderMutation, handleCloseDialogs]);
 
   // Handle retry
   const handleRetry = useCallback(async () => {
-    setError(null);
     await loadData();
   }, [loadData]);
 

@@ -5,7 +5,7 @@
 
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
 import { AdminClientsStats } from "@/types/draft-types/client.types";
-import { AdminClientsStatsService } from "@/lib/services/admin-clients-stats.service";
+import { getAdminClientsStats } from "@/services/clients.service";
 
 /**
  * Query keys for admin clients statistics
@@ -24,7 +24,7 @@ export function useAdminClientsStats(
 ) {
   return useQuery({
     queryKey: adminClientsStatsQueryKeys.stats(),
-    queryFn: AdminClientsStatsService.getClientsStats,
+    queryFn: getAdminClientsStats,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 3,

@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AdminLogsFilters as AdminLogsFiltersType } from '@/types/draft-types/logs.types';
 import { ActionTypeCode, ActionTypeLabels } from '@/types/draft-types/enums.types';
-import { mockPlatformUsers } from '@/mocks/admin-logs';
+import { usePlatformUsers } from '@/hooks/use-admin-logs';
 import { format } from 'date-fns';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
@@ -52,6 +52,8 @@ export const AdminLogsFilters: React.FC<AdminLogsFiltersProps> = memo(({
   className = '',
 }) => {
   const { t } = useTranslation();
+  const { data: platformUsersData } = usePlatformUsers();
+  const platformUsers = platformUsersData ?? [];
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -211,7 +213,7 @@ export const AdminLogsFilters: React.FC<AdminLogsFiltersProps> = memo(({
    */
   const getUserName = (userId: string): string => {
     if (userId === 'all') return t('admin.logs.filters.allUsers');
-    const user = mockPlatformUsers.find(u => u.idUser.toString() === userId);
+    const user = platformUsers.find(u => u.idUser.toString() === userId);
     return user?.userName || '';
   };
 
@@ -292,7 +294,7 @@ export const AdminLogsFilters: React.FC<AdminLogsFiltersProps> = memo(({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('admin.logs.filters.allUsers')}</SelectItem>
-                {mockPlatformUsers.map((user) => (
+                {platformUsers.map((user) => (
                   <SelectItem key={user.idUser} value={user.idUser.toString()}>
                     {user.userName}
                   </SelectItem>

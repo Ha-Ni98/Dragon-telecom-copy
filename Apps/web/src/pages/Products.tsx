@@ -2,18 +2,14 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useProducts } from "@/hooks/use-products";
-import { useBrands } from "@/hooks/use-brands";
+import { useBrands, useCategories } from "@/hooks/use-brands";
+import { useModels } from "@/hooks/use-models";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { toast } from "sonner";
 import { ProductFilters } from "@/components/shared/ProductFilters";
 import { ProductGrid } from "@/components/shared/ProductGrid";
 import { ProductListHeader } from "@/components/shared/ProductListHeader";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
-import { mockProductsWithDetails } from "@/mocks/products";
-import { mockBrands } from "@/mocks/brands";
-import { mockFamilies } from "@/mocks/families";
-import { mockModels } from "@/mocks/models";
-// Note: Brand, Family, Model types are used in component props
 
 /**
  * Products page component
@@ -34,19 +30,20 @@ export default function Products() {
   // const [isAddingToWishlist, setIsAddingToWishlist] = useState<number | null>(null);
   
   // Hooks for data fetching
-  const { isLoading: productsLoading, error: productsError } = useProducts();
+  const { data: productsData, isLoading: productsLoading, error: productsError } = useProducts();
   const { data: brandsData, isLoading: brandsLoading } = useBrands();
-  
+  const { data: categoriesData } = useCategories();
+  const { data: modelsData } = useModels();
+
   // Hooks for user interactions
   const { isAuthenticated } = useAuth();
   // Cart isn't wired yet (deferred to Sub-02, decision #2).
-  const addToCart = async (_product: unknown, _quantity: number) => {};
+  const addToCart = useCallback(async (_product: unknown, _quantity: number) => {}, []);
 
-  // Use mock data as fallback (since useProducts returns Product[] but we need ProductWithDetails[])
-  const allProducts = useMemo(() => mockProductsWithDetails, []);
-  const brands = useMemo(() =>  mockBrands, [brandsData]);
-  const categories = mockFamilies;
-  const models = mockModels;
+  const allProducts = useMemo(() => productsData ?? [], [productsData]);
+  const brands = useMemo(() => brandsData ?? [], [brandsData]);
+  const categories = useMemo(() => categoriesData ?? [], [categoriesData]);
+  const models = useMemo(() => modelsData ?? [], [modelsData]);
 
   // Handle URL parameters on component mount with validation
   useEffect(() => {
@@ -54,7 +51,6 @@ export default function Products() {
     const categoryParam = searchParams.get('category');
     const modelParam = searchParams.get('model');
     const searchParam = searchParams.get('search');
-    console.log("entred parameters", brandParam, categoryParam, modelParam, searchParam);
     // Validate and set brand parameter
     if (brandParam && brands.find(brand => brand.idBrand.toString() === brandParam)) {
       setSelectedBrand(brandParam);
@@ -137,20 +133,10 @@ export default function Products() {
     return filteredProducts.filter(product => product.isNew).length;
   }, [filteredProducts]);
 
-  // Analytics tracking for user interactions
-  const trackUserInteraction = useCallback((action: string, productId?: number, productName?: string) => {
-    // Analytics tracking (placeholder for future implementation)
-    console.log('Analytics:', { action, productId, productName, timestamp: new Date().toISOString() });
-  }, []);
-
   // Event handlers
   const handleSearchChange = useCallback((query: string) => {
     setSearchQuery(query);
-    // Track search analytics
-    if (query.trim()) {
-      trackUserInteraction('search', undefined, query);
-    }
-  }, [trackUserInteraction]);
+  }, []);
 
   const handleBrandChange = useCallback((brand: string) => {
     setSelectedBrand(brand);
@@ -191,45 +177,10 @@ export default function Products() {
     setSelectedModel('all');
   }, []);
 
-  // Generate shareable URL for current filter state (for future use)
-  // const generateShareableUrl = useCallback(() => {
-  //   const params = new URLSearchParams();
-  //   
-  //   if (searchQuery.trim()) {
-  //     params.set('search', encodeURIComponent(searchQuery.trim()));
-  //   }
-  //   if (selectedBrand !== 'all') {
-  //     params.set('brand', selectedBrand);
-  //   }
-  //   if (selectedCategory !== 'all') {
-  //     params.set('category', selectedCategory);
-  //   }
-  //   if (selectedModel !== 'all') {
-  //     params.set('model', selectedModel);
-  //   }
-  //   
-  //   const baseUrl = window.location.origin + window.location.pathname;
-  //   return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
-  // }, [searchQuery, selectedBrand, selectedCategory, selectedModel]);
-
-  // Copy current filter URL to clipboard (for future use)
-  // const copyFilterUrl = useCallback(async () => {
-  //   try {
-  //     const url = generateShareableUrl();
-  //     await navigator.clipboard.writeText(url);
-  //     // You could add a toast notification here
-  //     console.log('Filter URL copied to clipboard:', url);
-  //   } catch (error) {
-  //     console.error('Failed to copy URL to clipboard:', error);
-  //   }
-  // }, [generateShareableUrl]);
-
   const handleProductClick = useCallback((productId: number) => {
-    // Track analytics
-    trackUserInteraction('product_view', productId);
     // Navigate to product details page
     window.location.href = `/product/${productId}`;
-  }, [trackUserInteraction]);
+  }, []);
 
   const handleAddToCart = useCallback(async (productId: number) => {
     if (!isAuthenticated) {
@@ -251,17 +202,12 @@ export default function Products() {
       // setIsAddingToCart(product.idProduct); // For future loading state
       await addToCart(product, 1);
       toast.success(t('cart.addSuccess') || `${product.productName} added to cart`);
-      // Track analytics
-      trackUserInteraction('add_to_cart', product.idProduct, product.productName);
     } catch (error) {
-      console.error('Add to cart error:', error);
       toast.error(t('cart.addError') || 'Failed to add product to cart');
-      // Track analytics
-      trackUserInteraction('add_to_cart_error', product.idProduct, product.productName);
     } finally {
       // setIsAddingToCart(null); // For future loading state
     }
-  }, [isAuthenticated, addToCart, t]);
+  }, [isAuthenticated, allProducts, addToCart, t]);
 
 
 

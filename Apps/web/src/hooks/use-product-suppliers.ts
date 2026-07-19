@@ -8,7 +8,11 @@ import {
   SupplierUpdates,
   SupplierModificationFormData,
 } from '@/types/draft-types/admin-product-information.types';
-import { adminProductInformationService } from '@/lib/services/admin-product-information.service';
+import {
+  getAdminProductSuppliers,
+  updateAdminProductSupplier,
+  deleteAdminProductSupplier,
+} from '@/services/catalog.service';
 
 /**
  * Hook to fetch product suppliers
@@ -16,7 +20,7 @@ import { adminProductInformationService } from '@/lib/services/admin-product-inf
 export function useProductSuppliers(productId: number) {
   return useQuery<ProductSupplierWithDetails[]>({
     queryKey: ['product-suppliers', productId],
-    queryFn: () => adminProductInformationService.getProductSuppliers(productId),
+    queryFn: () => getAdminProductSuppliers(productId),
     enabled: !!productId,
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
@@ -34,7 +38,7 @@ export function useUpdateSupplier() {
 
   return useMutation<SupplierUpdateResponse, Error, { supplierId: number; updates: SupplierUpdates }>({
     mutationFn: async ({ supplierId, updates }) => {
-      const response = await adminProductInformationService.updateSupplier(supplierId, updates);
+      const response = await updateAdminProductSupplier(supplierId, updates);
       if (!response.success) {
         throw new Error(response.message || 'Failed to update supplier');
       }
@@ -75,7 +79,7 @@ export function useDeleteSupplier() {
 
   return useMutation<SupplierDeletionResponse, Error, number>({
     mutationFn: async (supplierId: number) => {
-      const response = await adminProductInformationService.deleteSupplier(supplierId);
+      const response = await deleteAdminProductSupplier(supplierId);
       if (!response.success) {
         throw new Error(response.message || 'Failed to delete supplier');
       }

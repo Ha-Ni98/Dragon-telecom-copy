@@ -22,11 +22,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { mockFamilies } from "@/mocks/families";
-import { mockBrands } from "@/mocks/brands";
-import { mockModels } from "@/mocks/models";
-import { mockSuppliers } from "@/mocks/suppliers";
-import { 
+import { useBrands, useCategories } from "@/hooks/use-brands";
+import { useModels } from "@/hooks/use-models";
+import { useAdminSuppliers } from "@/hooks/use-admin-suppliers";
+import {
   ProductAddFormData, 
   ProductAddValidationErrors, 
   BarcodeGenerationResult 
@@ -34,7 +33,16 @@ import {
 
 export default function AdminProductsAdd() {
   const navigate = useNavigate();
-  
+
+  const { data: familiesData } = useCategories();
+  const { data: brandsData } = useBrands();
+  const { data: modelsData } = useModels();
+  const { data: suppliersData } = useAdminSuppliers({ page: 1, limit: 100 });
+  const families = familiesData ?? [];
+  const brands = brandsData ?? [];
+  const models = modelsData ?? [];
+  const suppliers = suppliersData?.suppliers ?? [];
+
   const [images, setImages] = useState<string[]>([]);
   const [formData, setFormData] = useState<Partial<ProductAddFormData>>({
     barcode: "",
@@ -261,7 +269,7 @@ export default function AdminProductsAdd() {
                               <Plus className="mr-2 h-4 w-4" />
                               {t("admin.productAdd.createNew")} "{familySearch}"
                             </CommandItem>
-                            {mockFamilies
+                            {families
                               .filter(family => 
                                 family.familyName.toLowerCase().includes(familySearch.toLowerCase())
                               )
@@ -332,7 +340,7 @@ export default function AdminProductsAdd() {
                               <Plus className="mr-2 h-4 w-4" />
                               {t("admin.productAdd.createNew")} "{brandSearch}"
                             </CommandItem>
-                            {mockBrands
+                            {brands
                               .filter(brand => 
                                 brand.brandName.toLowerCase().includes(brandSearch.toLowerCase())
                               )
@@ -404,7 +412,7 @@ export default function AdminProductsAdd() {
                               <Plus className="mr-2 h-4 w-4" />
                               {t("admin.productAdd.createNew")} "{modelSearch}"
                             </CommandItem>
-                            {mockModels
+                            {models
                               .filter(model => 
                                 model.modelName.toLowerCase().includes(modelSearch.toLowerCase())
                               )
@@ -498,7 +506,7 @@ export default function AdminProductsAdd() {
                               <Plus className="mr-2 h-4 w-4" />
                               {t("admin.productAdd.createNew")} "{supplierSearch}"
                             </CommandItem>
-                            {mockSuppliers
+                            {suppliers
                               .filter(supplier => 
                                 supplier.supplierName.toLowerCase().includes(supplierSearch.toLowerCase())
                               )

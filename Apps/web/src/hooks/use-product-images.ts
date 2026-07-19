@@ -9,7 +9,11 @@ import {
   validateImageFile,
   PRODUCT_INFORMATION_CONSTANTS,
 } from '@/types/draft-types/admin-product-information.types';
-import { adminProductInformationService } from '@/lib/services/admin-product-information.service';
+import {
+  uploadAdminProductImage,
+  removeAdminProductImage,
+  setAdminProductPrimaryImage,
+} from '@/services/catalog.service';
 
 /**
  * Hook to upload product images
@@ -27,7 +31,7 @@ export function useUploadProductImage(productId: number) {
         throw new Error(validation.error);
       }
 
-      const response = await adminProductInformationService.uploadProductImage(productId, file);
+      const response = await uploadAdminProductImage(productId, file);
       if (!response.success) {
         throw new Error(response.message || 'Failed to upload image');
       }
@@ -62,7 +66,7 @@ export function useRemoveProductImage(productId: number) {
 
   return useMutation<{ success: boolean; message?: string }, Error, string>({
     mutationFn: async (imageId: string) => {
-      const response = await adminProductInformationService.removeProductImage(productId, imageId);
+      const response = await removeAdminProductImage(productId, imageId);
       if (!response.success) {
         throw new Error(response.message || 'Failed to remove image');
       }
@@ -97,7 +101,7 @@ export function useSetPrimaryImage(productId: number) {
 
   return useMutation<{ success: boolean; message?: string }, Error, string>({
     mutationFn: async (imageId: string) => {
-      const response = await adminProductInformationService.setPrimaryImage(productId, imageId);
+      const response = await setAdminProductPrimaryImage(productId, imageId);
       if (!response.success) {
         throw new Error(response.message || 'Failed to set primary image');
       }

@@ -15,20 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useTranslation } from '@/hooks/useTranslation';
 import { Model, Family, Brand } from '@/types/draft-types';
 import { useForm, Controller } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-
-// Validation schema for model form
-const modelSchema = z.object({
-  modelName: z.string()
-    .min(2, 'Model name must be at least 2 characters')
-    .max(100, 'Model name must be less than 100 characters')
-    .regex(/^[a-zA-Z0-9\s-_.]+$/, 'Model name can only contain letters, numbers, spaces, hyphens, underscores, and dots'),
-  idFamily: z.number().min(1, 'Please select a family'),
-  idBrand: z.number().min(1, 'Please select a brand'),
-});
-
-type ModelFormData = z.infer<typeof modelSchema>;
+import { modelSchema, type ModelFormData } from './model-dialog.schema';
 
 interface ModelDialogProps {
   /** Whether the dialog is open */

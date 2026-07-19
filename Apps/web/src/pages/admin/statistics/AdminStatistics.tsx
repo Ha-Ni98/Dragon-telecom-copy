@@ -31,7 +31,7 @@ import {
   useRefreshAdminStatistics 
 } from '@/hooks/use-admin-statistics';
 import { DateRange } from '@/types/draft-types/admin-statistics.types';
-import { generateDateRangeData } from '@/mocks/admin-statistics';
+import { generateDateRangeData } from '@/lib/date-utils';
 
 /**
  * Admin Statistics Page Component

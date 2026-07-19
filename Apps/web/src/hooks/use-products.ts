@@ -1,23 +1,22 @@
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
-import { fetchFeaturedProducts, fetchProducts } from "@/lib/services/products.service";
-import type { Product } from "@/types/draft-types";
+import { getFeaturedProducts, getProducts } from "@/services/catalog.service";
+import { qk } from "@/lib/query-keys";
+import type { ProductWithDetails } from "@/types/draft-types/main-page.types";
 
-export function useProducts(options?: Partial<UseQueryOptions<Product[]>>) {
+export function useProducts(options?: Partial<UseQueryOptions<ProductWithDetails[]>>) {
   return useQuery({
-    queryKey: ["products", "all"],
-    queryFn: fetchProducts,
+    queryKey: qk.catalog.products(),
+    queryFn: getProducts,
     staleTime: 1000 * 60,
     ...options,
   });
 }
 
-export function useFeaturedProducts(limit: number = 4, options?: Partial<UseQueryOptions<Product[]>>) {
+export function useFeaturedProducts(limit: number = 4, options?: Partial<UseQueryOptions<ProductWithDetails[]>>) {
   return useQuery({
-    queryKey: ["products", "featured", limit],
-    queryFn: () => fetchFeaturedProducts(limit),
+    queryKey: qk.catalog.featuredProducts(limit),
+    queryFn: () => getFeaturedProducts(limit),
     staleTime: 1000 * 60,
     ...options,
   });
 }
-
-

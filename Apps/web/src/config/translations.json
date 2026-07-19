@@ -9473,5 +9473,30 @@
     "en": "You'll need to sign in again to access your account.",
     "fr": "Vous devrez vous reconnecter pour accéder à votre compte.",
     "ar": ""
+  },
+  "brands.noneAvailable": {
+    "en": "No brands available at the moment.",
+    "fr": "Aucune marque disponible pour le moment.",
+    "ar": ""
+  },
+  "brands.viewAll": {
+    "en": "View All Brands",
+    "fr": "Voir toutes les marques",
+    "ar": ""
+  },
+  "account.updateError": {
+    "en": "Failed to update account.",
+    "fr": "Échec de la mise à jour du compte.",
+    "ar": ""
+  },
+  "account.notFoundTitle": {
+    "en": "Account not available",
+    "fr": "Compte non disponible",
+    "ar": ""
+  },
+  "account.notFoundBody": {
+    "en": "We couldn't load your account details right now.",
+    "fr": "Nous n'avons pas pu charger les détails de votre compte pour le moment.",
+    "ar": ""
   }
 }

@@ -1,6 +1,45 @@
 /**
  * Date formatting utilities for consistent date display across the application
  */
+import type { DateRange } from "@/types/draft-types/admin-statistics.types";
+
+/**
+ * Build a DateRange (start/end/label) for one of the admin statistics period presets.
+ */
+export function generateDateRangeData(type: DateRange['type']): DateRange {
+  const now = new Date();
+  let startDate: Date;
+  let label: string;
+
+  switch (type) {
+    case 'weekly':
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - 7);
+      label = 'Last 7 Days';
+      break;
+    case 'monthly':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      label = 'This Month';
+      break;
+    case 'yearly':
+      startDate = new Date(now.getFullYear(), 0, 1);
+      label = 'This Year';
+      break;
+    case 'custom':
+    default:
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - 30);
+      label = 'Last 30 Days';
+      break;
+  }
+
+  return {
+    type,
+    startDate,
+    endDate: now,
+    label,
+  };
+}
 
 /**
  * Format date for display in admin tables and components

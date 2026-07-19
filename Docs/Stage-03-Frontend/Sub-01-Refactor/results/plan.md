@@ -43,6 +43,27 @@ Decision #7).
 > `WilayaProvider`, redundant `min-h-screen` page-wrapper divs in 8 files (doubling effective page
 > height inside the new layouts), and a copy-paste `aria-label`/`id` bug in `AdminSuppliers.tsx`.
 
+> **Sprint 4 (Data Decoupling) — ✅ done 2026-07-19.** Full report in `sprints.md`'s Sprint 4 section.
+> Scope-clarifying `AskUserQuestion` resolved a contradiction between the task list and this plan's
+> own §5/exit note: the stub layer keeps the **existing numeric-id view-model shapes**, not the
+> contract's UUID DTOs — that retype is confirmed Sub-02 work, unblocking a much narrower sprint.
+> Every domain (catalog → clients+identity → purchasing+inventory → orders+statistics →
+> platform+observability) got a `src/services/<domain>.service.ts` + `src/hooks/use<Name>.ts` pair
+> returning typed empty defaults, wired via a uniform mutation-stub convention (no-op success for
+> simple writes, `throw new Error(NOT_WIRED)` for writes that would otherwise have to fabricate a
+> full entity). `src/mocks/**` and `src/lib/services/**` are fully deleted (directories removed);
+> the MVP `.api.ts` stack and `VITE_API_BASE_URL` are gone; `src/types/draft-types/api.types.ts` (a
+> bespoke `ApiResponse`/`SingleResponse` envelope file Task 7's directory-scoped sweep had missed)
+> was caught and deleted in final validation. 13 inline form schemas converted to co-located Zod 4
+> `[name].schema.ts` files. A post-Task-8 grep sweep also caught and fixed real `setTimeout`-fake-
+> API-call + debug-`console.log` survivors the per-domain pass had left behind in `AdminProducts.tsx`
+> and `MyAccount.tsx` (both now have real, if `NOT_WIRED`-stubbed, mutations with hook-owned toasts).
+> `npm run lint` (not a stated gate) was run anyway and cross-referenced against only this sprint's
+> files: ~10,200 of ~10,300 findings are pre-existing codebase-wide `prettier` quote-style noise
+> (confirmed present in an untouched, already-committed Sprint-3 file too); the handful of real
+> findings in Sprint-4-authored code were fixed, pre-existing findings in lightly-touched files
+> (single import-line changes) were left as-is.
+
 ---
 
 ## 1. The Purge
@@ -218,24 +239,45 @@ over `STATS_ROUTES.ADMIN_DASHBOARD`.
 
 ## 5. Readiness Checklist (exit criteria for the refactor)
 
+> Re-checked at Sprint 4 close (2026-07-19). Two items (`Data layer`, `Contract-bound`) describe
+> real HTTP/contract-DTO wiring, which the Sprint-4 scope decision (§ `sprints.md` Sprint 4
+> Deviation #1) confirmed is Sub-02 work — they're marked accordingly below rather than checked, per
+> this same plan's own §6 item 4 ("non-blocking, handled when data is typed in Sub-02").
+
 - [ ] **Libs:** `lovable-tagger`, mock data, legacy `use-toast`, and unapproved libs (`cmdk`/
-      `input-otp`/`react-day-picker`/`react-resizable-panels` unless approved) removed.
-- [ ] **One Zod major:** `Apps/web` on Zod 4 + `@hookform/resolvers ^5`, matching the contract.
-- [ ] **Structure:** files live in the strict `/src` layout; no `mocks/`, no `services/*.api.ts`,
-      no `lib/services/` mock layer, no `types/` re-declaring contract DTOs.
-- [ ] **Data layer:** every service goes through the single `lib/axios` instance + contract route
+      `input-otp`/`react-day-picker`/`react-resizable-panels` unless approved) removed. Mock data
+      removal confirmed (`src/mocks/` deleted, Sprint 4). `lovable-tagger` not present in
+      `package.json`. `use-toast.ts`/`cmdk`/`react-day-picker` still present and still consumed
+      (shadcn `Toast`/`Command`/`Calendar` primitives) — approval status was never explicitly
+      recorded by any sprint; left unchecked pending that call rather than removed unreviewed.
+- [x] **One Zod major:** `Apps/web` on Zod 4 (`"zod": "^4.0.0"`) + `@hookform/resolvers ^5.2.2`,
+      matching the contract (verified in `package.json`; landed in Sprint 1, all Sprint 4 schema
+      extractions use the same Zod 4 API).
+- [x] **Structure:** files live in the strict `/src` layout; no `mocks/`, no `services/*.api.ts`,
+      no `lib/services/` mock layer, no `types/` re-declaring contract DTOs (Sprint 4 — including
+      `types/draft-types/api.types.ts`, caught in final validation, see Sprint 4 Deviation #4).
+- [~] **Data layer:** every service goes through the single `lib/axios` instance + contract route
       constants + envelope-unwrap + throw; **no raw `fetch`, no hardcoded URLs, no
-      `VITE_API_BASE_URL`** (use `VITE_API_URL`).
-- [ ] **No in-component data access:** zero `useEffect`/`fetch`/`axios` for fetching in components;
-      all server state via TanStack Query hooks; no server data in `useState`/context.
-- [ ] **i18n:** all UI text via `useTranslation`; `translations.json` is `{en,fr,ar}` with `ar:""`;
-      no inline strings; EN/FR toggle only.
-- [ ] **Layouts:** public vs admin split enforced (no commerce UI in admin); routing uses
-      `lazy`+`Suspense`+`RoleGuard`; every section preserves layout on `isLoading`/`isError`.
-- [ ] **Contract-bound:** all API types imported from **`@dragon-telecom/contract`** (no
+      `VITE_API_BASE_URL`** (use `VITE_API_URL`). Partially true by design: `VITE_API_BASE_URL` is
+      gone, no raw `fetch`/`axios` in components, and the real Sprint-1 auth engine already goes
+      through `lib/axios` + contract routes. The Sprint-4 stub services deliberately do **not** —
+      they return typed empty defaults on the existing view-model shapes, not real HTTP calls; real
+      per-domain wiring through `lib/axios`+contract is Sub-02.
+- [x] **No in-component data access:** zero `useEffect`/`fetch`/`axios` for fetching in components;
+      all server state via TanStack Query hooks; no server data in `useState`/context (Sprint 4;
+      grep-verified — only `refetch()` and the real auth engine's `axios.isAxiosError` remain).
+- [x] **i18n:** all UI text via `useTranslation`; `translations.json` is `{en,fr,ar}` with `ar:""`;
+      no inline strings; EN/FR toggle only (Sprint 2).
+- [x] **Layouts:** public vs admin split enforced (no commerce UI in admin); routing uses
+      `lazy`+`Suspense`+`RoleGuard`; every section preserves layout on `isLoading`/`isError`
+      (Sprint 3).
+- [~] **Contract-bound:** all API types imported from **`@dragon-telecom/contract`** (no
       `@your-app`/`@app-template` left); the delivery-companies template vertical removed once real
-      verticals land.
-- [ ] **Wishlist fully removed; cart deferred** (no cart data/logic wired in Sub-01).
+      verticals land. Alias rename done (Sprint 1). Contract-DTO typing and the
+      `delivery-companies` removal are both intentionally deferred to Sub-02 (the stub layer keeps
+      view-model shapes; `delivery-companies` stays as the reference vertical until a real one is
+      wired against it).
+- [x] **Wishlist fully removed; cart deferred** (no cart data/logic wired in Sub-01; Sprint 1/4).
 
 ---
 

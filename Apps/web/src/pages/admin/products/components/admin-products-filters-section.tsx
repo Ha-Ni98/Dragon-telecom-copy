@@ -7,7 +7,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { AdminProductsFilters } from './admin-products-filters';
 import { useAdminProductsFilters } from '@/hooks/use-admin-products';
 import { useBrands, useCategories } from '@/hooks/use-brands';
-import { mockFamilies, mockBrands, mockModels } from '@/mocks/products';
+import { useModels } from '@/hooks/use-models';
 import { AdminProductsFilters as AdminProductsFiltersType } from '@/types/draft-types/admin.types';
 
 interface AdminProductsFiltersSectionProps {
@@ -37,14 +37,14 @@ export function AdminProductsFiltersSection({
   // Get filter management functions
   const { setFilters, clearFilters } = useAdminProductsFilters();
 
-  // Get brands and categories data (using existing hooks)
+  // Get brands, categories, and models data (using existing hooks)
   const { data: brandsData } = useBrands();
   const { data: categoriesData } = useCategories();
+  const { data: modelsData } = useModels();
 
-  // Use mock data for now (in real implementation, these would come from API)
-  const families = mockFamilies;
-  const brands = mockBrands;
-  const models = mockModels;
+  const families = categoriesData ?? [];
+  const brands = brandsData ?? [];
+  const models = modelsData ?? [];
 
   /**
    * Handle search query change with debouncing
@@ -61,8 +61,6 @@ export function AdminProductsFiltersSection({
       modelId: selectedModel !== 'all' ? parseInt(selectedModel) : undefined,
     };
     
-    console.log('AdminProductsFiltersSection: Search query changed (debounced):', query);
-    console.log('AdminProductsFiltersSection: Calling onFiltersChange with filters:', filters);
     onFiltersChange(filters);
     setFilters(filters);
   }, [selectedFamily, selectedBrand, selectedModel, onFiltersChange, setFilters]);
@@ -81,7 +79,6 @@ export function AdminProductsFiltersSection({
       modelId: undefined, // Reset model when family changes
     };
     
-    console.log('Family changed:', family);
     onFiltersChange(filters);
     setFilters(filters);
   }, [searchQuery, selectedBrand, onFiltersChange, setFilters]);
@@ -100,7 +97,6 @@ export function AdminProductsFiltersSection({
       modelId: undefined, // Reset model when brand changes
     };
     
-    console.log('Brand changed:', brand);
     onFiltersChange(filters);
     setFilters(filters);
   }, [searchQuery, selectedFamily, onFiltersChange, setFilters]);
@@ -117,7 +113,6 @@ export function AdminProductsFiltersSection({
       modelId: model !== 'all' ? parseInt(model) : undefined,
     };
     
-    console.log('Model changed:', model);
     onFiltersChange(filters);
     setFilters(filters);
   }, [searchQuery, selectedFamily, selectedBrand, onFiltersChange, setFilters]);
@@ -135,7 +130,6 @@ export function AdminProductsFiltersSection({
       searchQuery: '',
     };
     
-    console.log('Filters cleared');
     onFiltersChange(filters);
     clearFilters();
   }, [onFiltersChange, clearFilters]);

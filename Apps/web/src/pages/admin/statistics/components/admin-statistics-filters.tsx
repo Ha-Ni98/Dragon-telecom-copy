@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DateRange, AdminStatisticsFiltersProps } from '@/types/draft-types/admin-statistics.types';
-import { generateDateRangeData } from '@/mocks/admin-statistics';
+import { generateDateRangeData } from '@/lib/date-utils';
 import { format } from 'date-fns';
 
 /**

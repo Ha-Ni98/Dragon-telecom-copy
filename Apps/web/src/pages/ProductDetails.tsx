@@ -48,12 +48,10 @@ export default function ProductDetails() {
   // Handle add to cart
   const handleAddToCart = async (productId: number, quantity: number) => {
     try {
-      // This would integrate with the cart system
+      // Cart isn't wired yet (deferred to Sub-02).
       toast.success(t("cart.addSuccess"));
-      console.log(`Added ${quantity} of product ${productId} to cart`);
     } catch (error) {
       toast.error(t("cart.addError"));
-      console.error("Add to cart error:", error);
     }
   };
 
@@ -75,13 +73,11 @@ export default function ProductDetails() {
   // Handle order submission
   const handleOrderSubmit = async (orderData: OrderData) => {
     try {
-      const orderId = await createOrder(orderData);
+      await createOrder(orderData);
       toast.success(t("product.orderSuccess"));
-      console.log("Order created:", orderId);
       setIsOrderModalOpen(false);
     } catch (error) {
       toast.error(t("product.orderError"));
-      console.error("Order error:", error);
     }
   };
 

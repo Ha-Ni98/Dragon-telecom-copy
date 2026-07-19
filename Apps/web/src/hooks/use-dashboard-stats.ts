@@ -5,7 +5,7 @@
 
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
 import { DashboardStats } from "@/types/draft-types/dashboard.types";
-import { dashboardService } from "@/lib/services/dashboard.service";
+import { dashboardService } from "@/services/dashboard.service";
 
 /**
  * Hook to fetch dashboard statistics

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { supplierFormSchema, type SupplierFormValues } from './supplier-details-section.schema';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,17 +32,6 @@ import {
 } from 'lucide-react';
 import { SupplierWithDetails, SupplierFormData } from '@/types/draft-types';
 
-// Validation schema for supplier form
-const supplierFormSchema = z.object({
-  supplierName: z.string().min(1, 'Supplier name is required'),
-  supplierPersonName: z.string().min(1, 'Contact person name is required'),
-  supplierPhone: z.string().min(1, 'Phone number is required'),
-  supplierEmail: z.string().email('Invalid email address'),
-  supplierLocation: z.string().min(1, 'Location is required'),
-  supplierCredit: z.number().min(0, 'Credit must be non-negative'),
-});
-
-type SupplierFormValues = z.infer<typeof supplierFormSchema>;
 
 interface SupplierDetailsSectionProps {
   supplier: SupplierWithDetails;

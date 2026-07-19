@@ -13,4 +13,35 @@ export const qk = {
     // reads the same value instead of re-decoding the JWT on every render.
     session: () => ["auth", "session"] as const,
   },
+  catalog: {
+    all: () => ["catalog"] as const,
+    products: () => ["catalog", "products"] as const,
+    featuredProducts: (limit: number) => ["catalog", "products", "featured", limit] as const,
+    productByName: (name: string) => ["catalog", "products", "by-name", name] as const,
+    productById: (id: number) => ["catalog", "products", "by-id", id] as const,
+    relatedProducts: (id: number, limit: number) => ["catalog", "products", "related", id, limit] as const,
+    productSearch: (query: string) => ["catalog", "products", "search", query] as const,
+    brands: () => ["catalog", "brands"] as const,
+    families: () => ["catalog", "families"] as const,
+    models: () => ["catalog", "models"] as const,
+    adminProducts: {
+      all: () => ["catalog", "admin-products"] as const,
+      list: (filters?: unknown) => ["catalog", "admin-products", "list", filters] as const,
+      stats: () => ["catalog", "admin-products", "stats"] as const,
+      detail: (id: number) => ["catalog", "admin-products", "detail", id] as const,
+      byStatus: (status: string) => ["catalog", "admin-products", "by-status", status] as const,
+      search: (query: string, filters?: unknown) =>
+        ["catalog", "admin-products", "search", query, filters] as const,
+    },
+  },
+  clients: {
+    all: () => ["clients"] as const,
+    myAccount: () => ["clients", "my-account"] as const,
+  },
+  orders: {
+    all: () => ["orders"] as const,
+    mine: () => ["orders", "mine"] as const,
+    adminList: (query: unknown) => ["orders", "admin-list", query] as const,
+    adminStats: () => ["orders", "admin-stats"] as const,
+  },
 } as const;

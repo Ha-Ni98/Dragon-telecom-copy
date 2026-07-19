@@ -13,17 +13,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AdminProductWithFullDetails, PricingUpdates } from '@/types/draft-types/admin-product-information.types';
 import { useForm, Controller } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-
-// Enhanced validation schema for pricing with business rules
-const enhancedPricingSchema = z.object({
-  noUserPrice: z.number().min(0, 'Price must be positive').max(999999, 'Price must be reasonable'),
-  categoryPrices: z.record(z.string(), z.number().min(0, 'Price must be positive').max(999999, 'Price must be reasonable')),
-  bulkDiscountPercentage: z.number().min(0, 'Discount must be positive').max(100, 'Discount cannot exceed 100%').optional(),
-});
-
-type EnhancedPricingFormData = z.infer<typeof enhancedPricingSchema>;
+import { enhancedPricingSchema, type EnhancedPricingFormData } from './enhanced-pricing-section.schema';
 
 interface EnhancedPricingSectionProps {
   /** Product data to display and edit */

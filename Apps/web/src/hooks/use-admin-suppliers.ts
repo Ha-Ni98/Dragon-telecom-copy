@@ -9,7 +9,7 @@ import {
   InvoiceFormData,
   AdminSuppliersFilters
 } from '@/types/draft-types/admin-suppliers.types';
-import { AdminSuppliersService } from '@/lib/services/admin-suppliers.service';
+import { AdminSuppliersService } from '@/services/admin-suppliers.service';
 
 /**
  * Hook for fetching suppliers with pagination and filtering

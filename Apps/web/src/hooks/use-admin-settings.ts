@@ -6,7 +6,7 @@
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useTranslation } from '@/hooks/useTranslation';
-import { AdminSettingsService } from '@/lib/services/admin-settings.service';
+import { AdminSettingsService } from '@/services/admin-settings.service';
 import {
   AdminAccountWithDetails,
   AdminAccountFormData,

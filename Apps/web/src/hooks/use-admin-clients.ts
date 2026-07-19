@@ -4,11 +4,11 @@
  */
 
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
-import { 
-  AdminClientsFilters, 
-  AdminClientsPaginatedResponse 
+import {
+  AdminClientsFilters,
+  AdminClientsPaginatedResponse
 } from "@/types/draft-types/client.types";
-import { AdminClientsService } from "@/lib/services/admin-clients.service";
+import { getAdminClients, getAdminClientById } from "@/services/clients.service";
 
 /**
  * Query keys for admin clients
@@ -29,7 +29,7 @@ export function useAdminClients(
 ) {
   return useQuery({
     queryKey: adminClientsQueryKeys.list(filters),
-    queryFn: () => AdminClientsService.getClients(filters),
+    queryFn: () => getAdminClients(filters),
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes
     retry: 3,
@@ -50,7 +50,7 @@ export function useRefreshAdminClients() {
     page: 1,
     limit: 10
   });
-  
+
   return {
     refreshClients: refetch,
   };
@@ -62,7 +62,7 @@ export function useRefreshAdminClients() {
 export function useAdminClient(clientId: number) {
   return useQuery({
     queryKey: [...adminClientsQueryKeys.all, 'client', clientId],
-    queryFn: () => AdminClientsService.getClientById(clientId),
+    queryFn: () => getAdminClientById(clientId),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 3,

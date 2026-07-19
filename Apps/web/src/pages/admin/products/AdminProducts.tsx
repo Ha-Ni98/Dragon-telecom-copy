@@ -13,7 +13,7 @@ import { AdminProductsStatsCards } from '@/pages/admin/products/components/admin
 import { AdminProductsFiltersSection } from '@/pages/admin/products/components/admin-products-filters-section';
 import { AdminProductsTable } from '@/pages/admin/products/components/admin-products-table';
 import { AdminProductsSupplyDialog } from '@/pages/admin/products/components/admin-products-supply-dialog';
-import { useAdminProducts, useAdminProductsStats, useRefreshAdminProducts, useDeleteAdminProduct } from '@/hooks/use-admin-products';
+import { useAdminProducts, useAdminProductsStats, useRefreshAdminProducts, useDeleteAdminProduct, useAddAdminProductSupply } from '@/hooks/use-admin-products';
 import { AdminProductsFilters } from '@/types/draft-types/admin.types';
 import { SupplyFormData } from '@/types/draft-types/admin-supply.types';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -66,23 +66,18 @@ export default function AdminProducts() {
   // Delete mutation
   const deleteProductMutation = useDeleteAdminProduct();
 
+  // Supply (add stock) mutation
+  const addSupplyMutation = useAddAdminProductSupply();
+
   /**
    * Handle filter changes with proper state coordination
    */
   const handleFiltersChange = useCallback((newFilters: AdminProductsFilters) => {
-    console.log('AdminProducts: Received filter changes:', newFilters);
-    setFilters(prevFilters => {
-      const updatedFilters = {
-        ...prevFilters,
-        ...newFilters,
-        page: 1 // Reset to first page when filters change
-      };
-      
-      // Log filter changes for debugging
-      console.log('AdminProducts: Filters updated:', updatedFilters);
-      
-      return updatedFilters;
-    });
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      ...newFilters,
+      page: 1 // Reset to first page when filters change
+    }));
   }, []);
 
   /**
@@ -96,23 +91,16 @@ export default function AdminProducts() {
   }, []);
 
   /**
-   * Handle edit action with navigation feedback
+   * Handle edit action
    */
   const handleEdit = useCallback((productId: number) => {
-    console.log('Navigating to edit product:', productId);
-    toast.info(t('admin.products.edit'), {
-      description: `Opening product editor...`,
-      duration: 2000
-    });
     navigate(`/admin/products/${productId}`);
-  }, [navigate, t]);
+  }, [navigate]);
 
   /**
    * Handle add to stock action with dialog opening
    */
   const handleAddStock = useCallback((productId: number) => {
-    console.log('Opening supply dialog for product:', productId);
-    
     // Find the product in the current data
     const product = productsData?.products.find(p => p.idProduct === productId);
     if (product) {
@@ -130,103 +118,30 @@ export default function AdminProducts() {
   }, [productsData, t]);
 
   /**
-   * Handle delete action with confirmation and success/error messages
+   * Handle delete action; success/error toasts are owned by the mutation.
    */
   const handleDelete = useCallback(async (productId: number) => {
     try {
-      console.log('Deleting product:', productId);
-      
-      // Show loading toast
-      const loadingToast = toast.loading(t('admin.products.processing'), {
-        description: t('admin.products.deleteConfirm')
-      });
-
-      // Execute delete mutation
       await deleteProductMutation.mutateAsync(productId);
-
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-
-      // Show success message
-      toast.success(t('admin.products.deleteSuccess'), {
-        description: t('admin.products.deleteSuccessDescription'),
-        duration: 5000
-      });
-
-      console.log('Product deleted successfully:', productId);
-    } catch (error) {
-      console.error('Failed to delete product:', error);
-      
-      // Show error message
-      toast.error(t('admin.products.deleteError'), {
-        description: t('admin.products.deleteErrorDescription'),
-        duration: 8000,
-        action: {
-          label: t('common.retry'),
-          onClick: () => handleDelete(productId)
-        }
-      });
+    } catch {
+      // Error toast is handled by useDeleteAdminProduct
     }
-  }, [deleteProductMutation, t]);
+  }, [deleteProductMutation]);
 
   /**
-   * Handle retry for errors with improved coordination and user feedback
+   * Handle retry for errors
    */
   const handleRetry = useCallback(() => {
-    console.log('Retrying data fetch...');
-    
-    // Show retry feedback
-    toast.info(t('common.retrying'), {
-      description: t('admin.products.retryDescription'),
-      duration: 3000
-    });
-    
-    let retryCount = 0;
-    
-    if (productsError) {
-      console.log('Retrying products data...');
-      refetchProducts();
-      retryCount++;
-    }
-    if (statsError) {
-      console.log('Retrying stats data...');
-      refetchStats();
-      retryCount++;
-    }
-    
-    // Show success feedback if retry was initiated
-    if (retryCount > 0) {
-      setTimeout(() => {
-        toast.success(t('common.retrySuccess'), {
-          description: t('admin.products.retrySuccessDescription'),
-          duration: 2000
-        });
-      }, 1000);
-    }
-  }, [productsError, statsError, refetchProducts, refetchStats, t]);
+    if (productsError) refetchProducts();
+    if (statsError) refetchStats();
+  }, [productsError, statsError, refetchProducts, refetchStats]);
 
   /**
-   * Handle refresh with proper coordination and user feedback
+   * Handle refresh
    */
   const handleRefresh = useCallback(() => {
-    console.log('Refreshing all data...');
-    
-    // Show refresh feedback
-    toast.info(t('common.refreshing'), {
-      description: t('admin.products.refreshDescription'),
-      duration: 2000
-    });
-    
     refreshAll();
-    
-    // Show success feedback after refresh
-    setTimeout(() => {
-      toast.success(t('common.refreshSuccess'), {
-        description: t('admin.products.refreshSuccessDescription'),
-        duration: 3000
-      });
-    }, 1500);
-  }, [refreshAll, t]);
+  }, [refreshAll]);
 
   /**
    * Handle supply dialog close
@@ -237,81 +152,22 @@ export default function AdminProducts() {
   }, []);
 
   /**
-   * Handle supply save with success/error feedback
+   * Handle supply save; success/error toasts are owned by the mutation.
    */
   const handleSupplySave = useCallback(async (supplyData: SupplyFormData) => {
+    if (!selectedProduct) return;
     try {
-      console.log('Saving supply for product:', selectedProduct?.id, supplyData);
-      
-      // Show loading toast
-      const loadingToast = toast.loading(t('admin.supply.processing'), {
-        description: t('admin.supply.processingDescription')
-      });
-
-      // TODO: Implement actual supply save logic here
-      // This would typically call an API to save the supply
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
-
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-
-      // Show success message
-      toast.success(t('admin.supply.success'), {
-        description: t('admin.supply.successDescription'),
-        duration: 5000
-      });
-
-      // Close dialog and refresh data
+      await addSupplyMutation.mutateAsync({ productId: selectedProduct.id, supply: supplyData });
       handleSupplyDialogClose();
-      refreshAll();
-
-      console.log('Supply saved successfully');
-    } catch (error) {
-      console.error('Failed to save supply:', error);
-      
-      // Show error message
-      toast.error(t('admin.supply.error'), {
-        description: t('admin.supply.errorDescription'),
-        duration: 8000,
-        action: {
-          label: t('common.retry'),
-          onClick: () => handleSupplySave(supplyData)
-        }
-      });
+    } catch {
+      // Error toast is handled by useAddAdminProductSupply
     }
-  }, [selectedProduct, t, handleSupplyDialogClose, refreshAll]);
+  }, [selectedProduct, addSupplyMutation, handleSupplyDialogClose]);
 
   /**
    * Get combined loading state with memoization
    */
   const isAnyLoading = useMemo(() => productsLoading || statsLoading, [productsLoading, statsLoading]);
-
-  /**
-   * Get combined error state with memoization
-   */
-  const hasAnyError = useMemo(() => productsError || statsError, [productsError, statsError]);
-  
-  /**
-   * Get loading state details for better UX
-   */
-  const loadingState = useMemo(() => ({
-    isProductsLoading: productsLoading,
-    isStatsLoading: statsLoading,
-    isAnyLoading: isAnyLoading,
-    hasProductsError: !!productsError,
-    hasStatsError: !!statsError,
-    hasAnyError: hasAnyError
-  }), [productsLoading, statsLoading, isAnyLoading, productsError, statsError, hasAnyError]);
-
-  // Log error state for debugging
-  if (hasAnyError) {
-    console.log('Error detected:', { productsError, statsError });
-  }
-
-  // Log loading state for debugging
-  if (loadingState.isAnyLoading) {
-    console.log('Loading state:', loadingState);
-  }
 
   return (
     <ErrorBoundary>
@@ -332,15 +188,8 @@ export default function AdminProducts() {
               {t('admin.products.description')}
             </p>
           </div>
-          <Button 
-            onClick={() => {
-              console.log('Navigating to add product page');
-              toast.info(t('admin.products.addProduct'), {
-                description: `Opening product creation form...`,
-                duration: 2000
-              });
-              navigate('/admin/products/add');
-            }}
+          <Button
+            onClick={() => navigate('/admin/products/add')}
             className="w-full sm:w-auto"
             aria-label={t('admin.products.addProduct')}
             title={t('admin.products.addProduct')}
@@ -389,7 +238,7 @@ export default function AdminProducts() {
             productName={selectedProduct.name}
             currentStock={selectedProduct.stock}
             onSave={handleSupplySave}
-            loading={false}
+            loading={addSupplyMutation.isPending}
           />
         )}
       </div>

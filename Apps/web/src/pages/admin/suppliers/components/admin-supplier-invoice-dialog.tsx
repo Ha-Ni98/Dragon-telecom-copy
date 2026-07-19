@@ -6,7 +6,7 @@
 import React, { memo, useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { invoiceAddSchema, type InvoiceAddFormData } from './admin-supplier-invoice-dialog.schema';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,20 +43,6 @@ interface AdminSupplierInvoiceDialogProps {
   /** Supplier data for context and calculations */
   supplier: Supplier;
 }
-
-/**
- * Form validation schema
- */
-const invoiceAddSchema = z.object({
-  newDue: z.number()
-    .min(0, 'New due amount cannot be negative')
-    .max(999999, 'New due amount must be less than 999,999'),
-  paid: z.number()
-    .min(0, 'Paid amount cannot be negative')
-    .max(999999, 'Paid amount must be less than 999,999'),
-});
-
-type InvoiceAddFormData = z.infer<typeof invoiceAddSchema>;
 
 /**
  * Format currency value for display

@@ -126,19 +126,11 @@ const AdminLogs = memo(function AdminLogs() {
    * Handle filter changes with proper state coordination
    */
   const handleFiltersChange = useCallback((newFilters: AdminLogsFiltersType) => {
-    console.log('AdminLogs: Received filter changes:', newFilters);
-    setFilters(prevFilters => {
-      const updatedFilters = {
-        ...prevFilters,
-        ...newFilters,
-        page: 1 // Reset to first page when filters change
-      };
-      
-      // Log filter changes for debugging
-      console.log('AdminLogs: Filters updated:', updatedFilters);
-      
-      return updatedFilters;
-    });
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      ...newFilters,
+      page: 1 // Reset to first page when filters change
+    }));
   }, []);
 
   /**

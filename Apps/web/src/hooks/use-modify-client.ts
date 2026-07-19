@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { translate, getLanguage } from '@/lib/i18n';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ClientModificationData } from '@/types/draft-types/client.types';
-import { AdminClientsService } from '@/lib/services/admin-clients.service';
+import { modifyAdminClient } from '@/services/clients.service';
 import { adminClientsQueryKeys } from './use-admin-clients';
 
 /**
@@ -21,7 +21,7 @@ export function useModifyClient() {
 
   const mutation = useMutation({
     mutationFn: ({ clientId, updates }: { clientId: number; updates: ClientModificationData }) =>
-      AdminClientsService.modifyClient(clientId, updates),
+      modifyAdminClient(clientId, updates),
     
     onMutate: async ({ clientId, updates }) => {
       // Cancel any outgoing refetches

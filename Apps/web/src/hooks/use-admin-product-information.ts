@@ -3,25 +3,17 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   AdminProductWithFullDetails,
-  ProductInformationServiceResponse,
-  ProductUpdateResponse,
   ProductInformationFormData,
 } from '@/types/draft-types/admin-product-information.types';
-import { adminProductInformationService } from '@/lib/services/admin-product-information.service';
+import { getAdminProductFullDetails, updateAdminProductInformation } from '@/services/catalog.service';
 
 /**
  * Hook to fetch product information with full details
  */
 export function useAdminProductInformation(productId: number) {
-  return useQuery<AdminProductWithFullDetails>({
+  return useQuery({
     queryKey: ['admin-product-information', productId],
-    queryFn: async () => {
-      const response = await adminProductInformationService.getProductWithFullDetails(productId);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch product information');
-      }
-      return response.product;
-    },
+    queryFn: () => getAdminProductFullDetails(productId),
     enabled: !!productId,
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
@@ -38,59 +30,29 @@ export function useUpdateProductInformation(productId: number) {
   const { t } = useTranslation();
 
   return useMutation<
-    ProductUpdateResponse,
+    AdminProductWithFullDetails,
     Error,
     ProductInformationFormData,
-    { previousProduct: AdminProductWithFullDetails | undefined }
+    { previousProduct: AdminProductWithFullDetails | null | undefined }
   >({
-    mutationFn: async (updates: ProductInformationFormData) => {
-      // categoryPrices shapes differ (form: {categoryId: price} map; entity: array) — no
-      // transform exists in the source MVP (Sub-01 Sprint 1 finding); a real mapping lands
-      // with the Sub-02 catalog-pricing integration.
-      const response = await adminProductInformationService.updateProduct(
-        productId,
-        updates as Partial<AdminProductWithFullDetails>,
-      );
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to update product');
-      }
-      return response;
-    },
+    mutationFn: (updates) => updateAdminProductInformation(productId, updates),
     onMutate: async (updates) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['admin-product-information', productId] });
-
-      // Snapshot the previous value
-      const previousProduct = queryClient.getQueryData<AdminProductWithFullDetails>([
+      const previousProduct = queryClient.getQueryData<AdminProductWithFullDetails | null>([
         'admin-product-information',
         productId,
       ]);
-
-      // Optimistically update to the new value. categoryPrices keeps its previous (array)
-      // shape — the form edits it as a {categoryId: price} map, a different representation
-      // the real update endpoint reconciles server-side; this optimistic snapshot just isn't
-      // the place to guess that transform.
       if (previousProduct) {
         queryClient.setQueryData<AdminProductWithFullDetails>(
           ['admin-product-information', productId],
-          {
-            ...previousProduct,
-            ...updates,
-            categoryPrices: previousProduct.categoryPrices,
-          }
+          { ...previousProduct, ...updates, categoryPrices: previousProduct.categoryPrices },
         );
       }
-
-      // Return a context object with the snapshotted value
       return { previousProduct };
     },
-    onError: (error, updates, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousProduct) {
-        queryClient.setQueryData(
-          ['admin-product-information', productId],
-          context.previousProduct
-        );
+    onError: (error, _updates, context) => {
+      if (context?.previousProduct !== undefined) {
+        queryClient.setQueryData(['admin-product-information', productId], context.previousProduct);
       }
       toast({
         title: t('admin.productInfo.updateError'),
@@ -98,14 +60,10 @@ export function useUpdateProductInformation(productId: number) {
         variant: 'destructive',
       });
     },
-    onSuccess: (response) => {
-      toast({
-        title: t('admin.productInfo.updateSuccess'),
-        description: response.message,
-      });
+    onSuccess: () => {
+      toast({ title: t('admin.productInfo.updateSuccess') });
     },
     onSettled: () => {
-      // Always refetch after error or success to ensure server state
       queryClient.invalidateQueries({ queryKey: ['admin-product-information', productId] });
     },
   });

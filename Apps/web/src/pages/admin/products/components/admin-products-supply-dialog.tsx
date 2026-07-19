@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Check, ChevronsUpDown, Plus, Calculator, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/hooks/useTranslation';
-import { mockSuppliers } from '@/mocks/suppliers';
+import { useAdminSuppliers } from '@/hooks/use-admin-suppliers';
 import { SupplyFormData, SupplyValidationErrors, ExistingStockWarning } from '@/types/draft-types/admin-supply.types';
 
 interface AdminProductsSupplyDialogProps {
@@ -57,7 +57,9 @@ export function AdminProductsSupplyDialog({
   loading = false
 }: AdminProductsSupplyDialogProps) {
   const { t } = useTranslation();
-  
+  const { data: suppliersData } = useAdminSuppliers({ page: 1, limit: 100 });
+  const suppliers = suppliersData?.suppliers ?? [];
+
   // Form state
   const [formData, setFormData] = useState<SupplyFormData>({
     quantity: 0,
@@ -282,7 +284,7 @@ export function AdminProductsSupplyDialog({
                                 {t('admin.supply.createNew')} "{supplierSearch}"
                               </CommandItem>
                             )}
-                            {mockSuppliers
+                            {suppliers
                               .filter(supplier => 
                                 supplier.supplierName.toLowerCase().includes(supplierSearch.toLowerCase())
                               )
