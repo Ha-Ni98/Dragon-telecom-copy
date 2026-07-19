@@ -1,46 +1,42 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
-import { ZodError } from 'zod';
-import { globalErrorHandler } from '@common/middlewares/error.middleware';
-import { AppError, AuthError } from '@common/errors';
-import { ErrorCode } from '@your-app/contract';
+import { z } from 'zod';
+import { ErrorCode } from '@dragon-telecom/contract';
+import { AuthError, BadRequestError } from '../../../src/common/errors';
+import { globalErrorHandler } from '../../../src/common/middlewares/error.middleware';
 
-vi.mock('@common/config/logger', () => ({
-  logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
-}));
-
-const { logger } = await import('@common/config/logger');
-
-const makeRes = () => {
-  const json = vi.fn();
-  const status = vi.fn().mockReturnValue({ json });
-  return { status, _json: json } as unknown as Response & { _json: ReturnType<typeof vi.fn> };
+const buildRes = (): Response => {
+  const res = {} as Response;
+  res.status = vi.fn().mockReturnValue(res) as unknown as Response['status'];
+  res.json = vi.fn().mockReturnValue(res) as unknown as Response['json'];
+  return res;
 };
 
-const mockReq = {} as Request;
-const mockNext = vi.fn() as unknown as NextFunction;
-
 describe('globalErrorHandler', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  it('maps an AppError to its statusCode and the ApiResponse error envelope', () => {
+    const res = buildRes();
+    const err = new AuthError('Missing token');
 
-  it('(1) AppError — responds with the error statusCode and envelope', () => {
-    const res = makeRes();
-    const err = new AuthError('Not authenticated');
-    globalErrorHandler(err, mockReq, res, mockNext);
-    expect((res.status as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(401);
-    expect(res._json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, error: expect.objectContaining({ code: ErrorCode.AUTH_UNAUTHORIZED }) }),
+    globalErrorHandler(err, {} as Request, res, vi.fn() as unknown as NextFunction);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({ code: ErrorCode.AUTH_UNAUTHORIZED, message: 'Missing token' }),
+      }),
     );
   });
 
-  it('(2) ZodError — responds 400 VALIDATION_ERROR with issues', () => {
-    const res = makeRes();
-    const err = new ZodError([]);
-    globalErrorHandler(err as unknown as Error, mockReq, res, mockNext);
-    expect((res.status as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(400);
-    expect(res._json).toHaveBeenCalledWith(
+  it('maps a ZodError to 400 VALIDATION_ERROR with issues as details', () => {
+    const res = buildRes();
+    const result = z.object({ email: z.email() }).safeParse({ email: 'not-an-email' });
+    if (result.success) throw new Error('expected validation to fail');
+
+    globalErrorHandler(result.error, {} as Request, res, vi.fn() as unknown as NextFunction);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
         error: expect.objectContaining({ code: ErrorCode.VALIDATION_ERROR }),
@@ -48,16 +44,27 @@ describe('globalErrorHandler', () => {
     );
   });
 
-  it('(3) generic Error — calls logger.error and responds 500', () => {
-    const res = makeRes();
-    const err = new Error('boom');
-    globalErrorHandler(err, mockReq, res, mockNext);
-    expect(logger.error).toHaveBeenCalled();
-    expect((res.status as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(500);
-    expect(res._json).toHaveBeenCalledWith(
+  it('maps an unknown error to 500 INTERNAL_SERVER_ERROR', () => {
+    const res = buildRes();
+
+    globalErrorHandler(new Error('boom'), {} as Request, res, vi.fn() as unknown as NextFunction);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: { code: ErrorCode.INTERNAL_SERVER_ERROR, message: 'Internal Server Error' },
+    });
+  });
+
+  it('carries details through for errors that provide them', () => {
+    const res = buildRes();
+    const err = new BadRequestError('Invalid field', { field: 'email' });
+
+    globalErrorHandler(err, {} as Request, res, vi.fn() as unknown as NextFunction);
+
+    expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({ code: ErrorCode.INTERNAL_SERVER_ERROR }),
+        error: expect.objectContaining({ details: { field: 'email' } }),
       }),
     );
   });

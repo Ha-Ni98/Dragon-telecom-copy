@@ -3,20 +3,16 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),
-  API_PREFIX: z.string().default('/api/v1'),
+  API_PREFIX: z.string().default('/api'),
   DATABASE_URL: z.url(),
+  TEST_DATABASE_URL: z.url().optional(),
   CORS_ORIGIN: z.string().default('*'),
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRATION: z.string().default('15m'),
-  REFRESH_TOKEN_EXPIRATION: z.string().default('7d'),
+  // Number of days (not a duration string like JWT_EXPIRATION) — refresh tokens are raw
+  // random bytes, not JWTs, so nothing requires the jsonwebtoken/`ms` duration format.
+  REFRESH_TOKEN_EXPIRATION: z.coerce.number().int().min(1).default(7),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-  // Realtime is opt-in. When false, no Socket.IO server is started (see common/realtime).
-  // NB: z.coerce.boolean() would parse the string "false" as true — use an explicit map.
-  WS_ENABLED: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((v) => v === 'true'),
-  WS_PATH: z.string().default('/socket.io'),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -1,4 +1,4 @@
-import { ErrorCode } from '@your-app/contract';
+import { ErrorCode } from '@dragon-telecom/contract';
 import { AppError } from './app-error';
 
 export { AppError };

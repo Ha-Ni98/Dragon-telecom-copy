@@ -21,7 +21,6 @@ export const PlaceOrderSchema = z
         address: z.string().optional(),
       })
       .optional(),
-    note: z.string().optional(),
   })
   .refine((d) => d.orderType === OrderType.PICKUP || d.delivery !== undefined, {
     message: 'delivery is required unless orderType is PICKUP',
@@ -52,6 +51,5 @@ export const ReturnOrderSchema = z.object({
   quantity: z.number().int().min(1),
   restock: z.boolean(),
   refundAmount: z.number().min(0),
-  reason: z.string().optional(),
 });
 export type ReturnOrderCommand = z.infer<typeof ReturnOrderSchema>;

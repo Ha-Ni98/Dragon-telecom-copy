@@ -1,14 +1,28 @@
 import { EventEmitter } from 'node:events';
+import type {
+  IdentityEvents,
+  CatalogEvents,
+  ClientsEvents,
+  InventoryEvents,
+  PlatformEvents,
+  PurchasingEvents,
+  SalesEvents,
+  OrdersEvents,
+  RepairsEvents,
+  BillingEvents,
+} from '@dragon-telecom/contract';
 
-// EXTENSION POINT (events): describe your event payloads here, e.g.
-//   interface AppEvents {
-//     'resource:updated': { id: string; timestamp: string };
-//   }
-// With no events declared, emit/on are uncallable by design (keyof AppEvents = never).
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface AppEvents {}
-
-type Listener = (...args: unknown[]) => void;
+// observability and statistics export no events — every other module is included.
+type AppEvents = IdentityEvents &
+  CatalogEvents &
+  ClientsEvents &
+  InventoryEvents &
+  PlatformEvents &
+  PurchasingEvents &
+  SalesEvents &
+  OrdersEvents &
+  RepairsEvents &
+  BillingEvents;
 
 class TypedBus {
   private emitter = new EventEmitter();
@@ -18,11 +32,7 @@ class TypedBus {
   }
 
   on<K extends keyof AppEvents>(event: K, handler: (payload: AppEvents[K]) => void): void {
-    this.emitter.on(event as string, handler as Listener);
-  }
-
-  off<K extends keyof AppEvents>(event: K, handler: (payload: AppEvents[K]) => void): void {
-    this.emitter.off(event as string, handler as Listener);
+    this.emitter.on(event as string, handler);
   }
 }
 

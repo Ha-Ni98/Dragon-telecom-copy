@@ -24,6 +24,7 @@ export const SaleResponseSchema = z.object({
   note: z.string().optional(),
   lines: z.array(
     z.object({
+      id: z.uuid(),
       productId: z.uuid(),
       productName: z.string(),
       quantity: z.number().int(),

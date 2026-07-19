@@ -47,7 +47,7 @@ Write `/docs/stage-02-backend/sub-02-module/results-[module]/report-sprint-[NN]-
 
 ### Step 5 — Commit on Green
 Stage all changes, add all files you change no need to see what files you change use directly this command: `git add .`
-`git commit -m "api: [module] sprint [N] — [name]"`. and don't add anything to this commit message beside what i give to you.
+`git commit -m "api: [module] sprint [N] — [name]"`. 
 
 ### Step 6 — Pause
 Wait for `next`.
@@ -73,4 +73,4 @@ Wait for `next`.
 
 1. A fully wired module (mapper, interface, service, optional listener, controller, routes).
 2. Passing unit tests (mapper, service), integration tests (endpoints), and conformance checks.
-3. Reports in `/docs/stage-02-backend/sub-02-module/results-[module]/` and one commit per sprint.
+3. Reports in `/docs/stage-02-backend/sub-02-module/results/results-[modules]-[set-number]/` and one commit per sprint.

@@ -16,6 +16,19 @@ export const PosClientSearchQuerySchema = z.object({
 });
 export type PosClientSearchQuery = z.infer<typeof PosClientSearchQuerySchema>;
 
+// POS_CLIENT_ROUTES.ADMIN's GET (list) has no query schema in the spec beyond the route note
+// ("the only manual client creation") — mirrors AdminClientListQuerySchema's shape (plan-
+// client-purch.md §I.2's `listPosClients(query)` left this type unnamed, discovered as a
+// genuine gap while writing the Sprint 2 interface, same as ADMIN_STATS/VALIDATE_PHONE in
+// Sprint 1).
+export const PosClientListQuerySchema = z.object({
+  search: z.string().optional(),
+  isEnabled: BooleanQuerySchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+});
+export type PosClientListQuery = z.infer<typeof PosClientListQuerySchema>;
+
 export const ClientIdParamsSchema = z.object({ id: z.uuid() });
 export type ClientIdParams = z.infer<typeof ClientIdParamsSchema>;
 

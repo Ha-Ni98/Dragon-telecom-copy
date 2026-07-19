@@ -14,6 +14,6 @@ export const validateRequest =
       };
       next();
     } catch (err) {
-      next(err);
+      next(err); // ZodError → global handler → 400 VALIDATION_ERROR
     }
   };
