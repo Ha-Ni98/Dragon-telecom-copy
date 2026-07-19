@@ -159,6 +159,122 @@ describe('StatisticsService', () => {
     });
   });
 
+  describe('getReport — sales-by-category (audit fix A1: client-category tier, not product family)', () => {
+    const VIP_ID = '22222222-2222-4222-8222-222222222222';
+    const PREMIUM_ID = '33333333-3333-4333-8333-333333333333';
+
+    it('groups by ClientCategory via Sale.posClient.categoryId — two tiers + the no-client bucket, with per-line discount math', async () => {
+      saleFindManyMock.mockResolvedValueOnce([
+        {
+          posClient: { categoryId: VIP_ID, category: { name: 'VIP' } },
+          lines: [
+            {
+              resolvedPrice: new Prisma.Decimal(1000),
+              unitPrice: new Prisma.Decimal(800), // deliberate 200 per-unit override
+              quantity: 1,
+              costOfGoods: new Prisma.Decimal(400),
+              profit: new Prisma.Decimal(400),
+            },
+          ],
+        },
+        {
+          posClient: { categoryId: PREMIUM_ID, category: { name: 'Premium' } },
+          lines: [
+            {
+              resolvedPrice: new Prisma.Decimal(500),
+              unitPrice: new Prisma.Decimal(500), // no discount
+              quantity: 2,
+              costOfGoods: new Prisma.Decimal(150),
+              profit: new Prisma.Decimal(850),
+            },
+          ],
+        },
+        {
+          posClient: null, // guest/walk-in — no linked POS client at all
+          lines: [
+            {
+              resolvedPrice: new Prisma.Decimal(300),
+              unitPrice: new Prisma.Decimal(300),
+              quantity: 1,
+              costOfGoods: new Prisma.Decimal(100),
+              profit: new Prisma.Decimal(200),
+            },
+          ],
+        },
+      ]);
+
+      const result = await service().getReport(ReportType.SALES_BY_CATEGORY, {});
+      const dto = result as Extract<typeof result, { rows: unknown[] }>;
+
+      expect(dto.rows).toEqual([
+        {
+          categoryId: VIP_ID,
+          categoryName: 'VIP',
+          salesCount: 1,
+          quantity: 1,
+          revenue: 800,
+          resolvedRevenue: 1000,
+          discount: 200,
+          cost: 400,
+          profit: 400,
+        },
+        {
+          categoryId: PREMIUM_ID,
+          categoryName: 'Premium',
+          salesCount: 1,
+          quantity: 2,
+          revenue: 1000,
+          resolvedRevenue: 1000,
+          discount: 0,
+          cost: 150,
+          profit: 850,
+        },
+        {
+          categoryId: null,
+          categoryName: 'No client / default price',
+          salesCount: 1,
+          quantity: 1,
+          revenue: 300,
+          resolvedRevenue: 300,
+          discount: 0,
+          cost: 100,
+          profit: 200,
+        },
+      ]);
+      expect(dto.totals.totalRevenue).toBe(2100); // 800 + 1000 + 300
+      expect(dto.totals.totalDiscount).toBe(200);
+      expect(dto.drill).toEqual({ entity: 'clientCategory', idField: 'categoryId' });
+    });
+
+    it('a POS client with no category also falls into the "No client / default price" bucket', async () => {
+      saleFindManyMock.mockResolvedValueOnce([
+        {
+          posClient: { categoryId: null, category: null },
+          lines: [
+            { resolvedPrice: new Prisma.Decimal(200), unitPrice: new Prisma.Decimal(200), quantity: 1, costOfGoods: new Prisma.Decimal(80), profit: new Prisma.Decimal(120) },
+          ],
+        },
+      ]);
+
+      const result = await service().getReport(ReportType.SALES_BY_CATEGORY, {});
+      const dto = result as Extract<typeof result, { rows: unknown[] }>;
+
+      expect(dto.rows).toEqual([
+        {
+          categoryId: null,
+          categoryName: 'No client / default price',
+          salesCount: 1,
+          quantity: 1,
+          revenue: 200,
+          resolvedRevenue: 200,
+          discount: 0,
+          cost: 80,
+          profit: 120,
+        },
+      ]);
+    });
+  });
+
   describe('getReport — CSV export', () => {
     it('streams the same rows the JSON response carries', async () => {
       saleLineFindManyMock.mockResolvedValueOnce([

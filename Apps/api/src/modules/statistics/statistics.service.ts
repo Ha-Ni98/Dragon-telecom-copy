@@ -57,7 +57,8 @@ export class StatisticsService implements IStatisticsService {
   // Simplification, not a blocking gap: query.familyId is validated but not yet applied here —
   // a fully correct family-scoped revenue/profit split needs a line-level (not document-level)
   // recomputation, the same complexity the REPORT endpoints already carry per-row. Flagged in
-  // the sprint report; getReport (sales-by-category) already gives a family-scoped breakdown.
+  // the sprint report; the CHARTS route's own sales-by-family already gives a family-scoped
+  // breakdown (sales-by-category is the client-category-tier dimension instead, audit fix A1).
   async getFiltered(query: FilteredQuery): Promise<FilteredDto> {
     const to = query.to != null ? new Date(query.to) : new Date();
     const from = query.from != null ? new Date(query.from) : new Date(to.getTime() - 30 * DAY_MS);
@@ -481,44 +482,76 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
-  // "category" is read as Product.family — the same dimension the CHARTS route's own
-  // sales-by-family uses; Product has no separate category concept in the schema.
+  // "category" is the client's pricing tier (ClientCategory, via Sale.posClient.categoryId) —
+  // "how much discount does each tier really get" (audit fix A1). The product-family split
+  // already exists as the CHARTS route's own sales-by-family; this is a distinct dimension, not
+  // a duplicate of it. Sales with no linked POS client, or whose POS client has no category,
+  // land in the categoryId=null "No client / default price" bucket.
+  private static readonly NO_CATEGORY_BUCKET = 'No client / default price';
+
   private async reportSalesByCategory(range: { from?: Date; to?: Date }): Promise<ReportDto> {
     const soldAtFilter = this.dateRangeFilter(range);
-    const lines = await this.prisma.saleLine.findMany({
-      where: { sale: { status: 'COMPLETED', ...(soldAtFilter ? { soldAt: soldAtFilter } : {}) } },
+    const sales = await this.prisma.sale.findMany({
+      where: { status: 'COMPLETED', ...(soldAtFilter ? { soldAt: soldAtFilter } : {}) },
       select: {
-        resolvedPrice: true,
-        unitPrice: true,
-        quantity: true,
-        lineTotal: true,
-        product: { select: { familyId: true, family: { select: { name: true } } } },
+        posClient: { select: { categoryId: true, category: { select: { name: true } } } },
+        lines: {
+          select: { resolvedPrice: true, unitPrice: true, quantity: true, costOfGoods: true, profit: true },
+        },
       },
     });
 
-    const byFamily = new Map<string, { name: string; revenue: number; discount: number }>();
-    for (const line of lines) {
-      const id = line.product.familyId;
-      const existing = byFamily.get(id) ?? { name: line.product.family.name, revenue: 0, discount: 0 };
-      existing.revenue += line.lineTotal.toNumber();
-      existing.discount += (line.resolvedPrice.toNumber() - line.unitPrice.toNumber()) * line.quantity;
-      byFamily.set(id, existing);
+    const byCategory = new Map<
+      string | null,
+      { name: string; salesCount: number; quantity: number; revenue: number; resolvedRevenue: number; discount: number; cost: number; profit: number }
+    >();
+
+    for (const sale of sales) {
+      const categoryId = sale.posClient?.categoryId ?? null;
+      const name = sale.posClient?.category?.name ?? StatisticsService.NO_CATEGORY_BUCKET;
+      const existing = byCategory.get(categoryId) ?? {
+        name,
+        salesCount: 0,
+        quantity: 0,
+        revenue: 0,
+        resolvedRevenue: 0,
+        discount: 0,
+        cost: 0,
+        profit: 0,
+      };
+      existing.salesCount += 1;
+      for (const line of sale.lines) {
+        const unitPrice = line.unitPrice.toNumber();
+        const resolvedPrice = line.resolvedPrice.toNumber();
+        existing.quantity += line.quantity;
+        existing.revenue += unitPrice * line.quantity;
+        existing.resolvedRevenue += resolvedPrice * line.quantity;
+        existing.discount += (resolvedPrice - unitPrice) * line.quantity;
+        existing.cost += line.costOfGoods.toNumber();
+        existing.profit += line.profit.toNumber();
+      }
+      byCategory.set(categoryId, existing);
     }
 
-    const rows = [...byFamily.entries()].map(([familyId, data]) => ({
-      familyId,
-      familyName: data.name,
+    const rows = [...byCategory.entries()].map(([categoryId, data]) => ({
+      categoryId,
+      categoryName: data.name,
+      salesCount: data.salesCount,
+      quantity: data.quantity,
       revenue: data.revenue,
+      resolvedRevenue: data.resolvedRevenue,
       discount: data.discount,
+      cost: data.cost,
+      profit: data.profit,
     }));
     return StatisticsMapper.toReportDto({
-      chart: rows.map((r) => ({ label: r.familyName, value: r.revenue })),
+      chart: rows.map((r) => ({ label: r.categoryName, value: r.revenue })),
       rows,
       totals: {
         totalRevenue: rows.reduce((sum, r) => sum + r.revenue, 0),
         totalDiscount: rows.reduce((sum, r) => sum + r.discount, 0),
       },
-      drill: { entity: 'family', idField: 'familyId' },
+      drill: { entity: 'clientCategory', idField: 'categoryId' },
     });
   }
 

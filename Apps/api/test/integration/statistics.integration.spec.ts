@@ -15,6 +15,8 @@ import { seedFamily } from '../data/family.factory';
 import { seedProduct } from '../data/product.factory';
 import { seedTechnician } from '../data/technician.factory';
 import { seedWilayas } from '../data/wilaya.factory';
+import { seedPosClient } from '../data/pos-client.factory';
+import { seedClientCategory } from '../data/client-category.factory';
 import { inventoryService } from '../../src/modules/inventory/inventory.routes';
 
 const mintTokenFor = (user: { id: string; type: PrismaUserType; staff?: { id: string } | null }): string =>
@@ -156,6 +158,50 @@ describe('statistics integration', () => {
 
       const csvLines = (csvRes.text as string).trim().split('\n');
       expect(csvLines).toHaveLength(jsonRes.body.data.rows.length + 1); // header + rows
+    });
+  });
+
+  describe('REPORT — sales-by-category groups by client-category tier (audit fix A1)', () => {
+    it('two confirmed sales under different categories land in different rows with correct discount figures', async () => {
+      const { user: staffUser, token: staffToken } = await seedStaffWithPages(['STAFF_POS']);
+      const { token: adminToken } = await mintAdminToken();
+      const product = await seedStockedProduct({ staffId: staffUser.staff!.id, quantity: 10, unitCost: 400, guestPrice: 1000 });
+
+      const vip = await seedClientCategory({ name: 'VIP' });
+      const premium = await seedClientCategory({ name: 'Premium' });
+      const vipPosClient = await seedPosClient({ categoryId: vip.id });
+      const premiumPosClient = await seedPosClient({ categoryId: premium.id });
+
+      // VIP sale: staff discounts 100 off the (uncategorized) resolvedPrice of 1000.
+      const vipDraft = await request(app)
+        .post('/api/staff/sales')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ posClientId: vipPosClient.id, lines: [{ productId: product.id, quantity: 1, unitPrice: 900 }] });
+      await request(app)
+        .post(`/api/staff/sales/${vipDraft.body.data.id}/confirm`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ paidAmount: 900 });
+
+      // Premium sale: no discount, full resolvedPrice charged.
+      const premiumDraft = await request(app)
+        .post('/api/staff/sales')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ posClientId: premiumPosClient.id, lines: [{ productId: product.id, quantity: 1, unitPrice: 1000 }] });
+      await request(app)
+        .post(`/api/staff/sales/${premiumDraft.body.data.id}/confirm`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ paidAmount: 1000 });
+
+      const reportRes = await request(app).get('/api/admin/reports/sales-by-category').set('Authorization', `Bearer ${adminToken}`);
+      expect(reportRes.status).toBe(200);
+      expect(() => ReportResponseSchema.parse(reportRes.body.data)).not.toThrow();
+
+      const rows = reportRes.body.data.rows as { categoryId: string; categoryName: string; discount: number; revenue: number }[];
+      const vipRow = rows.find((r) => r.categoryId === vip.id);
+      const premiumRow = rows.find((r) => r.categoryId === premium.id);
+
+      expect(vipRow).toMatchObject({ categoryName: 'VIP', revenue: 900, discount: 100 });
+      expect(premiumRow).toMatchObject({ categoryName: 'Premium', revenue: 1000, discount: 0 });
     });
   });
 
