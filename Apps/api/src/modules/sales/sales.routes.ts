@@ -14,13 +14,16 @@ import {
   SaleReferenceParamsSchema,
   UpdateSaleDraftSchema,
 } from '@dragon-telecom/contract';
-// Direct sibling-module imports — sales depends one-directionally on platform/inventory/catalog
-// (no reverse dependency), the same shape purchasing.routes.ts established in Sprint 7 of set 05.
-// catalogProductService satisfies ICatalogPosPricingPort structurally (its resolvePosPrices
-// method, added in set-06 Sprint 1, matches the port's signature exactly) — no adapter needed.
+// Direct sibling-module imports — sales depends one-directionally on platform/inventory/catalog/
+// clients (no reverse dependency), the same shape purchasing.routes.ts established in Sprint 7
+// of set 05. catalogProductService satisfies ICatalogPosPricingPort structurally (its
+// resolvePosPrices method, added in set-06 Sprint 1, matches the port's signature exactly);
+// clientsService satisfies IClientCreditPort structurally (credit-serialization fix, plan §C3)
+// — no adapter needed for either.
 import { sequenceService } from '../platform/platform.routes';
 import { inventoryService } from '../inventory/inventory.routes';
 import { catalogProductService } from '../catalog/catalog.routes';
+import { clientsService } from '../clients/clients.routes';
 import { SalesService } from './sales.service';
 import { SalesListener } from './sales.listener';
 import { SalesController } from './sales.controller';
@@ -28,7 +31,7 @@ import { SalesController } from './sales.controller';
 const router = Router();
 
 // 1. Manual DI
-const service = new SalesService(prisma, sequenceService, inventoryService, catalogProductService);
+const service = new SalesService(prisma, sequenceService, inventoryService, catalogProductService, clientsService);
 const controller = new SalesController(service);
 new SalesListener(service).setup();
 

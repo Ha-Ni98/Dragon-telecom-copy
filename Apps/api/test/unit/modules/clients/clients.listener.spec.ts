@@ -88,32 +88,15 @@ describe('ClientsListener', () => {
     });
   });
 
-  // These four apply their event's own one-shot delta (credit as a `set` from the emitting
-  // module's own snapshot where one exists; totalPaid/totalSold as plain increments per the
-  // spec's literal wording) — correctness relies on the emitting module firing exactly once per
-  // document, the same single-emission guarantee purchasing's own DRAFT→CONFIRMED guard already
-  // provides its listener (see clients.service.ts's applySaleConfirmed comment). Not tested here
-  // as ledger-replay-safe, since that would require SaleStatus/OrderStatus filtering rules that
-  // belong to the not-yet-built sales/orders modules.
+  // sale.confirmed/return.created moved to sales' own transaction via the injected credit port
+  // (credit-serialization fix, plan §C3) — this listener no longer subscribes to either.
+  // order.confirmed/payment.clientRecorded still apply their event's own one-shot delta
+  // (totalSold as a plain increment; credit as a `set` from the emitting module's own snapshot)
+  // — correctness relies on the emitting module firing exactly once per document, the same
+  // single-emission guarantee purchasing's own DRAFT→CONFIRMED guard already provides its
+  // listener. Not tested here as ledger-replay-safe, since that would require SaleStatus/
+  // OrderStatus filtering rules that belong to sales/orders modules.
   describe('dormant cache handlers — one-shot application', () => {
-    it('sale.confirmed sets the credit snapshot and increments totalPaid/totalSold', async () => {
-      eventBus.emit('sale.confirmed', {
-        saleId: 's1',
-        origin: 'POS' as never,
-        posClientId: POS_CLIENT_ID,
-        totalAmount: 1000,
-        paidAmount: 800,
-        newCredit: 200,
-        snapshotLines: [],
-      });
-      await flush();
-
-      expect(posClientUpdateMock).toHaveBeenCalledWith({
-        where: { id: POS_CLIENT_ID },
-        data: { credit: 200, totalPaid: { increment: 800 }, totalSold: { increment: 1000 } },
-      });
-    });
-
     it('payment.clientRecorded sets credit and increments totalPaid', async () => {
       eventBus.emit('payment.clientRecorded', {
         paymentId: 'p1',
@@ -128,6 +111,30 @@ describe('ClientsListener', () => {
         where: { id: POS_CLIENT_ID },
         data: { credit: 500, totalPaid: { increment: 500 } },
       });
+    });
+  });
+
+  describe('sale.confirmed / return.created — no longer subscribed (credit-serialization fix, plan §C3)', () => {
+    it('emitting sale.confirmed never touches PosClient — sales applies it in-tx via the credit port now', async () => {
+      eventBus.emit('sale.confirmed', {
+        saleId: 's1',
+        origin: 'POS' as never,
+        posClientId: POS_CLIENT_ID,
+        totalAmount: 1000,
+        paidAmount: 800,
+        newCredit: 200,
+        snapshotLines: [],
+      });
+      await flush();
+
+      expect(posClientUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it('emitting return.created never touches PosClient — sales applies it in-tx via the credit port now', async () => {
+      eventBus.emit('return.created', { returnId: 'r1', saleId: 's1', refundAmount: 300, posClientId: POS_CLIENT_ID, creditEffect: -300 });
+      await flush();
+
+      expect(posClientUpdateMock).not.toHaveBeenCalled();
     });
   });
 

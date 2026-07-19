@@ -22,7 +22,6 @@ import type {
   RegisterClientCommand,
   RejectClientCommand,
   ResetClientPasswordCommand,
-  SalesEvents,
   UpdateMeCommand,
   UpdatePosClientCommand,
   ValidatePhoneResultDto,
@@ -71,10 +70,8 @@ export interface IClientsService {
     clientId: string,
     posClientSeed: ClientsEvents['client.approved']['posClientSeed'],
   ): Promise<void>;
-  applySaleConfirmed(payload: SalesEvents['sale.confirmed']): Promise<void>;
   applyOrderConfirmed(payload: OrdersEvents['order.confirmed']): Promise<void>;
   applyClientPaymentRecorded(payload: BillingEvents['payment.clientRecorded']): Promise<void>;
-  applyReturnCreated(payload: SalesEvents['return.created']): Promise<void>;
 }
 
 // Injected port (dependency inversion, plan §I.5) — real implementation lives in catalog

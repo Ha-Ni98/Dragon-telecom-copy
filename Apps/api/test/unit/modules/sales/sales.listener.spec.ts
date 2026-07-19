@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { eventBus } from '../../../../src/common/events/event-bus';
 import { SalesService } from '../../../../src/modules/sales/sales.service';
 import { SalesListener } from '../../../../src/modules/sales/sales.listener';
-import type { ICatalogPosPricingPort } from '../../../../src/modules/sales/sales.interface';
+import type { ICatalogPosPricingPort, IClientCreditPort } from '../../../../src/modules/sales/sales.interface';
 import type { IInventoryService } from '../../../../src/modules/inventory/inventory.interface';
 
 const {
@@ -71,7 +71,8 @@ describe('SalesListener', () => {
       flushEvents: vi.fn(),
     };
     const catalogPricingMock: ICatalogPosPricingPort = { resolvePosPrices: vi.fn() };
-    const service = new SalesService(prismaMock as never, sequenceMock as never, inventoryMock, catalogPricingMock);
+    const clientCreditMock: IClientCreditPort = { applySaleCharge: vi.fn(), applyReturnRefund: vi.fn() };
+    const service = new SalesService(prismaMock as never, sequenceMock as never, inventoryMock, catalogPricingMock, clientCreditMock);
     new SalesListener(service).setup();
     eventBus.on('sale.confirmed', saleConfirmedSpy);
   });

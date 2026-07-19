@@ -27,7 +27,6 @@ import {
   type RegisterClientCommand,
   type RejectClientCommand,
   type ResetClientPasswordCommand,
-  type SalesEvents,
   type UpdateMeCommand,
   type UpdatePosClientCommand,
   type ValidatePhoneResultDto,
@@ -406,26 +405,6 @@ export class ClientsService implements IClientsService {
     });
   }
 
-  // Applies the sale's own already-computed credit snapshot (a `set`, not an increment — a
-  // replay would just set the same final value again) and the two literal spec increments.
-  // A replay-safe recompute of totalPaid/totalSold would need either a full ledger recompute
-  // (SaleStatus/OrderStatus filtering rules that belong to the not-yet-built sales/orders
-  // modules) or a dedicated processed-events log (no such model exists in schema.prisma) —
-  // out of scope here. Correctness instead relies on the emitting module firing this event
-  // exactly once per Sale (the same single-emission guarantee purchasing's own DRAFT→CONFIRMED
-  // guard already relies on for its listener).
-  async applySaleConfirmed(payload: SalesEvents['sale.confirmed']): Promise<void> {
-    if (!payload.posClientId) return;
-    await this.prisma.posClient.update({
-      where: { id: payload.posClientId },
-      data: {
-        ...(payload.newCredit != null ? { credit: payload.newCredit } : {}),
-        totalPaid: { increment: payload.paidAmount },
-        totalSold: { increment: payload.totalAmount },
-      },
-    });
-  }
-
   // Orders never touch credit (spec: "totalSold += totalAmount (for the linked POS client, when
   // any)" — no mention of totalPaid or credit for this event).
   async applyOrderConfirmed(payload: OrdersEvents['order.confirmed']): Promise<void> {
@@ -440,16 +419,6 @@ export class ClientsService implements IClientsService {
     await this.prisma.posClient.update({
       where: { id: payload.posClientId },
       data: { credit: payload.newCredit, totalPaid: { increment: payload.amount } },
-    });
-  }
-
-  // No snapshot in this payload (unlike sale.confirmed/payment.clientRecorded) — creditEffect
-  // is a signed delta (spec: "credit ↓/↑ per snapshot"), applied as a plain increment.
-  async applyReturnCreated(payload: SalesEvents['return.created']): Promise<void> {
-    if (!payload.posClientId || payload.creditEffect == null) return;
-    await this.prisma.posClient.update({
-      where: { id: payload.posClientId },
-      data: { credit: { increment: payload.creditEffect } },
     });
   }
 

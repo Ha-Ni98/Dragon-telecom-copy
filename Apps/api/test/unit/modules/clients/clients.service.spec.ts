@@ -519,29 +519,6 @@ describe('ClientsService', () => {
       expect(clientUpdateMock).toHaveBeenCalledWith({ where: { id: CLIENT_ID }, data: { posClientId: POS_CLIENT_ID } });
     });
 
-    it('applySaleConfirmed sets the credit snapshot and increments the running totals', async () => {
-      await service().applySaleConfirmed({
-        saleId: 's1',
-        origin: 'POS' as never,
-        posClientId: POS_CLIENT_ID,
-        totalAmount: 1000,
-        paidAmount: 800,
-        previousCredit: 0,
-        newCredit: 200,
-        snapshotLines: [],
-      });
-
-      expect(posClientUpdateMock).toHaveBeenCalledWith({
-        where: { id: POS_CLIENT_ID },
-        data: { credit: 200, totalPaid: { increment: 800 }, totalSold: { increment: 1000 } },
-      });
-    });
-
-    it('applySaleConfirmed no-ops when there is no linked posClient', async () => {
-      await service().applySaleConfirmed({ saleId: 's1', origin: 'POS' as never, totalAmount: 1000, paidAmount: 800, snapshotLines: [] });
-      expect(posClientUpdateMock).not.toHaveBeenCalled();
-    });
-
     it('applyOrderConfirmed only increments totalSold (per spec — orders never touch credit)', async () => {
       await service().applyOrderConfirmed({
         orderId: 'o1',
@@ -567,17 +544,6 @@ describe('ClientsService', () => {
         where: { id: POS_CLIENT_ID },
         data: { credit: 500, totalPaid: { increment: 500 } },
       });
-    });
-
-    it('applyReturnCreated applies the signed creditEffect when present', async () => {
-      await service().applyReturnCreated({ returnId: 'r1', saleId: 's1', refundAmount: 300, posClientId: POS_CLIENT_ID, creditEffect: -300 });
-
-      expect(posClientUpdateMock).toHaveBeenCalledWith({ where: { id: POS_CLIENT_ID }, data: { credit: { increment: -300 } } });
-    });
-
-    it('applyReturnCreated no-ops when creditEffect is absent', async () => {
-      await service().applyReturnCreated({ returnId: 'r1', saleId: 's1', refundAmount: 300, posClientId: POS_CLIENT_ID });
-      expect(posClientUpdateMock).not.toHaveBeenCalled();
     });
   });
 

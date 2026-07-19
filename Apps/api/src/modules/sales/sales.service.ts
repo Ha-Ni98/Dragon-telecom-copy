@@ -27,7 +27,7 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '@
 import { eventBus } from '@common/events/event-bus';
 import type { ConsumptionLine, IInventoryService } from '../inventory/inventory.interface';
 import type { ISequenceService } from '../platform/platform.interface';
-import type { ICatalogPosPricingPort, ISalesService } from './sales.interface';
+import type { ICatalogPosPricingPort, IClientCreditPort, ISalesService } from './sales.interface';
 import { SalesMapper, type SaleRow } from './sales.mapper';
 
 const SALE_INCLUDE = {
@@ -42,6 +42,7 @@ export class SalesService implements ISalesService {
     private sequence: ISequenceService,
     private inventory: IInventoryService,
     private catalogPricing: ICatalogPosPricingPort,
+    private clientCredit: IClientCreditPort,
   ) {}
 
   async createDraft(cmd: SaleDraftCommand, staffId: string): Promise<SaleDto> {
@@ -122,10 +123,18 @@ export class SalesService implements ISalesService {
       capturedTx = tx;
 
       if (existing.posClientId != null) {
-        const locked = await this.lockPosClient(tx, existing.posClientId);
-        previousCredit = locked.credit.toNumber();
+        // Written here, inside this same locked transaction, via the injected credit port
+        // (credit-serialization fix, plan §C3) — no post-commit listener applies it.
+        ({ previousCredit, newCredit } = await this.clientCredit.applySaleCharge(tx, existing.posClientId, {
+          totalAmount,
+          paidAmount: cmd.paidAmount,
+        }));
+      } else {
+        // No linked PosClient — nothing to charge (the CREDIT_REQUIRES_CLIENT guard above
+        // already guarantees paidAmount >= totalAmount here); previousCredit/newCredit are
+        // still stored on the Sale row itself, same formula as the posClientId branch.
+        newCredit = previousCredit + (totalAmount - cmd.paidAmount);
       }
-      newCredit = previousCredit + (totalAmount - cmd.paidAmount);
 
       for (const line of existing.lines) {
         const resolvedPrice = priceMap.get(line.productId)!;
@@ -290,7 +299,12 @@ export class SalesService implements ISalesService {
 
       if (sale.posClientId != null) {
         creditEffect = -refundAmount;
-        await tx.posClient.update({ where: { id: sale.posClientId }, data: { credit: { increment: creditEffect } } });
+        // Written here, inside this same transaction, via the injected credit port
+        // (credit-serialization fix, plan §C3 — this direct tx.posClient.update was also a
+        // module-boundary violation: PosClient belongs to clients, not sales). The old
+        // clients-listener applied this same creditEffect a second time on every return,
+        // silently double-counting every refund — deleting that handler (below) fixes it too.
+        await this.clientCredit.applyReturnRefund(tx, sale.posClientId, { creditEffect });
       }
     });
 
@@ -327,12 +341,18 @@ export class SalesService implements ISalesService {
       });
       if (!lastHistory) throw new NotFoundError('RepairStatusHistory');
 
+      // Written here, inside this same locked transaction, via the injected credit port
+      // (credit-serialization fix, plan §C3) — no post-commit listener applies it.
       let previousCredit = 0;
+      let newCredit = 0;
       if (payload.posClientId != null) {
-        const locked = await this.lockPosClient(tx, payload.posClientId);
-        previousCredit = locked.credit.toNumber();
+        ({ previousCredit, newCredit } = await this.clientCredit.applySaleCharge(tx, payload.posClientId, {
+          totalAmount: payload.totalAmount,
+          paidAmount: payload.paidAmount,
+        }));
+      } else {
+        newCredit = previousCredit + (payload.totalAmount - payload.paidAmount);
       }
-      const newCredit = previousCredit + (payload.totalAmount - payload.paidAmount);
 
       const reference = await this.sequence.nextNumber(tx, DocType.SALE);
 
@@ -435,15 +455,6 @@ export class SalesService implements ISalesService {
       throw new BadRequestError(`Unknown productId: ${missing}`);
     }
     return new Map(products.map((product) => [product.id, product.name]));
-  }
-
-  // Row-lock precedent mirrors purchasing's lockSupplier: the raw query only acquires the lock
-  // (Prisma has no native SELECT ... FOR UPDATE), the fully-typed row is then read through a
-  // normal Prisma call in the same transaction.
-  private async lockPosClient(tx: Prisma.TransactionClient, posClientId: string) {
-    const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "PosClient" WHERE id = ${posClientId} FOR UPDATE`;
-    if (!rows[0]) throw new NotFoundError('PosClient');
-    return tx.posClient.findUniqueOrThrow({ where: { id: posClientId } });
   }
 
   // Reconstructs the exact FIFO layers a sale line originally drained (StockMovement +

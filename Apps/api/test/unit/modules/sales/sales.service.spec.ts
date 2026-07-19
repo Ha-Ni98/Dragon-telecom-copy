@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { MovementType, ReturnType as SalesReturnType, UserType } from '@dragon-telecom/contract';
 import type { AppError } from '../../../../src/common/errors';
 import { SalesService } from '../../../../src/modules/sales/sales.service';
-import type { ICatalogPosPricingPort } from '../../../../src/modules/sales/sales.interface';
+import type { ICatalogPosPricingPort, IClientCreditPort } from '../../../../src/modules/sales/sales.interface';
 import type { IInventoryService } from '../../../../src/modules/inventory/inventory.interface';
 
 const {
@@ -134,6 +134,7 @@ describe('SalesService', () => {
     flushEvents: vi.fn(),
   };
   const catalogPricingMock: ICatalogPosPricingPort = { resolvePosPrices: vi.fn() };
+  const clientCreditMock: IClientCreditPort = { applySaleCharge: vi.fn(), applyReturnRefund: vi.fn() };
 
   const staffActor = { sub: STAFF_ID, type: UserType.STAFF, staffId: STAFF_ID };
   const otherStaffActor = { sub: OTHER_STAFF_ID, type: UserType.STAFF, staffId: OTHER_STAFF_ID };
@@ -151,7 +152,8 @@ describe('SalesService', () => {
     ]);
   });
 
-  const service = () => new SalesService(prismaMock as never, sequenceMock as never, inventoryMock, catalogPricingMock);
+  const service = () =>
+    new SalesService(prismaMock as never, sequenceMock as never, inventoryMock, catalogPricingMock, clientCreditMock);
 
   const expectRejection = async (promise: Promise<unknown>): Promise<AppError> => {
     try {
@@ -239,7 +241,7 @@ describe('SalesService', () => {
 
     it('exhausted stock: consumeFifo throws, sale stays DRAFT, no event', async () => {
       saleFindUniqueMock.mockResolvedValueOnce(buildSaleRow({ posClientId: POS_CLIENT_ID }));
-      posClientFindUniqueOrThrowMock.mockResolvedValueOnce({ id: POS_CLIENT_ID, credit: new Prisma.Decimal(0) });
+      (clientCreditMock.applySaleCharge as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 0, newCredit: 0 });
       const insufficientStockError = Object.assign(new Error('INSUFFICIENT_STOCK'), { statusCode: 409 });
       (inventoryMock.consumeFifo as ReturnType<typeof vi.fn>).mockRejectedValueOnce(insufficientStockError);
 
@@ -261,7 +263,7 @@ describe('SalesService', () => {
 
     it('computes credit math and returns receipt figures on a full-payment confirm', async () => {
       saleFindUniqueMock.mockResolvedValueOnce(buildSaleRow({ posClientId: POS_CLIENT_ID }));
-      posClientFindUniqueOrThrowMock.mockResolvedValueOnce({ id: POS_CLIENT_ID, credit: new Prisma.Decimal(500) });
+      (clientCreditMock.applySaleCharge as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 500, newCredit: 500 });
       (inventoryMock.consumeFifo as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         movementId: 'movement-1',
         costOfGoods: 800,
@@ -282,6 +284,7 @@ describe('SalesService', () => {
 
       const receipt = await service().confirm(SALE_ID, { paidAmount: 2000 }, staffActor);
 
+      expect(clientCreditMock.applySaleCharge).toHaveBeenCalledWith(prismaMock, POS_CLIENT_ID, { totalAmount: 2000, paidAmount: 2000 });
       expect(inventoryMock.consumeFifo).toHaveBeenCalledWith(
         prismaMock,
         PRODUCT_ID,
@@ -314,7 +317,7 @@ describe('SalesService', () => {
 
     it('double confirm: a second call 409s with no additional consumeFifo/event beyond the first', async () => {
       saleFindUniqueMock.mockResolvedValueOnce(buildSaleRow({ posClientId: POS_CLIENT_ID }));
-      posClientFindUniqueOrThrowMock.mockResolvedValueOnce({ id: POS_CLIENT_ID, credit: new Prisma.Decimal(0) });
+      (clientCreditMock.applySaleCharge as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 0, newCredit: 0 });
       (inventoryMock.consumeFifo as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         movementId: 'movement-1',
         costOfGoods: 800,
@@ -447,6 +450,7 @@ describe('SalesService', () => {
       returnLineFindManyMock.mockResolvedValueOnce([]);
       sequenceMock.nextNumber.mockResolvedValueOnce('RET-2026-0003');
       returnCreateMock.mockResolvedValueOnce({ id: RETURN_ID, reference: 'RET-2026-0003' });
+      (clientCreditMock.applyReturnRefund as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 500, newCredit: 0 });
       saleFindUniqueOrThrowMock.mockResolvedValueOnce(buildSaleRow({ status: 'RETURNED', posClientId: POS_CLIENT_ID }));
 
       await service().createReturn(
@@ -462,7 +466,10 @@ describe('SalesService', () => {
         'return.created',
         expect.objectContaining({ returnId: RETURN_ID, saleId: SALE_ID, refundAmount: 500, posClientId: POS_CLIENT_ID, creditEffect: -500 }),
       );
-      expect(posClientUpdateMock).toHaveBeenCalledWith({ where: { id: POS_CLIENT_ID }, data: { credit: { increment: -500 } } });
+      // Written in-tx via the injected credit port now (credit-serialization fix, plan §C3) —
+      // no direct tx.posClient.update and no double-apply via the old clients-listener.
+      expect(clientCreditMock.applyReturnRefund).toHaveBeenCalledWith(prismaMock, POS_CLIENT_ID, { creditEffect: -500 });
+      expect(posClientUpdateMock).not.toHaveBeenCalled();
     });
   });
 
@@ -519,6 +526,23 @@ describe('SalesService', () => {
       await service().recordRepairSale(buildRepairEvent());
 
       expect(inventoryMock.consumeFifo).not.toHaveBeenCalled();
+    });
+
+    it('a repair sale linked to a posClient routes its credit effect through the injected port (credit-serialization fix, plan §C3)', async () => {
+      repairFindUniqueMock.mockResolvedValueOnce({ saleId: null });
+      repairStatusHistoryFindFirstMock.mockResolvedValueOnce({ staffId: STAFF_ID });
+      sequenceMock.nextNumber.mockResolvedValueOnce('SAL-2026-0004');
+      (clientCreditMock.applySaleCharge as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ previousCredit: 0, newCredit: 0 });
+      saleCreateMock.mockResolvedValueOnce({ id: 'repair-sale-3' });
+      repairUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+
+      await service().recordRepairSale(buildRepairEvent({ posClientId: POS_CLIENT_ID }));
+
+      expect(clientCreditMock.applySaleCharge).toHaveBeenCalledWith(prismaMock, POS_CLIENT_ID, { totalAmount: 100, paidAmount: 100 });
+      expect(eventBusEmitMock).toHaveBeenCalledWith(
+        'sale.confirmed',
+        expect.objectContaining({ posClientId: POS_CLIENT_ID, previousCredit: 0, newCredit: 0 }),
+      );
     });
   });
 });

@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type {
   ConfirmSaleCommand,
   CreateReturnCommand,
@@ -38,4 +39,23 @@ export interface ICatalogPosPricingPort {
     productIds: string[],
     categoryId: string | null,
   ): Promise<{ productId: string; productName: string; resolvedPrice?: number }[]>;
+}
+
+// Injected port (dependency inversion, credit-serialization fix, plan §C2/§C3) — real
+// implementation is clients' own composition-root singleton (`clientsService`, exported from
+// clients.routes.ts), assembled directly in `sales.routes.ts` (one-directional dependency, no
+// adapter — the same shape as ICatalogPosPricingPort above). PosClient belongs to the clients
+// module; sales must write it only through this port, always inside its own transaction (`tx`),
+// never via a post-commit listener.
+export interface IClientCreditPort {
+  applySaleCharge(
+    tx: Prisma.TransactionClient,
+    posClientId: string,
+    payload: { totalAmount: number; paidAmount: number },
+  ): Promise<{ previousCredit: number; newCredit: number }>;
+  applyReturnRefund(
+    tx: Prisma.TransactionClient,
+    posClientId: string,
+    payload: { creditEffect: number },
+  ): Promise<{ previousCredit: number; newCredit: number }>;
 }
