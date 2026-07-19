@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { BooleanQuerySchema } from '../../common/types';
+import { ProductSort } from './catalog.enums';
 
-// `sort` has no enumerated values in the spec — kept as a free string rather than
-// inventing sort keys; a concrete enum can replace this once the values are decided.
 export const ProductListQuerySchema = z.object({
   search: z.string().optional(),
   familyId: z.uuid().optional(),
@@ -10,7 +9,7 @@ export const ProductListQuerySchema = z.object({
   modelId: z.uuid().optional(),
   inStock: BooleanQuerySchema.optional(),
   featured: BooleanQuerySchema.optional(),
-  sort: z.string().optional(),
+  sort: z.enum(ProductSort).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(15),
 });

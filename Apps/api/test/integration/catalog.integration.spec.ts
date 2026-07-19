@@ -57,6 +57,28 @@ describe('catalog integration', () => {
     });
   });
 
+  describe('GET /api/products?sort= (audit fix B3 — server-side sort)', () => {
+    it('rejects an unrecognised sort value with 400', async () => {
+      const res = await request(app).get('/api/products?sort=bogus');
+      expect(res.status).toBe(400);
+    });
+
+    it('price_asc returns ascending across a seeded set, with the null-guestPrice product last', async () => {
+      const brand = await seedBrand();
+      const family = await seedFamily();
+      await seedProduct({ brandId: brand.id, familyId: family.id, guestPrice: 3000, isPublished: true, name: 'Expensive' });
+      await seedProduct({ brandId: brand.id, familyId: family.id, guestPrice: 1000, isPublished: true, name: 'Cheap' });
+      await seedProduct({ brandId: brand.id, familyId: family.id, guestPrice: 2000, isPublished: true, name: 'Middle' });
+      await seedProduct({ brandId: brand.id, familyId: family.id, guestPrice: null, isPublished: true, name: 'Priceless' });
+
+      const res = await request(app).get('/api/products?sort=price_asc');
+
+      expect(res.status).toBe(200);
+      const names = (res.body.data.items as { name: string }[]).map((item) => item.name);
+      expect(names).toEqual(['Cheap', 'Middle', 'Expensive', 'Priceless']);
+    });
+  });
+
   describe('GET /api/brands (public) vs GET /api/products/:id — disabled brand', () => {
     it('hides the disabled brand from the public list but its product still resolves by id', async () => {
       const brand = await seedBrand({ isEnabled: false });

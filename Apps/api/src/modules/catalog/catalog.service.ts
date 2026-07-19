@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import {
   AdminProductResponseSchema,
   MovementType,
+  ProductSort,
   ProductWithPricingResponseSchema,
   StaffProductResponseSchema,
   StockStatus,
@@ -403,7 +404,7 @@ export class CatalogProductService implements ICatalogProductService {
         include: PRODUCT_INCLUDE,
         skip: (query.page - 1) * query.limit,
         take: query.limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: this.resolveProductOrderBy(query.sort, { createdAt: 'desc' }),
       }),
     ]);
 
@@ -464,7 +465,7 @@ export class CatalogProductService implements ICatalogProductService {
         include: { ...PRODUCT_INCLUDE, prices: { include: { category: true } } },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
-        orderBy: { name: 'asc' },
+        orderBy: this.resolveProductOrderBy(query.sort, { name: 'asc' }),
       }),
     ]);
 
@@ -497,7 +498,7 @@ export class CatalogProductService implements ICatalogProductService {
         include: PRODUCT_INCLUDE,
         skip: (query.page - 1) * query.limit,
         take: query.limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: this.resolveProductOrderBy(query.sort, { createdAt: 'desc' }),
       }),
     ]);
 
@@ -843,6 +844,33 @@ export class CatalogProductService implements ICatalogProductService {
       ...(query.brandId != null ? { brandId: query.brandId } : {}),
       ...(query.modelId != null ? { deviceModelId: query.modelId } : {}),
     };
+  }
+
+  // Stage-0 PUB-02's four server-side sort keys (audit fix B3 — the catalog is paginated
+  // server-side, so client-side sorting can only reorder the current page). `fallback` lets
+  // each caller keep its own no-sort-given default: the public list already defaulted to
+  // newest, staff's own listing keeps its alphabetical default (owner decision) rather than
+  // switching to newest just because the mapping is now shared.
+  // Recorded limitation: price sort uses the public reference price (`guestPrice`), never a
+  // per-viewer resolved price — a tier-priced client's resolved prices may deviate slightly
+  // from this ordering. Per-viewer price sorting would require per-row resolution and is
+  // explicitly out of scope.
+  private resolveProductOrderBy(
+    sort: ProductSort | undefined,
+    fallback: Prisma.ProductOrderByWithRelationInput,
+  ): Prisma.ProductOrderByWithRelationInput {
+    switch (sort) {
+      case ProductSort.NEWEST:
+        return { createdAt: 'desc' };
+      case ProductSort.NAME:
+        return { name: 'asc' };
+      case ProductSort.PRICE_ASC:
+        return { guestPrice: { sort: 'asc', nulls: 'last' } };
+      case ProductSort.PRICE_DESC:
+        return { guestPrice: { sort: 'desc', nulls: 'last' } };
+      default:
+        return fallback;
+    }
   }
 
   // Only staff/admin searches narrate to observability (spec: "fired by staff/admin list

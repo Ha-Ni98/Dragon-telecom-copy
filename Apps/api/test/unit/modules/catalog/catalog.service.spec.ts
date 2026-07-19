@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { CreateProductSchema, MovementType } from '@dragon-telecom/contract';
+import { CreateProductSchema, MovementType, ProductSort } from '@dragon-telecom/contract';
 import type { AppError } from '../../../../src/common/errors';
 import {
   CatalogCategoryService,
@@ -485,6 +485,89 @@ describe('CatalogProductService', () => {
 
       expect(result.items[0]?.priceHidden).toBe(true);
       expect('currentPrice' in result.items[0]!).toBe(false);
+    });
+  });
+
+  describe('listProducts/listStaffProducts/listAdminProducts — sort (audit fix B3)', () => {
+    it('newest (or sort absent, public): orders by createdAt desc', async () => {
+      productCountMock.mockResolvedValueOnce(0);
+      productFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listProducts({ page: 1, limit: 15, sort: ProductSort.NEWEST } as never, undefined);
+
+      expect(productFindManyMock).toHaveBeenCalledWith(expect.objectContaining({ orderBy: { createdAt: 'desc' } }));
+    });
+
+    it('name: orders by name asc', async () => {
+      productCountMock.mockResolvedValueOnce(0);
+      productFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listProducts({ page: 1, limit: 15, sort: ProductSort.NAME } as never, undefined);
+
+      expect(productFindManyMock).toHaveBeenCalledWith(expect.objectContaining({ orderBy: { name: 'asc' } }));
+    });
+
+    it('price_asc: orders by guestPrice asc with nulls last', async () => {
+      productCountMock.mockResolvedValueOnce(0);
+      productFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listProducts({ page: 1, limit: 15, sort: ProductSort.PRICE_ASC } as never, undefined);
+
+      expect(productFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { guestPrice: { sort: 'asc', nulls: 'last' } } }),
+      );
+    });
+
+    it('price_desc: orders by guestPrice desc with nulls last', async () => {
+      productCountMock.mockResolvedValueOnce(0);
+      productFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listProducts({ page: 1, limit: 15, sort: ProductSort.PRICE_DESC } as never, undefined);
+
+      expect(productFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { guestPrice: { sort: 'desc', nulls: 'last' } } }),
+      );
+    });
+
+    it('sort absent on the public list defaults to newest (unchanged default)', async () => {
+      productCountMock.mockResolvedValueOnce(0);
+      productFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listProducts({ page: 1, limit: 15 } as never, undefined);
+
+      expect(productFindManyMock).toHaveBeenCalledWith(expect.objectContaining({ orderBy: { createdAt: 'desc' } }));
+    });
+
+    it('sort absent on the staff list keeps its own alphabetical default (owner decision — not unified on newest)', async () => {
+      productCountMock.mockResolvedValueOnce(0);
+      productFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listStaffProducts({ page: 1, limit: 15 } as never, { sub: 'staff-1', type: 'STAFF' } as never);
+
+      expect(productFindManyMock).toHaveBeenCalledWith(expect.objectContaining({ orderBy: { name: 'asc' } }));
+    });
+
+    it('an explicit sort on the staff list overrides its alphabetical default', async () => {
+      productCountMock.mockResolvedValueOnce(0);
+      productFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listStaffProducts(
+        { page: 1, limit: 15, sort: ProductSort.PRICE_DESC } as never,
+        { sub: 'staff-1', type: 'STAFF' } as never,
+      );
+
+      expect(productFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { guestPrice: { sort: 'desc', nulls: 'last' } } }),
+      );
+    });
+
+    it('sort absent on the admin list defaults to createdAt desc (unchanged default)', async () => {
+      productCountMock.mockResolvedValueOnce(0);
+      productFindManyMock.mockResolvedValueOnce([]);
+
+      await service().listAdminProducts({ page: 1, limit: 15 } as never, { sub: 'admin-1', type: 'ADMIN' } as never);
+
+      expect(productFindManyMock).toHaveBeenCalledWith(expect.objectContaining({ orderBy: { createdAt: 'desc' } }));
     });
   });
 
