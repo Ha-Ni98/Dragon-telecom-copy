@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { OrderStatus, OrderType, UserType } from '@dragon-telecom/contract';
 import type { AppError } from '../../../../src/common/errors';
 import { OrdersService } from '../../../../src/modules/orders/orders.service';
-import type { ICatalogViewerPricingPort } from '../../../../src/modules/orders/orders.interface';
+import type { ICatalogViewerPricingPort, IOrderCreditPort } from '../../../../src/modules/orders/orders.interface';
 import type { IInventoryService } from '../../../../src/modules/inventory/inventory.interface';
 
 const {
@@ -120,6 +120,7 @@ describe('OrdersService', () => {
   };
   const sequenceMock = { nextNumber: vi.fn() };
   const catalogPricingMock: ICatalogViewerPricingPort = { getCartProducts: vi.fn() };
+  const clientCreditMock: IOrderCreditPort = { applyOrderSold: vi.fn() };
 
   const staffActor = { sub: STAFF_ID, type: UserType.STAFF, staffId: STAFF_ID };
   // Admins get a real Staff row too (audit fix A2) — their JWT carries staffId just like STAFF's.
@@ -140,7 +141,14 @@ describe('OrdersService', () => {
   });
 
   const service = () =>
-    new OrdersService(prismaMock as never, deliveryFeeMock, inventoryMock, sequenceMock as never, catalogPricingMock);
+    new OrdersService(
+      prismaMock as never,
+      deliveryFeeMock,
+      inventoryMock,
+      sequenceMock as never,
+      catalogPricingMock,
+      clientCreditMock,
+    );
 
   const expectRejection = async (promise: Promise<unknown>): Promise<AppError> => {
     try {
@@ -372,6 +380,9 @@ describe('OrdersService', () => {
 
       await service().confirmOrder(ORDER_ID, {}, staffActor);
 
+      // Written in-tx via the injected credit port now (credit-serialization fix, plan §C4) —
+      // no post-commit listener applies it.
+      expect(clientCreditMock.applyOrderSold).toHaveBeenCalledWith(prismaMock, POS_CLIENT_ID, { totalAmount: 1000 });
       expect(eventBusEmitMock).toHaveBeenCalledWith(
         'order.confirmed',
         expect.objectContaining({ clientId: CLIENT_ID, posClientId: POS_CLIENT_ID }),
@@ -391,6 +402,7 @@ describe('OrdersService', () => {
       await service().confirmOrder(ORDER_ID, {}, staffActor);
 
       expect(clientFindUniqueMock).not.toHaveBeenCalled();
+      expect(clientCreditMock.applyOrderSold).not.toHaveBeenCalled();
       const payload = eventBusEmitMock.mock.calls.find((call) => call[0] === 'order.confirmed')?.[1];
       expect(payload).not.toHaveProperty('clientId');
       expect(payload).not.toHaveProperty('posClientId');

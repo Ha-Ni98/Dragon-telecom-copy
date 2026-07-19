@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type {
   BackofficeOrdersQuery,
   BillingEvents,
@@ -35,6 +36,17 @@ export type Viewer = JWTPayload | undefined;
 // orders.routes.ts (Sprint 3), no adapter (one-directional DI, set-05/06 precedent).
 export interface ICatalogViewerPricingPort {
   getCartProducts(productIds: string[], viewer: Viewer): Promise<ProductWithPricingDto[]>;
+}
+
+// Injected port (dependency inversion, credit-serialization fix, plan §C2/§C4) — real
+// implementation is clients' own composition-root singleton (`clientsService`, exported from
+// clients.routes.ts), assembled directly in `orders.routes.ts` (one-directional dependency, no
+// adapter — the same shape as ICatalogViewerPricingPort above). PosClient belongs to the
+// clients module; orders must write it only through this port, always inside its own
+// transaction (`tx`), never via a post-commit listener. Orders never touch credit (spec:
+// "totalSold += totalAmount" only) — narrower than sales' own IClientCreditPort.
+export interface IOrderCreditPort {
+  applyOrderSold(tx: Prisma.TransactionClient, posClientId: string, payload: { totalAmount: number }): Promise<void>;
 }
 
 export interface IOrdersService {

@@ -13,7 +13,6 @@ import type {
   ClientStatsDto,
   CreatePosClientCommand,
   JWTPayload,
-  OrdersEvents,
   PaginatedResult,
   PosClientDto,
   PosClientListQuery,
@@ -70,7 +69,6 @@ export interface IClientsService {
     clientId: string,
     posClientSeed: ClientsEvents['client.approved']['posClientSeed'],
   ): Promise<void>;
-  applyOrderConfirmed(payload: OrdersEvents['order.confirmed']): Promise<void>;
   applyClientPaymentRecorded(payload: BillingEvents['payment.clientRecorded']): Promise<void>;
 }
 

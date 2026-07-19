@@ -213,12 +213,13 @@ describe('orders integration', () => {
       expect(invoiceRow!.totalProfit.toNumber()).toBe(confirmedOrder.profit!.toNumber());
       expect(invoiceRow!.totalCost.toNumber()).toBe(1200); // 3 units @ unitCost 400 (seedOrderableProduct)
 
-      await waitFor(async () => {
-        const updated = await prisma.posClient.findUniqueOrThrow({ where: { id: posClient.id } });
-        return updated.totalSold.toNumber() === 3000;
-      });
+      // totalSold is written inside the confirm transaction itself now (credit-serialization
+      // fix, plan §C4 — via the injected credit port), not a post-commit listener, so no
+      // waitFor/polling is needed: it's already settled by the time confirmRes returns.
+      const posClientAfterConfirm = await prisma.posClient.findUniqueOrThrow({ where: { id: posClient.id } });
+      expect(posClientAfterConfirm.totalSold.toNumber()).toBe(3000);
 
-      // Double confirm ⇒ idempotent, no second invoice.
+      // Double confirm ⇒ idempotent, no second invoice, no second totalSold increment.
       const secondConfirm = await request(app)
         .post(`/api/staff/orders/${orderId}/confirm`)
         .set('Authorization', `Bearer ${staffToken}`)
@@ -226,6 +227,8 @@ describe('orders integration', () => {
       expect(secondConfirm.status).toBe(200);
       const invoiceCount = await prisma.invoice.count({ where: { sourceType: 'ORDER', sourceId: orderId } });
       expect(invoiceCount).toBe(1);
+      const posClientAfterDoubleConfirm = await prisma.posClient.findUniqueOrThrow({ where: { id: posClient.id } });
+      expect(posClientAfterDoubleConfirm.totalSold.toNumber()).toBe(3000);
     });
 
     it('an admin-driven confirm attributes Order.confirmedByStaffId and StockMovement.staffId to the admin\'s own Staff id, not system.internal (audit fix A2)', async () => {

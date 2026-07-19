@@ -19,7 +19,6 @@ import {
   type ClientsEvents,
   type ClientStatsDto,
   type CreatePosClientCommand,
-  type OrdersEvents,
   type PaginatedResult,
   type PosClientDto,
   type PosClientListQuery,
@@ -405,16 +404,6 @@ export class ClientsService implements IClientsService {
     });
   }
 
-  // Orders never touch credit (spec: "totalSold += totalAmount (for the linked POS client, when
-  // any)" — no mention of totalPaid or credit for this event).
-  async applyOrderConfirmed(payload: OrdersEvents['order.confirmed']): Promise<void> {
-    if (!payload.posClientId) return;
-    await this.prisma.posClient.update({
-      where: { id: payload.posClientId },
-      data: { totalSold: { increment: payload.totals.totalAmount } },
-    });
-  }
-
   async applyClientPaymentRecorded(payload: BillingEvents['payment.clientRecorded']): Promise<void> {
     await this.prisma.posClient.update({
       where: { id: payload.posClientId },
@@ -464,8 +453,8 @@ export class ClientsService implements IClientsService {
     return { previousCredit, newCredit };
   }
 
-  // Orders never touch credit (spec: "totalSold += totalAmount" only) — mirrors
-  // applyOrderConfirmed's own scope exactly, just moved in-tx.
+  // Orders never touch credit (spec: "totalSold += totalAmount" only, for the linked POS
+  // client when any).
   async applyOrderSold(tx: Prisma.TransactionClient, posClientId: string, payload: { totalAmount: number }): Promise<void> {
     await this.lockPosClient(tx, posClientId);
     await tx.posClient.update({
@@ -474,10 +463,10 @@ export class ClientsService implements IClientsService {
     });
   }
 
-  // `creditEffect` is the caller's already-signed delta (mirrors applyReturnCreated's own
-  // payload shape exactly — a negative refund reduces what the client owes) — replicated, not
-  // reinvented; the only change is a locked read first so the returned previousCredit/newCredit
-  // snapshot is consistent under concurrency.
+  // `creditEffect` is the caller's already-signed delta (a negative refund reduces what the
+  // client owes) — sales' createReturn computes it the same way it always did; the only change
+  // is a locked read first so the returned previousCredit/newCredit snapshot is consistent
+  // under concurrency.
   async applyReturnRefund(
     tx: Prisma.TransactionClient,
     posClientId: string,

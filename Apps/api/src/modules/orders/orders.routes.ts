@@ -16,13 +16,15 @@ import {
   UpdateOrderStatusSchema,
 } from '@dragon-telecom/contract';
 // Direct sibling-module imports — orders depends one-directionally on platform/inventory/
-// catalog (no reverse dependency), the same shape sales/purchasing established in sets 05/06.
-// catalogProductService satisfies ICatalogViewerPricingPort structurally (its getCartProducts
-// method — already public, already consumed this same way by clients' ICatalogCartPort) — no
-// adapter needed (Sprint 2 discovery, plan report gap #1).
+// catalog/clients (no reverse dependency), the same shape sales/purchasing established in sets
+// 05/06. catalogProductService satisfies ICatalogViewerPricingPort structurally (its
+// getCartProducts method — already public, already consumed this same way by clients'
+// ICatalogCartPort); clientsService satisfies IOrderCreditPort structurally
+// (credit-serialization fix, plan §C4) — no adapter needed for either.
 import { sequenceService, deliveryFeeService } from '../platform/platform.routes';
 import { inventoryService } from '../inventory/inventory.routes';
 import { catalogProductService } from '../catalog/catalog.routes';
+import { clientsService } from '../clients/clients.routes';
 import { OrdersService } from './orders.service';
 import { OrdersListener } from './orders.listener';
 import { OrdersController } from './orders.controller';
@@ -35,7 +37,7 @@ const CancelOrderSchema = z.object({ reason: z.string().optional() });
 const router = Router();
 
 // 1. Manual DI
-const service = new OrdersService(prisma, deliveryFeeService, inventoryService, sequenceService, catalogProductService);
+const service = new OrdersService(prisma, deliveryFeeService, inventoryService, sequenceService, catalogProductService, clientsService);
 const controller = new OrdersController(service);
 new OrdersListener(service).setup();
 

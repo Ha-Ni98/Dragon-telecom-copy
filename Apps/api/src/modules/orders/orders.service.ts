@@ -29,7 +29,7 @@ import { eventBus } from '@common/events/event-bus';
 import { SystemStaffResolver } from '@common/utils/system-staff.utils';
 import type { ConsumptionLine, IInventoryService } from '../inventory/inventory.interface';
 import type { IDeliveryFeeService, ISequenceService } from '../platform/platform.interface';
-import type { CancelOrderCommand, ICatalogViewerPricingPort, IOrdersService } from './orders.interface';
+import type { CancelOrderCommand, ICatalogViewerPricingPort, IOrderCreditPort, IOrdersService } from './orders.interface';
 import { OrdersMapper } from './orders.mapper';
 
 const ORDER_INCLUDE = {
@@ -56,6 +56,7 @@ export class OrdersService implements IOrdersService {
     private inventory: IInventoryService,
     private sequence: ISequenceService,
     private catalogPricing: ICatalogViewerPricingPort,
+    private clientCredit: IOrderCreditPort,
   ) {
     this.systemStaff = new SystemStaffResolver(prisma);
   }
@@ -214,6 +215,16 @@ export class OrdersService implements IOrdersService {
     const revenue = unitPrice * existing.quantity;
     const staffId = await this.movementStaffId(actor);
 
+    // §C-3: Order stores only clientId — resolve posClientId via the client's own
+    // Client.posClientId (auto-created at approval) up front so it can be charged inside the
+    // confirm transaction below (credit-serialization fix, plan §C4); guests (clientId null)
+    // resolve neither.
+    const posClientId =
+      existing.clientId != null
+        ? (await this.prisma.client.findUnique({ where: { id: existing.clientId }, select: { posClientId: true } }))
+            ?.posClientId ?? undefined
+        : undefined;
+
     let capturedTx: Prisma.TransactionClient | undefined;
     let costOfGoods = 0;
     let profit: number | null = null;
@@ -228,6 +239,12 @@ export class OrdersService implements IOrdersService {
       const result = await this.inventory.consumeFifo(tx, existing.productId, existing.quantity, revenue, MovementType.ORDER_OUT, ref);
       costOfGoods = result.costOfGoods;
       profit = result.profit;
+
+      if (posClientId != null) {
+        // Written here, inside this same transaction, via the injected credit port
+        // (credit-serialization fix, plan §C4) — no post-commit listener applies it.
+        await this.clientCredit.applyOrderSold(tx, posClientId, { totalAmount: existing.totalAmount.toNumber() });
+      }
 
       await tx.order.update({
         where: { id },
@@ -249,15 +266,6 @@ export class OrdersService implements IOrdersService {
     });
 
     this.inventory.flushEvents(capturedTx!);
-
-    // §C-3: Order stores only clientId — resolve posClientId via the client's own
-    // Client.posClientId (auto-created at approval) so billing/clients' dormant handlers get
-    // what they each need; guests (clientId null) resolve neither.
-    const posClientId =
-      existing.clientId != null
-        ? (await this.prisma.client.findUnique({ where: { id: existing.clientId }, select: { posClientId: true } }))
-            ?.posClientId ?? undefined
-        : undefined;
 
     const paidAmount = cmd.paidAmount ?? existing.paidAmount.toNumber();
 

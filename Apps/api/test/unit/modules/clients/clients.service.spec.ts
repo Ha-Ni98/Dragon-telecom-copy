@@ -519,18 +519,6 @@ describe('ClientsService', () => {
       expect(clientUpdateMock).toHaveBeenCalledWith({ where: { id: CLIENT_ID }, data: { posClientId: POS_CLIENT_ID } });
     });
 
-    it('applyOrderConfirmed only increments totalSold (per spec — orders never touch credit)', async () => {
-      await service().applyOrderConfirmed({
-        orderId: 'o1',
-        posClientId: POS_CLIENT_ID,
-        snapshotLine: { productId: PRODUCT_ID, productName: 'X', quantity: 1, unitPrice: 100, lineTotal: 100 },
-        totals: { subtotal: 100, deliveryFee: 0, totalAmount: 100, paidAmount: 0 },
-        confirmedByStaffId: STAFF_ID,
-      });
-
-      expect(posClientUpdateMock).toHaveBeenCalledWith({ where: { id: POS_CLIENT_ID }, data: { totalSold: { increment: 100 } } });
-    });
-
     it('applyClientPaymentRecorded sets credit and increments totalPaid', async () => {
       await service().applyClientPaymentRecorded({
         paymentId: 'p1',

@@ -4,7 +4,7 @@ import { eventBus } from '../../../../src/common/events/event-bus';
 import { OrdersService } from '../../../../src/modules/orders/orders.service';
 import { OrdersListener } from '../../../../src/modules/orders/orders.listener';
 import type { IInventoryService } from '../../../../src/modules/inventory/inventory.interface';
-import type { ICatalogViewerPricingPort } from '../../../../src/modules/orders/orders.interface';
+import type { ICatalogViewerPricingPort, IOrderCreditPort } from '../../../../src/modules/orders/orders.interface';
 import { buildPaymentClientRecordedEvent } from '../../../data/payment-client-recorded.factory';
 
 const { invoiceFindUniqueMock, orderUpdateMock, loggerErrorMock } = vi.hoisted(() => ({
@@ -41,7 +41,15 @@ describe('OrdersListener', () => {
     };
     const sequenceMock = { nextNumber: vi.fn() };
     const catalogPricingMock: ICatalogViewerPricingPort = { getCartProducts: vi.fn() };
-    const service = new OrdersService(prismaMock as never, deliveryFeeMock, inventoryMock, sequenceMock as never, catalogPricingMock);
+    const clientCreditMock: IOrderCreditPort = { applyOrderSold: vi.fn() };
+    const service = new OrdersService(
+      prismaMock as never,
+      deliveryFeeMock,
+      inventoryMock,
+      sequenceMock as never,
+      catalogPricingMock,
+      clientCreditMock,
+    );
     new OrdersListener(service).setup();
   });
 
