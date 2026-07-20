@@ -1,12 +1,9 @@
 import React, { useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
-import { ArrowLeft, Star, Package, Truck, Store, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useProductDetails } from "@/hooks/use-product-details";
 import { ProductImageGallery } from "@/components/sections/product-details/ProductImageGallery";
@@ -14,6 +11,7 @@ import { ProductCategoryTags } from "@/components/shared/ProductCategoryTags";
 import { ProductPricingSection } from "@/components/sections/product-details/ProductPricingSection";
 import { ProductOrderModal } from "@/components/shared/ProductOrderModal";
 import { ProductErrorBoundary } from "@/components/shared/ProductErrorBoundary";
+import { NotFoundState } from "@/components/shared/NotFoundState";
 import { toast } from "sonner";
 import type { OrderFormValues } from "@/pages/product-detail/order.schema";
 
@@ -105,7 +103,8 @@ export default function ProductDetails() {
     );
   }
 
-  // Error state
+  // Error state — local NotFoundState (never a global redirect) for an unknown/disabled id or a
+  // failed fetch, so the public shell stays mounted around it.
   if (isError || !product) {
     return (
       <div>
@@ -119,22 +118,18 @@ export default function ProductDetails() {
               </Link>
             </Button>
 
-            <div className="max-w-2xl mx-auto">
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {error?.message || t("product.notFound")}
-                </AlertDescription>
-              </Alert>
-              
-              <div className="mt-6 text-center">
+            <NotFoundState
+              icon={<AlertCircle className="h-6 w-6" />}
+              title={t("product.notFound")}
+              body={error?.message || t("product.notFoundMessage")}
+              action={
                 <Button asChild>
                   <Link to="/products">
                     {t("product.browseProducts")}
                   </Link>
                 </Button>
-              </div>
-            </div>
+              }
+            />
           </div>
         </main>
       </div>

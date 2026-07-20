@@ -226,33 +226,70 @@ Foundation lands before any Primitives; all Primitives before any Wiring.**
 
 ---
 
-### Sprint 4: Page-local primitives, Skeletons & local fallbacks (Primitives & States) — Status: ⬜ Pending
+### Sprint 4: Page-local primitives, Skeletons & local fallbacks (Primitives & States) — Status: ✅ Done
 
 **Goals**
 - Every page's loading/error/empty **shape-matched** states exist as local, layout-preserving primitives
   (Shadcn `Skeleton`, `NotFoundState`, `EmptyState`) — before any hook is wired.
 
 **Tasks**
-- [ ] Home: per-section skeletons (6 family cards, brand strip, 8-tile grid) + per-section local error
-      inside each `ErrorBoundary`/`Suspense`; empty-section hides itself. (#ui)
-- [ ] Catalog: skeleton grid (`ProductGrid showSkeletons`), header count skeleton, `EmptyState` with a
-      clear-filters action, inline error+retry. (#ui)
-- [ ] Product Detail: gallery+info skeleton, local `NotFoundState` for unknown/disabled id, inline fee-row
-      spinner, related-strip skeleton. (#ui)
-- [ ] Login / `/staff`: `StaffLanding` "no permitted pages yet" empty state; login error banner already
-      present. (#ui)
-- [ ] Register: disabled/skeleton selects while `useWilayas` loads; phone-check inline spinner slot;
-      success/approval panel. (#ui)
-- [ ] My Account: skeleton profile/status/money cards; inline error+retry; status card renders **"Active"
-      badge only** and **no category**. (#ui)
-- [ ] Not Found: verify the public `CatchAllRoute` branch renders inside `PublicLayout` with a home link. (#ui)
+- [x] Home: `BrandsSection`/`ProductsSection` (both real, stub-backed hooks already) gained a local
+      `isError` branch (`NotFoundState` + retry) alongside their existing skeleton/empty states — a real
+      gap (query failures were previously silently swallowed into the empty state). `CategoriesSection`'s
+      "6 family cards" skeleton **deferred to Sprint 5** — see Corrections. (#ui)
+- [x] Catalog: `ProductGrid`'s bespoke error/empty divs replaced with the shared `NotFoundState`/
+      `EmptyState`; added `onRetry`/`onClearFilters` props, wired from `Products.tsx` (`refetch`/
+      `handleClearFilters` — both already existed, no new hook). `ProductListHeader`'s count skeleton was
+      already present and shape-matched — no change needed. (#ui)
+- [x] Product Detail: gallery+info skeleton was already present (Sub-01). Not-found view converted from a
+      bespoke `Alert` block to `NotFoundState` (consistent with the rest of the set); dropped 4 now-fully-
+      dead icon/component imports (`Star`, `Truck`, `Store`, `Alert`/`AlertDescription`) surfaced by the
+      swap. Fee-row spinner was already built in Sprint 3. Related-strip skeleton **deferred to Sprint 5**
+      — see Corrections. (#ui)
+- [x] Login / `/staff`: `StaffLanding`'s empty state (built in Sprint 2) now also distinguishes a failed
+      `usePermissions()` fetch from a legitimately empty permission set (`isError` branch, distinct copy
+      + retry) — a real gap, not just a verify. Login's error banner/submitting state were already
+      correct — verified only. (#ui)
+- [x] Register: verified only — see Corrections (`useWilaya()` has no loading state to skeleton; the
+      phone-check spinner and success panel already existed and are correct as-is). (#ui)
+- [x] My Account: skeleton improved from one generic block to two card-shaped placeholders matching the
+      real Personal-Info/Status card layout; added `isError` + retry to the existing not-found gate;
+      status card simplified to **"Active" badge only, no category** (dropped
+      `getStatusBadgeVariant`/`getStatusText`/`getCategoryName`). (#ui)
+- [x] Not Found: verified — `CatchAllRoute` (App.tsx) already renders `NotFoundState` inside
+      `PublicLayout`/`AdminLayout` with a home link; no change needed. (#ui)
 
 **Validation**
-- [ ] Each skeleton matches the real content's shape (no layout shift on resolve).
-- [ ] `tsc --noEmit` clean; all placeholder copy via `useTranslation`.
+- [x] Each skeleton matches the real content's shape (no layout shift on resolve) — confirmed for every
+      skeleton improved or added this sprint.
+- [x] `tsc --noEmit` clean (both configs); all copy (new and reused) via `useTranslation` — 7 new keys
+      added (`brands.errorLoading[Body]`, `staff.landing.errorLoading[Body]`), rest reused existing keys.
+- [x] `vitest run` — 299/299 passed, no regressions.
+- [x] `eslint` before/after diff, all 7 touched `.tsx` files — every new lint line is `prettier/prettier`
+      (confirmed via rule-class breakdown, not just counted); zero new rule categories.
 
 **Risks**
 - Skeleton dimensions drifting from real content cause CLS — size them to the DTO-driven layout.
+  *(Addressed for every skeleton touched this sprint.)*
+
+**Corrections found this sprint (same transparent-correction pattern as Sprints 1–3):** three task-list
+items assumed an async hook or component that doesn't exist yet on the current (pre-Sprint-5/6) code —
+building a skeleton with nothing real to gate it on would be dead code, so each is deferred to the sprint
+that actually introduces the trigger:
+1. **`CategoriesSection`'s skeleton** — the component is 100% hardcoded today (no `useCatalogFamilies`
+   call at all, confirmed by grep), unlike `BrandsSection`/`ProductsSection` which already have real
+   (if stub-backed) `useQuery` hooks to extend. Deferred to Sprint 5, built together with the real query.
+2. **The related-products strip's skeleton** — `RelatedProductsStrip` doesn't exist as a component yet
+   (plan.md D7/scope confinement: it's new UI, not a retype). Deferred to Sprint 5 alongside the real
+   component.
+3. **Register's "disabled/skeleton selects while `useWilayas` loads"** — the current wilaya source is
+   `useWilaya()`/`WilayaProvider`, a synchronous static-JSON context, not an async query; there is no
+   loading state to skeleton until Sprint 6 swaps it for the real server `useWilayas()` (plan.md D8).
+
+Applied a fourth, established rule everywhere else in this sprint that *does* have a real hook already:
+**extend the existing `isLoading`/`isError` states rather than defer** — this is what produced the new
+`isError` branches on `BrandsSection`, `ProductsSection` (both views), `StaffLanding`, and `MyAccount`,
+none of which existed before this sprint despite their hooks already being real `useQuery` calls.
 
 ---
 

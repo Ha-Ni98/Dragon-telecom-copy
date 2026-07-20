@@ -9484,6 +9484,16 @@
     "fr": "Voir toutes les marques",
     "ar": ""
   },
+  "brands.errorLoading": {
+    "en": "Error Loading Brands",
+    "fr": "Erreur de chargement des marques",
+    "ar": ""
+  },
+  "brands.errorLoadingBody": {
+    "en": "Something went wrong while loading the brands.",
+    "fr": "Une erreur est survenue lors du chargement des marques.",
+    "ar": ""
+  },
   "account.updateError": {
     "en": "Failed to update account.",
     "fr": "Échec de la mise à jour du compte.",
@@ -9637,6 +9647,16 @@
   "staff.landing.noPermittedPagesBody": {
     "en": "Your account has no assigned pages yet. Contact an administrator.",
     "fr": "Votre compte n'a pas encore de pages assignées. Contactez un administrateur.",
+    "ar": ""
+  },
+  "staff.landing.errorLoading": {
+    "en": "Couldn't load your permissions",
+    "fr": "Impossible de charger vos autorisations",
+    "ar": ""
+  },
+  "staff.landing.errorLoadingBody": {
+    "en": "Something went wrong while checking which pages you can access.",
+    "fr": "Une erreur est survenue lors de la vérification de vos accès.",
     "ar": ""
   }
 }

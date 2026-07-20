@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SimplePagination } from '@/components/shared/SimplePagination';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { NotFoundState } from '@/components/shared/NotFoundState';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ProductWithPricingDto } from '@dragon-telecom/contract';
 import { ProductCard } from './ProductCard';
@@ -18,6 +20,10 @@ interface ProductGridProps {
   isLoading?: boolean;
   /** Error message to display */
   error?: string;
+  /** Retries the failed query — falls back to a hard reload if the caller doesn't wire one. */
+  onRetry?: () => void;
+  /** Clears active filters — shown as the empty-state action when provided. */
+  onClearFilters?: () => void;
   /** Callback when a product is clicked */
   onProductClick?: (productId: string) => void;
   /** Callback when a product is added to cart */
@@ -52,6 +58,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   products,
   isLoading = false,
   error,
+  onRetry,
+  onClearFilters,
   onProductClick,
   onAddToCart,
   showPrice,
@@ -159,45 +167,44 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   };
 
   /**
-   * Render error state
+   * Render error state — local to the grid so a failed query never takes the rest of the page
+   * (filters, header) down with it.
    */
   const renderError = () => (
-    <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-      <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-      <h3 className="text-lg font-semibold mb-2">{t('products.errorLoading')}</h3>
-      <p className="text-muted-foreground mb-4">
-        {error || t('products.errorLoadingBody')}
-      </p>
-      <Button 
-        variant="outline" 
-        onClick={() => window.location.reload()}
-        className="flex items-center gap-2"
-      >
-        <AlertCircle className="h-4 w-4" />
-        {t('common.actions.tryAgain')}
-      </Button>
+    <div className="col-span-full">
+      <NotFoundState
+        icon={<AlertCircle className="h-6 w-6" />}
+        title={t('products.errorLoading')}
+        body={error || t('products.errorLoadingBody')}
+        action={
+          <Button variant="outline" onClick={() => (onRetry ? onRetry() : window.location.reload())}>
+            {t('common.actions.tryAgain')}
+          </Button>
+        }
+      />
     </div>
   );
 
   /**
-   * Render empty state
+   * Render empty state — offers a clear-filters action when the caller supplies one (Catalog),
+   * otherwise falls back to a plain "browse all products" link.
    */
   const renderEmpty = () => (
-    <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-      <Package className="h-12 w-12 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-semibold mb-2">{t('products.noProductsFound')}</h3>
-      <p className="text-muted-foreground mb-4">
-        {t('products.results.none')}
-      </p>
-      <Button 
-        variant="outline"
-        onClick={() => {
-          // Reset filters or navigate to all products
-          window.location.href = '/products';
-        }}
-      >
-        View All Products
-      </Button>
+    <div className="col-span-full">
+      <EmptyState
+        icon={<Package className="h-6 w-6" />}
+        title={t('products.noProductsFound')}
+        body={t('products.results.none')}
+        decoration={
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => (onClearFilters ? onClearFilters() : (window.location.href = '/products'))}
+          >
+            {onClearFilters ? t('products.filters.clearAll') : t('products.viewAll')}
+          </Button>
+        }
+      />
     </div>
   );
 

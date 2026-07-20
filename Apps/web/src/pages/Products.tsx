@@ -36,7 +36,7 @@ export default function Products() {
   const [selectedModel, setSelectedModel] = useState("all");
 
   // Hooks for data fetching
-  const { data: productsData, isLoading: productsLoading, error: productsError } = useProducts();
+  const { data: productsData, isLoading: productsLoading, error: productsError, refetch: refetchProducts } = useProducts();
   const brands = EMPTY_BRANDS;
   const categories = EMPTY_CATEGORIES;
   const models = EMPTY_MODELS;
@@ -252,6 +252,8 @@ export default function Products() {
               products={filteredProducts}
               isLoading={isLoadingData}
               error={hasError ? 'Failed to load products' : undefined}
+              onRetry={() => refetchProducts()}
+              onClearFilters={handleClearFilters}
               onProductClick={handleProductClick}
               onAddToCart={handleAddToCart}
               showPrice={isAuthenticated}

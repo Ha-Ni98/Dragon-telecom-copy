@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/hooks/useTranslation';
 import { BrandWithCount } from '@/types/draft-types/main-page.types';
 import { useBrands } from '@/hooks/use-brands';
+import { NotFoundState } from '@/components/shared/NotFoundState';
 
 /**
  * BrandsSection component props
@@ -98,7 +99,7 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const { data: brandsData, isLoading } = useBrands();
+  const { data: brandsData, isLoading, isError, refetch } = useBrands();
   const brands = useMemo(() => (brandsData ?? []).slice(0, maxBrands), [brandsData, maxBrands]);
 
   /**
@@ -145,6 +146,26 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
               <Skeleton key={i} className="h-48 w-full" />
             ))}
           </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Error state — local to this section so a failed brands fetch never takes down the rest of
+  // the home page (each landing section fails independently, PUB-01).
+  if (isError) {
+    return (
+      <section className={`py-16 ${className}`}>
+        <div className="container mx-auto px-4">
+          <NotFoundState
+            title={t('brands.errorLoading')}
+            body={t('brands.errorLoadingBody')}
+            action={
+              <Button variant="outline" onClick={() => refetch()}>
+                {t('common.actions.tryAgain')}
+              </Button>
+            }
+          />
         </div>
       </section>
     );

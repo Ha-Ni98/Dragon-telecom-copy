@@ -20,7 +20,7 @@ export default function MyAccount() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const { data: accountData, isLoading } = useMyAccount();
+  const { data: accountData, isLoading, isError, refetch } = useMyAccount();
   const updateMutation = useUpdateMyAccount();
   const passwordResetMutation = useResetMyAccountPassword();
 
@@ -85,40 +85,6 @@ export default function MyAccount() {
     navigate('/orders');
   };
 
-  const getStatusBadgeVariant = (status: number) => {
-    switch (status) {
-      case 0: // ClientStatusCode.active
-        return 'default';
-      case 1: // ClientStatusCode.pending
-        return 'secondary';
-      case 2: // ClientStatusCode.disabled
-        return 'destructive';
-      case 3: // ClientStatusCode.refused
-        return 'destructive';
-      default:
-        return 'outline';
-    }
-  };
-
-  const getStatusText = (status: number) => {
-    switch (status) {
-      case 0: return 'Active';
-      case 1: return 'Pending';
-      case 2: return 'Disabled';
-      case 3: return 'Refused';
-      default: return 'Unknown';
-    }
-  };
-
-  const getCategoryName = (categoryId: number) => {
-    // This would typically come from a categories lookup
-    switch (categoryId) {
-      case 1: return 'Retail';
-      case 2: return 'Wholesale';
-      default: return 'Standard';
-    }
-  };
-
   if (isLoading) {
     return (
       <div>
@@ -128,20 +94,45 @@ export default function MyAccount() {
               <Skeleton className="h-8 w-48" />
               <Skeleton className="h-4 w-72" />
             </div>
-            <Skeleton className="h-64 w-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+            </div>
+            {/* Personal info card */}
+            <div className="space-y-4 rounded-lg border p-6">
+              <Skeleton className="h-5 w-40" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            {/* Status card */}
+            <div className="space-y-4 rounded-lg border p-6">
+              <Skeleton className="h-5 w-32" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-8 w-32" />
+              </div>
+            </div>
           </div>
         </main>
       </div>
     );
   }
 
-  if (!userInfo) {
+  if (isError || !userInfo) {
     return (
       <div>
         <main className="container mx-auto px-4 py-8">
           <NotFoundState
             title={t('account.notFoundTitle')}
             body={t('account.notFoundBody')}
+            action={
+              <Button variant="outline" onClick={() => refetch()}>
+                {t('common.actions.tryAgain')}
+              </Button>
+            }
           />
         </main>
       </div>
@@ -282,16 +273,13 @@ export default function MyAccount() {
                   <CardDescription>{t('account.accountStatusDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* PUB-08: badge "Active" only — a signed-in client is by definition approved,
+                      so no other status value is ever reachable here. Category is NEVER rendered
+                      (ClientMeDto has no category field by design). */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col space-y-2">
                       <Label>{t('account.status')}</Label>
-                      <Badge variant={getStatusBadgeVariant(userInfo.clientStatus)}>
-                        {getStatusText(userInfo.clientStatus)}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-col space-y-2">
-                      <Label>{t('account.category')}</Label>
-                      <Badge variant="outline">{getCategoryName(userInfo.idCategory)}</Badge>
+                      <Badge variant="default">{t('account.statusActive')}</Badge>
                     </div>
                     <div className="flex flex-col space-y-2">
                       <Label>{t('account.memberSince')}</Label>

@@ -9,6 +9,7 @@ import { useFeaturedProducts, useProducts } from "@/hooks/use-products";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { ProductCard } from "@/components/shared/ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NotFoundState } from "@/components/shared/NotFoundState";
 import type { ProductWithPricingDto } from "@dragon-telecom/contract";
 
 const brands = ["All", "Apple", "Samsung", "Google", "OnePlus", "Dell", "Sony", "LG", "Nintendo", "Microsoft"];
@@ -29,8 +30,8 @@ export function ProductsSection() {
   const { isAuthenticated } = useAuth();
   const addToCart = useCallback(async (_productId: string) => {}, []);
 
-  const { data: productsData, isLoading: isLoadingAll } = useProducts();
-  const { data: featuredData, isLoading: isLoadingFeatured } = useFeaturedProducts(10);
+  const { data: productsData, isLoading: isLoadingAll, isError: isErrorAll, refetch: refetchAll } = useProducts();
+  const { data: featuredData, isLoading: isLoadingFeatured, isError: isErrorFeatured, refetch: refetchFeatured } = useFeaturedProducts(10);
 
   const allProducts = useMemo(() => productsData ?? [], [productsData]);
   const featuredProducts = useMemo(() => featuredData ?? [], [featuredData]);
@@ -159,6 +160,18 @@ export function ProductsSection() {
                 <Skeleton key={i} className="h-64 w-full" />
               ))}
             </div>
+          ) : isErrorAll ? (
+            <div className="mb-8">
+              <NotFoundState
+                title={t('products.errorLoading')}
+                body={t('products.errorLoadingBody')}
+                action={
+                  <Button variant="outline" onClick={() => refetchAll()}>
+                    {t('common.actions.tryAgain')}
+                  </Button>
+                }
+              />
+            </div>
           ) : paginatedProducts.length > 0 ? (
             <div className={viewMode === "grid"
               ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
@@ -224,6 +237,18 @@ export function ProductsSection() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {isLoadingFeatured ? (
             Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-64 w-full" />)
+          ) : isErrorFeatured ? (
+            <div className="col-span-full">
+              <NotFoundState
+                title={t('products.errorLoading')}
+                body={t('products.errorLoadingBody')}
+                action={
+                  <Button variant="outline" onClick={() => refetchFeatured()}>
+                    {t('common.actions.tryAgain')}
+                  </Button>
+                }
+              />
+            </div>
           ) : featuredProducts.length > 0 ? (
             featuredProducts.map((product) => (
               <ProductCard
