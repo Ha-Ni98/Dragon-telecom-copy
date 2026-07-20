@@ -21,6 +21,26 @@ export function useMyInvoices(query: InvoiceListQuery) {
   });
 }
 
+// set-02 D3 (engine gap) — billingService.getMyInvoice/getMyInvoicePdf already existed
+// (Sub-02 built the service layer ahead of any consuming UI, same Tier-5 pattern as the rest
+// of this file) but were never wrapped in a hook. No `scope` param: BillingScope is only
+// "staff"|"admin", so this is genuinely a separate client-only surface, not a 3rd scope value.
+export function useMyInvoice(number: string) {
+  return useQuery({
+    queryKey: qk.billing.mineDetail(number),
+    queryFn: () => billingService.getMyInvoice(number),
+    enabled: !!number,
+  });
+}
+
+// Imperative (Blob download), same shape as useInvoicePdf below and useExportReportCsv
+// (useStatistics.ts) — not cacheable domain data.
+export function useMyInvoicePdf() {
+  return useMutation({
+    mutationFn: (number: string) => billingService.getMyInvoicePdf(number),
+  });
+}
+
 export function useInvoices(scope: BillingScope, query: InvoiceListQuery) {
   return useQuery({
     queryKey: qk.billing.list(scope, query),

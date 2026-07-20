@@ -18,7 +18,6 @@ import { ProductOrderModal } from "@/components/shared/ProductOrderModal";
 import { ProductErrorBoundary } from "@/components/shared/ProductErrorBoundary";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { RelatedProductsStrip } from "@/pages/product-detail/components/RelatedProductsStrip";
-import { toast } from "sonner";
 import { ClientActivityType, UserType, OrderType, type PlaceOrderCommand } from "@dragon-telecom/contract";
 import type { OrderFormValues } from "@/pages/product-detail/order.schema";
 
@@ -87,15 +86,18 @@ export default function ProductDetails() {
   // Real submission (D6: placeOrder already carries an Idempotency-Key, orders.service.ts).
   // Errors (incl. 409 INSUFFICIENT_STOCK / 403 GUEST_PRICE_HIDDEN) are interpreted by the
   // modal's own submit handler (Sprint 3) — this just needs to let them propagate.
+  //
+  // set-02 D9: was `navigate("/orders")` (a set-01 stopgap — PUB-05 didn't exist yet). PUB-05
+  // is the real success target: renders the returned OrderDto via router state. /orders (PUB-09)
+  // is a different page (the client's order history), not the post-order confirmation.
   const handleOrderSubmit = async (data: OrderFormValues) => {
     const command: PlaceOrderCommand = {
       ...data,
       clientId: isClient ? (session?.clientId ?? null) : null,
     };
-    await placeOrderMutation.mutateAsync(command);
-    toast.success(t("product.orderSuccess"));
+    const order = await placeOrderMutation.mutateAsync(command);
     setIsOrderModalOpen(false);
-    navigate("/orders");
+    navigate("/order-confirmation", { state: { order } });
   };
 
   const prefill = clientMe

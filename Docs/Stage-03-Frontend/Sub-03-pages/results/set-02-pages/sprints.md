@@ -81,7 +81,7 @@ any Wiring.**
 
 ---
 
-### Sprint 2: Routing, Guards, StaffLayout, Lazy & Engine-gap prep (Foundation) — Status: ⬜ Pending
+### Sprint 2: Routing, Guards, StaffLayout, Lazy & Engine-gap prep (Foundation) — Status: ✅ Done
 
 **Goals**
 - The route table matches the requirements (client-scoped `/cart` `/orders` `/invoices`; public
@@ -89,43 +89,48 @@ any Wiring.**
 - The one engine gap (client-invoice hooks) is closed; PUB-03's success target is corrected.
 
 **Tasks**
-- [ ] **D3 (engine gap):** add `useMyInvoice(number)` + `useMyInvoicePdf()` to `useBilling.ts` (wrap the
+- [x] **D3 (engine gap):** add `useMyInvoice(number)` + `useMyInvoicePdf()` to `useBilling.ts` (wrap the
       existing `billingService.getMyInvoice`/`getMyInvoicePdf`); add a `qk.billing.mineDetail(number)` key
       to `lib/query-keys.ts`. (#wiring)
-- [ ] **D4:** build `StaffLayout` (`components/layout/StaffLayout.tsx`) mirroring `AdminLayout`
+- [x] **D4:** build `StaffLayout` (`components/layout/StaffLayout.tsx`) mirroring `AdminLayout`
       (header + sidebar + `<main><Outlet/>`); `StaffHeader`; `StaffSidebarNav` rendering a new
       `STAFF_NAV_LINKS` filtered by `usePermissions()` (each entry tagged with its `PageKey`). (#routing)
-- [ ] **D4/D11:** add `STAFF_NAV_LINKS` to `config/nav-links.ts` (dashboard → `/staff`, products →
+- [x] **D4/D11:** add `STAFF_NAV_LINKS` to `config/nav-links.ts` (dashboard → `/staff`, products →
       `/staff/products` shipped; POS/orders/sales/invoices/repairs entries planned but route-less —
       scope-confined `<Link>`s only); populate `STAFF_PAGE_ROUTES` in `lib/staff-pages.ts` with the shipped
       entries. (#routing)
-- [ ] **D1:** in `App.tsx`, **replace the `/staff` element (`StaffLanding`) with `StaffDashboard`**; add
+- [x] **D1:** in `App.tsx`, **replace the `/staff` element (`StaffLanding`) with `StaffDashboard`**; add
       `/staff/products` (`StaffProducts`); nest both under a `StaffLayout` route element guarded
       `RoleGuard allow={[STAFF, ADMIN]}`, with `/staff/products` additionally gated on
       `PageKey.STAFF_PRODUCTS`. Retire `StaffLanding` + `firstPermittedStaffRoute()` once unreferenced.
       (#routing)
-- [ ] **D12:** add `/cart` and `/invoices` under the existing `RoleGuard allow={[CLIENT]}` block; **move
+- [x] **D12:** add `/cart` and `/invoices` under the existing `RoleGuard allow={[CLIENT]}` block; **move
       `/orders`** out of the any-authenticated `ProtectedRoute` into that CLIENT block; add
       `/order-confirmation` (public, **no** role guard — state-guarded in Sprint 5). (#routing)
-- [ ] Add `React.lazy()` + `<Suspense fallback={<PageLoader/>}>` entries for the 5 new page components
+- [x] Add `React.lazy()` + `<Suspense fallback={<PageLoader/>}>` entries for the 5 new page components
       (Cart, OrderConfirmation, MyInvoices, StaffDashboard, StaffProducts) — **thin placeholder shells**
       (render a skeleton) so routing/`tsc` stay green until Sprints 5–6 flesh them out. (#routing)
-- [ ] **D9:** correct PUB-03's order-success navigation in `ProductDetails.tsx` from `navigate("/orders")`
+- [x] **D9:** correct PUB-03's order-success navigation in `ProductDetails.tsx` from `navigate("/orders")`
       to `navigate("/order-confirmation", { state: { order } })`. (#wiring)
 
 **Validation**
-- [ ] **`useTranslation`:** all new StaffLayout/sidebar copy via `staff.nav.*`; no inline strings.
-- [ ] **`tsc --noEmit` clean** after route/guard/layout changes + the 2 new hooks.
-- [ ] Guards preserve pre-mount `AuthRestoring` (no `/login` flash); `/orders` now rejects staff/admin;
+- [x] **`useTranslation`:** all new StaffLayout/sidebar copy via `staff.nav.*` (+ reused `admin.shell.*`/
+      `common.actions.*` for shell chrome — see report); no inline strings.
+- [x] **`tsc --noEmit` clean** after route/guard/layout changes + the 2 new hooks.
+- [x] Guards preserve pre-mount `AuthRestoring` (no `/login` flash); `/orders` now rejects staff/admin;
       `/staff` `/staff/products` reject clients; `/cart` `/invoices` reject non-clients.
-- [ ] Layout survives `isError` on any lazy route (`RouteErrorBoundary` unchanged).
-- [ ] `vitest run` green — update set-01's `ProtectedRoute.test.tsx`/`redirect.test.tsx` if they asserted
-      `/orders` was any-authenticated (now CLIENT-scoped).
+- [x] Layout survives `isError` on any lazy route (`RouteErrorBoundary` unchanged).
+- [x] `vitest run` green — `redirect.test.tsx`'s dead `StaffLanding` describe block removed (component
+      retired); its still-valid `PublicOnlyRoute` describe block kept as-is. 353/353 (356 − 3 removed).
 
 **Risks**
 - Moving `/orders` to CLIENT-only may break set-01 guard tests — fix in the same sprint (or note the
-  assertion change for Sprint 8).
+  assertion change for Sprint 8). *(No break — `ProtectedRoute.test.tsx` tests the component directly,
+  not via App.tsx's route tree; only `redirect.test.tsx`'s StaffLanding-specific block needed removal.)*
 - Placeholder page shells must render a skeleton only — never wired to a stub hook — until Sprints 5–6.
+  *(Confirmed — all 5 are pure Skeleton markup, zero hooks, zero text.)*
+
+**Report:** `report-sprint-02.md`.
 
 ---
 
