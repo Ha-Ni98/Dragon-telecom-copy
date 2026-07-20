@@ -1,213 +1,48 @@
-import { useMemo, useState, useCallback } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Search, Grid, List, ChevronLeft } from "lucide-react";
+import { ArrowRight, Search, Grid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useFeaturedProducts, useProducts } from "@/hooks/use-products";
-import { useAuth } from "@/components/providers/AuthProvider";
-import { ProductCard } from "@/components/shared/ProductCard";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ProductWithDetails } from "@/types/draft-types/main-page.types";
+import { useCatalogProducts } from "@/hooks/useCatalogProducts";
+import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
+import { ProductGrid } from "@/components/shared/ProductGrid";
 
-const brands = ["All", "Apple", "Samsung", "Google", "OnePlus", "Dell", "Sony", "LG", "Nintendo", "Microsoft"];
-const categories = ["All", "Smartphones", "Tablets", "Laptops", "Accessories", "TVs", "Gaming"];
-
+// PUB-01: "featured ProductGrid (8 cards), inline search input, family select, grid/list
+// toggle." Search submit and family selection are pure navigation to the Catalog page (scope
+// confinement — this section links there, it doesn't own that destination); the grid/list
+// toggle is local display only.
 export function ProductsSection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [showAllProducts, setShowAllProducts] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedBrand, setSelectedBrand] = useState("All");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedFamily, setSelectedFamily] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
 
-  // Use real authentication state; cart isn't wired yet (deferred to Sub-02, decision #2).
-  const { isAuthenticated } = useAuth();
-  const addToCart = useCallback(async (_product: ProductWithDetails) => {}, []);
-
-  const { data: productsData, isLoading: isLoadingAll } = useProducts();
-  const { data: featuredData, isLoading: isLoadingFeatured } = useFeaturedProducts(10);
-
-  const allProducts = useMemo(() => productsData ?? [], [productsData]);
-  const featuredProducts = useMemo(() => featuredData ?? [], [featuredData]);
-
-  const handleAddToCart = useCallback(async (product: ProductWithDetails) => {
-    try {
-      addToCart(product);
-    } catch (error) {
-      console.error('Error adding product to cart:', error);
-    }
-  }, [addToCart]);
-
-  const handleViewProduct = useCallback((productId: number) => {
-    navigate(`/product/${productId}`);
-  }, [navigate]);
-
-  // Filter all products
-  const filteredProducts = allProducts.filter((product) => {
-    const matchesSearch = product.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.brand.brandName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesBrand = selectedBrand === "All" || product.brand.brandName === selectedBrand;
-    const matchesCategory = selectedCategory === "All" || product.family.familyName === selectedCategory;
-
-    return matchesSearch && matchesBrand && matchesCategory;
+  const { data: productsResult, isLoading, isError, refetch } = useCatalogProducts({
+    featured: true,
+    page: 1,
+    limit: 8,
   });
+  // Same query shape CategoriesSection already uses — TanStack Query dedupes by key, so this
+  // is a cache hit, not a second network call.
+  const { data: familiesData } = useCatalogFamilies({ featured: true, limit: 6, withCount: true });
 
-  // Pagination for all products view
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  const products = productsResult?.items ?? [];
+  const families = familiesData ?? [];
 
-  if (showAllProducts) {
-    return (
-      <section className="py-16 bg-muted/30">
-        <div className="container mx-auto px-4">
-          {/* Header with Back Button */}
-          <div className="mb-8">
-            <Button
-              variant="ghost"
-              onClick={() => setShowAllProducts(false)}
-              className="mb-4"
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              {t('public.products.backToFeatured')}
-            </Button>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('public.products.allProducts')}</h2>
-            <p className="text-lg text-muted-foreground">
-              {t('public.products.allProductsSubtitle')}
-            </p>
-          </div>
+  const handleSearchSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const query = searchQuery.trim();
+    if (query) navigate(`/products?search=${encodeURIComponent(query)}`);
+  };
 
-          {/* Search and Filters */}
-          <div className="mb-8 space-y-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              {/* Search */}
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder={t('header.search')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+  const handleFamilyChange = (familyId: string) => {
+    setSelectedFamily(familyId);
+    if (familyId !== "all") navigate(`/products?familyId=${familyId}`);
+  };
 
-              {/* Brand Filter */}
-              <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder={t('public.products.selectBrand')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands.map((brand) => (
-                    <SelectItem key={brand} value={brand}>
-                      {brand}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Category Filter */}
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder={t('public.products.selectCategory')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* View Mode Toggle */}
-              <div className="flex border rounded-lg p-1">
-                <Button
-                  variant={viewMode === "grid" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                  className="px-3"
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className="px-3"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Results Count */}
-            <p className="text-sm text-muted-foreground">
-              {t('public.products.showingCount', { shown: paginatedProducts.length, total: filteredProducts.length })}
-            </p>
-          </div>
-
-          {/* Products Grid */}
-          {isLoadingAll ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-64 w-full" />
-              ))}
-            </div>
-          ) : paginatedProducts.length > 0 ? (
-            <div className={viewMode === "grid"
-              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
-              : "space-y-4 mb-8"
-            }>
-              {paginatedProducts.map((product) => (
-                <ProductCard
-                  key={product.idProduct}
-                  product={product}
-                  showPrice={isAuthenticated}
-                  onAddToCart={() => handleAddToCart(product)}
-                  onViewDetails={() => handleViewProduct(product.idProduct)}
-                  isAuthenticated={isAuthenticated}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-lg text-muted-foreground">{t('public.products.noProductsFound')}</p>
-            </div>
-          )}
-
-          {/* Simple Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              >
-                {t('common.previous')}
-              </Button>
-              <span className="flex items-center px-4">
-                {t('common.pagination.pageOf', { page: currentPage, total: totalPages })}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-              >
-                {t('common.next')}
-              </Button>
-            </div>
-          )}
-        </div>
-      </section>
-    );
-  }
-
-  // Featured Products View (default)
   return (
     <section className="py-16 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -220,26 +55,68 @@ export function ProductsSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-          {isLoadingFeatured ? (
-            Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-64 w-full" />)
-          ) : featuredProducts.length > 0 ? (
-            featuredProducts.map((product) => (
-              <ProductCard
-                key={product.idProduct}
-                product={product}
-                showPrice={isAuthenticated}
-                onAddToCart={() => handleAddToCart(product)}
-                onViewDetails={() => handleViewProduct(product.idProduct)}
-                isAuthenticated={isAuthenticated}
-              />
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-lg text-muted-foreground">{t('public.products.noProductsFound')}</p>
-            </div>
-          )}
+        {/* Search + family select + view toggle */}
+        <div className="mb-8 flex flex-col md:flex-row gap-4">
+          <form onSubmit={handleSearchSubmit} className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder={t('header.search')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </form>
+
+          <Select value={selectedFamily} onValueChange={handleFamilyChange}>
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder={t('products.filters.category')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('products.filters.all')}</SelectItem>
+              {families.map((family) => (
+                <SelectItem key={family.id} value={family.id}>
+                  {family.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="flex border rounded-lg p-1">
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className="px-3"
+              aria-label={t('products.gridView')}
+            >
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="px-3"
+              aria-label={t('products.listView')}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+
+        <ProductGrid
+          products={products}
+          isLoading={isLoading}
+          error={isError ? t('products.errorLoadingBody') : undefined}
+          onRetry={() => refetch()}
+          columns={
+            viewMode === "grid"
+              ? { mobile: 1, tablet: 2, desktop: 4 }
+              : { mobile: 1, tablet: 1, desktop: 1 }
+          }
+          enablePagination={false}
+          showSkeletons
+          skeletonCount={8}
+        />
 
         {/* View All Products Button */}
         <div className="text-center mt-12">

@@ -188,9 +188,6 @@ export const qk = {
 // instead; this list only grows when retyping the real registry incidentally breaks an
 // old stub hook's key shape (as `brands`/`families`/`models` did in Sprint 3).
 export const qkLegacy = {
-  catalogProductsList: () => ["catalog", "products"] as const,
-  catalogFeaturedProducts: (limit: number) => ["catalog", "products", "featured", limit] as const,
-  catalogProductByName: (name: string) => ["catalog", "products", "by-name", name] as const,
   catalogBrandsList: () => ["catalog", "brands", false] as const,
   catalogFamiliesList: () => ["catalog", "families", undefined] as const,
   catalogModelsList: () => ["catalog", "models", undefined] as const,
@@ -202,5 +199,4 @@ export const qkLegacy = {
     ["catalog", "admin-products", "search", query, filters] as const,
   ordersAdminList: (query?: unknown) => ["orders", "admin-list", query] as const,
   ordersAdminStats: () => ["orders", "admin-stats"] as const,
-  clientsMyAccount: () => ["clients", "my-account"] as const,
 } as const;

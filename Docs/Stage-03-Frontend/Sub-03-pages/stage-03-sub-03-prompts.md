@@ -11,7 +11,7 @@ Read and follow strictly:
 - **Phase file:** @Docs/Stage-03-Frontend/Sub-03-pages/stage-03-sub-03-phase-01-plan.md  
 - **Rules:** @Docs/Stage-03-Frontend/front-end-rules.md  , @Docs/Stage-03-Frontend/front-end-test-rules.md  
 - **Input:** the page requirements file @Docs/Stage-00-Conception/Pages-Requirements/SV-PAGE-011-013_admin_part2_spec.md  and the existing `/src/hooks` and the backend in `Apps/api`
-- **Contract:** `@app-template/contract`
+- **Contract:** `Apps/contract`
 
 Constraints: no code (audit/plan only); map exactly which `use[Name]` hooks are needed (no `useEffect` fetching); plan Shadcn Skeletons + local error fallbacks; output `/Docs/stage-03-frontend/sub-03-pages/results/[page-set-name]/plan.md`.
 
@@ -40,4 +40,4 @@ Read and follow strictly:
 - **Sprints:** sprints.md
 - **Rules:** front-end-rules.md , front-end-test-rules.md
 
-Constraints: no inline strings (text via `useTranslation` + `translations.json`); implement Skeleton + localized error states whenever a hook is consumed (layout never crashes); forms use React Hook Form + Zod aligned to `@app-template/contract`. Take the first sprint not ✅, validate (`tsc`, `vitest run`), commit on green, update docs, stop and wait for `next`.
+Constraints: no inline strings (text via `useTranslation` + `translations.json`); implement Skeleton + localized error states whenever a hook is consumed (layout never crashes); forms use React Hook Form + Zod aligned to `Apps/contract`. Take the first sprint not ✅, validate (`tsc`, `vitest run`), update docs, commit on green, stop and wait for `next`.

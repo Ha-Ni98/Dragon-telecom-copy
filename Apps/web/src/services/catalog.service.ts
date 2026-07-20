@@ -4,8 +4,13 @@
 // `@dragon-telecom/contract`'s CATALOG_ROUTES lands in Sub-02; per Sub-01 scope decision,
 // the return types stay on the existing frontend view models (numeric ids) rather than the
 // contract's UUID-based DTOs — that retype happens together with the real wiring.
+//
+// getBrands/getFamilies/getModels stay on the draft types — they're also consumed by
+// out-of-set admin pages (use-brands.ts/use-models.ts) not touched by this set.
+// getRelatedProducts/searchProducts have no consumers (dead since before this set) — left
+// on the draft ProductDetails type rather than retyped, since touching them isn't needed to
+// keep tsc green and isn't otherwise in this set's scope.
 import type { Brand, Family, Model, ProductDetails } from "@/types/draft-types/product.types";
-import type { ProductWithDetails } from "@/types/draft-types/main-page.types";
 import type {
   AdminProductWithDetails,
   AdminProductsStats,
@@ -27,22 +32,6 @@ import type { SupplyFormData } from "@/types/draft-types/admin-supply.types";
 // Stub write-paths that would otherwise need to fabricate a full entity throw this instead
 // of faking success — real persistence lands in Sub-02, wired against a real product.
 const NOT_WIRED = 'This action is not available yet.';
-
-export async function getProducts(): Promise<ProductWithDetails[]> {
-  return [];
-}
-
-export async function getFeaturedProducts(_limit: number = 4): Promise<ProductWithDetails[]> {
-  return [];
-}
-
-export async function getProductByName(_name: string): Promise<ProductDetails | null> {
-  return null;
-}
-
-export async function getProductById(_id: number): Promise<ProductDetails | null> {
-  return null;
-}
 
 export async function getRelatedProducts(_productId: number, _limit: number = 4): Promise<ProductDetails[]> {
   return [];

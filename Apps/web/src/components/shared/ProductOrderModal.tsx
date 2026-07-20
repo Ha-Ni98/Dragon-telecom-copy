@@ -1,377 +1,167 @@
 /**
  * ProductOrderModal Component
- * Handles order modal with pickup/delivery selection and confirmation flow
+ * The PUB-03 order form (RHF + Zod, order.schema.ts) — quantity, contact, delivery mode with
+ * cascading wilaya/commune selects, and the live total. Folds in what used to be the standalone
+ * DeliveryForm (its sole consumer — see plan.md Sprint 3 note).
  */
 
-import { useState } from "react";
+import { useEffect, useMemo } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { ShoppingCart, Package, Truck, CheckCircle, Clock, MapPin } from "lucide-react";
+import { ShoppingCart, Package, Truck, MapPin } from "lucide-react";
+import { OrderType } from "@dragon-telecom/contract";
+import type { ProductDetailDto, WilayaDto, FeeDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
-import { DeliveryForm } from "./DeliveryForm";
-import type { ProductDetails, DeliveryFormData, OrderData } from "@/types/draft-types";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { orderSchema, type OrderFormValues } from "@/pages/product-detail/order.schema";
+
+interface DeliveryParams {
+  wilayaId: string;
+  communeId: string;
+  orderType: OrderType;
+}
 
 interface ProductOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  product: ProductDetails;
+  product: ProductDetailDto;
+  /** Initial quantity, carried over from ProductPricingSection's stepper. */
   quantity: number;
-  unitPrice: number;
-  onConfirmOrder: (orderData: OrderData) => Promise<void>;
+  /** Wilayas (with nested communes) for the cascading selects — parent-owned useWilayas(). */
+  wilayas: WilayaDto[];
+  /** Resolved delivery fee for the current wilaya/commune/mode — parent-owned usePlatformDeliveryFee(). */
+  fee?: FeeDto;
+  isFeeLoading?: boolean;
+  /** Fires whenever wilaya/commune/mode change, so the parent can (re)resolve `fee`. Null when
+   * the params aren't all set yet (pickup, or wilaya/commune incomplete). */
+  onDeliveryParamsChange?: (params: DeliveryParams | null) => void;
+  /** Prefill for signed-in clients (PUB-03: "prefilled for clients, editable"). */
+  prefill?: { fullName?: string; phone?: string; wilayaId?: string; communeId?: string };
+  onSubmit: (data: OrderFormValues) => Promise<void>;
+  isSubmitting?: boolean;
   className?: string;
 }
-
-type OrderStep = "mode" | "delivery" | "confirmation" | "success";
 
 export function ProductOrderModal({
   isOpen,
   onClose,
   product,
   quantity,
-  unitPrice,
-  onConfirmOrder,
-  className
+  wilayas,
+  fee,
+  isFeeLoading,
+  onDeliveryParamsChange,
+  prefill,
+  onSubmit,
+  isSubmitting = false,
+  className,
 }: ProductOrderModalProps) {
   const { t } = useTranslation();
-  const [currentStep, setCurrentStep] = useState<OrderStep>("mode");
-  const [orderType, setOrderType] = useState<"pickup" | "delivery">("pickup");
-  const [deliveryData, setDeliveryData] = useState<DeliveryFormData | null>(null);
-  const [deliveryFee, setDeliveryFee] = useState<number>(0);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  // Pickup is client-only (PUB-03: "guest = delivery-home | delivery-office; client also pickup").
+  const { isAuthenticated } = useAuth();
 
-  // Calculate totals with safety checks
-  const safeUnitPrice = unitPrice || 0;
-  const subtotal = safeUnitPrice * quantity;
-  const total = orderType === "delivery" ? subtotal + deliveryFee : subtotal;
+  const {
+    control,
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    setError,
+    formState: { errors },
+  } = useForm<OrderFormValues>({
+    resolver: zodResolver(orderSchema(t)),
+    defaultValues: {
+      productId: product.id,
+      quantity,
+      orderType: isAuthenticated ? OrderType.PICKUP : OrderType.DELIVERY_HOME,
+      contact: { fullName: prefill?.fullName ?? "", phone: prefill?.phone ?? "" },
+      delivery: isAuthenticated
+        ? undefined
+        : { wilayaId: prefill?.wilayaId ?? "", communeId: prefill?.communeId ?? "", address: "" },
+    },
+  });
 
-  // Handle order type selection
-  const handleOrderTypeChange = (type: "pickup" | "delivery") => {
-    setOrderType(type);
+  const watchedOrderType = watch("orderType");
+  const watchedWilayaId = watch("delivery.wilayaId");
+  const watchedCommuneId = watch("delivery.communeId");
+  const isPickup = watchedOrderType === OrderType.PICKUP;
+
+  const selectedWilaya = useMemo(
+    () => wilayas.find((w) => w.id === watchedWilayaId),
+    [wilayas, watchedWilayaId],
+  );
+  const communeOptions = selectedWilaya?.communes ?? [];
+
+  // Notify the parent of the params it needs to resolve the fee — never during pickup (delivery
+  // is cleared below) and only once wilaya + commune are both set (plan.md PUB-03: "Fee renders
+  // only when wilaya + commune + mode are all set").
+  useEffect(() => {
+    if (isPickup || !watchedWilayaId || !watchedCommuneId) {
+      onDeliveryParamsChange?.(null);
+      return;
+    }
+    onDeliveryParamsChange?.({
+      wilayaId: watchedWilayaId,
+      communeId: watchedCommuneId,
+      orderType: watchedOrderType,
+    });
+    // Only the three params matter here — including the callback identity would refire on every
+    // parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPickup, watchedWilayaId, watchedCommuneId, watchedOrderType]);
+
+  const handleOrderTypeChange = (value: OrderType) => {
+    setValue("orderType", value);
+    // Pickup ⇒ wilaya/commune disabled, fee 0 (PUB-03) — clear the delivery block entirely so
+    // the contract's own refine (delivery forbidden when PICKUP) is satisfied.
+    if (value === OrderType.PICKUP) {
+      setValue("delivery", undefined);
+    } else if (!watch("delivery")) {
+      setValue("delivery", { wilayaId: "", communeId: "", address: "" });
+    }
   };
 
-  // Handle delivery form submission
-  const handleDeliverySubmit = async (data: DeliveryFormData) => {
-    setDeliveryData(data);
-    setCurrentStep("confirmation");
-  };
+  const resolvedUnitPrice = product.currentPrice ?? product.guestPrice ?? 0;
+  const watchedQuantity = watch("quantity") || 0;
+  const subtotal = resolvedUnitPrice * watchedQuantity;
+  const deliveryFee = isPickup ? 0 : (fee?.deliveryHome ?? 0);
+  const total = subtotal + deliveryFee;
 
-  // Handle order confirmation
-  const handleConfirmOrder = async () => {
-    setIsProcessing(true);
+  const submit = async (data: OrderFormValues) => {
     try {
-      const orderData: OrderData = {
-        productId: product.idProduct,
-        quantity,
-        orderType,
-        totalPrice: total,
-        deliveryInfo: orderType === "delivery" ? deliveryData || undefined : undefined,
-        deliveryFee: orderType === "delivery" ? deliveryFee : undefined
-      };
-
-      await onConfirmOrder(orderData);
-      
-      // Generate mock order ID
-      const mockOrderId = `ORD-${Date.now()}`;
-      setOrderId(mockOrderId);
-      setCurrentStep("success");
-    } catch (error) {
-      console.error("Order confirmation failed:", error);
-      // Handle error - could show toast notification
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Handle modal close
-  const handleClose = () => {
-    if (currentStep === "success") {
-      // Reset state when closing after success
-      setCurrentStep("mode");
-      setOrderType("pickup");
-      setDeliveryData(null);
-      setDeliveryFee(0);
-      setOrderId(null);
-    }
-    onClose();
-  };
-
-  // Handle back navigation
-  const handleBack = () => {
-    switch (currentStep) {
-      case "delivery":
-        setCurrentStep("mode");
-        break;
-      case "confirmation":
-        setCurrentStep(orderType === "delivery" ? "delivery" : "mode");
-        break;
-      default:
-        break;
-    }
-  };
-
-  // Render step content
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case "mode":
-        return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <h3 className="text-lg font-medium mb-2">{t("product.selectOrderMode")}</h3>
-              <p className="text-muted-foreground">{t("product.selectOrderModeDesc")}</p>
-            </div>
-
-            <RadioGroup
-              value={orderType}
-              onValueChange={handleOrderTypeChange}
-              className="space-y-4"
-            >
-              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50">
-                <RadioGroupItem value="pickup" id="pickup" />
-                <Label htmlFor="pickup" className="flex items-center space-x-3 cursor-pointer flex-1">
-                  <Package className="w-5 h-5 text-primary" />
-                  <div>
-                    <div className="font-medium">{t("product.pickup")}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {t("product.pickupMessage")}
-                    </div>
-                  </div>
-                </Label>
-              </div>
-              
-              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50">
-                <RadioGroupItem value="delivery" id="delivery" />
-                <Label htmlFor="delivery" className="flex items-center space-x-3 cursor-pointer flex-1">
-                  <Truck className="w-5 h-5 text-primary" />
-                  <div>
-                    <div className="font-medium">{t("product.delivery")}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {t("product.deliveryMessage")}
-                    </div>
-                  </div>
-                </Label>
-              </div>
-            </RadioGroup>
-
-            <div className="flex space-x-4">
-              <Button
-                variant="outline"
-                onClick={handleClose}
-                className="flex-1"
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                onClick={() => setCurrentStep(orderType === "delivery" ? "delivery" : "confirmation")}
-                className="flex-1"
-              >
-                {t("common.continue")}
-              </Button>
-            </div>
-          </div>
-        );
-
-      case "delivery":
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBack}
-                className="p-2"
-              >
-                ←
-              </Button>
-              <h3 className="text-lg font-medium">{t("product.deliveryInfo")}</h3>
-            </div>
-            
-            <DeliveryForm
-              onSubmit={handleDeliverySubmit}
-              onCancel={handleClose}
-              isLoading={isProcessing}
-            />
-          </div>
-        );
-
-      case "confirmation":
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBack}
-                className="p-2"
-              >
-                ←
-              </Button>
-              <h3 className="text-lg font-medium">{t("product.orderConfirmation")}</h3>
-            </div>
-
-            {/* Order Summary */}
-            <div className="space-y-4">
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-3">{t("product.orderSummary")}</h4>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>{product.productName}</span>
-                    <span>{quantity}x</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t("product.unitPrice")}</span>
-                    <span>{safeUnitPrice.toLocaleString()} DA</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t("product.subtotal")}</span>
-                    <span>{(subtotal || 0).toLocaleString()} DA</span>
-                  </div>
-                  
-                  {orderType === "delivery" && (
-                    <>
-                      <Separator />
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t("product.deliveryFee")}</span>
-                        <span>{(deliveryFee || 0).toLocaleString()} DA</span>
-                      </div>
-                      {deliveryData && (
-                        <div className="text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-1">
-                            <MapPin className="w-3 h-3" />
-                            <span>{deliveryData.wilaya}, {deliveryData.commune}</span>
-                          </div>
-                          <div className="flex items-center space-x-1 mt-1">
-                            {deliveryData.deliveryMode === "home" ? (
-                              <Truck className="w-3 h-3" />
-                            ) : (
-                              <Package className="w-3 h-3" />
-                            )}
-                            <span>
-                              {deliveryData.deliveryMode === "home" 
-                                ? t("product.deliveryToHome")
-                                : t("product.deliveryToOffice")
-                              }
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  
-                  <Separator />
-                  <div className="flex justify-between font-medium text-lg">
-                    <span>{t("product.totalPrice")}</span>
-                    <span>{(total || 0).toLocaleString()} DA</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Order Type Info */}
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="flex items-center space-x-2">
-                  {orderType === "pickup" ? (
-                    <Package className="w-5 h-5 text-primary" />
-                  ) : (
-                    <Truck className="w-5 h-5 text-primary" />
-                  )}
-                  <div>
-                    <div className="font-medium">
-                      {orderType === "pickup" ? t("product.pickup") : t("product.delivery")}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {orderType === "pickup" 
-                        ? t("product.pickupMessage")
-                        : t("product.deliveryMessage")
-                      }
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex space-x-4">
-              <Button
-                variant="outline"
-                onClick={handleClose}
-                disabled={isProcessing}
-                className="flex-1"
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                onClick={handleConfirmOrder}
-                disabled={isProcessing}
-                className="flex-1"
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {t("common.processing")}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    {t("product.confirmOrder")}
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        );
-
-      case "success":
-        return (
-          <div className="text-center space-y-6">
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-medium mb-2">{t("product.orderConfirmed")}</h3>
-              <p className="text-muted-foreground mb-4">
-                {t("product.orderSuccessMessage")}
-              </p>
-              {orderId && (
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="text-sm text-muted-foreground">{t("product.orderId")}</div>
-                  <div className="font-mono font-medium">{orderId}</div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              {orderType === "pickup" ? (
-                <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span>{t("product.pickupMessage")}</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
-                  <Truck className="w-4 h-4" />
-                  <span>{t("product.deliveryMessage")}</span>
-                </div>
-              )}
-            </div>
-
-            <Button onClick={handleClose} className="w-full">
-              {t("common.close")}
-            </Button>
-          </div>
-        );
-
-      default:
-        return null;
+      await onSubmit(data);
+    } catch (err) {
+      // PUB-03: 409 INSUFFICIENT_STOCK renders on the quantity field; 403 GUEST_PRICE_HIDDEN
+      // redirects to login. Any other error still surfaces via the mutation's own global toast
+      // (query-client.ts) — nothing further to do here.
+      if (axios.isAxiosError(err)) {
+        const code = err.response?.data?.error?.code;
+        if (code === "INSUFFICIENT_STOCK") {
+          setError("quantity", { message: t("product.quantityExceedsStock") });
+          return;
+        }
+        if (code === "GUEST_PRICE_HIDDEN") {
+          onClose();
+          navigate("/login");
+          return;
+        }
+      }
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={cn("max-w-2xl min-w-xs w-2xl max-h-[90vh] overflow-y-auto", className)}>
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
@@ -379,10 +169,228 @@ export function ProductOrderModal({
             <span>{t("product.orderNow")}</span>
           </DialogTitle>
         </DialogHeader>
-        
-        <div className="py-4">
-          {renderStepContent()}
-        </div>
+
+        <form onSubmit={handleSubmit(submit)} className="space-y-6 py-4">
+          {/* Quantity */}
+          <div className="space-y-2">
+            <Label htmlFor="order-quantity">{t("product.quantity")}</Label>
+            <Input
+              id="order-quantity"
+              type="number"
+              min={1}
+              {...register("quantity", { valueAsNumber: true })}
+              className={cn(errors.quantity && "border-destructive")}
+            />
+            {errors.quantity && (
+              <p className="text-sm text-destructive">{errors.quantity.message}</p>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Contact */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">{t("product.personalInfo")}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="order-fullName">{t("product.fullName")}</Label>
+                <Input
+                  id="order-fullName"
+                  {...register("contact.fullName")}
+                  placeholder={t("product.fullNamePlaceholder")}
+                  className={cn(errors.contact?.fullName && "border-destructive")}
+                />
+                {errors.contact?.fullName && (
+                  <p className="text-sm text-destructive">{errors.contact.fullName.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="order-phone">{t("product.phone")}</Label>
+                <Input
+                  id="order-phone"
+                  {...register("contact.phone")}
+                  placeholder={t("product.phonePlaceholder")}
+                  className={cn(errors.contact?.phone && "border-destructive")}
+                />
+                {errors.contact?.phone && (
+                  <p className="text-sm text-destructive">{errors.contact.phone.message}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Order Mode */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">{t("product.selectOrderMode")}</h3>
+            <RadioGroup
+              value={watchedOrderType}
+              onValueChange={(v) => handleOrderTypeChange(v as OrderType)}
+              className="space-y-4"
+            >
+              {isAuthenticated && (
+                <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50">
+                  <RadioGroupItem value={OrderType.PICKUP} id="pickup" />
+                  <Label htmlFor="pickup" className="flex items-center space-x-3 cursor-pointer flex-1">
+                    <Package className="w-5 h-5 text-primary" />
+                    <div>
+                      <div className="font-medium">{t("product.pickup")}</div>
+                      <div className="text-sm text-muted-foreground">{t("product.pickupMessage")}</div>
+                    </div>
+                  </Label>
+                </div>
+              )}
+              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50">
+                <RadioGroupItem value={OrderType.DELIVERY_HOME} id="delivery-home" />
+                <Label htmlFor="delivery-home" className="flex items-center space-x-3 cursor-pointer flex-1">
+                  <Truck className="w-5 h-5 text-primary" />
+                  <div>
+                    <div className="font-medium">{t("product.deliveryToHome")}</div>
+                    <div className="text-sm text-muted-foreground">{t("product.deliveryToHomeDesc")}</div>
+                  </div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50">
+                <RadioGroupItem value={OrderType.DELIVERY_OFFICE} id="delivery-office" />
+                <Label htmlFor="delivery-office" className="flex items-center space-x-3 cursor-pointer flex-1">
+                  <Truck className="w-5 h-5 text-primary" />
+                  <div>
+                    <div className="font-medium">{t("product.deliveryToOffice")}</div>
+                    <div className="text-sm text-muted-foreground">{t("product.deliveryToOfficeDesc")}</div>
+                  </div>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* Delivery address (disabled + cleared for pickup) */}
+          {!isPickup && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium flex items-center space-x-2">
+                <MapPin className="w-5 h-5" />
+                <span>{t("product.location")}</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{t("product.wilaya")}</Label>
+                  <Controller
+                    control={control}
+                    name="delivery.wilayaId"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setValue("delivery.communeId", "");
+                        }}
+                      >
+                        <SelectTrigger className={cn(errors.delivery?.wilayaId && "border-destructive")}>
+                          <SelectValue placeholder={t("product.selectWilaya")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {wilayas.map((w) => (
+                            <SelectItem key={w.id} value={w.id}>
+                              {w.frName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.delivery?.wilayaId && (
+                    <p className="text-sm text-destructive">{errors.delivery.wilayaId.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("product.commune")}</Label>
+                  <Controller
+                    control={control}
+                    name="delivery.communeId"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange} disabled={!watchedWilayaId}>
+                        <SelectTrigger className={cn(errors.delivery?.communeId && "border-destructive")}>
+                          <SelectValue placeholder={t("product.selectCommune")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {communeOptions.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.frName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.delivery?.communeId && (
+                    <p className="text-sm text-destructive">{errors.delivery.communeId.message}</p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="order-address">
+                  {t("product.address")} ({t("product.optional")})
+                </Label>
+                <Input
+                  id="order-address"
+                  {...register("delivery.address")}
+                  placeholder={t("product.addressPlaceholder")}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Fee — only once wilaya + commune + mode are all set (plan.md PUB-03) */}
+          {!isPickup && watchedWilayaId && watchedCommuneId && (
+            <div className="p-4 bg-muted rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{t("product.deliveryFee")}:</span>
+                <span className="text-lg font-bold text-primary">
+                  {isFeeLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  ) : (
+                    `${deliveryFee.toLocaleString()} DA`
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Order Summary */}
+          <div className="p-4 border rounded-lg space-y-2">
+            <div className="flex justify-between">
+              <span>{product.name}</span>
+              <span>{watchedQuantity}x</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{t("product.subtotal")}</span>
+              <span>{subtotal.toLocaleString()} DA</span>
+            </div>
+            <Separator />
+            <div className="flex justify-between font-medium text-lg">
+              <span>{t("product.totalPrice")}</span>
+              <span>{total.toLocaleString()} DA</span>
+            </div>
+          </div>
+
+          <div className="flex space-x-4">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="flex-1">
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" disabled={isSubmitting} className="flex-1">
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  {t("common.processing")}
+                </>
+              ) : (
+                t("product.confirmOrder")
+              )}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

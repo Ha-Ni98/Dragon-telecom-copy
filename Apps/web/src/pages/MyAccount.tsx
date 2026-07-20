@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,117 +8,116 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "@/hooks/useTranslation";
-import { User, MapPin, Phone, Mail, Calendar, ArrowRight } from "lucide-react";
+import { User, MapPin, Phone, Mail, Calendar, ArrowRight, Store, Receipt, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { UserAccountData, PasswordResetData } from "@/types/draft-types";
-import { useMyAccount, useUpdateMyAccount, useResetMyAccountPassword } from "@/hooks/use-my-account";
+import { useClientMe, useUpdateClientMe, useChangeClientPassword } from "@/hooks/useClientPortal";
+import { useWilayas } from "@/hooks/usePlatform";
 import { MoneyStatusCard } from "@/components/shared/MoneyStatusCard";
-import { PasswordResetForm } from "@/components/shared/PasswordResetForm";
 import { NotFoundState } from "@/components/shared/NotFoundState";
+import {
+  updateMeSchema,
+  type UpdateMeFormValues,
+  type UpdateMeInput,
+} from "@/pages/my-account/update-me.schema";
+import {
+  changePasswordSchema,
+  type ChangePasswordFormValues,
+} from "@/pages/my-account/change-password.schema";
 
 export default function MyAccount() {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const { data: accountData, isLoading } = useMyAccount();
-  const updateMutation = useUpdateMyAccount();
-  const passwordResetMutation = useResetMyAccountPassword();
+  const { data: clientMe, isLoading, isError, refetch } = useClientMe();
+  const updateMutation = useUpdateClientMe();
+  const changePasswordMutation = useChangeClientPassword();
+  const { data: wilayasData } = useWilayas();
+  const wilayas = wilayasData ?? [];
 
-  const [userInfo, setUserInfo] = useState<UserAccountData | null>(null);
-  const [originalUserInfo, setOriginalUserInfo] = useState<UserAccountData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  // Sync local editable copy whenever the fetched account data changes.
-  useEffect(() => {
-    if (accountData) {
-      setUserInfo(accountData);
-      setOriginalUserInfo(accountData);
-    }
-  }, [accountData]);
+  const {
+    register: registerProfile,
+    handleSubmit: handleProfileSubmit,
+    control: profileControl,
+    watch: watchProfile,
+    setValue: setProfileValue,
+    reset: resetProfile,
+    formState: { errors: profileErrors },
+  } = useForm<UpdateMeInput, unknown, UpdateMeFormValues>({
+    resolver: zodResolver(updateMeSchema(t)),
+    // RHF re-syncs the form's defaults whenever this object changes by reference — no manual
+    // useEffect needed to seed the form once clientMe arrives (or to pick up the fresh data
+    // useUpdateClientMe's own invalidation refetches after a save).
+    values: clientMe
+      ? {
+          email: clientMe.email ?? "",
+          storeName: clientMe.storeName ?? "",
+          wilayaId: clientMe.wilayaId,
+          communeId: clientMe.communeId,
+          address: clientMe.address ?? "",
+        }
+      : undefined,
+  });
 
-  const handleSave = async () => {
-    if (!userInfo) return;
-    try {
-      await updateMutation.mutateAsync(userInfo);
-      setOriginalUserInfo(userInfo);
-      toast.success(t('account.updateSuccess'));
-      setIsEditing(false);
-    } catch (error) {
-      toast.error(t('account.updateError'));
-    }
-  };
+  const watchedWilayaId = watchProfile("wilayaId");
+  const selectedWilaya = wilayas.find((w) => w.id === watchedWilayaId);
+  const communeOptions = selectedWilaya?.communes ?? [];
+
+  const {
+    register: registerPassword,
+    handleSubmit: handlePasswordFormSubmit,
+    reset: resetPasswordForm,
+    formState: { errors: passwordErrors },
+  } = useForm<ChangePasswordFormValues>({
+    resolver: zodResolver(changePasswordSchema(t)),
+  });
 
   const handleCancel = () => {
-    // Revert to original data
-    setUserInfo(originalUserInfo);
+    resetProfile();
     setIsEditing(false);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    // Only allow changes to editable fields
-    if (name === 'clientEmail' || name === 'clientPhoneNumber' || name === 'clientLocation') {
-      setUserInfo(prev => prev ? ({
-        ...prev,
-        [name]: value
-      }) : prev);
-    }
+  const onProfileSubmit = (data: UpdateMeFormValues) => {
+    updateMutation.mutate(data, {
+      onSuccess: () => {
+        toast.success(t('account.updateSuccess'));
+        setIsEditing(false);
+      },
+      onError: () => {
+        toast.error(t('account.updateError'));
+      },
+    });
   };
 
-  const handlePasswordReset = async (data: PasswordResetData) => {
-    try {
-      await passwordResetMutation.mutateAsync(data);
-      toast.success(t('account.passwordResetSuccess'));
-      setIsResettingPassword(false);
-    } catch (error) {
-      toast.error(t('account.passwordResetError'));
-      throw error;
-    }
-  };
-
-  const handleCancelPasswordReset = () => {
-    setIsResettingPassword(false);
+  const onChangePassword = (data: ChangePasswordFormValues) => {
+    // ChangeMyPasswordCommand never carries confirmPassword (client-side only, per the schema's
+    // own AssertAssignable check).
+    const { confirmPassword: _confirmPassword, ...command } = data;
+    changePasswordMutation.mutate(command, {
+      onSuccess: () => {
+        toast.success(t('account.changePasswordSuccess'));
+        resetPasswordForm();
+        setIsChangingPassword(false);
+      },
+      onError: () => {
+        toast.error(t('account.changePasswordError'));
+      },
+    });
   };
 
   const handleViewOrders = () => {
     navigate('/orders');
   };
 
-  const getStatusBadgeVariant = (status: number) => {
-    switch (status) {
-      case 0: // ClientStatusCode.active
-        return 'default';
-      case 1: // ClientStatusCode.pending
-        return 'secondary';
-      case 2: // ClientStatusCode.disabled
-        return 'destructive';
-      case 3: // ClientStatusCode.refused
-        return 'destructive';
-      default:
-        return 'outline';
-    }
-  };
-
-  const getStatusText = (status: number) => {
-    switch (status) {
-      case 0: return 'Active';
-      case 1: return 'Pending';
-      case 2: return 'Disabled';
-      case 3: return 'Refused';
-      default: return 'Unknown';
-    }
-  };
-
-  const getCategoryName = (categoryId: number) => {
-    // This would typically come from a categories lookup
-    switch (categoryId) {
-      case 1: return 'Retail';
-      case 2: return 'Wholesale';
-      default: return 'Standard';
-    }
+  const handleViewInvoices = () => {
+    // My Invoices' destination page isn't part of this page set (scope confinement, same as
+    // the /staff landing in Sprint 2) — the shortcut is planned, its target isn't.
+    navigate('/invoices');
   };
 
   if (isLoading) {
@@ -128,20 +129,45 @@ export default function MyAccount() {
               <Skeleton className="h-8 w-48" />
               <Skeleton className="h-4 w-72" />
             </div>
-            <Skeleton className="h-64 w-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+            </div>
+            {/* Personal info card */}
+            <div className="space-y-4 rounded-lg border p-6">
+              <Skeleton className="h-5 w-40" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            {/* Status card */}
+            <div className="space-y-4 rounded-lg border p-6">
+              <Skeleton className="h-5 w-32" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-8 w-32" />
+              </div>
+            </div>
           </div>
         </main>
       </div>
     );
   }
 
-  if (!userInfo) {
+  if (isError || !clientMe) {
     return (
       <div>
         <main className="container mx-auto px-4 py-8">
           <NotFoundState
             title={t('account.notFoundTitle')}
             body={t('account.notFoundBody')}
+            action={
+              <Button variant="outline" onClick={() => refetch()}>
+                {t('common.actions.tryAgain')}
+              </Button>
+            }
           />
         </main>
       </div>
@@ -158,122 +184,255 @@ export default function MyAccount() {
           </div>
 
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2">
+            {/* "Credits & Balance" doesn't fit a 50%-width tab at mobile widths (TabsTrigger is
+                whitespace-nowrap) — stack the two tabs below sm, side-by-side from sm+ up. */}
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2">
               <TabsTrigger value="profile">{t('account.profile')}</TabsTrigger>
               <TabsTrigger value="billing">{t('account.billing')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <User className="h-5 w-5" />
-                        {t('account.personalInfo')}
-                      </CardTitle>
-                      <CardDescription>{t('account.personalInfoDesc')}</CardDescription>
+              <form onSubmit={handleProfileSubmit(onProfileSubmit)}>
+                <Card>
+                  <CardHeader>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <User className="h-5 w-5" />
+                          {t('account.personalInfo')}
+                        </CardTitle>
+                        <CardDescription>{t('account.personalInfoDesc')}</CardDescription>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {isEditing ? (
+                          <>
+                            <Button type="button" variant="outline" onClick={handleCancel}>
+                              {t('register.cancel')}
+                            </Button>
+                            <Button type="submit" variant="default" disabled={updateMutation.isPending}>
+                              {t('account.save')}
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button type="button" variant="outline" onClick={() => setIsEditing(true)}>
+                              {t('account.edit')}
+                            </Button>
+                            <Button type="button" variant="secondary" onClick={() => setIsChangingPassword(true)}>
+                              {t('account.changePassword')}
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      {isEditing ? (
-                        <>
-                          <Button variant="outline" onClick={handleCancel}>
-                            {t('register.cancel')}
-                          </Button>
-                          <Button variant="default" onClick={handleSave}>
-                            {t('account.save')}
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button variant="outline" onClick={() => setIsEditing(true)}>
-                            {t('account.edit')}
-                          </Button>
-                          <Button variant="secondary" onClick={() => setIsResettingPassword(true)}>
-                            {t('account.resetPassword')}
-                          </Button>
-                        </>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">{t('register.firstName')}</Label>
+                        <Input
+                          id="firstName"
+                          value={clientMe.firstName}
+                          disabled
+                          className="bg-muted cursor-not-allowed"
+                          readOnly
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">{t('register.lastName')}</Label>
+                        <Input
+                          id="lastName"
+                          value={clientMe.lastName}
+                          disabled
+                          className="bg-muted cursor-not-allowed"
+                          readOnly
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {/* Phone is read-only (PUB-08) — UpdateMeCommand.strict() 400s on a phone
+                          key, so it's excluded from update-me.schema.ts entirely. */}
+                      <Label htmlFor="phone">{t('register.phone')}</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="phone"
+                          value={clientMe.phone}
+                          disabled
+                          readOnly
+                          className="pl-10 bg-muted cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">{t('register.email')}</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="email"
+                          {...registerProfile('email')}
+                          disabled={!isEditing}
+                          className="pl-10"
+                        />
+                      </div>
+                      {profileErrors.email && (
+                        <p className="text-sm text-destructive">{profileErrors.email.message}</p>
                       )}
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="clientFirstName">{t('register.firstName')}</Label>
-                      <Input
-                        id="clientFirstName"
-                        name="clientFirstName"
-                        value={userInfo.clientFirstName}
-                        disabled={true}
-                        className="bg-muted cursor-not-allowed"
-                        readOnly
-                      />
+                      <Label htmlFor="storeName">{t('register.storeName')}</Label>
+                      <div className="relative">
+                        <Store className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="storeName"
+                          {...registerProfile('storeName')}
+                          disabled={!isEditing}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="wilayaId">{t('register.wilaya')}</Label>
+                        <Controller
+                          control={profileControl}
+                          name="wilayaId"
+                          render={({ field }) => (
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                setProfileValue("communeId", "");
+                              }}
+                              disabled={!isEditing}
+                            >
+                              <SelectTrigger id="wilayaId">
+                                <SelectValue placeholder={t('register.selectWilaya')} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {wilayas.map((wilaya) => (
+                                  <SelectItem key={wilaya.id} value={wilaya.id}>
+                                    {wilaya.frName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {profileErrors.wilayaId && (
+                          <p className="text-sm text-destructive">{profileErrors.wilayaId.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="communeId">{t('register.commune')}</Label>
+                        <Controller
+                          control={profileControl}
+                          name="communeId"
+                          render={({ field }) => (
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              disabled={!isEditing || !watchedWilayaId}
+                            >
+                              <SelectTrigger id="communeId">
+                                <SelectValue placeholder={t('register.selectCommune')} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {communeOptions.map((commune) => (
+                                  <SelectItem key={commune.id} value={commune.id}>
+                                    {commune.frName}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {profileErrors.communeId && (
+                          <p className="text-sm text-destructive">{profileErrors.communeId.message}</p>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="clientLastName">{t('register.lastName')}</Label>
-                      <Input
-                        id="clientLastName"
-                        name="clientLastName"
-                        value={userInfo.clientLastName}
-                        disabled={true}
-                        className="bg-muted cursor-not-allowed"
-                        readOnly
-                      />
+                      <Label htmlFor="address">{t('account.address')}</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="address"
+                          {...registerProfile('address')}
+                          disabled={!isEditing}
+                          className="pl-10"
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="clientEmail">{t('register.email')}</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="clientEmail"
-                        name="clientEmail"
-                        value={userInfo.clientEmail}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="clientPhoneNumber">{t('register.phone')}</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="clientPhoneNumber"
-                        name="clientPhoneNumber"
-                        value={userInfo.clientPhoneNumber}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="clientLocation">{t('account.address')}</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="clientLocation"
-                        name="clientLocation"
-                        value={userInfo.clientLocation || ""}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </form>
 
-              {/* Password Reset Form */}
-              {isResettingPassword && (
-                <PasswordResetForm
-                  onSubmit={handlePasswordReset}
-                  onCancel={handleCancelPasswordReset}
-                  isLoading={passwordResetMutation.isPending}
-                />
+              {/* Change Password */}
+              {isChangingPassword && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <KeyRound className="h-5 w-5" />
+                      {t('account.changePassword')}
+                    </CardTitle>
+                  </CardHeader>
+                  <form onSubmit={handlePasswordFormSubmit(onChangePassword)}>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPassword">{t('account.currentPassword')}</Label>
+                        <Input
+                          id="currentPassword"
+                          type="password"
+                          {...registerPassword('currentPassword')}
+                          placeholder={t('account.currentPasswordPlaceholder')}
+                        />
+                        {passwordErrors.currentPassword && (
+                          <p className="text-sm text-destructive">{passwordErrors.currentPassword.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">{t('account.newPassword')}</Label>
+                        <Input
+                          id="newPassword"
+                          type="password"
+                          {...registerPassword('newPassword')}
+                          placeholder={t('account.newPasswordPlaceholder')}
+                        />
+                        {passwordErrors.newPassword && (
+                          <p className="text-sm text-destructive">{passwordErrors.newPassword.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">{t('account.confirmPassword')}</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          {...registerPassword('confirmPassword')}
+                          placeholder={t('account.confirmPasswordPlaceholder')}
+                        />
+                        {passwordErrors.confirmPassword && (
+                          <p className="text-sm text-destructive">{passwordErrors.confirmPassword.message}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            resetPasswordForm();
+                            setIsChangingPassword(false);
+                          }}
+                        >
+                          {t('register.cancel')}
+                        </Button>
+                        <Button type="submit" disabled={changePasswordMutation.isPending}>
+                          {t('account.save')}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </form>
+                </Card>
               )}
 
               <Card>
@@ -282,22 +441,19 @@ export default function MyAccount() {
                   <CardDescription>{t('account.accountStatusDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* PUB-08: badge "Active" only — a signed-in client is by definition approved,
+                      so no other status value is ever reachable here. Category is NEVER rendered
+                      (ClientMeDto has no category field by design). */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col space-y-2">
                       <Label>{t('account.status')}</Label>
-                      <Badge variant={getStatusBadgeVariant(userInfo.clientStatus)}>
-                        {getStatusText(userInfo.clientStatus)}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-col space-y-2">
-                      <Label>{t('account.category')}</Label>
-                      <Badge variant="outline">{getCategoryName(userInfo.idCategory)}</Badge>
+                      <Badge variant="default">{t('account.statusActive')}</Badge>
                     </div>
                     <div className="flex flex-col space-y-2">
                       <Label>{t('account.memberSince')}</Label>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        {new Date(userInfo.clientCreatedDate).toLocaleDateString()}
+                        {new Date(clientMe.createdAt).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
@@ -306,10 +462,10 @@ export default function MyAccount() {
             </TabsContent>
 
             <TabsContent value="billing" className="space-y-6">
-              <MoneyStatusCard 
-                balance={userInfo.clientSolde}
-                paid={userInfo.clientPaid}
-                credit={userInfo.clientCredit}
+              <MoneyStatusCard
+                credit={clientMe.credit}
+                totalPaid={clientMe.totalPaid}
+                totalSold={clientMe.totalSold}
               />
 
               {/* Orders Navigation */}
@@ -329,12 +485,38 @@ export default function MyAccount() {
                         {t('account.viewYourOrdersBody')}
                       </p>
                     </div>
-                    <Button 
+                    <Button
                       onClick={handleViewOrders}
                       className="w-full sm:w-auto"
                       size="lg"
                     >
                       {t('account.seeMyOrders')}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Invoices Navigation */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t('account.myInvoices')}</CardTitle>
+                  <CardDescription>{t('account.myInvoicesSubtitle')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <div className="mb-4">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Receipt className="h-8 w-8 text-primary" />
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleViewInvoices}
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      size="lg"
+                    >
+                      {t('account.myInvoices')}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </div>

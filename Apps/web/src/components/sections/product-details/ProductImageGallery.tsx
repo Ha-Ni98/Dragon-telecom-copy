@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
-import type { ProductImage } from "@/types/draft-types";
+import type { ProductImageDto } from "@dragon-telecom/contract";
 
 interface ProductImageGalleryProps {
-  images: ProductImage[];
+  images: ProductImageDto[];
   productName: string;
   className?: string;
 }
@@ -31,6 +31,9 @@ export const ProductImageGallery = memo(function ProductImageGallery({
   // Find primary image or use first image
   const primaryImageIndex = images.findIndex(img => img.isPrimary) || 0;
   const currentImage = images[selectedImageIndex] || images[0];
+  // ProductImageDto.alt is optional (unlike the old draft ProductImage) — fall back to the
+  // product name so alt text/aria-labels are never empty.
+  const currentImageAlt = currentImage?.alt ?? productName;
 
   // Handle image loading
   const handleImageLoad = useCallback(() => {
@@ -106,7 +109,7 @@ export const ProductImageGallery = memo(function ProductImageGallery({
           {currentImage && !imageErrors.has(currentImage.id) ? (
             <img
               src={currentImage.url}
-              alt={currentImage.alt}
+              alt={currentImageAlt}
               className={cn(
                 "w-full h-full object-cover transition-all duration-300",
                 isZoomed ? "scale-150 cursor-zoom-out" : "cursor-zoom-in",
@@ -118,7 +121,7 @@ export const ProductImageGallery = memo(function ProductImageGallery({
               onClick={() => setIsZoomed(!isZoomed)}
               role="button"
               tabIndex={0}
-              aria-label={`${currentImage.alt}. Click to ${isZoomed ? 'zoom out' : 'zoom in'}`}
+              aria-label={`${currentImageAlt}. ${t(isZoomed ? 'gallery.zoomOut' : 'gallery.zoomIn')}`}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
@@ -199,7 +202,7 @@ export const ProductImageGallery = memo(function ProductImageGallery({
             <div className="relative max-w-4xl max-h-full">
               <img
                 src={currentImage?.url}
-                alt={currentImage?.alt}
+                alt={currentImageAlt}
                 className="max-w-full max-h-full object-contain"
                 onClick={(e) => e.stopPropagation()}
               />
@@ -230,13 +233,13 @@ export const ProductImageGallery = memo(function ProductImageGallery({
                   ? "border-primary ring-2 ring-primary/20"
                   : "border-border hover:border-primary/50"
               )}
-              aria-label={t("gallery.viewImage", { alt: image.alt })}
+              aria-label={t("gallery.viewImage", { alt: image.alt ?? productName })}
               aria-current={selectedImageIndex === index ? "true" : "false"}
             >
               {!imageErrors.has(image.id) ? (
                 <img
                   src={image.url}
-                  alt={image.alt}
+                  alt={image.alt ?? productName}
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
@@ -253,7 +256,7 @@ export const ProductImageGallery = memo(function ProductImageGallery({
       {/* Image Information */}
       {currentImage && (
         <div className="text-sm text-muted-foreground">
-          <p className="font-medium">{currentImage.alt}</p>
+          <p className="font-medium">{currentImageAlt}</p>
           {currentImage.isPrimary && (
             <Badge variant="outline" className="mt-1">
               {t("gallery.primaryImage")}
