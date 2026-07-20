@@ -39,7 +39,7 @@ Foundation lands before any Primitives; all Primitives before any Wiring.**
 
 ---
 
-### Sprint 1: Schemas & i18n (Foundation) — Status: ⬜ Pending
+### Sprint 1: Schemas & i18n (Foundation) — Status: ✅ Done
 
 **Goals**
 - All co-located Zod schemas exist and are **compile-time-checked against their contract Command**.
@@ -47,36 +47,46 @@ Foundation lands before any Primitives; all Primitives before any Wiring.**
   strings removed.
 
 **Tasks**
-- [ ] Verify/keep `src/pages/login.schema.ts` (already `loginSchema(t)` + `AssertAssignable<LoginCommand>`). (#foundation)
-- [ ] `src/pages/register/register.schema.ts` → aligned to `RegisterClientCommand` (`firstName`, `lastName`,
+- [x] Verify/keep `src/pages/login.schema.ts` (already `loginSchema(t)` + `AssertAssignable<LoginCommand>`). (#foundation)
+- [x] `src/pages/register/register.schema.ts` → aligned to `RegisterClientCommand` (`firstName`, `lastName`,
       `phone`, `email?`, `storeName?`, `wilayaId`, `communeId`; **uuid ids**, no password). Add the
       `AssertAssignable` guard. (#foundation)
-- [ ] `src/pages/product-detail/order.schema.ts` → aligned to `PlaceOrderCommand` (`productId`, `quantity`
+- [x] `src/pages/product-detail/order.schema.ts` → aligned to `PlaceOrderCommand` (`productId`, `quantity`
       int≥1 **`.refine(q ≤ availableQuantity)`**, `orderType`, `contact{fullName,phone}`,
       `delivery{wilayaId,communeId,address?}` with the two contract refines: delivery required unless
       PICKUP / forbidden when PICKUP). (#foundation)
-- [ ] `src/pages/my-account/update-me.schema.ts` → aligned to `UpdateMeCommand` (`.strict()`; `email?`,
+- [x] `src/pages/my-account/update-me.schema.ts` → aligned to `UpdateMeCommand` (`.strict()`; `email?`,
       `storeName?`, `wilayaId?`, `communeId?`, `address?`; **`phone` excluded entirely**). (#foundation)
-- [ ] `src/pages/my-account/change-password.schema.ts` → `currentPassword`, `newPassword` (min 6),
+- [x] `src/pages/my-account/change-password.schema.ts` → `currentPassword`, `newPassword` (min 6),
       `confirmPassword` + **`.refine` match**; document that `confirmPassword` is stripped before the
       `ChangeMyPasswordCommand` payload. (#foundation)
-- [ ] Note (no file): Catalog validates parsed URL params with the contract `ProductListQuerySchema`
+- [x] Note (no file): Catalog validates parsed URL params with the contract `ProductListQuerySchema`
       before the query fires — no new schema. (#foundation)
-- [ ] Add translation keys per scope: `home.*`, `catalog.*`, `productDetail.*`, `auth.login.*` (+ register
-      link, replace the hardcoded `"App Template"` title), `register.*` (+ success/approval panel,
-      phone-conflict `registered`/`pending`), `account.*`, `staff.landing.*`, and reuse
-      `common.errors.notFound*`, `common.actions.*`. (#i18n)
-- [ ] Remove inline-string/SEO debt this set touches: `Register.tsx` inline success SVG/text → keys;
-      `Products.tsx` `document.title`/meta `useEffect` deleted (SEO is not this set's concern). (#i18n)
+- [x] Add translation keys per scope (28 new + 1 updated — see report-sprint-01.md for the full list and
+      the scope-reuse correction: existing `hero.*`/`categories.*`/`brands.*`/`products.*`/`products.filters.*`
+      already cover Home + Catalog in full, so no `home.*`/`catalog.*`/`productDetail.*` scopes were added;
+      new keys landed under the already-established `auth.login.*`, `register.*`, `account.*`, `product.*`,
+      plus a new `staff.landing.*`), reusing `register.wilayaRequired`/`communeRequired`/`passwordMismatch`
+      and `common.brand.pageTitle` instead of duplicating. (#i18n)
+- [x] Remove inline-string/SEO debt this set touches: `Products.tsx` `document.title`/meta `useEffect`
+      deleted (SEO is not this set's concern). `Register.tsx` audited — **already fully keyed, no inline
+      strings found** (task description was stale); the one real hardcoded string in this set was
+      `LoginPage.tsx`'s `"App Template"` h1, fixed to `t("common.brand.pageTitle")`. (#i18n)
 
 **Validation**
-- [ ] Each schema's inferred type is assignable to its contract Command (compile guard present).
-- [ ] `tsc --noEmit` clean; no new inline strings introduced.
+- [x] Each schema's inferred type is assignable to its contract Command (compile guard present).
+- [x] `tsc --noEmit` clean; no new inline strings introduced.
+- [x] `vitest run` — 299/299 passed (no regressions).
+- [x] `eslint` on all touched/new files — 0 new errors (Products.tsx's pre-existing prettier debt dropped
+      84→65 as a side effect of the deletion; not otherwise touched, per the documented out-of-scope
+      lint-noise decision).
 
 **Risks**
 - `UpdateMeSchema` is `.strict()` — the RHF form must not register a `phone` field or submit will 400.
+  *(Still applies — schema alone doesn't prevent a future RHF form from registering it; carry into
+  Sprint 6.)*
 - `order.schema.ts` needs `availableQuantity` injected (schema factory takes the max), mirroring
-  `loginSchema(t)`'s factory pattern.
+  `loginSchema(t)`'s factory pattern. *(Implemented as planned.)*
 
 ---
 

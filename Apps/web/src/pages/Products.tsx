@@ -215,54 +215,6 @@ export default function Products() {
   const isLoadingData = productsLoading || brandsLoading;
   const hasError = productsError;
 
-  // SEO Meta Tags
-  useEffect(() => {
-    const pageTitle = t('products.page.title') || 'All Products';
-    const pageDescription = t('products.page.description') || 'Discover our complete collection of premium electronics and accessories';
-    
-    // Update document title
-    document.title = `${pageTitle} | Dragon Telecom`;
-    
-    // Update meta description
-    const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute('content', pageDescription);
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = 'description';
-      meta.content = pageDescription;
-      document.head.appendChild(meta);
-    }
-    
-    // Update meta keywords
-    const metaKeywords = document.querySelector('meta[name="keywords"]');
-    const keywords = 'products, electronics, smartphones, tablets, laptops, accessories, dragon telecom';
-    if (metaKeywords) {
-      metaKeywords.setAttribute('content', keywords);
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = 'keywords';
-      meta.content = keywords;
-      document.head.appendChild(meta);
-    }
-    
-    // Update Open Graph tags
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) {
-      ogTitle.setAttribute('content', pageTitle);
-    }
-    
-    const ogDescription = document.querySelector('meta[property="og:description"]');
-    if (ogDescription) {
-      ogDescription.setAttribute('content', pageDescription);
-    }
-    
-    const ogUrl = document.querySelector('meta[property="og:url"]');
-    if (ogUrl) {
-      ogUrl.setAttribute('content', window.location.href);
-    }
-  }, [t, filteredProducts.length]);
-
   return (
     <div>
       <main className="py-8 px-4 sm:px-8 md:px-12">

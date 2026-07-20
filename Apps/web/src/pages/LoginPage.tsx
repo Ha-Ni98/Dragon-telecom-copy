@@ -69,7 +69,7 @@ export default function LoginPage() {
           <div className="mb-6 flex flex-col items-center text-center">
             <Logo size={56} withText={false} />
             <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-foreground">
-              App Template
+              {t("common.brand.pageTitle")}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">{t("auth.login.subtitle")}</p>
           </div>

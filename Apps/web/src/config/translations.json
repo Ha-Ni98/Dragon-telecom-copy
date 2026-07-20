@@ -6920,8 +6920,8 @@
     "ar": ""
   },
   "register.registrationSuccess": {
-    "en": "Thank you for registering. Please contact us to validate your account.",
-    "fr": "Merci de vous être inscrit. Veuillez nous contacter pour valider votre compte.",
+    "en": "Thank you for registering — please wait for the admin's approval.",
+    "fr": "Merci de vous être inscrit — veuillez attendre l'approbation de l'administrateur.",
     "ar": ""
   },
   "register.selectCommune": {
@@ -9497,6 +9497,146 @@
   "account.notFoundBody": {
     "en": "We couldn't load your account details right now.",
     "fr": "Nous n'avons pas pu charger les détails de votre compte pour le moment.",
+    "ar": ""
+  },
+  "auth.login.noAccount": {
+    "en": "Don't have an account?",
+    "fr": "Vous n'avez pas de compte ?",
+    "ar": ""
+  },
+  "register.storeName": {
+    "en": "Store Name",
+    "fr": "Nom du magasin",
+    "ar": ""
+  },
+  "register.storeNamePlaceholder": {
+    "en": "Your store name",
+    "fr": "Le nom de votre magasin",
+    "ar": ""
+  },
+  "register.phoneRegistered": {
+    "en": "This phone number is already registered.",
+    "fr": "Ce numéro de téléphone est déjà enregistré.",
+    "ar": ""
+  },
+  "register.phonePending": {
+    "en": "Your request is pending / being processed.",
+    "fr": "Votre demande est en attente / en cours de traitement.",
+    "ar": ""
+  },
+  "account.emailInvalid": {
+    "en": "Please enter a valid email address.",
+    "fr": "Veuillez saisir une adresse email valide.",
+    "ar": ""
+  },
+  "account.currentPassword": {
+    "en": "Current Password",
+    "fr": "Mot de passe actuel",
+    "ar": ""
+  },
+  "account.currentPasswordPlaceholder": {
+    "en": "Enter your current password",
+    "fr": "Saisissez votre mot de passe actuel",
+    "ar": ""
+  },
+  "account.currentPasswordRequired": {
+    "en": "Current password is required.",
+    "fr": "Le mot de passe actuel est requis.",
+    "ar": ""
+  },
+  "account.newPasswordMinLength": {
+    "en": "Password must be at least 6 characters.",
+    "fr": "Le mot de passe doit contenir au moins 6 caractères.",
+    "ar": ""
+  },
+  "account.confirmPasswordRequired": {
+    "en": "Please confirm your new password.",
+    "fr": "Veuillez confirmer votre nouveau mot de passe.",
+    "ar": ""
+  },
+  "account.changePassword": {
+    "en": "Change Password",
+    "fr": "Changer le mot de passe",
+    "ar": ""
+  },
+  "account.changePasswordSuccess": {
+    "en": "Password changed successfully.",
+    "fr": "Mot de passe changé avec succès.",
+    "ar": ""
+  },
+  "account.changePasswordError": {
+    "en": "Failed to change password.",
+    "fr": "Échec du changement de mot de passe.",
+    "ar": ""
+  },
+  "account.totalPaid": {
+    "en": "Total Paid",
+    "fr": "Total payé",
+    "ar": ""
+  },
+  "account.totalSold": {
+    "en": "Total Sold",
+    "fr": "Total vendu",
+    "ar": ""
+  },
+  "account.myInvoices": {
+    "en": "My Invoices",
+    "fr": "Mes factures",
+    "ar": ""
+  },
+  "account.myInvoicesSubtitle": {
+    "en": "View and manage your invoices",
+    "fr": "Consultez et gérez vos factures",
+    "ar": ""
+  },
+  "account.statusActive": {
+    "en": "Active",
+    "fr": "Actif",
+    "ar": ""
+  },
+  "product.quantityMin": {
+    "en": "Quantity must be at least 1.",
+    "fr": "La quantité doit être d'au moins 1.",
+    "ar": ""
+  },
+  "product.quantityExceedsStock": {
+    "en": "Quantity exceeds available stock.",
+    "fr": "La quantité dépasse le stock disponible.",
+    "ar": ""
+  },
+  "product.fullNameRequired": {
+    "en": "Full name is required.",
+    "fr": "Le nom complet est requis.",
+    "ar": ""
+  },
+  "product.phoneRequired": {
+    "en": "Phone number is required.",
+    "fr": "Le numéro de téléphone est requis.",
+    "ar": ""
+  },
+  "product.deliveryRequired": {
+    "en": "A delivery address is required for this order type.",
+    "fr": "Une adresse de livraison est requise pour ce type de commande.",
+    "ar": ""
+  },
+  "product.deliveryForbiddenForPickup": {
+    "en": "Delivery address must be empty for pickup orders.",
+    "fr": "L'adresse de livraison doit être vide pour un retrait en magasin.",
+    "ar": ""
+  },
+  "staff.landing.redirecting": {
+    "en": "Redirecting to your workspace…",
+    "fr": "Redirection vers votre espace de travail…",
+    "ar": ""
+  },
+  "staff.landing.noPermittedPages": {
+    "en": "No pages available",
+    "fr": "Aucune page disponible",
+    "ar": ""
+  },
+  "staff.landing.noPermittedPagesBody": {
+    "en": "Your account has no assigned pages yet. Contact an administrator.",
+    "fr": "Votre compte n'a pas encore de pages assignées. Contactez un administrateur.",
     "ar": ""
   }
 }
