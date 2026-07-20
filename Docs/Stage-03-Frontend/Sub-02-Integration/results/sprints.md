@@ -359,32 +359,31 @@ that body cannot reliably survive the wire no matter what the backend source cod
 
 ---
 
-### Sprint 5: Platform & Orders — Status: ⬜ Pending
-
+### Sprint 5: Platform & Orders — Status: ✅ Done
 **Goals**
 - New `platform.service.ts` (wilayas, delivery fees, settings — absorbs the `admin-settings`/`checkout-delivery`
   stubs) per **plan §2.5**, and replace `orders.service.ts` with the full order lifecycle per **plan §2.6**.
 
 **Tasks**
-- [ ] **Services** `src/services/platform.service.ts` — 9 fns (§2.5): `listWilayas`/`getFee`/`getAdminFees`/
+- [x] **Services** `src/services/platform.service.ts` — 9 fns (§2.5): `listWilayas`/`getFee`/`getAdminFees`/
       `upsertFees`/`importFees`(**FormData**)/`exportFees`(**Blob**)/`getSettings`/`updateSettings`/`getPublicSettings`.
-- [ ] **Services** `src/services/orders.service.ts` — 9 fns (§2.6), `STAFF_*`/`ADMIN_*` scope-parameterized;
+- [x] **Services** `src/services/orders.service.ts` — 9 fns (§2.6), `STAFF_*`/`ADMIN_*` scope-parameterized;
       `MY_LIST` → array, backoffice list → `PaginatedResult<OrderDto>`.
-- [ ] **Hooks** — `qk.platform.*` / `qk.orders.*`; order confirm/return **cross-invalidate**
+- [x] **Hooks** — `qk.platform.*` / `qk.orders.*`; order confirm/return **cross-invalidate**
       `qk.inventory.all()`+`qk.billing.all()`+`qk.clients/posClients`+`qk.stats.all()` (plan §3).
-- [ ] **Fixtures** `platform.mock.ts` (`Wilaya`/`Fee`/`Settings`/`PublicSettings`/`AdminFees`) + `orders.mock.ts`
+- [x] **Fixtures** `platform.mock.ts` (`Wilaya`/`Fee`/`Settings`/`PublicSettings`/`AdminFees`) + `orders.mock.ts`
       (`Order`/`OrderStats`, paginated + empty).
-- [ ] **MSW** `platform.handlers.ts` + `orders.handlers.ts` — 2xx each; **order-place `.refine()` (delivery⇔PICKUP)
+- [x] **MSW** `platform.handlers.ts` + `orders.handlers.ts` — 2xx each; **order-place `.refine()` (delivery⇔PICKUP)
       → two `VALIDATION_ERROR`(400)** cases; fee/settings anonymous 200s.
-- [ ] **Integration tests** — incl. Blob export path, PICKUP-vs-delivery validation, scope-parameterized list/confirm.
+- [x] **Integration tests** — incl. Blob export path, PICKUP-vs-delivery validation, scope-parameterized list/confirm.
 
 **Validation**
-- [ ] `tsc --noEmit` clean; types from `@dragon-telecom/contract`.
-- [ ] Services unwrap + **throw**; `exportFees` returns `Blob`; `importFees` sends `FormData`.
-- [ ] Hook shapes correct; cross-domain invalidations present (order confirm/return).
-- [ ] MSW intercepts; fixtures parse; `Record<DocType,…>` settings keyed for every `DocType`.
-- [ ] 200 **and** 4xx/5xx covered; no tests in `/src`.
-- [ ] Committed on green: `fe: integration sprint 5 — platform & orders`.
+- [x] `tsc --noEmit` clean; types from `@dragon-telecom/contract`.
+- [x] Services unwrap + **throw**; `exportFees` returns `Blob`; `importFees` sends `FormData`.
+- [x] Hook shapes correct; cross-domain invalidations present (order confirm/return).
+- [x] MSW intercepts; fixtures parse; `Record<DocType,…>` settings keyed for every `DocType`.
+- [x] 200 **and** 4xx/5xx covered; no tests in `/src`.
+- [x] Committed on green: `fe: integration sprint 5 — platform & orders`.
 
 **Risks**
 - `deliveryCompany` is a **free-text string** on orders, not an entity (confirms `delivery-companies` deletion).

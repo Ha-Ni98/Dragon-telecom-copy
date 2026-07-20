@@ -13,6 +13,14 @@ import type {
 import * as catalogService from "@/services/catalog.service";
 import { qk } from "@/lib/query-keys";
 
+// Mutation hooks are named useCreateCatalogX/useUpdateCatalogX (not the shorter useCreateX),
+// discovered necessary in Sprint 5: src/hooks/use-admin-settings.ts (a separate Sub-01 stub
+// surface, unrelated to catalog.service.ts's own stub) independently implements
+// useCreateBrand/useUpdateBrand/useCreateFamily/useUpdateFamily/useCreateModel/useUpdateModel
+// for AdminProductsAdd.tsx's hierarchy UI. Different files never collide at compile time, but
+// identical exported names across two hook files is genuinely confusing for Sub-03 — renamed
+// here (this file has zero consumers yet, safe) rather than after more sprints compound it.
+
 // --- Brands ---
 
 export function useCatalogBrands(admin = false) {
@@ -22,7 +30,7 @@ export function useCatalogBrands(admin = false) {
   });
 }
 
-export function useCreateBrand() {
+export function useCreateCatalogBrand() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (command: CreateBrandCommand) => catalogService.createBrand(command),
@@ -32,7 +40,7 @@ export function useCreateBrand() {
   });
 }
 
-export function useUpdateBrand() {
+export function useUpdateCatalogBrand() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, command }: { id: string; command: UpdateBrandCommand }) =>
@@ -52,7 +60,7 @@ export function useCatalogFamilies(query: FamiliesQuery = {}, admin = false) {
   });
 }
 
-export function useCreateFamily() {
+export function useCreateCatalogFamily() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (command: CreateFamilyCommand) => catalogService.createFamily(command),
@@ -62,7 +70,7 @@ export function useCreateFamily() {
   });
 }
 
-export function useUpdateFamily() {
+export function useUpdateCatalogFamily() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, command }: { id: string; command: UpdateFamilyCommand }) =>
@@ -82,7 +90,7 @@ export function useCatalogModels(query: ModelsQuery = {}, admin = false) {
   });
 }
 
-export function useCreateModel() {
+export function useCreateCatalogModel() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (command: CreateModelCommand) => catalogService.createModel(command),
@@ -92,7 +100,7 @@ export function useCreateModel() {
   });
 }
 
-export function useUpdateModel() {
+export function useUpdateCatalogModel() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, command }: { id: string; command: UpdateModelCommand }) =>

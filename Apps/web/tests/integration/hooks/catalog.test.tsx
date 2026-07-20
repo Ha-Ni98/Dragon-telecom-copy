@@ -29,11 +29,14 @@ import {
 } from "@/hooks/useCatalogProducts";
 import {
   useCatalogBrands,
-  useCreateBrand,
+  useCreateCatalogBrand,
   useCatalogFamilies,
   useCatalogModels,
 } from "@/hooks/useCatalogTaxonomy";
-import { useClientCategories, useCreateClientCategory } from "@/hooks/useClientCategories";
+import {
+  useCatalogClientCategories,
+  useCreateCatalogClientCategory,
+} from "@/hooks/useClientCategories";
 
 describe("useCatalogProducts / useCatalogProduct", () => {
   it("resolves the paginated product list", async () => {
@@ -142,14 +145,14 @@ describe("useCreateProduct / useUpdateProduct — mutation shape + invalidation"
   });
 });
 
-describe("useCatalogBrands / useCreateBrand", () => {
+describe("useCatalogBrands / useCreateCatalogBrand", () => {
   it("resolves the brand list and invalidates on create", async () => {
     const wrapper = createQueryWrapper();
     const { result: brandsResult } = renderHook(() => useCatalogBrands(), { wrapper });
     await waitFor(() => expect(brandsResult.current.isSuccess).toBe(true));
     expect(brandsResult.current.data).toEqual([mockBrand]);
 
-    const { result: createResult } = renderHook(() => useCreateBrand(), { wrapper });
+    const { result: createResult } = renderHook(() => useCreateCatalogBrand(), { wrapper });
     createResult.current.mutate({ name: "Apple" });
     await waitFor(() => expect(createResult.current.isSuccess).toBe(true));
     expect(createResult.current.data).toEqual(mockBrand);
@@ -172,14 +175,18 @@ describe("useCatalogFamilies / useCatalogModels", () => {
   });
 });
 
-describe("useClientCategories / useCreateClientCategory", () => {
+describe("useCatalogClientCategories / useCreateCatalogClientCategory", () => {
   it("resolves categories and invalidates on create", async () => {
     const wrapper = createQueryWrapper();
-    const { result: categoriesResult } = renderHook(() => useClientCategories(), { wrapper });
+    const { result: categoriesResult } = renderHook(() => useCatalogClientCategories(), {
+      wrapper,
+    });
     await waitFor(() => expect(categoriesResult.current.isSuccess).toBe(true));
     expect(categoriesResult.current.data).toEqual([mockClientCategory]);
 
-    const { result: createResult } = renderHook(() => useCreateClientCategory(), { wrapper });
+    const { result: createResult } = renderHook(() => useCreateCatalogClientCategory(), {
+      wrapper,
+    });
     createResult.current.mutate({ name: "Wholesalers" });
     await waitFor(() => expect(createResult.current.isSuccess).toBe(true));
     expect(createResult.current.data).toEqual(mockClientCategory);
@@ -187,7 +194,7 @@ describe("useClientCategories / useCreateClientCategory", () => {
 
   it("surfaces an error state on a 409 name conflict", async () => {
     server.use(catalogErrorHandlers.categoryConflict());
-    const { result } = renderHook(() => useCreateClientCategory(), {
+    const { result } = renderHook(() => useCreateCatalogClientCategory(), {
       wrapper: createQueryWrapper(),
     });
     result.current.mutate({ name: "Repair Shops" });
