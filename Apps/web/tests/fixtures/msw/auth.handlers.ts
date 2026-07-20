@@ -1,7 +1,7 @@
 import { http } from "msw";
 import { IDENTITY_ROUTES, ErrorCode } from "@dragon-telecom/contract";
 import { apiUrl } from "./api-url";
-import { ok, fail, noContent } from "./envelope";
+import { ok, fail } from "./envelope";
 import { mockLoginResult, mockRefreshResult, mockPermissions } from "../data/auth.mock";
 
 // IDENTITY_ROUTES are full literal paths (no `.BASE` + fragment split — see api-path.ts).
@@ -20,7 +20,12 @@ export const authUrls = {
 export const authHandlers = [
   http.post(authUrls.login, () => ok(mockLoginResult)),
   http.post(authUrls.refresh, () => ok(mockRefreshResult)),
-  http.post(authUrls.logout, () => noContent()),
+  // CORRECTED (integration Sprint 4): the real backend's logout is `sendSuccess(res, null, 200)`
+  // — status 200 with a real envelope, not a bodyless 204 (confirmed by reading
+  // identity.controller.ts; the wrong status/body here was never caught because
+  // auth.service.ts's logout() doesn't read the response body either way — see envelope.ts's
+  // noContent() comment for the one real 204 in this backend, which is NOT this endpoint).
+  http.post(authUrls.logout, () => ok(null, 200)),
   http.get(authUrls.mePermissions, () => ok(mockPermissions)),
 ];
 

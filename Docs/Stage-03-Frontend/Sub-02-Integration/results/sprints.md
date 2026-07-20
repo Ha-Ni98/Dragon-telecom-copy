@@ -279,35 +279,83 @@ over-optimistically implied catalog `qkLegacy` entries retire "by Sprint 3."
 
 ---
 
-### Sprint 4: Clients & POS Clients — Status: ⬜ Pending
+### Sprint 4: Clients & POS Clients — Status: ✅ Done
 
 **Goals**
-- Replace the `clients.service.ts` stub with real HTTP for the client portal (validate-phone, register, me, cart),
-  admin clients (list/stats/detail/approve/reject/reset/update), and pos-clients (search/create/admin) per **plan §2.3**.
+- Add real HTTP for the client portal (validate-phone, register, me, cart), admin clients
+  (list/stats/detail/approve/reject/reset/update), and pos-clients (search/create/admin) per **plan §2.3**.
+
+**Scope note (same pattern as Sprint 3):** checked page/component consumers first — `MyAccount.tsx` (3 stub
+hooks), `Register.tsx`, and `AdminClients.tsx` (3 more) import the Sub-01 stub clients hooks directly. Kept
+those stub functions/hooks untouched; added the real service + 3 new hook files alongside, with names distinct
+from all 10 existing stub hook exports (`useClientMe`/`useUpdateClientMe`/`useChangeClientPassword` vs.
+`useMyAccount`/`useUpdateMyAccount`/`useResetMyAccountPassword`; `useClientDirectory*` vs. `useAdminClients*`).
+No `qkLegacy` additions needed — the 4 stub hooks that import `clients.service.ts` (`use-admin-clients.ts`,
+`use-admin-clients-stats.ts`, `use-registration.ts`, `use-modify-client.ts`) use their own local, inline key
+registries, never the central `qk`.
+
+**Resolved plan.md §6 `*(confirm)*` items** by reading `Apps/api/src/modules/clients/clients.interface.ts` (the
+`IClientsService` interface) directly instead of guessing from the DTO list:
+- `register()` → `{ id: string }`, **not** `ClientMeDto` — register does not log the client in or issue tokens.
+- `addCartItem`/`changeMyPassword`/`resetClientPassword` → `void`, not an echoed DTO.
+- `POS_CLIENT_ROUTES.ADMIN_BY_ID` is **PATCH-only** — there is no GET-by-id POS-client route at all; a
+  `getPosClient(id)` function (implied by the plan's naming symmetry) would have no route to call, so it was
+  correctly not implemented.
 
 **Tasks**
-- [ ] **Services** `src/services/clients.service.ts` — all 21 fns in plan §2.3; cart reuses **catalog** fixtures
-      (`CartItemDto.product` nests `ProductWithPricingDto`).
-- [ ] **Hooks** — `qk.clients.*` + `qk.posClients.*`; approve/reject **cross-invalidate** `qk.clients.admin.stats()`;
-      pos-client search debounced (reuse `use-debounced-search`).
-- [ ] **Fixtures** `tests/fixtures/data/clients.mock.ts` — `ClientMe`/`AdminClient`/`PosClient`/`CartItem`/
-      `ValidatePhoneResult`/`ClientStats` via `.parse`; paginated admin list + empty variants.
-- [ ] **MSW** `clients.handlers.ts` — 2xx each; **`UpdateMeCommand` extra-key (`phone`) → `VALIDATION_ERROR`(400)**
-      (`.strict()`), 404 on detail, 409 on register/approve conflicts.
-- [ ] **Integration tests** — incl. the `ME PATCH phone → 400` scenario and cart mutation invalidation.
+- [x] **Services** `src/services/clients.service.ts` — 20 real fns appended (not 21 — plan's count included the
+      nonexistent `getPosClient`; see above). Cart reuses **catalog** fixtures.
+- [x] **Hooks** — 3 new files: `useClientPortal.ts` (8 hooks: identity+cart), `useClientDirectory.ts` (7 hooks:
+      admin pipeline), `usePosClients.ts` (5 hooks). Approve/reject invalidate `qk.clients.admin.all()`, which
+      — confirmed by test, not assumed — **already sweeps** `qk.clients.admin.stats()` via TanStack's prefix
+      matching (`stats()` is nested under the `admin` family in the `qk` registry), satisfying plan §2.3's
+      cross-invalidation requirement with no extra invalidation call needed.
+- [x] **Fixtures** `tests/fixtures/data/clients.mock.ts` — all DTOs via `.parse`; cart item reuses
+      `catalog.mock.ts`'s `mockProductWithPricing` directly (not duplicated) since `CartItemDto.product` nests
+      `ProductWithPricingDto`.
+- [x] **MSW** `clients.handlers.ts` — 20 handler registrations + 5 named error overrides, with `ADMIN_STATS`
+      registered before `ADMIN_DETAIL` (same `:id`-pattern greedy-match risk as Sprint 3's `PRODUCT_STATS`,
+      confirmed present here too via the backend's own route-ordering comment).
+- [x] **Integration tests** — `clients.service.test.ts` (21 tests) + `clients.test.tsx` (6 tests), incl. the
+      `.strict()` extra-key 400 and cart/directory/pos-client mutation invalidation.
+
+**Cross-cutting finding (not clients-specific — corrects Sprint 1/2 fixtures too): the MSW harness's `noContent()`
+premise was backwards.** Investigating a `removeFromCart` test crash led to discovering that **every** `204` in
+this backend's controllers (there is exactly one — clients' `removeCartItem`) is still routed through
+`sendSuccess()`, which always calls `.json(body)` regardless of status. But the WHATWG Fetch spec forbids a body
+on null-body statuses (204/205/304) — msw/undici enforce this, and a real browser's fetch/XHR would too — so
+that body cannot reliably survive the wire no matter what the backend source code does.
+- **Fixed:** `removeFromCart` no longer reads `.data.success` at all (mirrors `logout()`'s existing pattern —
+  bare `await`, rely on axios's automatic non-2xx rejection). `clients.handlers.ts` uses `noContent()` (correct).
+- **Also fixed retroactively:** Sprint 2's `auth.handlers.ts` had `logout` returning `noContent()` (204,
+  bodyless) — but `identity.controller.ts` shows the real logout is `sendSuccess(res, null, 200)`, a real 200
+  **with** a genuine envelope (200 isn't a null-body status). Wrong status *and* wrong body shape, silently
+  masked because `auth.service.ts`'s `logout()` never read the body either way. Corrected to `ok(null, 200)`.
+- **`envelope.ts`'s `noContent()` comment rewritten** to state the corrected rule and point future sprints at
+  the right pattern (bare `await`, no body read) for any endpoint that turns out to be a genuine 204.
 
 **Validation**
-- [ ] `tsc --noEmit` clean; types from `@dragon-telecom/contract`.
-- [ ] Services unwrap + **throw**; `changeMyPassword`/`resetClientPassword` return `void`.
-- [ ] Hooks shapes correct; approve/reject invalidate list **and** stats.
-- [ ] MSW intercepts; fixtures parse; the `.strict()` 400 is asserted.
-- [ ] 200 **and** 4xx/5xx covered; no tests in `/src`.
-- [ ] Committed on green: `fe: integration sprint 4 — clients`.
+- [x] `tsc --noEmit` clean (`npm run check`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; `changeMyPassword`/`addToCart`/`resetClientPassword` return `void` (200/201
+      with a real envelope); `removeFromCart` returns `void` via the corrected bare-await 204 pattern.
+- [x] Hook shapes correct; approve/reject invalidate list **and** stats (verified via handler-call-count
+      assertions, per-request, not just "no crash").
+- [x] MSW intercepts (with the `ADMIN_STATS`/`ADMIN_DETAIL` ordering fix baked in from the start this time);
+      fixtures parse against contract schemas; the `.strict()` 400 is asserted.
+- [x] Tests cover 200 **and** 4xx/5xx (21 + 6 = **27 new tests**, all passing); no test files in `/src`.
+- [x] Full suite: **15/15 files, 142/142 tests passing** (up from 115/115 at Sprint 3 close).
+- [x] Committed on green: `fe: integration sprint 4 — clients`.
+- [x] Lint: new code clean; pre-existing stub-section debt in `clients.service.ts` (5 pre-existing quote/wrap
+      issues) left untouched via the same reconstruct-and-diff technique as Sprint 3.
 
-**Risks**
-- Several mutation response bodies (`REGISTER`/`APPROVE`/`REJECT`/cart writes) are `*(confirm)*` in the plan —
-  confirm against `Apps/api/src/modules/clients/*.controller.ts` before finalizing return types (plan §6.1).
-- `ClientStatus` vs lowercase `PhoneAvailability` — don't conflate the enums.
+**Risks (resolved)**
+- Mutation response bodies (`REGISTER`/`APPROVE`/`REJECT`/cart writes) were `*(confirm)*` in the plan — resolved
+  by reading `clients.interface.ts` directly (see "Resolved plan.md §6 items" above), not guessed.
+- `ClientStatus` vs lowercase `PhoneAvailability` — kept distinct in fixtures (`ClientStatus.PENDING`/`APPROVED`
+  vs. `PhoneAvailability.AVAILABLE`/`REGISTERED`), no conflation.
+- **New risk found, resolved:** the MSW harness's `noContent()` helper's own documented premise was wrong for
+  this backend — see the cross-cutting finding above. Any future sprint reaching for `noContent()` should read
+  its corrected comment first rather than assuming a bodyless 204 needs no special service-side handling.
 
 ---
 
