@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SimplePagination } from '@/components/shared/SimplePagination';
 import { useTranslation } from '@/hooks/useTranslation';
-import { ProductWithDetails } from '@/types/draft-types/main-page.types';
+import type { ProductWithPricingDto } from '@dragon-telecom/contract';
 import { ProductCard } from './ProductCard';
 
 /**
@@ -13,15 +13,15 @@ import { ProductCard } from './ProductCard';
  */
 interface ProductGridProps {
   /** Array of products to display */
-  products: ProductWithDetails[];
+  products: ProductWithPricingDto[];
   /** Whether the component is in loading state */
   isLoading?: boolean;
   /** Error message to display */
   error?: string;
   /** Callback when a product is clicked */
-  onProductClick?: (productId: number) => void;
+  onProductClick?: (productId: string) => void;
   /** Callback when a product is added to cart */
-  onAddToCart?: (productId: number) => void;
+  onAddToCart?: (productId: string) => void;
   /** Whether to show prices (overrides authentication check) */
   showPrice?: boolean;
   /** Custom className for styling */
@@ -256,7 +256,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
           <>
             {paginationData.paginatedProducts.map((product) => (
               <ProductCard
-                key={product.idProduct}
+                key={product.id}
                 product={product}
                 showPrice={showPrice}
                 className="h-full"

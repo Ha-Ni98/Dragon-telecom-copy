@@ -1,9 +1,9 @@
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
 import { getFeaturedProducts, getProducts } from "@/services/catalog.service";
 import { qkLegacy } from "@/lib/query-keys";
-import type { ProductWithDetails } from "@/types/draft-types/main-page.types";
+import type { ProductWithPricingDto } from "@dragon-telecom/contract";
 
-export function useProducts(options?: Partial<UseQueryOptions<ProductWithDetails[]>>) {
+export function useProducts(options?: Partial<UseQueryOptions<ProductWithPricingDto[]>>) {
   return useQuery({
     queryKey: qkLegacy.catalogProductsList(),
     queryFn: getProducts,
@@ -12,7 +12,7 @@ export function useProducts(options?: Partial<UseQueryOptions<ProductWithDetails
   });
 }
 
-export function useFeaturedProducts(limit: number = 4, options?: Partial<UseQueryOptions<ProductWithDetails[]>>) {
+export function useFeaturedProducts(limit: number = 4, options?: Partial<UseQueryOptions<ProductWithPricingDto[]>>) {
   return useQuery({
     queryKey: qkLegacy.catalogFeaturedProducts(limit),
     queryFn: () => getFeaturedProducts(limit),

@@ -9,14 +9,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useProductDetails } from "@/hooks/use-product-details";
-import { useProductOrder } from "@/hooks/use-product-order";
 import { ProductImageGallery } from "@/components/sections/product-details/ProductImageGallery";
 import { ProductCategoryTags } from "@/components/shared/ProductCategoryTags";
 import { ProductPricingSection } from "@/components/sections/product-details/ProductPricingSection";
 import { ProductOrderModal } from "@/components/shared/ProductOrderModal";
 import { ProductErrorBoundary } from "@/components/shared/ProductErrorBoundary";
 import { toast } from "sonner";
-import type { OrderData } from "@/types/draft-types";
+import type { OrderFormValues } from "@/pages/product-detail/order.schema";
 
 export default function ProductDetails() {
   // PUB-03: routes "by id — never by name" (D1).
@@ -24,7 +23,6 @@ export default function ProductDetails() {
   const { t } = useTranslation();
   const [quantity, setQuantity] = useState(1);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
-  const [currentProductPrice, setCurrentProductPrice] = useState(0);
 
   // Fetch product details by id
   const {
@@ -33,14 +31,6 @@ export default function ProductDetails() {
     isError,
     error
   } = useProductDetails(id ?? "");
-
-  const {
-    createOrder,
-    isCreatingOrder,
-    orderError,
-    lastOrderId,
-    clearError
-  } = useProductOrder();
 
   // Handle add to cart
   const handleAddToCart = async (productId: number, quantity: number) => {
@@ -52,30 +42,22 @@ export default function ProductDetails() {
     }
   };
 
-  // Handle order now
-  const handleOrderNow = async (productId: number, quantity: number, price: number) => {
-    if (!product) return;
-    
+  // Handle order now (ProductPricingSection's stepper hands off the chosen quantity)
+  const handleOrderNow = (quantity: number) => {
     setQuantity(quantity);
-    setCurrentProductPrice(price);
     setIsOrderModalOpen(true);
   };
 
   // Handle order modal close
   const handleOrderModalClose = () => {
     setIsOrderModalOpen(false);
-    clearError();
   };
 
-  // Handle order submission
-  const handleOrderSubmit = async (orderData: OrderData) => {
-    try {
-      await createOrder(orderData);
-      toast.success(t("product.orderSuccess"));
-      setIsOrderModalOpen(false);
-    } catch (error) {
-      toast.error(t("product.orderError"));
-    }
+  // Handle order submission — real usePlaceOrder + idempotency key (D6) wired in Sprint 5;
+  // this placeholder mirrors handleAddToCart's pattern above (also not wired yet).
+  const handleOrderSubmit = async (_data: OrderFormValues) => {
+    toast.success(t("product.orderSuccess"));
+    setIsOrderModalOpen(false);
   };
 
   // Loading state
@@ -177,7 +159,7 @@ export default function ProductDetails() {
           <div className="space-y-4">
             <ProductImageGallery
               images={product.images}
-              productName={product.productName}
+              productName={product.name}
               className="rounded-lg"
             />
           </div>
@@ -187,17 +169,19 @@ export default function ProductDetails() {
             {/* Product Header */}
             <div>
               <ProductCategoryTags
-                categories={[product.family.familyName, product.brand.brandName]}
+                categories={[product.family.name, product.brand.name]}
                 className="mb-3"
                 variant="secondary"
                 size="sm"
               />
-              <h1 className="text-3xl font-bold mb-2">{product.productName}</h1>
+              <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
               <div className="flex items-center gap-4 mb-2">
-                <span className="text-lg text-muted-foreground">{product.brand.brandName}</span>
-                <span className="text-sm text-muted-foreground">
-                  {t("product.model")}: {product.model.modelName}
-                </span>
+                <span className="text-lg text-muted-foreground">{product.brand.name}</span>
+                {product.model && (
+                  <span className="text-sm text-muted-foreground">
+                    {t("product.model")}: {product.model.name}
+                  </span>
+                )}
               </div>
               
               {/* Rating 
@@ -223,18 +207,18 @@ export default function ProductDetails() {
             </div>
 
             {/* Description */}
-            {product.productDescription && (
+            {product.description && (
               <Card>
               <CardHeader>
                 <CardTitle className="text-lg">{t("product.description")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground text-mdleading-relaxed">
-                  {product.productDescription}
+                  {product.description}
                 </p>
               </CardContent>
             </Card>
-              
+
             )}
 
             {/* Features 
@@ -280,22 +264,6 @@ export default function ProductDetails() {
               product={product}
               onOrderNow={handleOrderNow}
             />
-
-            {/* Error Messages */}
-            {orderError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{orderError}</AlertDescription>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearError}
-                  className="mt-2"
-                >
-                  {t("common.dismiss")}
-                </Button>
-              </Alert>
-            )}
                             </div>
                           </div>
 
@@ -306,8 +274,11 @@ export default function ProductDetails() {
             onClose={handleOrderModalClose}
             product={product}
             quantity={quantity}
-            unitPrice={currentProductPrice}
-            onConfirmOrder={handleOrderSubmit}
+            // Bridge (pub-pages Sprint 3): wilayas/fee are parent-owned useWilayas()/
+            // usePlatformDeliveryFee() props, wired in Sprint 5 — empty/absent for now, matching
+            // this page's other still-stub data (the delivery fields simply won't resolve yet).
+            wilayas={[]}
+            onSubmit={handleOrderSubmit}
           />
         )}
           </div>

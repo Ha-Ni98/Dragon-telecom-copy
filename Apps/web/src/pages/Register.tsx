@@ -306,12 +306,24 @@ function RegisterForm() {
         </div>
       </main>
       
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog
+          Bridge (pub-pages Sprint 3): formData is still this page's own local Partial<Client>
+          shape until Sprint 6 rewires this form onto register.schema.ts + useWilayas(); mapped
+          inline here so the retyped dialog compiles without pulling that rewire forward. Wilaya/
+          commune are names today (from the static WilayaProvider), which happens to line up with
+          the dialog's *display* name props even though the real form will carry uuids later. */}
       <RegistrationConfirmationDialog
         isOpen={showConfirmation}
         onClose={handleCancelConfirmation}
         onConfirm={handleConfirmRegistration}
-        userData={formData}
+        userData={{
+          firstName: formData.clientFirstName ?? "",
+          lastName: formData.clientLastName ?? "",
+          phone: formData.clientPhoneNumber ?? "",
+          email: formData.clientEmail || undefined,
+          wilayaName: formData.clientWilaya ?? "",
+          communeName: formData.clientCommune ?? "",
+        }}
         isLoading={isSubmitting}
       />
     </div>

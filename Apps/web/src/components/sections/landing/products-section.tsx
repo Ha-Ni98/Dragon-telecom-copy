@@ -9,7 +9,7 @@ import { useFeaturedProducts, useProducts } from "@/hooks/use-products";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { ProductCard } from "@/components/shared/ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ProductWithDetails } from "@/types/draft-types/main-page.types";
+import type { ProductWithPricingDto } from "@dragon-telecom/contract";
 
 const brands = ["All", "Apple", "Samsung", "Google", "OnePlus", "Dell", "Sony", "LG", "Nintendo", "Microsoft"];
 const categories = ["All", "Smartphones", "Tablets", "Laptops", "Accessories", "TVs", "Gaming"];
@@ -27,7 +27,7 @@ export function ProductsSection() {
 
   // Use real authentication state; cart isn't wired yet (deferred to Sub-02, decision #2).
   const { isAuthenticated } = useAuth();
-  const addToCart = useCallback(async (_product: ProductWithDetails) => {}, []);
+  const addToCart = useCallback(async (_productId: string) => {}, []);
 
   const { data: productsData, isLoading: isLoadingAll } = useProducts();
   const { data: featuredData, isLoading: isLoadingFeatured } = useFeaturedProducts(10);
@@ -35,24 +35,25 @@ export function ProductsSection() {
   const allProducts = useMemo(() => productsData ?? [], [productsData]);
   const featuredProducts = useMemo(() => featuredData ?? [], [featuredData]);
 
-  const handleAddToCart = useCallback(async (product: ProductWithDetails) => {
+  const handleAddToCart = useCallback(async (product: ProductWithPricingDto) => {
     try {
-      addToCart(product);
+      addToCart(product.id);
     } catch (error) {
       console.error('Error adding product to cart:', error);
     }
   }, [addToCart]);
 
-  const handleViewProduct = useCallback((productId: number) => {
-    navigate(`/product/${productId}`);
+  const handleViewProduct = useCallback((productId: string) => {
+    // PUB-03: routes "by id — never by name" (D1).
+    navigate(`/products/${productId}`);
   }, [navigate]);
 
   // Filter all products
   const filteredProducts = allProducts.filter((product) => {
-    const matchesSearch = product.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.brand.brandName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesBrand = selectedBrand === "All" || product.brand.brandName === selectedBrand;
-    const matchesCategory = selectedCategory === "All" || product.family.familyName === selectedCategory;
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.brand.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesBrand = selectedBrand === "All" || product.brand.name === selectedBrand;
+    const matchesCategory = selectedCategory === "All" || product.family.name === selectedCategory;
 
     return matchesSearch && matchesBrand && matchesCategory;
   });
@@ -165,11 +166,11 @@ export function ProductsSection() {
             }>
               {paginatedProducts.map((product) => (
                 <ProductCard
-                  key={product.idProduct}
+                  key={product.id}
                   product={product}
                   showPrice={isAuthenticated}
                   onAddToCart={() => handleAddToCart(product)}
-                  onViewDetails={() => handleViewProduct(product.idProduct)}
+                  onViewDetails={() => handleViewProduct(product.id)}
                   isAuthenticated={isAuthenticated}
                 />
               ))}
@@ -226,11 +227,11 @@ export function ProductsSection() {
           ) : featuredProducts.length > 0 ? (
             featuredProducts.map((product) => (
               <ProductCard
-                key={product.idProduct}
+                key={product.id}
                 product={product}
                 showPrice={isAuthenticated}
                 onAddToCart={() => handleAddToCart(product)}
-                onViewDetails={() => handleViewProduct(product.idProduct)}
+                onViewDetails={() => handleViewProduct(product.id)}
                 isAuthenticated={isAuthenticated}
               />
             ))

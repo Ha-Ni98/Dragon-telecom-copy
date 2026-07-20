@@ -306,10 +306,13 @@ export default function MyAccount() {
             </TabsContent>
 
             <TabsContent value="billing" className="space-y-6">
-              <MoneyStatusCard 
-                balance={userInfo.clientSolde}
-                paid={userInfo.clientPaid}
+              {/* Bridge (pub-pages Sprint 3): userInfo is still the Sub-01 UserAccountData shape
+                  until Sprint 6 rewires this page onto useClientMe(); mapped inline here so the
+                  retyped MoneyStatusCard compiles without pulling that rewire forward. */}
+              <MoneyStatusCard
                 credit={userInfo.clientCredit}
+                totalPaid={userInfo.clientPaid}
+                totalSold={userInfo.clientSolde}
               />
 
               {/* Orders Navigation */}

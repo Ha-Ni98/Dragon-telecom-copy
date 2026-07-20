@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, Heart, ShoppingCart, Eye, Check } from 'lucide-react';
+import { Heart, ShoppingCart, Eye, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { ProductWithDetails } from '@/types/draft-types/main-page.types';
+import type { ProductWithPricingDto } from '@dragon-telecom/contract';
 import { formatDZD } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -16,13 +16,13 @@ import { toast } from 'sonner';
  */
 interface ProductCardProps {
   /** Product data to display */
-  product: ProductWithDetails;
+  product: ProductWithPricingDto;
   /** Whether to show price (overrides authentication check) */
   showPrice?: boolean;
   /** Callback when product is added to cart */
-  onAddToCart?: (productId: number) => void;
+  onAddToCart?: (productId: string) => void;
   /** Callback when product details are viewed */
-  onViewDetails?: (productId: number) => void;
+  onViewDetails?: (productId: string) => void;
   /** Whether user is authenticated (overrides auth context) */
   isAuthenticated?: boolean;
   /** Loading state */
@@ -54,27 +54,28 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
 }) => {
   const { t } = useTranslation();
   const { isAuthenticated: authStatus } = useAuth();
-  // Cart isn't wired yet (deferred to Sub-02, decision #2) — these are the typed empty
-  // defaults that keep the add-to-cart UI rendering without persisting anything.
-  const isProductInCart = (_productId: number) => false;
-  const getProductQuantity = (_productId: number) => 0;
-  const addToCart = async (_product: ProductWithDetails, _quantity: number) => {};
-  const removeFromCart = (_productId: number) => {};
+  // Cart mutations (useAddToCart/useRemoveFromCart) aren't wired yet (deferred to the pub-pages
+  // Sprint 5/6 assembly) — `inCart` itself is real (server-resolved on the DTO), only the toggle
+  // action is still an inert placeholder. Heart visibility is client-only per plan.md D2, but
+  // useAuth() doesn't expose session `type` — narrowing "client" vs "authenticated" is a Sprint
+  // 5/6 concern; this stays gated on plain authentication for now, matching prior behavior.
+  const addToCart = async (_productId: string) => {};
+  const removeFromCart = (_productId: string) => {};
 
   const navigate = useNavigate();
-  
+
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  
+
   // Determine if user is authenticated (use prop or context)
   const userIsAuthenticated = isAuthenticated ?? authStatus;
-  
-  // Determine if price should be shown
-  const shouldShowPrice = showPrice ?? userIsAuthenticated;
-  
-  // Check if product is in cart and wishlist
-  const inCart = isProductInCart(product.idProduct);
-  const cartQuantity = getProductQuantity(product.idProduct);
-  const isWishlisted = isProductInCart(product.idProduct);
+
+  // Price resolution mirrors PUB-02/PUB-03: currentPrice (tier) wins, then guestPrice, else
+  // hidden. priceHidden is server-resolved per viewer — trust it over the showPrice override
+  // except when a caller explicitly forces it off.
+  const resolvedPrice = product.currentPrice ?? product.guestPrice;
+  const shouldShowPrice = (showPrice ?? true) && !product.priceHidden && resolvedPrice !== undefined;
+
+  const primaryImage = product.images.find((img) => img.isPrimary) ?? product.images[0];
 
   /**
    * Handle adding product to cart
@@ -93,13 +94,13 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
 
     try {
       setIsAddingToCart(true);
-      if (!isProductInCart(product.idProduct)) {
-      await addToCart(product, 1);
-      toast.success(t('cart.addSuccess'));
-      onAddToCart?.(product.idProduct);
+      if (!product.inCart) {
+        await addToCart(product.id);
+        toast.success(t('cart.addSuccess'));
+        onAddToCart?.(product.id);
       } else {
         toast.success(t('cart.removeSuccess'));
-        removeFromCart(product.idProduct);
+        removeFromCart(product.id);
       }
     } catch (error) {
       toast.error(t('cart.addError'));
@@ -113,11 +114,9 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
    * Handle viewing product details
    */
   const handleViewDetails = () => {
-    // PUB-03: routes "by id — never by name" (D1). Still the Sub-01 draft numeric id for now —
-    // Sprint 3 retypes this component onto the contract's uuid `id`, at which point this call
-    // needs no further change (only the property name flowing into it changes).
-    navigate(`/products/${product.idProduct}`);
-    onViewDetails?.(product.idProduct);
+    // PUB-03: routes "by id — never by name" (D1).
+    navigate(`/products/${product.id}`);
+    onViewDetails?.(product.id);
   };
 
   /**
@@ -131,13 +130,13 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
     }
 
     try {
-      const wasAdded = !isProductInCart(product.idProduct);
+      const wasAdded = !product.inCart;
       if (wasAdded) {
         toast.success(t('wishlist.addSuccess'));
-        addToCart(product, 1);
+        addToCart(product.id);
       } else {
         toast.success(t('wishlist.removeSuccess'));
-        removeFromCart(product.idProduct);
+        removeFromCart(product.id);
       }
     } catch (error) {
       toast.error(t('cart.addError'));
@@ -179,14 +178,14 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
       <CardContent className="p-0">
         <div className="relative">
           {/* Product Image */}
-          <div 
+          <div
             className="aspect-square bg-gradient-to-br from-primary/5 to-accent/5 rounded-t-lg flex items-center justify-center overflow-hidden cursor-pointer"
             onClick={handleViewDetails}
           >
-            {product.image ? (
-              <img 
-                src={product.image} 
-                alt={product.productName}
+            {primaryImage ? (
+              <img
+                src={primaryImage.url}
+                alt={primaryImage.alt ?? product.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 loading="lazy"
               />
@@ -204,7 +203,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
                 {t('products.outStock')}
               </Badge>
             )}
-            {inCart && (
+            {product.inCart && (
               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                 {t('cart.inCart')}
               </Badge>
@@ -220,7 +219,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
                 className="bg-white/80 hover:bg-white/20 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={handleWishlistToggle}
               >
-                <Heart className={`h-4 w-4 text-black-500   ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+                <Heart className={`h-4 w-4 text-black-500   ${product.inCart ? 'fill-red-500 text-red-500' : ''}`} />
               </Button>
             )}
             {showQuickView && (
@@ -240,67 +239,29 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
         <div className="p-4 space-y-3">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">{product.brand.brandName}</p>
-              {product.isNew && (
-                <Badge variant="destructive" className="text-xs">
-                  {t('products.new')}
-                </Badge>
-              )}
+              <p className="text-sm text-muted-foreground">{product.brand.name}</p>
             </div>
-            <h3 className="font-semibold text-lg leading-tight line-clamp-2 mb-2">{product.productName}</h3>
-            {product.productDescription && (
+            <h3 className="font-semibold text-lg leading-tight line-clamp-2 mb-2">{product.name}</h3>
+            {product.description && (
               <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                {product.productDescription}
+                {product.description}
               </p>
             )}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{product.family.familyName}</span>
-              <span>{product.model.modelName}</span>
+              <span>{product.family.name}</span>
+              {product.model && <span>{product.model.name}</span>}
             </div>
           </div>
 
-          {/* Rating 
-          {product.rating && (
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center">
-                <Star className="h-4 w-4 fill-warning text-warning" />
-                <span className="text-sm font-medium ml-1">{product.rating}</span>
-              </div>
-              {product.reviews && (
-                <span className="text-sm text-muted-foreground">
-                  ({product.reviews} {t('products.reviews')})
-                </span>
-              )}
-            </div>
-          )}*/}
-
-          {/* Features 
-          {product.features && product.features.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-1">
-                {product.features.slice(0, 2).map((feature, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {feature}
-                  </Badge>
-                ))}
-                {product.features.length > 2 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{product.features.length - 2} more
-                  </Badge>
-                )}
-              </div>
-            </div>
-          )}*/}
-
           {/* Price */}
-          {shouldShowPrice && product.price ? (
+          {shouldShowPrice && resolvedPrice !== undefined ? (
             <div className="text-lg font-bold text-primary">
-              {formatDZD(product.price)}
+              {formatDZD(resolvedPrice)}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground text-center py-2">
-              <span 
-                className="text-primary font-medium cursor-pointer hover:underline" 
+              <span
+                className="text-primary font-medium cursor-pointer hover:underline"
                 onClick={() => navigate('/login')}
               >
                 {t('products.signIn')}
@@ -312,9 +273,9 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
           <div className="flex gap-2 pt-2">
             {userIsAuthenticated ? (
               <>
-                <Button 
-                  className="flex-1" 
-                  size="sm" 
+                <Button
+                  className="flex-1"
+                  size="sm"
                   disabled={!product.inStock || isAddingToCart}
                   onClick={handleAddToCart}
                 >
@@ -323,7 +284,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                       Adding...
                     </>
-                  ) : inCart ? (
+                  ) : product.inCart ? (
                     <>
                       <Check className="h-4 w-4 mr-2" />
                       In Cart
@@ -335,8 +296,8 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
                     </>
                   )}
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={handleViewDetails}
                   className="px-3"
@@ -345,8 +306,8 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
                 </Button>
               </>
             ) : (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={handleViewDetails}
                 className="flex-1"
@@ -363,9 +324,11 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
 }, (prevProps, nextProps) => {
   // Custom comparison function for React.memo
   return (
-    prevProps.product.idProduct === nextProps.product.idProduct &&
+    prevProps.product.id === nextProps.product.id &&
     prevProps.product.inStock === nextProps.product.inStock &&
-    prevProps.product.price === nextProps.product.price &&
+    prevProps.product.inCart === nextProps.product.inCart &&
+    prevProps.product.currentPrice === nextProps.product.currentPrice &&
+    prevProps.product.guestPrice === nextProps.product.guestPrice &&
     prevProps.showPrice === nextProps.showPrice &&
     prevProps.isAuthenticated === nextProps.isAuthenticated &&
     prevProps.isLoading === nextProps.isLoading &&

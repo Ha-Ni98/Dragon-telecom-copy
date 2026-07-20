@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Brand, Family, Model } from '@/types/draft-types';
+import type { BrandDto, FamilyDto, DeviceModelDto } from '@dragon-telecom/contract';
 
 /**
  * ProductFilters component props
@@ -15,24 +15,24 @@ interface ProductFiltersProps {
   searchQuery: string;
   /** Callback when search query changes */
   onSearchChange: (query: string) => void;
-  /** Currently selected brand */
+  /** Currently selected brand id ('all' or a uuid) */
   selectedBrand: string;
   /** Callback when brand selection changes */
   onBrandChange: (brand: string) => void;
-  /** Currently selected category */
+  /** Currently selected category (family) id ('all' or a uuid) */
   selectedCategory: string;
   /** Callback when category selection changes */
   onCategoryChange: (category: string) => void;
-  /** Currently selected model */
+  /** Currently selected model id ('all' or a uuid) */
   selectedModel: string;
   /** Callback when model selection changes */
   onModelChange: (model: string) => void;
   /** Available brands for filtering */
-  brands: Brand[];
-  /** Available categories for filtering */
-  categories: Family[];
+  brands: BrandDto[];
+  /** Available categories (families) for filtering */
+  categories: FamilyDto[];
   /** Available models for filtering */
-  models: Model[];
+  models: DeviceModelDto[];
   /** Whether the component is in loading state */
   isLoading?: boolean;
   /** Custom className for styling */
@@ -69,18 +69,18 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
   /**
    * Check if any filters are active
    */
-  const hasActiveFilters = selectedBrand !== 'all' || 
-                          selectedCategory !== 'all' || 
-                          selectedModel !== 'all' || 
+  const hasActiveFilters = selectedBrand !== 'all' ||
+                          selectedCategory !== 'all' ||
+                          selectedModel !== 'all' ||
                           searchQuery.trim() !== '';
 
   /**
    * Get filtered models based on selected brand and category
    */
-  const getFilteredModels = (): Model[] => {
+  const getFilteredModels = (): DeviceModelDto[] => {
     return models.filter(model => {
-      const brandMatch = selectedBrand === 'all' || model.idBrand.toString() === selectedBrand;
-      const categoryMatch = selectedCategory === 'all' || model.idFamily.toString() === selectedCategory;
+      const brandMatch = selectedBrand === 'all' || model.brandId === selectedBrand;
+      const categoryMatch = selectedCategory === 'all' || model.familyIds.includes(selectedCategory);
       return brandMatch && categoryMatch;
     });
   };
@@ -101,8 +101,8 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
    */
   const getBrandName = (brandId: string): string => {
     if (brandId === 'all') return t('products.filters.all');
-    const brand = brands.find(b => b.idBrand.toString() === brandId);
-    return brand?.brandName || '';
+    const brand = brands.find(b => b.id === brandId);
+    return brand?.name || '';
   };
 
   /**
@@ -110,8 +110,8 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
    */
   const getCategoryName = (categoryId: string): string => {
     if (categoryId === 'all') return t('products.filters.all');
-    const category = categories.find(c => c.idFamily.toString() === categoryId);
-    return category?.familyName || '';
+    const category = categories.find(c => c.id === categoryId);
+    return category?.name || '';
   };
 
   /**
@@ -119,8 +119,8 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
    */
   const getModelName = (modelId: string): string => {
     if (modelId === 'all') return t('products.filters.all');
-    const model = models.find(m => m.idModel.toString() === modelId);
-    return model?.modelName || '';
+    const model = models.find(m => m.id === modelId);
+    return model?.name || '';
   };
 
   const filteredModels = getFilteredModels();
@@ -138,7 +138,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             </Badge>
           )}
         </div>
-        
+
         {showClearFilters && hasActiveFilters && (
           <Button
             variant="outline"
@@ -183,8 +183,8 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             <SelectContent>
               <SelectItem value="all">{t('products.filters.all')}</SelectItem>
               {categories.map((category) => (
-                <SelectItem key={category.idFamily} value={category.idFamily.toString()}>
-                  {category.familyName}
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -195,7 +195,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
 
 
       {/* Filter Controls */}
-      
+
         {/* Brand Filter */}
         <div className="space-y-2">
           <label htmlFor="brand-filter" className="text-sm font-medium">
@@ -212,15 +212,15 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             <SelectContent>
               <SelectItem value="all">{t('products.filters.all')}</SelectItem>
               {brands.map((brand) => (
-                <SelectItem key={brand.idBrand} value={brand.idBrand.toString()}>
-                  {brand.brandName}
+                <SelectItem key={brand.id} value={brand.id}>
+                  {brand.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        
+
 
         {/* Model Filter */}
         <div className="space-y-2">
@@ -238,8 +238,8 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             <SelectContent>
               <SelectItem value="all">{t('products.filters.all')}</SelectItem>
               {filteredModels.map((model) => (
-                <SelectItem key={model.idModel} value={model.idModel.toString()}>
-                  {model.modelName}
+                <SelectItem key={model.id} value={model.id}>
+                  {model.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -251,7 +251,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
           <span className="text-sm text-muted-foreground">{t('products.filters.activeFilters')}:</span>
-          
+
           {searchQuery.trim() && (
             <Badge variant="outline" className="flex items-center gap-1">
               {t('common.labels.search')}: "{searchQuery}"
@@ -264,7 +264,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
               </button>
             </Badge>
           )}
-          
+
           {selectedBrand !== 'all' && (
             <Badge variant="outline" className="flex items-center gap-1">
               {t('products.filters.brand')}: {getBrandName(selectedBrand)}
@@ -277,7 +277,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
               </button>
             </Badge>
           )}
-          
+
           {selectedCategory !== 'all' && (
             <Badge variant="outline" className="flex items-center gap-1">
               {t('products.filters.category')}: {getCategoryName(selectedCategory)}
@@ -290,7 +290,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
               </button>
             </Badge>
           )}
-          
+
           {selectedModel !== 'all' && (
             <Badge variant="outline" className="flex items-center gap-1">
               {t('products.filters.model')}: {getModelName(selectedModel)}

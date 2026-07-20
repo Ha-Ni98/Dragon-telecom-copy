@@ -157,33 +157,72 @@ Foundation lands before any Primitives; all Primitives before any Wiring.**
 
 ---
 
-### Sprint 3: Shared DTO-typed primitives (Primitives & States) — Status: ⬜ Pending
+### Sprint 3: Shared DTO-typed primitives (Primitives & States) — Status: ✅ Done
 
 **Goals**
 - The shared presentational components consumed by this set are **retyped from Sub-01 numeric-id draft
   view models to contract DTOs** (uuid `string` ids) — the D9 prerequisite for all wiring.
 
 **Tasks**
-- [ ] `ProductCard` / `ProductGrid` → `ProductWithPricingDto` (uuid `id`, `inStock`, `inCart`,
+- [x] `ProductCard` / `ProductGrid` → `ProductWithPricingDto` (uuid `id`, `inStock`, `inCart`,
       `currentPrice`/`guestPrice`/`priceHidden`, `family`/`brand`/`model`, `images`); callbacks keyed on
-      `string` id. (#ui)
-- [ ] `ProductFilters` → `FamilyDto[]` / `BrandDto[]` / `DeviceModelDto[]`; value model = uuid strings. (#ui)
-- [ ] `ProductPricingSection` / `ProductImageGallery` → `ProductDetailDto`. (#ui)
-- [ ] `ProductOrderModal` → drive the `order.schema.ts` RHF form; props typed on `ProductDetailDto` +
-      `WilayaDto[]` + fee. (#ui)
-- [ ] `MoneyStatusCard` → `credit` / `totalPaid` / `totalSold` (from `ClientMeDto`), replacing
+      `string` id. `inCart` replaces the old fake `isProductInCart()` local stub — it's a real DTO field
+      now. Dropped `isNew`/`Star`/rating JSX (no such fields on the DTO). (#ui)
+- [x] `ProductFilters` → `FamilyDto[]` / `BrandDto[]` / `DeviceModelDto[]`; value model = uuid strings
+      (dropped the `.toString()` numeric-id coercions). (#ui)
+- [x] `ProductPricingSection` / `ProductImageGallery` → `ProductDetailDto`. PricingSection: dropped
+      `useProductOrder()` entirely — it no longer owns order-submission state (that's
+      `ProductOrderModal`'s job per plan.md §4); viewer price branches on `currentPrice ?? guestPrice`
+      + `priceHidden`, not a separate `userCategory`. Gallery: `ProductImageDto.alt` is optional (was
+      required on the draft type) — falls back to `productName` everywhere. (#ui)
+- [x] `ProductOrderModal` → fully rebuilt as an RHF + `order.schema.ts` form (was a manual 4-step wizard
+      with local `useState` fields) — quantity, contact, cascading wilaya/commune selects (folds in what
+      was `DeliveryForm`), mode radio (pickup gated on `isAuthenticated`), fee display, live total. Props:
+      `product: ProductDetailDto`, `wilayas: WilayaDto[]`, `fee?: FeeDto`, `onDeliveryParamsChange`
+      (lets the parent own the live `usePlatformDeliveryFee` call in Sprint 5), `onSubmit`. 409
+      `INSUFFICIENT_STOCK`/403 `GUEST_PRICE_HIDDEN` interpreted inside the modal's own submit handler
+      (a presentation concern — see Corrections). (#ui)
+- [x] `MoneyStatusCard` → `credit` / `totalPaid` / `totalSold` (from `ClientMeDto`), replacing
       `balance`/`paid`/`credit`. (#ui)
-- [ ] `RegistrationConfirmationDialog` → the new register form values (uuid wilaya/commune, `storeName`). (#ui)
-- [ ] `DeliveryForm` → server `useWilayas()` (`WilayaDto` nested communes, uuid) — or fold its role into
-      `ProductOrderModal` if no other consumer remains. (#ui)
+- [x] `RegistrationConfirmationDialog` → the new register form values (uuid wilaya/commune, `storeName`) —
+      props take `Omit<RegisterFormValues,'wilayaId'|'communeId'> & {wilayaName, communeName}` since a
+      confirmation dialog should show names, not raw uuids. (#ui)
+- [x] `DeliveryForm` → **folded into `ProductOrderModal`** (confirmed zero other consumers) and deleted
+      (`DeliveryForm.tsx` + `DeliveryForm.schema.ts`). (#ui)
 
 **Validation**
-- [ ] `tsc --noEmit` clean — no residual `draft-types` imports in the retyped components.
-- [ ] Components stay presentational (no hook/service calls added); text still via `useTranslation`.
+- [x] `tsc --noEmit` clean (both configs) — no residual `draft-types` imports in the 9 retyped components.
+- [x] Components stay presentational — no new TanStack Query hook calls added inside any of the 9 (RHF's
+      `useForm` in the modal is client-side form state, not a data hook); text still via `useTranslation`.
+- [x] `vitest run` — 299/299 passed, no regressions.
+- [x] `eslint` before/after diff on all 17 touched files — 14 flat or *improved* (rewrites incidentally
+      fixed pre-existing prettier noise along the way); 3 unchanged; 1 (`ProductCard.tsx`) +2, confirmed
+      via message-frequency diff to be the same pre-existing indentation/quote noise class, not a new
+      issue.
 
 **Risks**
 - These components are shared with out-of-set pages; retyping may surface callers still on draft models —
-  bridge or flag, do not silently break them.
+  bridge or flag, do not silently break them. *(Confirmed via a full consumer sweep before touching
+  anything: `useBrands`/`useCategories`/`useModels` [use-brands.ts/use-models.ts] are shared with
+  out-of-set admin pages — left untouched; `Products.tsx`'s filters bridge via empty DTO-typed
+  placeholder arrays instead. `useProducts`/`useFeaturedProducts` have zero admin consumers — safely
+  retyped. `MyAccount.tsx`/`Register.tsx` bridge via inline field-mapping adapters at the call site,
+  touching nothing else on those pages.)*
+
+**Corrections found during this sprint (transparently noted, same pattern as Sprints 1–2):**
+1. **`order.schema.ts`'s `availableQuantity` param removed** (Sprint 1 premise was wrong) —
+   `ProductDetailDto` (catalog.dtos.ts) deliberately has no exact quantity field for public/client
+   viewers ("no cost, no exact quantities, boolean inStock only"); the schema now enforces `min(1)` +
+   a generous UI ceiling, trusting the server's 409 as the authoritative bound.
+2. **409/403 error-code mapping lives inside `ProductOrderModal`, not deferred to Sprint 5** — this is
+   how the FORM reacts to a rejected submission (a presentation concern, same precedent as
+   `LoginPage.tsx`'s own `loginErrorKey` mapping), not the mutation call itself (`onSubmit` stays an
+   injected prop; Sprint 5 wires the real `usePlaceOrder` behind it).
+3. **`ProductDetails.tsx` no longer calls `useProductOrder()`** — the Sprint-2 plan deferred its full
+   retirement to Sprint 5, but the natural, non-throwaway bridge for this page's placeholder submit
+   handler (mirroring the existing `handleAddToCart` toast-only pattern) doesn't need it. The
+   `use-product-order.ts` *file* is left in place, now fully orphaned, for Sprint 5 to delete or
+   repurpose.
 
 ---
 
