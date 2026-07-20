@@ -216,41 +216,46 @@ any Wiring.**
 
 ---
 
-### Sprint 5: Wiring — commerce cluster (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 5: Wiring — commerce cluster (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - PUB-04, PUB-05, PUB-09, PUB-10 consume the real hooks with granular states; cart order flow, cancel, and
   invoice PDF work end-to-end.
 
 **Tasks**
-- [ ] **PUB-04 Cart:** wire `useClientCart()` (skeleton / empty / error-retry), `useRemoveFromCart()`
+- [x] **PUB-04 Cart:** wire `useClientCart()` (skeleton / empty / error-retry), `useRemoveFromCart()`
       (heart), and the shared `ProductOrderModal` driven by the selected `item.product` + parent-owned
       `useWilayas()` / `usePlatformDeliveryFee()` / `usePlaceOrder()`; submit →
       `navigate("/order-confirmation", { state: { order } })`; `priceHidden` disables Order. (#wiring)
-- [ ] **PUB-05 Order-Confirmation:** read `useLocation().state.order`; render the OrderConfirmation body;
+- [x] **PUB-05 Order-Confirmation:** read `useLocation().state.order`; render the OrderConfirmation body;
       `<Navigate to="/" replace />` when state is absent; client-only My-Orders link via `useSession()`.
       (#wiring)
-- [ ] **PUB-09 My-Orders:** rewire `pages/Orders.tsx` onto `useMyOrders({ status })` (list, URL `?status=`)
+- [x] **PUB-09 My-Orders:** rewire `pages/Orders.tsx` onto `useMyOrders({ status })` (list, URL `?status=`)
       + `useMyOrders({})` (unfiltered → `useMemo` status counts) + `useCancelMyOrder()`; delete the stub
       `OrdersListSection` + numeric handlers; cancel gated on `order.canBeCancelled`; retire
       `use-orders.ts` / `orders-list-section.tsx` once orphaned (grep-verify). (#wiring)
-- [ ] **PUB-10 My-Invoices:** wire `useMyInvoices({ page })` (`DataTable` + `SimplePagination`, URL
+- [x] **PUB-10 My-Invoices:** wire `useMyInvoices({ page })` (`DataTable` + `SimplePagination`, URL
       `?page=`), `useMyInvoice(number)` (row → `InvoiceView`, 404 local), `useMyInvoicePdf()`
       (Blob → object-URL download). (#wiring)
 
 **Validation**
-- [ ] No `useEffect` fetching in any of the 4 pages (URL-sync only).
-- [ ] **`tsc --noEmit` clean**; all states local — no full-page blank, no global redirect on a content
+- [x] No `useEffect` fetching in any of the 4 pages (grep-confirmed zero `useEffect` at all — URL-sync
+      here is synchronous during render, no debounce needed unlike Catalog's free-text search).
+- [x] **`tsc --noEmit` clean**; all states local — no full-page blank, no global redirect on a content
       error (PUB-05's `<Navigate to="/">` is the spec-required **state** guard, not a content-error
       redirect).
-- [ ] **`useTranslation`:** all copy via `t(...)`.
-- [ ] `vitest run` green.
+- [x] **`useTranslation`:** all copy via `t(...)`.
+- [x] `vitest run` green — 353/353, no regressions.
 
 **Risks**
 - PUB-09 counts: the unfiltered `useMyOrders({})` and filtered `useMyOrders({status})` must use **distinct
   query keys** so the chips reflect all statuses, not the filtered subset (`qk.orders.mine({})` ≠
-  `qk.orders.mine({status})`).
+  `qk.orders.mine({status})`). *(Confirmed — two independent hook calls, TanStack's own key-based caching
+  keeps them separate.)*
 - Blob PDF: `responseType:'blob'` bypasses the envelope — don't try to unwrap `{success,data}` on download.
+  *(`InvoiceDetail.tsx` passes the mutation's Blob result straight to `downloadBlob`, no unwrap.)*
+
+**Report:** `report-sprint-05.md`.
 
 ---
 

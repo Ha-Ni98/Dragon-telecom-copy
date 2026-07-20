@@ -25,6 +25,7 @@ const MyAccount = lazy(() => import("@/pages/MyAccount"));
 const Cart = lazy(() => import("@/pages/cart/Cart"));
 const OrderConfirmation = lazy(() => import("@/pages/order-confirmation/OrderConfirmation"));
 const MyInvoices = lazy(() => import("@/pages/my-invoices/MyInvoices"));
+const InvoiceDetail = lazy(() => import("@/pages/my-invoices/InvoiceDetail"));
 const StaffDashboard = lazy(() => import("@/pages/staff/dashboard/StaffDashboard"));
 const StaffProducts = lazy(() => import("@/pages/staff/products/StaffProducts"));
 
@@ -118,6 +119,14 @@ const router = createBrowserRouter([
           {
             path: "/invoices",
             element: withSuspense(MyInvoices),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            // set-02 Sprint 5: plan.md left "dialog or /invoices/:number" open for this sprint
+            // to decide — a route was chosen over a dialog (InvoiceView's lines table doesn't
+            // fit a modal well, and its own local-404 branch reads more naturally as a page).
+            path: "/invoices/:number",
+            element: withSuspense(InvoiceDetail),
             errorElement: <RouteErrorBoundary />,
           },
         ],
