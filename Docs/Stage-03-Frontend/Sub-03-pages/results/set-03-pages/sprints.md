@@ -79,20 +79,22 @@ Each sprint's **Validation** block repeats these; only sprint-specific extras ar
 
 ---
 
-### Sprint 3: Shared / DTO-typed primitives (Primitives & States) — Status: ⬜ Pending
+### Sprint 3: Shared / DTO-typed primitives (Primitives & States) — Status: ✅ Done
 
 **Goals**
 - "Dumb", contract-DTO-typed presentational components shared across clusters, no hooks inside.
 
 **Tasks**
-- [ ] Reuse-first audit: `DataTable`, `PageHeader`, `StatCard`, `StatCardSkeleton`, `TableSkeleton`, `StatusBadge`, `MoneyStatusCard`, `SimplePagination`, `EmptyState`, `NotFoundState`, `CancelOrderDialog`, `autocomplete-input`, `image-management`, `drag-drop-area` already exist — use directly. (#ui)
-- [ ] Build genuinely shared new primitives: `CreditMovementPreview` (prev → new credit, used by POS payment + all payment dialogs), `ResolvedVsChargedPrice` cell (POS ticket + sale detail + invoice snapshot), `AgeFlag` badge (orders >24h / repair card age). Props are DTO-typed, no data fetching. (#ui)
+- [x] Reuse-first audit: `DataTable`, `PageHeader`, `StatCard`, `StatCardSkeleton`, `TableSkeleton`, `StatusBadge`, `MoneyStatusCard`, `SimplePagination`, `EmptyState`, `NotFoundState`, `CancelOrderDialog`, `autocomplete-input`, `image-management`, `drag-drop-area` already exist — use directly. (#ui)
+- [x] Build genuinely shared new primitives: `CreditMovementPreview` (prev → new credit, used by POS payment + all payment dialogs), `ResolvedVsChargedPrice` cell (POS ticket + sale detail + order dialogs), `AgeFlag` badge (orders >24h / repair card age). Props are DTO-typed, no data fetching. (#ui)
 
 **Validation**
-- [ ] Global gates. Extra: primitives take contract DTOs as props (no local view-models); render pure from props (Storybook-free visual check via unit render).
+- [x] Global gates. Extra: primitives take contract DTOs as props (no local view-models); render pure from props (Storybook-free visual check via unit render — backed by 7 new tests in `tests/unit/components/shared/`).
 
 **Risks**
 - Over-abstracting — only promote to shared what ≥2 clusters use; otherwise keep page-local (Sprint 4).
+
+**Report:** [report-sprint-03.md](./report-sprint-03.md)
 
 ---
 

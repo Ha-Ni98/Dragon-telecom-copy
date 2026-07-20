@@ -11993,5 +11993,20 @@
     "en": "Repairs",
     "fr": "Réparations",
     "ar": ""
+  },
+  "common.pricing.resolvedPrice": {
+    "en": "Resolved price",
+    "fr": "Prix résolu",
+    "ar": ""
+  },
+  "common.age.hours": {
+    "en": "{count}h ago",
+    "fr": "il y a {count}h",
+    "ar": ""
+  },
+  "common.age.days": {
+    "en": "{count}d ago",
+    "fr": "il y a {count}j",
+    "ar": ""
   }
 }
