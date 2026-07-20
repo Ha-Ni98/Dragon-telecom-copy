@@ -64,8 +64,17 @@ export type OrderScope = "staff" | "admin";
 // the backend's local (non-contract) CancelOrderCommand exactly.
 export type AdminCancelOrderCommand = { reason?: string };
 
+// One key per call — usePlaceOrder() has no retry (TanStack v5 mutations default to 0), so each
+// invocation already corresponds 1:1 with one user-initiated submit attempt (PUB-03: "POST
+// /api/orders with an idempotency key"). NOTE (engine gap, pub-pages plan.md D6): Apps/api's
+// ORDER_ROUTES.PLACE handler (orders.controller.ts/orders.routes.ts) does not read or validate
+// this header today — no dedup middleware exists yet on the backend. Sending it is harmless and
+// forward-compatible, but it does not yet prevent a duplicate submission server-side; flagged
+// for a backend follow-up, out of scope for this frontend service.
 export async function placeOrder(command: PlaceOrderCommand): Promise<OrderDto> {
-  const res = await api.post<ApiResponse<OrderDto>>(apiPath(ORDER_ROUTES.PLACE), command);
+  const res = await api.post<ApiResponse<OrderDto>>(apiPath(ORDER_ROUTES.PLACE), command, {
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+  });
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

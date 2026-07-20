@@ -20,6 +20,7 @@ const Products = lazy(() => import("@/pages/Products"));
 const ProductDetails = lazy(() => import("@/pages/ProductDetails"));
 const OrdersPage = lazy(() => import("@/pages/Orders"));
 const MyAccount = lazy(() => import("@/pages/MyAccount"));
+const StaffLanding = lazy(() => import("@/pages/StaffLanding"));
 
 const AdminDashboard = lazy(() => import("@/pages/admin/dashboard/AdminDashboard"));
 const AdminClients = lazy(() => import("@/pages/admin/clients/AdminClients"));
@@ -71,17 +72,25 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: withSuspense(Index), errorElement: <RouteErrorBoundary /> },
       { path: "/products", element: withSuspense(Products), errorElement: <RouteErrorBoundary /> },
-      // Decision #3: keep the MVP's public product URL slug as-is.
+      // PUB-03: "by id — never by name" (overrides the MVP's old by-name slug, source-of-truth
+      // ruling — the requirement wins over pre-existing Apps/web routing).
       {
-        path: "/products/:productName",
+        path: "/products/:id",
         element: withSuspense(ProductDetails),
         errorElement: <RouteErrorBoundary />,
       },
       {
-        // Any-authenticated (client) pages — not role-restricted, just "must be signed in".
+        // Any-authenticated pages — not role-restricted, just "must be signed in".
         element: <ProtectedRoute />,
         children: [
           { path: "/orders", element: withSuspense(OrdersPage), errorElement: <RouteErrorBoundary /> },
+        ],
+      },
+      {
+        // CLIENT-only (PUB-08) — distinct from the any-authenticated block above so staff/admin
+        // can't reach the client account surface.
+        element: <RoleGuard allow={[UserType.CLIENT]} />,
+        children: [
           { path: "/my-account", element: withSuspense(MyAccount), errorElement: <RouteErrorBoundary /> },
         ],
       },
@@ -125,6 +134,9 @@ const router = createBrowserRouter([
         element: <AdminLayout />,
         children: [
           { path: "/admin", element: withSuspense(AdminDashboard), errorElement: <RouteErrorBoundary /> },
+          // PUB-06 (D4): staff land here after login/PublicOnlyRoute and are forwarded to their
+          // first permitted page (lib/staff-pages.ts) — a thin landing, not a destination page.
+          { path: "/staff", element: withSuspense(StaffLanding), errorElement: <RouteErrorBoundary /> },
           {
             path: "/admin/clients",
             element: withSuspense(AdminClients),

@@ -90,39 +90,70 @@ Foundation lands before any Primitives; all Primitives before any Wiring.**
 
 ---
 
-### Sprint 2: Routing, Guards, Lazy & Engine-gap prep (Foundation) — Status: ⬜ Pending
+### Sprint 2: Routing, Guards, Lazy & Engine-gap prep (Foundation) — Status: ✅ Done
 
 **Goals**
 - The route table matches the requirements (id-based detail, `/staff` surface, client-scoped account).
 - The two engine gaps (idempotency key, related hydration) are unblocked at the service/decision level.
 
 **Tasks**
-- [ ] **D1:** change `/products/:productName` → `/products/:id` in `App.tsx`; retire the by-name path,
-      `use-product-details.ts`, `use-product-order.ts`, and `kebabCaseToProductName`. (#routing)
-- [ ] **D4:** add the `/staff` route under `RoleGuard allow={[STAFF, ADMIN]}` → a thin `StaffLanding`
-      component; add a `PageKey → route` map module (keys from `identity.enums.ts`). (#routing)
-- [ ] **D4:** refine `PublicOnlyRoute` + login redirect: `ADMIN`→`/admin`, `STAFF`→`/staff`,
-      `CLIENT`→`location.state.from ?? '/'`. (#routing)
-- [ ] **D5:** make `/my-account` **CLIENT-scoped** (`RoleGuard allow={[CLIENT]}` or a `ProtectedRoute`
-      that accepts an allowed `UserType`); redirect authenticated clients away from `/login` & `/register`
-      to `/my-account`. (#routing)
-- [ ] Confirm every page keeps `React.lazy()` + `<Suspense fallback={<PageLoader/>}>` (already in place);
+- [x] **D1:** change `/products/:productName` → `/products/:id` in `App.tsx`; retire the by-name path and
+      `kebabCaseToProductName`/`productNameToKebabCase` (deleted `lib/utils/product-utils.ts` entirely —
+      every export was dead once its two consumers were fixed). **`use-product-details.ts` adapted
+      in place** (id-based query now; still the Sub-01 stub underneath) rather than deleted — see
+      "Corrections" below. **`use-product-order.ts` deferred to Sprint 5** — not a by-name-routing
+      artifact; belongs with the real order-form wiring. (#routing)
+- [x] **D4:** add the `/staff` route under `RoleGuard allow={[STAFF, ADMIN]}` → a thin `StaffLanding`
+      component; add a `PageKey → route` map module (`lib/staff-pages.ts`, keys from `identity.enums.ts`,
+      currently empty — populated as staff destination pages ship). (#routing)
+- [x] **D4:** refine `PublicOnlyRoute` + login redirect: `ADMIN`→`/admin`, `STAFF`→`/staff`,
+      `CLIENT`→`/register`-path→`/my-account`, else `location.state.from ?? '/'`. (#routing)
+- [x] **D5:** make `/my-account` **CLIENT-scoped** (`RoleGuard allow={[UserType.CLIENT]}`, split out of
+      the any-authenticated `ProtectedRoute` block); `/register`'s already-authenticated-client redirect
+      now goes to `/my-account` (folded into the `PublicOnlyRoute` refinement above, not a separate
+      per-page effect). (#routing)
+- [x] Confirm every page keeps `React.lazy()` + `<Suspense fallback={<PageLoader/>}>` (already in place);
       add lazy entries for `StaffLanding`. (#routing)
-- [ ] **D6 (engine gap):** add an `Idempotency-Key` header (client `crypto.randomUUID()` per attempt) to
-      `orders.service.ts::placeOrder`, surfaced through `usePlaceOrder`. (#wiring)
-- [ ] **D7 (engine gap):** decide related-products hydration — implement a bounded (≈4) per-id
-      `useCatalogProduct` fan-out for `ProductDetailDto.relatedIds`; record the upstream note (detail
-      endpoint should return summaries). (#wiring)
+- [x] **D6 (engine gap):** add an `Idempotency-Key` header (client `crypto.randomUUID()` per attempt) to
+      `orders.service.ts::placeOrder`. **Discovery:** `Apps/api`'s `ORDER_ROUTES.PLACE` handler has no
+      idempotency-key middleware at all — the header is sent but currently inert server-side; documented
+      inline and in the report as a backend follow-up, not a frontend gap. (#wiring)
+- [ ] **D7 (engine gap):** ~~implement a bounded (≈4) per-id `useCatalogProduct` fan-out~~ — **descoped to
+      a decision-only task** (already recorded in plan.md D7); the actual fan-out is UI work that belongs
+      in Sprint 5 (Wiring) after Sprint 4 builds its skeleton primitive, not Sprint 2. See "Corrections"
+      below. (#decision)
 
 **Validation**
-- [ ] `tsc --noEmit` clean after the route/param type changes ripple through link producers.
-- [ ] Guards preserve the pre-mount `AuthRestoring` behavior (no `/login` flash on cold start).
-- [ ] Layout survives `isError` on any lazily-loaded route (RouteErrorBoundary intact).
+- [x] `tsc --noEmit` clean (both `tsconfig.json` and `tsconfig.test.json`) after the route/param changes
+      rippled through the one real link producer (`ProductCard.tsx`).
+- [x] Guards preserve the pre-mount `AuthRestoring`/`SessionResolving` behavior (no `/login` flash on cold
+      start) — unchanged in both `ProtectedRoute` and `RoleGuard`, only their post-ready branches changed.
+- [x] Layout survives `isError` on any lazily-loaded route (`RouteErrorBoundary` unchanged, `/staff` wired
+      the same way as every other `AdminLayout` child route).
+- [x] `vitest run` — 299/299 passed, including the pre-existing `ProtectedRoute.test.tsx` (unchanged
+      ADMIN/CLIENT assertions still hold under the refined guard logic).
+- [x] `eslint` on all 11 touched/new files — 0 new errors on 9 of them; 2 files (`App.tsx`,
+      `ProductCard.tsx`) each gained exactly 1 new pre-existing-style prettier line (verified via
+      before/after diff, not a new error class) — see report for detail.
 
 **Risks**
 - Changing the detail param breaks every `<Link>` producer (Home/Catalog cards, Related strip) — must
-  update all in the same sprint to keep `tsc` green.
-- Client-scoping `/my-account` must not regress PUB-05 `/orders` (stays any-authenticated).
+  update all in the same sprint to keep `tsc` green. *(Confirmed only one real producer existed —
+  `ProductCard.tsx` — fixed; no "Related strip" exists yet to break, since it's a Sprint 5 new
+  component.)*
+- Client-scoping `/my-account` must not regress PUB-05 `/orders` (stays any-authenticated). *(Verified —
+  `/orders` stays under the original `ProtectedRoute` block, untouched.)*
+
+**Corrections to this sprint's own task list (transparently noted, same pattern as Sprint 1):**
+1. `use-product-details.ts` was **adapted**, not deleted — deleting it would force `ProductDetails.tsx`'s
+   body (pricing/gallery/order-modal, still Sub-01-draft-typed until Sprint 3) to be rewritten twice
+   (once as an interim stopgap now, again for real in Sprint 5). Adapting the existing stub to be
+   id-keyed satisfies D1's actual concern (no more name-based lookup) without that churn.
+2. `use-product-order.ts`'s retirement doesn't belong in a routing sprint — it's a data-wiring concern,
+   deferred to Sprint 5/6 alongside the real `usePlaceOrder` RHF wiring.
+3. D7's "implement a bounded fan-out" was UI work smuggled into a Foundation sprint — the decision was
+   already made in `plan.md`; the implementation stays in Sprint 5 per the "primitives before wiring"
+   ordering this very plan establishes.
 
 ---
 

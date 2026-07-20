@@ -40,7 +40,7 @@ export async function getProductByName(_name: string): Promise<ProductDetails | 
   return null;
 }
 
-export async function getProductById(_id: number): Promise<ProductDetails | null> {
+export async function getProductById(_id: string): Promise<ProductDetails | null> {
   return null;
 }
 

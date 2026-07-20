@@ -15,27 +15,24 @@ import { ProductCategoryTags } from "@/components/shared/ProductCategoryTags";
 import { ProductPricingSection } from "@/components/sections/product-details/ProductPricingSection";
 import { ProductOrderModal } from "@/components/shared/ProductOrderModal";
 import { ProductErrorBoundary } from "@/components/shared/ProductErrorBoundary";
-import { kebabCaseToProductName } from "@/lib/utils/product-utils";
 import { toast } from "sonner";
 import type { OrderData } from "@/types/draft-types";
 
 export default function ProductDetails() {
-  const { productName } = useParams<{ productName: string }>();
+  // PUB-03: routes "by id — never by name" (D1).
+  const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const [quantity, setQuantity] = useState(1);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [currentProductPrice, setCurrentProductPrice] = useState(0);
 
-  // Convert kebab-case product name back to display name
-  const displayProductName = productName ? kebabCaseToProductName(productName) : "";
-
-  // Fetch product details by name
+  // Fetch product details by id
   const {
     data: product,
     isLoading,
     isError,
     error
-  } = useProductDetails(displayProductName);
+  } = useProductDetails(id ?? "");
 
   const {
     createOrder,
@@ -163,7 +160,7 @@ export default function ProductDetails() {
   }
 
   return (
-    <ProductErrorBoundary resetKeys={[productName ?? ""]}>
+    <ProductErrorBoundary resetKeys={[id ?? ""]}>
       <div>
         <main>
       <div className="container mx-auto px-4 py-8">

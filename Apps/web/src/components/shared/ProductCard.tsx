@@ -9,7 +9,6 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ProductWithDetails } from '@/types/draft-types/main-page.types';
 import { formatDZD } from '@/lib/utils';
-import { productNameToKebabCase } from '@/lib/utils/product-utils';
 import { toast } from 'sonner';
 
 /**
@@ -114,8 +113,10 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
    * Handle viewing product details
    */
   const handleViewDetails = () => {
-    const productSlug = productNameToKebabCase(product.productName);
-    navigate(`/products/${productSlug}`);
+    // PUB-03: routes "by id — never by name" (D1). Still the Sub-01 draft numeric id for now —
+    // Sprint 3 retypes this component onto the contract's uuid `id`, at which point this call
+    // needs no further change (only the property name flowing into it changes).
+    navigate(`/products/${product.idProduct}`);
     onViewDetails?.(product.idProduct);
   };
 
