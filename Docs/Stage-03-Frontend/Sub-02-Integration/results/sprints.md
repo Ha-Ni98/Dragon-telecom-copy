@@ -598,43 +598,95 @@ checked and confirmed zero name collisions against the plan's hook names, which 
 
 ---
 
-### Sprint 9: Sales & Repairs & Billing — Status: ⬜ Pending
+### Sprint 9: Sales & Repairs & Billing — Status: ✅ Done
 
 **Goals**
 - New `sales.service.ts` (POS drafts/confirm/returns, §2.10), `repairs.service.ts` (repairs + parts + status,
   §2.11), `billing.service.ts` (invoices + client-payments, §2.12) — the staff/POS back-office. **No MVP UI yet;**
-  this builds the data layer ahead of Sub-03.
+  this builds the data layer ahead of Sub-03. **This is the final sprint of the 9-sprint plan.**
+
+**Scope note (same pattern as Sprint 6):** all three domains are Tier 5 (no MVP UI), so zero page/component
+consumer checks were needed. Still ran the `use-admin-settings.ts` collision pass per the standing rule — zero
+hits (the only near-miss, `use-supplier-information.ts`'s `useSupplierInvoices`/`useDeleteInvoice`, is
+purchasing's supplier-invoice domain, already handled in Sprint 6, not a real collision).
 
 **Tasks**
-- [ ] **Services** `sales.service.ts` — `createDraft`/`updateDraft`/`confirmSale`(→**`ReceiptDto`**)/`listSales`
-      (paginated)/`getSale`(by **`reference` string**)/`createReturn`.
-- [ ] **Services** `repairs.service.ts` — `listRepairs`(**array**, no pagination)/`createRepair`/`updateRepair`/
-      `addRepairPart`/`removeRepairPart`/`updateRepairStatus`; `STAFF_*`/`ADMIN_*` scope-parameterized.
-- [ ] **Services** `billing.service.ts` — `getMyInvoices`/`listInvoices`(paginated)/`getInvoice`(by **`number`**)/
-      `getInvoicePdf`(**Blob**)/`cancelInvoice`/`createClientPayment`/`listClientPayments`.
-- [ ] **Hooks** — `qk.sales.*`/`qk.repairs.*`/`qk.billing.*`; sale confirm/return + repair add-part/complete
-      **cross-invalidate** inventory+billing+clients-credit; client-payment invalidates client/pos-client credit (plan §3).
-- [ ] **Fixtures** `sales.mock.ts` (`Sale`/`Receipt`), `repairs.mock.ts` (`Repair`), `billing.mock.ts`
-      (`Invoice`/`ClientPayment`).
-- [ ] **MSW** handlers — 2xx each; `SaleDraft.lines.min(1)` + repair `reportedIssues.min(1)` → 400; state-guard 409s;
-      invoice PDF Blob branch; string-keyed detail routes (`:reference`/`:number`).
-- [ ] **Integration tests** — receipt-not-sale on confirm, repairs array (no `{items,meta}`), invoice PDF Blob,
-      cross-domain credit invalidation, string-key routing.
+- [x] **Services** `sales.service.ts` — `createDraft`/`updateDraft`/`confirmSale`(→**`ReceiptDto`**)/`listSales`
+      (paginated, scope-parameterized)/`getSale`(by **`reference` string**, scope-parameterized)/`createReturn`
+      (admin-only, single route — `CreateReturnCommand` carries its own `saleId`, no URL param).
+- [x] **Services** `repairs.service.ts` — `listRepairs`(**array**, no pagination)/`createRepair`/`updateRepair`/
+      `addRepairPart`/`removeRepairPart`/`updateRepairStatus`; every route in this domain is a genuine
+      `STAFF_*`/`ADMIN_*` scope-parameterized pair (unlike sales, where only list/detail are actually paired).
+- [x] **Services** `billing.service.ts` — `getMyInvoices`(**paginated**, not the plan's `*(confirm)*` bare-array
+      guess)/`listInvoices`(paginated)/`getInvoice`(by **`number`**)/`getInvoicePdf`(**Blob**)/`cancelInvoice`/
+      `createClientPayment`/`listClientPayments`.
+- [x] **Hooks** — 3 new files (`useSales.ts`, `useRepairs.ts`, `useBilling.ts`) reading `qk.sales.*`/
+      `qk.repairs.*`/`qk.billing.*` (all already scaffolded since Sprint 1). `useConfirmSale`/`useCreateReturn`
+      sweep `qk.sales.all()`+`qk.inventory.all()`+`qk.billing.all()`+`qk.clients.all()`+`qk.posClients.all()`+
+      `qk.stats.all()`; `useAddRepairPart`/`useRemoveRepairPart` sweep `qk.repairs.all()`+`qk.inventory.all()`;
+      `useUpdateRepairStatus` sweeps `qk.repairs.all()`+`qk.inventory.all()`+`qk.billing.all()`;
+      `useCreateClientPayment` sweeps `qk.billing.all()`+`qk.clients.all()`+`qk.posClients.all()` (plan §3's full
+      cross-domain invalidation matrix, all rows for this sprint's mutations).
+- [x] **Fixtures** `sales.mock.ts` (`Sale`/`Receipt`), `repairs.mock.ts` (`Repair`), `billing.mock.ts`
+      (`Invoice`/`ClientPayment`) — all schema-validated, reusing `mockProductWithPricing`/`mockBrand`/`mockModel`
+      from `catalog.mock.ts` per the established cross-domain fixture-reuse pattern.
+- [x] **MSW** handlers — 2xx each; `SaleDraft.lines.min(1)` + repair `reportedIssues.min(1)` → 400; state-guard
+      409s (confirm/cancel conflict); invoice PDF Blob branch (raw `HttpResponse`, mirrors platform's
+      `feesExport`); string-keyed detail routes (`:reference`/`:number`). No `:id`-pattern route-ordering hazard
+      in any of the three domains — checked each param'd route's segment count against its neighbors; unlike the
+      recurring STATS-before-`:id` case, every pair here differs in either method or segment count.
+- [x] **Integration tests** — 46 new tests: receipt-not-sale on confirm, repairs bare array (no `{items,meta}`),
+      invoice PDF Blob, full cross-domain invalidation sweeps (confirm/return/status/payment), string-key routing
+      (reference/number), scope-parameterized reads for all three domains.
+
+**Resolved every plan.md §2.10-2.12 `*(confirm)*` item by reading the real backend**
+- `createReturn` returns **`SaleDto`** — confirmed against `sales.routes.ts`'s `controller.createReturn` wiring
+  and `ISalesService.createReturn`'s return type.
+- `removeRepairPart` returns the updated **`RepairDto`** (200), **not `void`** — confirmed against
+  `repairs.controller.ts`'s `removePart` handler (`sendSuccess(res, result, 200)`).
+- **`STAFF_STATUS`/`ADMIN_STATUS` are mounted with `router.post`, not `router.patch`** as plan.md's table said —
+  a genuine plan-vs-reality discrepancy caught by reading `repairs.routes.ts` directly, not just the interface.
+- `getMyInvoices` is **`PaginatedResult<InvoiceDto>`**, not a bare array as plan.md's own placeholder guessed —
+  confirmed against `billing.interface.ts`'s `getMyInvoices(query, clientId)` signature (it genuinely accepts an
+  `InvoiceListQuery`) and `billing.routes.ts`'s `MY_INVOICES` validation. **Fixed the registry to match**:
+  `qk.billing.mine` was scaffolded keyless (`() => ["billing","mine"]`) since Sprint 1 — updated it to embed the
+  query (`(query?) => ["billing","mine",query]`), the same invalidation-key bug class Sprint 5 found for
+  `qk.orders.mine`, caught here at registry-design time (before any consumer existed) rather than via a failing
+  test.
+- `cancelInvoice` returns **`InvoiceDto`** (200) — confirmed against `billing.controller.ts`'s `cancelInvoice`
+  handler.
 
 **Validation**
-- [ ] `tsc --noEmit` clean; types from `@dragon-telecom/contract`.
-- [ ] Services unwrap + **throw**; `getInvoicePdf` returns `Blob`; `confirmSale` returns `ReceiptDto`.
-- [ ] Hook shapes correct; cross-domain (stock/billing/credit) invalidations present.
-- [ ] MSW intercepts; fixtures parse; repairs list is a bare array, sales/billing detail keyed by string.
-- [ ] 200 **and** 4xx/5xx covered; no tests in `/src`.
-- [ ] Committed on green: `fe: integration sprint 9 — sales, repairs & billing`.
+- [x] `tsc --noEmit` clean (`/src` and `/src`+`/tests`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; `getInvoicePdf`/`getMyInvoicePdf` return `Blob`; `confirmSale` returns
+      `ReceiptDto` (a genuinely different shape from `SaleDto`, asserted directly in tests).
+- [x] Hook shapes correct; every cross-domain invalidation from plan §3's matrix present and verified — either by
+      `isInvalidated` (mutations with no actively-mounted observer of the swept key in that test) or
+      handler-call-count (the one actively-mounted case, `useClientPayments`/`useCreateClientPayment`, per the
+      Sprint 6 rule).
+- [x] MSW intercepts; fixtures parse; repairs list confirmed a bare array (no `{items,meta}`), sales/billing
+      detail confirmed keyed by string (`reference`/`number`).
+- [x] 200 **and** 4xx/5xx covered (26 service, 16 hooks = **46 new tests**, all passing); no test files in
+      `/src`.
+- [x] Full suite: **35/35 files, 299/299 tests passing** (up from 29/29 · 257/257 at Sprint 8 close).
+- [x] Committed on green: `fe: integration sprint 9 — sales, repairs & billing`.
+- [x] Lint: fully clean — all 16 new files are entirely new; `eslint --fix` scoped to just those paths plus the
+      one touched pre-existing file (`query-keys.ts`, the `billing.mine` fix), zero errors after.
 
-**Risks**
-- Admin-only cost/profit optionals across all three (staff mapper strips); `InvoiceSource` never REPAIR.
-- Several delete/cancel/return response bodies `*(confirm)*` (plan §6.1–6.2) — confirm 204-vs-DTO vs `Apps/api`.
-- Tier-5: no consuming UI until Sub-03 — hooks are validated by tests only this stage.
+**Risks (resolved)**
+- Admin-only cost/profit optionals across all three — exercised directly in every fixture (`totalCost`/
+  `totalProfit`/line `costOfGoods`/`profit`/`costSnapshot`/`currentAverageCost` all populated, matching the
+  admin-mapper-keeps-them case; the plan's staff-mapper-strips-them case needs no separate fixture since the
+  fields are simply `.optional()` in the one shared schema). `InvoiceSource` modelled as `SALE` only in the
+  fixture (never `REPAIR`, per the contract's own enum comment).
+- Every delete/cancel/return response body `*(confirm)*` resolved by reading `Apps/api` directly (see above) —
+  no guesses left unverified.
+- Tier-5, no consuming UI — all 46 new tests validate the hooks/services directly; nothing here was, or could
+  be, exercised through a rendered page this stage (that's Sub-03's job).
 
 ---
+
+**Sub-02 (Integration Engine) is now complete — all 9 sprints done, all 115 contract routes wired.**
 
 ## Exit criteria (all sprints ✅)
 

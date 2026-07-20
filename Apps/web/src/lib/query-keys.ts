@@ -141,7 +141,11 @@ export const qk = {
   },
   billing: {
     all: () => ["billing"] as const,
-    mine: () => ["billing", "mine"] as const,
+    // Embeds `query` (integration Sprint 9 fix) — `getMyInvoices` genuinely accepts an
+    // `InvoiceListQuery` filter (status/source/from/to/page/limit), so a keyless `mine()` would
+    // collide every filter variant onto one cache entry (the same class of gap Sprint 5 found
+    // for `orders.mine`, caught here at registry-design time instead of via a failing test).
+    mine: (query?: unknown) => ["billing", "mine", query] as const,
     list: (scope: string, query?: unknown) => ["billing", "list", scope, query] as const,
     detail: (scope: string, number: string) => ["billing", "detail", scope, number] as const,
     payments: {
