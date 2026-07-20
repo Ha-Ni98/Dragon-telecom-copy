@@ -41,41 +41,43 @@ any Wiring.**
 
 ---
 
-### Sprint 1: Schemas & i18n (Foundation) — Status: ⬜ Pending
+### Sprint 1: Schemas & i18n (Foundation) — Status: ✅ Done
 
 **Goals**
 - Confirm the set needs **no new Zod schema**, with the two reuse/deviation decisions documented.
 - All translation keys for the seven pages exist (`en`/`fr` real copy, `ar:""`).
 
 **Tasks**
-- [ ] Verify/keep `src/pages/product-detail/order.schema.ts` — **PUB-04 reuses it unchanged** (the shared
+- [x] Verify/keep `src/pages/product-detail/order.schema.ts` — **PUB-04 reuses it unchanged** (the shared
       PUB-03 order form); no new cart schema. (#foundation)
-- [ ] **Deviation (record):** PUB-09's "cancel dialog with optional reason textarea" is dropped — the client
+- [x] **Deviation (record):** PUB-09's "cancel dialog with optional reason textarea" is dropped — the client
       `ORDER_ROUTES.MY_CANCEL` accepts **no body** (`cancelMyOrder(id)` sends none; the contract's
       `reason?` belongs to the ADMIN cancel command only). `CancelOrderDialog` stays a plain confirm
       (`onConfirm: () => void`); no cancel schema. Contract wins (source-of-truth). (#foundation)
-- [ ] Note (no file): PUB-09 status filter and STF-03 filters validate parsed URL params against the
+- [x] Note (no file): PUB-09 status filter and STF-03 filters validate parsed URL params against the
       contract `MyOrdersQuery` / `ProductListQuery` **before the query fires** — no new schema. (#foundation)
-- [ ] Add translation key namespaces (`en`/`fr` real, `ar:""`): `cart.*` (list/empty/priceOnRequest/
+- [x] Add translation key namespaces (`en`/`fr` real, `ar:""`): `cart.*` (list/empty/priceOnRequest/
       remove/order), `orderConfirmation.*` (success/reference/line/fee/total/mode/pending message/CTAs),
       `orders.*` (extend: status labels ×7, filter chips, count chips, cancel, detail fields, tracking,
       timeline, invoice link), `invoices.*` (table headers/source labels/view/pdf/empty/notFound),
       `staff.dashboard.*` (salesToday/revenue/drafts/pendingOrders/lowStock), `staff.products.*`
       (filters/columns/copyBarcode/empty), `admin.dashboard.*` (extend: pendingOrders/pendingRegistrations/
       repairsByStatus/draftSalesByStaff/retry). Reuse `common.*`, `product.*`, `admin.nav.*`. (#i18n)
-- [ ] Add `staff.nav.*` keys for the new StaffSidebar entries (dashboard, products) — consumed in Sprint 2.
+- [x] Add `staff.nav.*` keys for the new StaffSidebar entries (dashboard, products) — consumed in Sprint 2.
       (#i18n)
 
 **Validation**
-- [ ] **`useTranslation`:** every new label/message is a key in `translations.json` (`{en,fr,ar:""}`); no
+- [x] **`useTranslation`:** every new label/message is a key in `translations.json` (`{en,fr,ar:""}`); no
       inline strings introduced.
-- [ ] No new Zod schema added (reuse-only, verified); any parsed-URL guard uses the contract query schema.
-- [ ] **`tsc --noEmit` clean** (both configs).
-- [ ] `vitest run` green (existing suite unaffected).
+- [x] No new Zod schema added (reuse-only, verified); any parsed-URL guard uses the contract query schema.
+- [x] **`tsc --noEmit` clean** (both configs) — `npm run check`, zero errors.
+- [x] `vitest run` green (existing suite unaffected) — 44 files, 356/356 tests.
 
 **Risks**
 - The dropped cancel "reason" is a requirement deviation — ensure dialog copy doesn't promise a reason
   field. Carry into Sprint 5.
+
+**Report:** `report-sprint-01.md`.
 
 ---
 
