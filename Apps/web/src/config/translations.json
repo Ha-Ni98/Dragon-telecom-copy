@@ -12008,5 +12008,20 @@
     "en": "{count}d ago",
     "fr": "il y a {count}j",
     "ar": ""
+  },
+  "common.actions.decrease": {
+    "en": "Decrease",
+    "fr": "Diminuer",
+    "ar": ""
+  },
+  "common.actions.increase": {
+    "en": "Increase",
+    "fr": "Augmenter",
+    "ar": ""
+  },
+  "common.units.inStock": {
+    "en": "in stock",
+    "fr": "en stock",
+    "ar": ""
   }
 }

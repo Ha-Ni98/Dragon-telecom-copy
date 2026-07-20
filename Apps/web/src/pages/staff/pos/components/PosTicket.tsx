@@ -1,0 +1,150 @@
+import { Minus, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ResolvedVsChargedPrice } from "@/components/shared/ResolvedVsChargedPrice";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ShoppingCart } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
+import { formatDZD } from "@/lib/utils";
+
+// Client-side draft state — not a persisted SaleDto (the draft is PATCHed incrementally,
+// STF-02 §Forms); field names mirror SaleDraftCommand's line shape (sales.command.ts) plus
+// the display-only `productName`/`resolvedPrice`/`lineTotal` the ticket needs to render.
+export interface PosTicketLine {
+  productId: string;
+  productName: string;
+  quantity: number;
+  availableQuantity: number;
+  resolvedPrice: number;
+  unitPrice: number;
+  lineTotal: number;
+  serialNumbers?: string[];
+}
+
+interface PosTicketProps {
+  lines: PosTicketLine[];
+  discountAmount: number;
+  total: number;
+  onQuantityChange: (productId: string, quantity: number) => void;
+  onUnitPriceChange: (productId: string, unitPrice: number) => void;
+  onSerialNumbersChange: (productId: string, serialNumbers: string[]) => void;
+  onRemoveLine: (productId: string) => void;
+  onDiscountChange: (discountAmount: number) => void;
+}
+
+// Dumb, props-only (Sprint 4) — Sprint 7 wires POS state management around this.
+export function PosTicket({
+  lines,
+  discountAmount,
+  total,
+  onQuantityChange,
+  onUnitPriceChange,
+  onSerialNumbersChange,
+  onRemoveLine,
+  onDiscountChange,
+}: PosTicketProps) {
+  const { t, language } = useTranslation();
+
+  if (lines.length === 0) {
+    return (
+      <EmptyState
+        icon={<ShoppingCart className="h-6 w-6" />}
+        title={t("staff.pos.ticket.title")}
+        body={t("staff.pos.ticket.empty")}
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+      <div className="divide-y divide-border">
+        {lines.map((line) => (
+          <div key={line.productId} className="flex items-center gap-3 p-4">
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-medium">{line.productName}</div>
+              {line.serialNumbers && line.serialNumbers.length > 0 && (
+                <div className="truncate text-xs text-muted-foreground">
+                  {t("staff.pos.ticket.serials")}: {line.serialNumbers.join(", ")}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => onQuantityChange(line.productId, Math.max(1, line.quantity - 1))}
+                aria-label={t("common.actions.decrease")}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+              <span className="w-6 text-center text-sm">{line.quantity}</span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                disabled={line.quantity >= line.availableQuantity}
+                onClick={() =>
+                  onQuantityChange(
+                    line.productId,
+                    Math.min(line.availableQuantity, line.quantity + 1),
+                  )
+                }
+                aria-label={t("common.actions.increase")}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+
+            <Input
+              type="number"
+              min={0}
+              value={line.unitPrice}
+              onChange={(e) => onUnitPriceChange(line.productId, Number(e.target.value))}
+              className="w-24"
+              aria-label={t("staff.pos.ticket.chargedPrice")}
+            />
+
+            <div className="w-24 text-right">
+              <ResolvedVsChargedPrice
+                resolvedPrice={line.resolvedPrice}
+                unitPrice={line.unitPrice}
+              />
+            </div>
+
+            <div className="w-24 text-right font-semibold">
+              {formatDZD(line.lineTotal, language)}
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onRemoveLine(line.productId)}
+              aria-label={t("staff.pos.ticket.remove")}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-2 border-t border-border p-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{t("staff.pos.ticket.discount")}</span>
+          <Input
+            type="number"
+            min={0}
+            value={discountAmount}
+            onChange={(e) => onDiscountChange(Number(e.target.value))}
+            className="w-28 text-right"
+          />
+        </div>
+        <div className="flex items-center justify-between text-lg font-bold">
+          <span>{t("staff.pos.ticket.total")}</span>
+          <span>{formatDZD(total, language)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}

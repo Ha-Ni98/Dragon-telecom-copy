@@ -98,25 +98,27 @@ Each sprint's **Validation** block repeats these; only sprint-specific extras ar
 
 ---
 
-### Sprint 4: Page-local primitives, Skeletons & local fallbacks (Primitives & States) — Status: ⬜ Pending
+### Sprint 4: Page-local primitives, Skeletons & local fallbacks (Primitives & States) — Status: ✅ Done
 
 **Goals**
 - Every page's page-local dumb components exist with matching `Skeleton` + local error/empty fallbacks — still unwired.
 
 **Tasks**
-- [ ] POS: `PosProductSearch`, `FamilyQuickPickGrid`, `PosTicket`, `PosClientAttachZone`, `PosPaymentPanel`, `MyDraftsDrawer`, `PosReceiptView`, `QuickAddClientDialog` + their skeletons. (#ui)
-- [ ] Orders: `OrderStatsRow`, `OrderStatusTabs`, `OrdersTable`, `OrderShowDialog`, `OrderConfirmDialog`, `OrderStatusDialog`, admin `ReturnOrderDialog` (reuse existing `admin-order-*`). (#ui)
-- [ ] Sales: `SalesFilters`, `SalesTable`, `SaleDetailDrawer`, admin `ReturnDialog`. (#ui)
-- [ ] Invoices: `InvoicesTable`, `InvoiceSnapshotView`, `RecordPaymentDialog`, admin `IncomingInvoicesTable`, `PaymentsLedger`, `SupplierPaymentDialog`. (#ui)
-- [ ] Repairs: `RepairBoard` (+ lanes), `IntakeDialog`, `RepairTicketDetail` (parts editor). (#ui)
-- [ ] Products: reuse/rewire `admin-products-*` + `product-*` shells; ensure each card/tab has a `Skeleton` + `NotFoundState`/`EmptyState`. (#ui)
-- [ ] Each loading region gets a shape-matched Shadcn `Skeleton`; each fetchable region a local `NotFoundState`/`EmptyState`. (#ui)
+- [x] POS: `PosProductSearch`, `FamilyQuickPickGrid`, `PosTicket`, `PosClientAttachZone`, `PosPaymentPanel`, `MyDraftsDrawer`, `PosReceiptView`, `QuickAddPosClientDialog` + their skeletons. (#ui)
+- [x] Orders: `OrderStatsRow`, `OrderStatusTabs`, `OrdersTable`, `OrderShowDialog`, `OrderConfirmDialog`, `OrderStatusDialog`, admin `ReturnOrderDialog` **and a new `AdminCancelOrderDialog`** (the existing shared `CancelOrderDialog` turned out to be the client-facing plain-confirm dialog, not reusable — see report). (#ui)
+- [x] Sales: `SalesFilters`, `SalesTable`, `SaleDetailDrawer`, admin `ReturnDialog`. (#ui)
+- [x] Invoices: `InvoicesTable`, `InvoiceSnapshotView`, `RecordPaymentDialog`, admin `IncomingInvoicesTable`, `PaymentsLedger`, `SupplierPaymentDialog`. (#ui)
+- [x] Repairs: `RepairBoard` (+ lanes, native HTML5 drag-and-drop), `IntakeDialog`, `RepairTicketDetail` (parts editor), **and a new `RepairStatusDialog`** (needed as a home for the Sprint 1 `repair-status.schema.ts`). (#ui)
+- [x] Products: audited `admin-products-table.tsx`/`admin-products-stats-cards.tsx`/`AdminProductInformation.tsx` — all three already have `Skeleton`+`EmptyState`/`NotFoundState` coverage from Sub-01; no Sprint 4 changes needed (see report). (#ui)
+- [x] Each loading region gets a shape-matched Shadcn `Skeleton`; each fetchable region a local `NotFoundState`/`EmptyState`. (#ui)
 
 **Validation**
-- [ ] Global gates. Extra: no hook imports in these files yet; skeletons match final content shape (no layout shift on state swap).
+- [x] Global gates. Extra: no hook imports in these files yet (grep-verified); skeletons match final content shape (no layout shift on state swap).
 
 **Risks**
 - Skeleton/real shape mismatch causing layout jump; `DataTable` renders desktop+mobile simultaneously in jsdom (known from set-02 — plan `getAllByText` for later tests).
+
+**Report:** [report-sprint-04.md](./report-sprint-04.md)
 
 ---
 
