@@ -34,21 +34,23 @@ Each sprint's **Validation** block repeats these; only sprint-specific extras ar
 
 ---
 
-### Sprint 1: Schemas & i18n (Foundation) — Status: ⬜ Pending
+### Sprint 1: Schemas & i18n (Foundation) — Status: ✅ Done
 
 **Goals**
 - Every RHF form in the set has a co-located Zod schema (contract-imported where a Command exists).
 - All translation keys for the set exist (`en`/`fr` real, `ar` `""`).
 
 **Tasks**
-- [ ] Co-locate form schemas re-using contract commands — no re-declaration: POS `SaleDraftCommand` / `ConfirmSaleCommand` / `CreatePosClientCommand`; orders `ConfirmOrderCommand` / `UpdateOrderStatusCommand` / `ReturnOrderCommand` (+ local cancel `{reason?}`); sales `CreateReturnCommand`; invoices `CreateClientPaymentCommand` / `CreateSupplierPaymentCommand`; repairs `CreateRepairCommand` / `AddRepairPartCommand` / `RepairStatusCommand`; products `CreateProductCommand` / `UpdatePricingCommand`. Only page-local UI refinements (e.g. barcode-focus state) get `[name].schema.ts`. (#schema)
-- [ ] Add translation keys to `config/translations.json` for all 13 pages under `staff.*` / `admin.*` scopes — tables, tabs, dialogs, stat cards, error/empty/loading, form labels + server-error messages (`INSUFFICIENT_STOCK`, `CREDIT_REQUIRES_CLIENT`, `PRICING_REQUIRES_STOCK`). Reuse existing keys where present. (#i18n)
+- [x] Co-locate form schemas re-using contract commands — no re-declaration: POS `SaleDraftCommand` / `ConfirmSaleCommand` / `CreatePosClientCommand`; orders `ConfirmOrderCommand` / `UpdateOrderStatusCommand` / `ReturnOrderCommand` (+ local cancel `{reason?}`); sales `CreateReturnCommand`; invoices `CreateClientPaymentCommand` / `CreateSupplierPaymentCommand`; repairs `CreateRepairCommand` / `AddRepairPartCommand` / `RepairStatusCommand`; products `CreateProductCommand` / `UpdatePricingCommand`. Only page-local UI refinements (e.g. barcode-focus state) get `[name].schema.ts`. (#schema)
+- [x] Add translation keys to `config/translations.json` for all 13 pages under `staff.*` / `admin.*` scopes — tables, tabs, dialogs, stat cards, error/empty/loading, form labels + server-error messages (`INSUFFICIENT_STOCK`, `CREDIT_REQUIRES_CLIENT`, `PRICING_REQUIRES_STOCK`). Reuse existing keys where present. (#i18n)
 
 **Validation**
-- [ ] Global gates. Extra: schemas `infer` types identical to their contract Command (no drift); every new key has non-empty `en`+`fr`, `ar: ""`.
+- [x] Global gates. Extra: schemas `infer` types identical to their contract Command (no drift); every new key has non-empty `en`+`fr`, `ar: ""`.
 
 **Risks**
 - Duplicating a contract Command as a local schema (must import, not re-declare). Key collisions with set-01/02.
+
+**Report:** [report-sprint-01.md](./report-sprint-01.md)
 
 ---
 
