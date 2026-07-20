@@ -115,8 +115,10 @@ export class CatalogMapper {
     return StaffProductResponseSchema.parse(dto);
   }
 
-  // Admin — full visibility: exact quantities, averageCost, publish/enable flags.
-  static toAdminProductDto(product: ProductWithRelations): AdminProductDto {
+  // Admin — full visibility: exact quantities, averageCost, publish/enable flags. `categoryPrices`
+  // param mirrors toStaffProductDto (set-03 A1 — ADM-04's pricing card needs these to render/
+  // prefill margins the same way the staff view already does).
+  static toAdminProductDto(product: ProductWithRelations, categoryPrices: CategoryPriceRow[]): AdminProductDto {
     const available = CatalogMapper.availableQuantity(product);
     const dto: AdminProductDto = {
       id: product.id,
@@ -131,6 +133,7 @@ export class CatalogMapper {
       ...(product.defaultSalePrice != null
         ? { defaultSalePrice: CatalogMapper.toMoney(product.defaultSalePrice) }
         : {}),
+      categoryPrices,
       createdAt: product.createdAt.toISOString(),
       quantityOnHand: product.quantityOnHand,
       quantityReserved: product.quantityReserved,

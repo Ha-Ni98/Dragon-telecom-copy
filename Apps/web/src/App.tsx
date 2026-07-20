@@ -28,6 +28,14 @@ const MyInvoices = lazy(() => import("@/pages/my-invoices/MyInvoices"));
 const InvoiceDetail = lazy(() => import("@/pages/my-invoices/InvoiceDetail"));
 const StaffDashboard = lazy(() => import("@/pages/staff/dashboard/StaffDashboard"));
 const StaffProducts = lazy(() => import("@/pages/staff/products/StaffProducts"));
+// set-03: the five staff/admin twins — each staff page takes a `scope` prop (default "staff");
+// the admin variant is a thin wrapper mounting the same tree with scope="admin" (plan.md's
+// twin pattern — one component tree, not a fork).
+const StaffPos = lazy(() => import("@/pages/staff/pos/StaffPos"));
+const StaffOrders = lazy(() => import("@/pages/staff/orders/StaffOrders"));
+const StaffSales = lazy(() => import("@/pages/staff/sales/StaffSales"));
+const StaffInvoices = lazy(() => import("@/pages/staff/invoices/StaffInvoices"));
+const StaffRepairs = lazy(() => import("@/pages/staff/repairs/StaffRepairs"));
 
 const AdminDashboard = lazy(() => import("@/pages/admin/dashboard/AdminDashboard"));
 const AdminClients = lazy(() => import("@/pages/admin/clients/AdminClients"));
@@ -44,6 +52,10 @@ const AdminSupplierInformation = lazy(
 const AdminStatistics = lazy(() => import("@/pages/admin/statistics/AdminStatistics"));
 const AdminLogs = lazy(() => import("@/pages/admin/logs/AdminLogs"));
 const AdminSettings = lazy(() => import("@/pages/admin/settings/AdminSettings"));
+const AdminPos = lazy(() => import("@/pages/admin/pos/AdminPos"));
+const AdminSales = lazy(() => import("@/pages/admin/sales/AdminSales"));
+const AdminInvoices = lazy(() => import("@/pages/admin/invoices/AdminInvoices"));
+const AdminRepairs = lazy(() => import("@/pages/admin/repairs/AdminRepairs"));
 
 const withSuspense = (Component: LazyExoticComponent<ComponentType<Record<string, never>>>) => (
   <Suspense fallback={<PageLoader />}>
@@ -225,6 +237,26 @@ const router = createBrowserRouter([
             element: withSuspense(AdminSettings),
             errorElement: <RouteErrorBoundary />,
           },
+          {
+            path: "/admin/pos",
+            element: withSuspense(AdminPos),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/sales",
+            element: withSuspense(AdminSales),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/invoices",
+            element: withSuspense(AdminInvoices),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/repairs",
+            element: withSuspense(AdminRepairs),
+            errorElement: <RouteErrorBoundary />,
+          },
         ],
       },
       {
@@ -246,6 +278,56 @@ const router = createBrowserRouter([
               {
                 path: "/staff/products",
                 element: withSuspense(StaffProducts),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_POS} />,
+            children: [
+              {
+                path: "/staff/pos",
+                element: withSuspense(StaffPos),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_ORDERS} />,
+            children: [
+              {
+                path: "/staff/orders",
+                element: withSuspense(StaffOrders),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_SALES} />,
+            children: [
+              {
+                path: "/staff/sales",
+                element: withSuspense(StaffSales),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_INVOICES} />,
+            children: [
+              {
+                path: "/staff/invoices",
+                element: withSuspense(StaffInvoices),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_REPAIRS} />,
+            children: [
+              {
+                path: "/staff/repairs",
+                element: withSuspense(StaffRepairs),
                 errorElement: <RouteErrorBoundary />,
               },
             ],

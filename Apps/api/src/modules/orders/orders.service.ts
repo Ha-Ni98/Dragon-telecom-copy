@@ -179,6 +179,16 @@ export class OrdersService implements IOrdersService {
             ],
           }
         : {}),
+      // set-03 A2 — STF-04/ADM-09's date-range filter, on the same `placedAt` column the list
+      // already sorts by.
+      ...(query.from != null || query.to != null
+        ? {
+            placedAt: {
+              ...(query.from != null ? { gte: new Date(query.from) } : {}),
+              ...(query.to != null ? { lte: new Date(query.to) } : {}),
+            },
+          }
+        : {}),
     };
 
     const [total, orders] = await this.prisma.$transaction([

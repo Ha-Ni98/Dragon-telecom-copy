@@ -20,6 +20,14 @@ export function useRepairs(scope: RepairsScope, query: RepairListQuery) {
   });
 }
 
+// set-03 B1 — single-ticket read (ADM-13/STF-07 ticket detail drawer).
+export function useRepair(scope: RepairsScope, id: string) {
+  return useQuery({
+    queryKey: qk.repairs.detail(scope, id),
+    queryFn: () => repairsService.getRepair(scope, id),
+  });
+}
+
 export function useCreateRepair() {
   const queryClient = useQueryClient();
   return useMutation({

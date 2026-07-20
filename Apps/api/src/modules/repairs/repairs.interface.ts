@@ -14,6 +14,10 @@ import type {
 export interface IRepairsService {
   // staff(STAFF_REPAIRS): created-by-me (§C-1); admin: all.
   listRepairs(query: RepairListQuery, actor: JWTPayload): Promise<RepairDto[]>;
+  // set-03 B1 — single-ticket read (ADM-13/STF-07 ticket detail). Unrestricted by creator,
+  // same as every mutation below — the created-by-me rule is a LIST-only convenience filter
+  // (§C-1), not a per-ticket ACL.
+  getRepair(id: string, actor: JWTPayload): Promise<RepairDto>;
   // + intake history row (§C-1) for both creator-scoping and later staff-resolution
   // (repair.pickedUp carries no staffId — sales' own listener reads this same history).
   // Takes the full actor (not a bare staffId, deviating from the plan's literal signature):

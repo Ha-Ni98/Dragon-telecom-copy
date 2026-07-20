@@ -11973,5 +11973,25 @@
     "en": "Pricing requires initial stock",
     "fr": "La tarification nécessite un stock initial",
     "ar": ""
+  },
+  "admin.nav.pos": {
+    "en": "POS",
+    "fr": "Point de vente",
+    "ar": ""
+  },
+  "admin.nav.sales": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "admin.nav.invoices": {
+    "en": "Invoices",
+    "fr": "Factures",
+    "ar": ""
+  },
+  "admin.nav.repairs": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
   }
 }

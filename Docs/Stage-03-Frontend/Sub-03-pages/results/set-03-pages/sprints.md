@@ -54,26 +54,28 @@ Each sprint's **Validation** block repeats these; only sprint-specific extras ar
 
 ---
 
-### Sprint 2: Routes, guards, lazy + Engine prerequisites (Foundation) — Status: ⬜ Pending
+### Sprint 2: Routes, guards, lazy + Engine prerequisites (Foundation) — Status: ✅ Done
 
 **Goals**
 - All 13 routes registered, `React.lazy` + `Suspense`, correct layout + `RoleGuard`.
 - Contract/backend/hook gaps (A1–A4, B1) resolved so wiring sprints have real, typed hooks.
 
 **Tasks**
-- [ ] Register routes with `React.lazy()` + `<Suspense fallback={<PageLoader/>}>`: `/staff/pos` `/admin/pos`, `/staff/orders` `/admin/orders`, `/staff/sales` `/admin/sales`, `/staff/invoices` `/admin/invoices`, `/staff/repairs` `/admin/repairs`, `/admin/products` `/admin/products/add` `/admin/products/:id`. Staff→`StaffLayout`, admin→`AdminLayout`. (#routing)
-- [ ] Wrap staff routes in `RoleGuard(STAFF_POS|STAFF_ORDERS|STAFF_SALES|STAFF_INVOICES|STAFF_REPAIRS)`; admin routes unrestricted within `AdminLayout`. Admin twin routes mount the staff page tree with `scope="admin"`. (#routing)
-- [ ] **A1 (contract):** add `categoryPrices` to `AdminProductResponseSchema` (shape = `StaffProductResponseSchema`). (#contract)
-- [ ] **A1 (backend `Apps/api`):** `catalog.mapper.ts` `toAdminProductDto` gains a `categoryPrices` param (mirror `toStaffProductDto:101`); `catalog.service` `getAdminProduct`/`listAdminProducts` load category prices and pass them; keep `AdminProductResponseSchema.parse`. Update/verify catalog integration tests. (#backend)
-- [ ] **A2/A3 (contract + backend):** extend `BackofficeOrdersQuerySchema` (`from`/`to`) and `SaleListQuerySchema` (`from`/`to`, `sellerId`, `posClientId`); orders/sales query handlers in `Apps/api` accept + filter on them. (#contract #backend)
-- [ ] **B1 (hook + service):** add `repairsService.getRepair(scope, id)` and `useRepair(scope, id)` → `['repairs', scope, id]`. (#wiring)
-- [ ] **A4 (wiring decision, no new endpoints):** confirm ADM-04 tab hooks — Movements `useMovements({ productId })`; Supply history via existing purchasing supplier-product read scoped to the product; Sales history via inventory OUT movements (cost/profit/source). Add thin `useProductSupplyHistory(id)` / `useProductSalesHistory(id)` wrappers over those existing services if a dedicated key helps. (#wiring)
+- [x] Register routes with `React.lazy()` + `<Suspense fallback={<PageLoader/>}>`: `/staff/pos` `/admin/pos`, `/staff/orders` `/admin/orders`, `/staff/sales` `/admin/sales`, `/staff/invoices` `/admin/invoices`, `/staff/repairs` `/admin/repairs`, `/admin/products` `/admin/products/add` `/admin/products/:id`. Staff→`StaffLayout`, admin→`AdminLayout`. (#routing)
+- [x] Wrap staff routes in `RoleGuard(STAFF_POS|STAFF_ORDERS|STAFF_SALES|STAFF_INVOICES|STAFF_REPAIRS)`; admin routes unrestricted within `AdminLayout`. Admin twin routes mount the staff page tree with `scope="admin"`. (#routing)
+- [x] **A1 (contract):** add `categoryPrices` to `AdminProductResponseSchema` (shape = `StaffProductResponseSchema`). (#contract)
+- [x] **A1 (backend `Apps/api`):** `catalog.mapper.ts` `toAdminProductDto` gains a `categoryPrices` param (mirror `toStaffProductDto:101`); `catalog.service` `getAdminProduct`/`listAdminProducts` load category prices and pass them; keep `AdminProductResponseSchema.parse`. Update/verify catalog integration tests. (#backend)
+- [x] **A2/A3 (contract + backend):** extend `BackofficeOrdersQuerySchema` (`from`/`to`) and `SaleListQuerySchema` (`from`/`to`, `sellerId`, `posClientId`); orders/sales query handlers in `Apps/api` accept + filter on them. (#contract #backend)
+- [x] **B1 (hook + service):** add `repairsService.getRepair(scope, id)` and `useRepair(scope, id)` → `['repairs', scope, id]`. (#wiring)
+- [x] **A4 (wiring decision, no new endpoints):** confirm ADM-04 tab hooks — Movements `useMovements({ productId })`; Supply history via existing purchasing supplier-product read scoped to the product; Sales history via inventory OUT movements (cost/profit/source). Add thin `useProductSupplyHistory(id)` / `useProductSalesHistory(id)` wrappers over those existing services if a dedicated key helps. (#wiring)
 
 **Validation**
-- [ ] Global gates. Extra: guards deny the wrong role; admin twin route renders with `scope="admin"`; `Apps/api` unit+integration suites green after A1–A3; `AdminProductResponseSchema.parse` accepts the enriched DTO.
+- [x] Global gates. Extra: guards deny the wrong role; admin twin route renders with `scope="admin"`; `Apps/api` unit+integration suites green after A1–A3; `AdminProductResponseSchema.parse` accepts the enriched DTO.
 
 **Risks**
 - Backend A1/A3 touch live services — run the api suite. Query-param additions must stay optional (back-compat).
+
+**Report:** [report-sprint-02.md](./report-sprint-02.md)
 
 ---
 

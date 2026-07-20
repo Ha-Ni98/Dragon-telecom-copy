@@ -146,6 +146,10 @@ export const mockAdminProduct: AdminProductDto = AdminProductResponseSchema.pars
   brand: { id: mockBrand.id, name: mockBrand.name },
   guestPrice: 5000,
   defaultSalePrice: 4500,
+  // set-03 A1 — AdminProductDto now carries categoryPrices (mirrors mockStaffProduct's).
+  categoryPrices: [
+    { categoryId: mockClientCategory.id, categoryName: mockClientCategory.name, price: 4200 },
+  ],
   createdAt: "2026-01-02T00:00:00.000Z",
   quantityOnHand: 10,
   quantityReserved: 2,
