@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Eye, Check } from 'lucide-react';
+import { Heart, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useAuth } from '@/components/providers/AuthProvider';
-import type { ProductWithPricingDto } from '@dragon-telecom/contract';
+import { useSession } from '@/hooks/useSession';
+import { useAddToCart, useRemoveFromCart } from '@/hooks/useClientPortal';
+import { UserType, type ProductWithPricingDto } from '@dragon-telecom/contract';
 import { formatDZD } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -23,8 +24,6 @@ interface ProductCardProps {
   onAddToCart?: (productId: string) => void;
   /** Callback when product details are viewed */
   onViewDetails?: (productId: string) => void;
-  /** Whether user is authenticated (overrides auth context) */
-  isAuthenticated?: boolean;
   /** Loading state */
   isLoading?: boolean;
   /** Error state */
@@ -38,14 +37,15 @@ interface ProductCardProps {
 }
 
 /**
- * Enhanced ProductCard component with cart integration and authentication-based features
+ * Product card — heart toggles the server favorites/cart (clients only, PUB-01/02 D2); ordering
+ * itself happens on the product detail page's Order Now flow, so this card has no separate
+ * "add to cart" action.
  */
 export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   product,
   showPrice,
   onAddToCart,
   onViewDetails,
-  isAuthenticated,
   isLoading = false,
   error,
   className = '',
@@ -53,21 +53,14 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   showQuickView = false
 }) => {
   const { t } = useTranslation();
-  const { isAuthenticated: authStatus } = useAuth();
-  // Cart mutations (useAddToCart/useRemoveFromCart) aren't wired yet (deferred to the pub-pages
-  // Sprint 5/6 assembly) — `inCart` itself is real (server-resolved on the DTO), only the toggle
-  // action is still an inert placeholder. Heart visibility is client-only per plan.md D2, but
-  // useAuth() doesn't expose session `type` — narrowing "client" vs "authenticated" is a Sprint
-  // 5/6 concern; this stays gated on plain authentication for now, matching prior behavior.
-  const addToCart = async (_productId: string) => {};
-  const removeFromCart = (_productId: string) => {};
+  // Heart visibility is client-only (plan.md D2) — read straight from the session for `type`.
+  const { data: session } = useSession();
+  const isClient = session?.type === UserType.CLIENT;
+  const addToCartMutation = useAddToCart();
+  const removeFromCartMutation = useRemoveFromCart();
+  const isTogglingCart = addToCartMutation.isPending || removeFromCartMutation.isPending;
 
   const navigate = useNavigate();
-
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
-
-  // Determine if user is authenticated (use prop or context)
-  const userIsAuthenticated = isAuthenticated ?? authStatus;
 
   // Price resolution mirrors PUB-02/PUB-03: currentPrice (tier) wins, then guestPrice, else
   // hidden. priceHidden is server-resolved per viewer — trust it over the showPrice override
@@ -76,39 +69,6 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   const shouldShowPrice = (showPrice ?? true) && !product.priceHidden && resolvedPrice !== undefined;
 
   const primaryImage = product.images.find((img) => img.isPrimary) ?? product.images[0];
-
-  /**
-   * Handle adding product to cart
-   */
-  const handleAddToCart = async () => {
-    if (!userIsAuthenticated) {
-      toast.error(t('cart.signInRequired'));
-      navigate('/login');
-      return;
-    }
-
-    if (!product.inStock) {
-      toast.error(t('cart.outOfStock'));
-      return;
-    }
-
-    try {
-      setIsAddingToCart(true);
-      if (!product.inCart) {
-        await addToCart(product.id);
-        toast.success(t('cart.addSuccess'));
-        onAddToCart?.(product.id);
-      } else {
-        toast.success(t('cart.removeSuccess'));
-        removeFromCart(product.id);
-      }
-    } catch (error) {
-      toast.error(t('cart.addError'));
-      console.error('Add to cart error:', error);
-    } finally {
-      setIsAddingToCart(false);
-    }
-  };
 
   /**
    * Handle viewing product details
@@ -120,27 +80,24 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
   };
 
   /**
-   * Handle wishlist toggle
+   * Handle wishlist/cart toggle — global mutationCache already toasts on failure
+   * (query-client.ts), so only the success path needs a local toast here.
    */
   const handleWishlistToggle = () => {
-    if (!userIsAuthenticated) {
-      toast.error(t('wishlist.signInRequired'));
-      navigate('/login');
-      return;
-    }
-
-    try {
-      const wasAdded = !product.inCart;
-      if (wasAdded) {
-        toast.success(t('wishlist.addSuccess'));
-        addToCart(product.id);
-      } else {
-        toast.success(t('wishlist.removeSuccess'));
-        removeFromCart(product.id);
-      }
-    } catch (error) {
-      toast.error(t('cart.addError'));
-      console.error('Wishlist toggle error:', error);
+    if (product.inCart) {
+      removeFromCartMutation.mutate(product.id, {
+        onSuccess: () => toast.success(t('wishlist.removeSuccess')),
+      });
+    } else {
+      addToCartMutation.mutate(
+        { productId: product.id },
+        {
+          onSuccess: () => {
+            toast.success(t('wishlist.addSuccess'));
+            onAddToCart?.(product.id);
+          },
+        },
+      );
     }
   };
 
@@ -212,12 +169,14 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
 
           {/* Action Buttons */}
           <div className="absolute top-3 right-3 flex gap-2">
-            {showWishlist && userIsAuthenticated && (
+            {showWishlist && isClient && (
               <Button
                 size="icon"
                 variant="ghost"
                 className="bg-white/80 hover:bg-white/20 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={handleWishlistToggle}
+                disabled={isTogglingCart}
+                aria-label={t(product.inCart ? 'wishlist.removeFromWishlist' : 'wishlist.addToWishlist')}
               >
                 <Heart className={`h-4 w-4 text-black-500   ${product.inCart ? 'fill-red-500 text-red-500' : ''}`} />
               </Button>
@@ -269,53 +228,17 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex gap-2 pt-2">
-            {userIsAuthenticated ? (
-              <>
-                <Button
-                  className="flex-1"
-                  size="sm"
-                  disabled={!product.inStock || isAddingToCart}
-                  onClick={handleAddToCart}
-                >
-                  {isAddingToCart ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Adding...
-                    </>
-                  ) : product.inCart ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      In Cart
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                      {product.inStock ? t('products.addCart') : t('products.outStock')}
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleViewDetails}
-                  className="px-3"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleViewDetails}
-                className="flex-1"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                {t('products.viewDetails')}
-              </Button>
-            )}
+          {/* Action Button */}
+          <div className="pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleViewDetails}
+              className="w-full"
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              {t('products.viewDetails')}
+            </Button>
           </div>
         </div>
       </CardContent>
@@ -330,7 +253,6 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({
     prevProps.product.currentPrice === nextProps.product.currentPrice &&
     prevProps.product.guestPrice === nextProps.product.guestPrice &&
     prevProps.showPrice === nextProps.showPrice &&
-    prevProps.isAuthenticated === nextProps.isAuthenticated &&
     prevProps.isLoading === nextProps.isLoading &&
     prevProps.error === nextProps.error &&
     prevProps.showWishlist === nextProps.showWishlist &&

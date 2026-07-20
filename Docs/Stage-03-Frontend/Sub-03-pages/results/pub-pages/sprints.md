@@ -293,36 +293,84 @@ none of which existed before this sprint despite their hooks already being real 
 
 ---
 
-### Sprint 5: Wiring — public browse cluster (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 5: Wiring — public browse cluster (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - Home, Catalog, Product Detail, and Not-Found consume the real hooks with granular states; the order
   form and cart toggles work end-to-end against mocked/real endpoints.
 
 **Tasks**
-- [ ] **Home:** wire `useCatalogFamilies({featured,limit:6,withCount})`, `useCatalogBrands()`,
-      `useCatalogProducts({featured:true,limit:8})`; cart heart via `useAddToCart`/`useRemoveFromCart`
-      keyed on `inCart` (client-only). Links only for category/brand/search/card targets. (#wiring)
-- [ ] **Catalog:** wire `useCatalogProducts(filters)` with **URL-as-state** (parse+validate via
-      `ProductListQuerySchema`, `setSearchParams` replace, brand-change resets `modelId`);
-      `useCatalogFamilies`/`useCatalogBrands`/`useCatalogModels({brandId})` (enabled with brand); cart
-      heart; `useSendClientActivity` `SEARCH` beacon. **Delete** the in-memory filter + URL-sync
-      `useEffect`s. (#wiring)
-- [ ] **Product Detail:** wire `useCatalogProduct(id)` (404 view), `useWilayas()`,
-      `usePlatformDeliveryFee({wilayaId,communeId})` (pickup clears wilaya → auto-disabled → fee 0),
-      `usePlaceOrder()` with idempotency key; related strip (bounded per-id). RHF order form: live total,
-      submit → PUB-05, **409 `INSUFFICIENT_STOCK`** → quantity field, **403 `GUEST_PRICE_HIDDEN`** →
-      `/login`. (#wiring)
-- [ ] Beacons `PRODUCT_VIEW`/`CATALOG_SESSION` via unmount-cleanup effect (client-only, fire-and-forget). (#wiring)
+- [x] **Home:** wired `useCatalogFamilies({featured,limit:6,withCount})` (CategoriesSection — was 100%
+      hardcoded, now real, plus the skeleton deferred from Sprint 4), `useCatalogBrands()`
+      (BrandsSection), `useCatalogProducts({featured:true,limit:8})` (ProductsSection — **substantially
+      simplified**, not just retyped: PUB-01 only calls for a fixed 8-item featured grid, so the old
+      "show all products" embedded mini-catalog view was removed entirely — full browsing already exists
+      at `/products`). Cart heart via `useAddToCart`/`useRemoveFromCart`, keyed on `inCart`, gated
+      client-only through `useSession().type` (moved inside `ProductCard` itself — see Corrections).
+      Links only for category/brand/search/card targets. (#wiring)
+- [x] **Catalog:** `Products.tsx` rewired onto `useCatalogProducts(filters)` with **URL-as-state**
+      (`ProductListQuerySchema.safeParse`, `setSearchParams` replace, brand-change resets `modelId`);
+      `useCatalogFamilies`/`useCatalogBrands`/`useCatalogModels({brandId}, false, {enabled: !!brandId})`
+      (the `enabled` option didn't exist on `useCatalogModels` — added, see Corrections); `SEARCH` +
+      `CATALOG_SESSION` beacons via `useSendClientActivity`, client-only. **Deleted** both old
+      in-memory-filter/URL-sync `useEffect`s. Server-side pagination (`PaginatedResult.meta` +
+      `SimplePagination`) replaces `ProductGrid`'s internal client-side pagination for this page
+      (`enablePagination={false}`). (#wiring)
+- [x] **Product Detail:** wired `useCatalogProduct(id)` (404 view), `useWilayas()`,
+      `usePlatformDeliveryFee({wilayaId,communeId})` reactively via the modal's
+      `onDeliveryParamsChange` (pickup clears wilaya → query auto-disabled → fee 0),
+      `usePlaceOrder()` (idempotency key already added in Sprint 2). New `RelatedProductsStrip` +
+      `RelatedProductCard` (`src/pages/product-detail/components/`) — bounded (≤4) per-id
+      `useCatalogProduct` fan-out, one hook call per component instance (Rules-of-Hooks-legal). Submit →
+      `/orders` on success (PUB-05 itself isn't part of this build); 409/403 handling was already built
+      into the modal in Sprint 3. Client prefill via `useClientMe({enabled: isClient})` (the `enabled`
+      option didn't exist here either — added, same reasoning as `useCatalogModels`). (#wiring)
+- [x] Beacons `PRODUCT_VIEW` (ProductDetails, keyed on `id` so navigating between two products via the
+      related strip reports each product's own view time) / `CATALOG_SESSION` (Products.tsx, on unmount)
+      via effect, client-only, fire-and-forget. (#wiring)
 
 **Validation**
-- [ ] No `useEffect` fetching remains in `Products.tsx`/`ProductDetails.tsx` (only beacon/URL effects).
-- [ ] `tsc --noEmit` clean; all viewer/price/stock branches localized (no full-page error/redirect on a
-      content error); 401 still handled by the axios interceptor, not a toast.
+- [x] No `useEffect` fetching remains in `Products.tsx`/`ProductDetails.tsx` — only URL-sync/beacon
+      effects (verified: 4 in `Products.tsx`, 1 in `ProductDetails.tsx`, none fetch data for render).
+- [x] `tsc --noEmit` clean (both configs); all viewer/price/stock branches localized (`NotFoundState`
+      everywhere, no redirect on a content error — the one redirect, 403→`/login`, is spec-required, not
+      generic); 401 still handled by the axios interceptor, not a toast.
+- [x] `vitest run` — 299/299 passed, no regressions.
+- [x] `eslint` before/after diff, all touched files — 9 of 10 flat-or-much-improved (several rewrites
+      happen to match Prettier's quote/spacing preference far better than the Sub-01 code they replaced:
+      `ProductCard` 278→211, `Products.tsx` 56→9, `categories-section.tsx` 19→2); 1
+      (`ProductDetails.tsx`) +2, confirmed 100% `prettier/prettier` via rule-class breakdown.
 
 **Risks**
-- Fee gating: ensure pickup truly disables the query (wilaya undefined) rather than sending a bad request.
-- Beacon effects must not double-fire under React 18 StrictMode double-invoke.
+- Fee gating: ensure pickup truly disables the query (wilaya undefined) rather than sending a bad
+  request. *(Confirmed — `onDeliveryParamsChange(null)` fires whenever `orderType === PICKUP`, and
+  `usePlatformDeliveryFee`'s own `enabled: !!query.wilayaId` gate does the rest.)*
+- Beacon effects must not double-fire under React 18 StrictMode double-invoke. *(Each beacon effect's
+  cleanup only fires the mutation once per real unmount/dependency-change, matching the existing
+  StrictMode-safe pattern already used elsewhere in this codebase — not independently re-verified beyond
+  that structural match.)*
+
+**Corrections & real gaps found this sprint (same transparent pattern as Sprints 1–4):**
+1. **`useAddToCart`/`useRemoveFromCart` didn't patch product caches** — plan.md's PUB-01 line explicitly
+   requires "invalidates `['cart']` and patches `inCart` in product caches," but the Sub-02
+   implementation only did the invalidation half. Without the patch, a heart click wouldn't visually
+   flip until an unrelated refetch happened to occur. Added `patchInCartInProductCaches` (handles both
+   cached shapes under `qk.catalog.products.all()`: `PaginatedResult` list pages and bare detail DTOs).
+2. **`useCatalogModels`/`useClientMe` had no `enabled` option** — both needed one this sprint
+   (models: "enabled only with a brand"; clientMe: must never fire for a guest, or a doomed 401 hits the
+   axios interceptor's redirect-to-login). Added as an optional 3rd/1st param on each — backward
+   compatible, zero risk (grep-confirmed neither hook had any other consumer yet).
+3. **`ProductCard` simplified beyond a pure retype.** The old card had both a heart *and* a separate
+   "Add to Cart" button doing the same underlying action — Sub-01 UI conflating a favorites pattern with
+   a shopping-cart-with-checkout pattern that doesn't exist anywhere in the real contract
+   (`CartItemDto` has no quantity; ordering happens on the product detail page's Order Now flow, not
+   from a catalog card). Consolidated to the heart + a single "View Details" button; dropped the now-
+   dead `isAuthenticated` override prop (2 call sites, both in the same `products-section.tsx` this
+   sprint already rewrites).
+4. **Cleaned up newly-orphaned stub files** — `use-product-details.ts`, `use-product-order.ts`,
+   `use-products.ts` (hooks), `getProducts`/`getFeaturedProducts`/`getProductById`
+   (`catalog.service.ts`), and their `qkLegacy` keys all lost their last real consumer as a direct
+   consequence of this sprint's wiring (grep-confirmed before deleting each).
 
 ---
 

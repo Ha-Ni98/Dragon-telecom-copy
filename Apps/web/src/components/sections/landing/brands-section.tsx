@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/hooks/useTranslation';
-import { BrandWithCount } from '@/types/draft-types/main-page.types';
-import { useBrands } from '@/hooks/use-brands';
+import type { BrandDto } from '@dragon-telecom/contract';
+import { useCatalogBrands } from '@/hooks/useCatalogTaxonomy';
 import { NotFoundState } from '@/components/shared/NotFoundState';
 
 /**
@@ -27,36 +27,36 @@ interface BrandsSectionProps {
  * Brand card component
  */
 interface BrandCardProps {
-  brand: BrandWithCount;
-  onBrandClick: (brandId: number, brandName: string) => void;
+  brand: BrandDto;
+  onBrandClick: (brandId: string) => void;
 }
 
 const BrandCard: React.FC<BrandCardProps> = ({ brand, onBrandClick }) => {
   const { t } = useTranslation();
 
   const handleClick = () => {
-    onBrandClick(brand.idBrand, brand.brandName);
+    onBrandClick(brand.id);
   };
 
   return (
-    <Card 
+    <Card
       className="group cursor-pointer product-card border-0 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-105"
       onClick={handleClick}
     >
       <CardContent className="p-6 text-center">
         {/* Brand Logo */}
         <div className="mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center group-hover:scale-110 transition-transform w-20 h-20">
-          {brand.logo ? (
-            <img 
-              src={brand.logo} 
-              alt={brand.brandName}
+          {brand.logoUrl ? (
+            <img
+              src={brand.logoUrl}
+              alt={brand.name}
               className="w-full h-full object-cover rounded-2xl"
               loading="lazy"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl flex items-center justify-center">
               <span className="text-xl font-bold text-primary">
-                {brand.brandName.charAt(0)}
+                {brand.name.charAt(0)}
               </span>
             </div>
           )}
@@ -64,18 +64,13 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand, onBrandClick }) => {
 
         {/* Brand Name */}
         <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors">
-          {brand.brandName}
+          {brand.name}
         </h3>
 
-        {/* Product Count */}
-        <p className="text-sm text-muted-foreground mb-3">
-          {brand.productCount} {t('brands.products')}
-        </p>
-
         {/* View Products Button */}
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           className="w-full opacity-0 group-hover:opacity-100 transition-opacity"
         >
           <ExternalLink className="h-4 w-4 mr-2" />
@@ -99,14 +94,14 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const { data: brandsData, isLoading, isError, refetch } = useBrands();
+  const { data: brandsData, isLoading, isError, refetch } = useCatalogBrands();
   const brands = useMemo(() => (brandsData ?? []).slice(0, maxBrands), [brandsData, maxBrands]);
 
   /**
    * Handle brand click - navigate to products page with brand filter
    */
-  const handleBrandClick = (_brandId: number, brandName: string) => {
-    navigate(`/products?brand=${encodeURIComponent(_brandId)}`);
+  const handleBrandClick = (brandId: string) => {
+    navigate(`/products?brandId=${encodeURIComponent(brandId)}`);
   };
 
   /**
@@ -128,7 +123,7 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
    * Handle view all brands
    */
   const handleViewAllBrands = () => {
-    navigate('/products?view=brands');
+    navigate('/products');
   };
 
   // Loading state
@@ -140,7 +135,7 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
             <Skeleton className="h-8 w-64 mx-auto mb-4" />
             <Skeleton className="h-4 w-96 mx-auto" />
           </div>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton key={i} className="h-48 w-full" />
@@ -171,23 +166,8 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
     );
   }
 
-  // Empty state
-  if (brands.length === 0) {
-    return (
-      <section className={`py-16 ${className}`}>
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              {t('brands.title')}
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              {t('brands.noneAvailable')}
-            </p>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  // Empty section hides itself (PUB-01).
+  if (brands.length === 0) return null;
 
   return (
     <section className={`py-16 ${className}`}>
@@ -230,19 +210,19 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
 
           {/* Brands Container */}
           <div className="overflow-hidden">
-            <div 
+            <div
               className="flex transition-transform duration-300 ease-in-out"
               style={{
                 transform: `translateX(-${currentIndex * (100 / Math.min(4, brands.length))}%)`
               }}
             >
               {brands.map((brand) => (
-                <div 
-                  key={brand.idBrand} 
+                <div
+                  key={brand.id}
                   className="flex-shrink-0 w-full sm:w-1/2 md:w-1/3 lg:w-1/4 xl:w-1/4 px-2"
                 >
-                  <BrandCard 
-                    brand={brand} 
+                  <BrandCard
+                    brand={brand}
                     onBrandClick={handleBrandClick}
                   />
                 </div>
@@ -254,8 +234,8 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
         {/* View All Button */}
         {showViewAllButton && (
           <div className="text-center mt-12">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="lg"
               onClick={handleViewAllBrands}
             >
@@ -273,8 +253,8 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
                 <button
                   key={i}
                   className={`w-2 h-2 rounded-full transition-colors ${
-                    Math.floor(currentIndex / 2) === i 
-                      ? 'bg-primary' 
+                    Math.floor(currentIndex / 2) === i
+                      ? 'bg-primary'
                       : 'bg-muted'
                   }`}
                   onClick={() => setCurrentIndex(i * 2)}

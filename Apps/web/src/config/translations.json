@@ -5219,34 +5219,9 @@
     "fr": "Panier mis à jour",
     "ar": ""
   },
-  "categories.accessories": {
-    "en": "Accessories",
-    "fr": "Accessoires",
-    "ar": ""
-  },
-  "categories.batteries": {
-    "en": "Batteries",
-    "fr": "Batteries",
-    "ar": ""
-  },
-  "categories.cables": {
-    "en": "Cables & Chargers",
-    "fr": "Câbles et Chargeurs",
-    "ar": ""
-  },
   "categories.description": {
     "en": "Find exactly what you need from our comprehensive selection of mobile products",
     "fr": "Trouvez exactement ce dont vous avez besoin dans notre sélection complète de produits mobiles",
-    "ar": ""
-  },
-  "categories.protection": {
-    "en": "Screen Protectors",
-    "fr": "Protections d'Écran",
-    "ar": ""
-  },
-  "categories.smartphones": {
-    "en": "Smartphones",
-    "fr": "Smartphones",
     "ar": ""
   },
   "categories.title": {
@@ -5254,9 +5229,19 @@
     "fr": "Nos Catégories",
     "ar": ""
   },
-  "categories.watches": {
-    "en": "Smart Watches",
-    "fr": "Montres Connectées",
+  "categories.errorLoading": {
+    "en": "Error Loading Categories",
+    "fr": "Erreur de chargement des catégories",
+    "ar": ""
+  },
+  "categories.errorLoadingBody": {
+    "en": "Something went wrong while loading the categories.",
+    "fr": "Une erreur est survenue lors du chargement des catégories.",
+    "ar": ""
+  },
+  "categories.productCount": {
+    "en": "{count} products",
+    "fr": "{count} produits",
     "ar": ""
   },
   "common.actions": {
@@ -6569,6 +6554,11 @@
     "fr": "avis",
     "ar": ""
   },
+  "product.relatedProducts": {
+    "en": "Related Products",
+    "fr": "Produits similaires",
+    "ar": ""
+  },
   "product.selectCommune": {
     "en": "Select Commune",
     "fr": "Sélectionner la Commune",
@@ -6662,6 +6652,16 @@
   "products.featured": {
     "en": "Featured Products",
     "fr": "Nos Favoris",
+    "ar": ""
+  },
+  "products.gridView": {
+    "en": "Grid view",
+    "fr": "Vue grille",
+    "ar": ""
+  },
+  "products.listView": {
+    "en": "List view",
+    "fr": "Vue liste",
     "ar": ""
   },
   "products.filters.all": {

@@ -5,17 +5,12 @@
 // the return types stay on the existing frontend view models (numeric ids) rather than the
 // contract's UUID-based DTOs — that retype happens together with the real wiring.
 //
-// pub-pages Sprint 3 exception: getProducts/getFeaturedProducts/getProductById are retyped to
-// the contract DTOs below (bodies unchanged — still typed-empty stubs) because their shared
-// presentational consumers (ProductCard/ProductGrid/ProductPricingSection/etc.) were retyped
-// to the DTOs this sprint. getBrands/getFamilies/getModels stay on the draft types — they're
-// also consumed by out-of-set admin pages (use-brands.ts/use-models.ts) not touched by this set.
-// getRelatedProducts/searchProducts have no consumers (dead since before this sprint) — left
+// getBrands/getFamilies/getModels stay on the draft types — they're also consumed by
+// out-of-set admin pages (use-brands.ts/use-models.ts) not touched by this set.
+// getRelatedProducts/searchProducts have no consumers (dead since before this set) — left
 // on the draft ProductDetails type rather than retyped, since touching them isn't needed to
-// keep tsc green and isn't otherwise in this sprint's scope.
+// keep tsc green and isn't otherwise in this set's scope.
 import type { Brand, Family, Model, ProductDetails } from "@/types/draft-types/product.types";
-// ProductWithPricingDto/ProductDetailDto come from the "Sub-02 real catalog service" import
-// block further down this file (already imports both) — reused here, not re-imported.
 import type {
   AdminProductWithDetails,
   AdminProductsStats,
@@ -37,18 +32,6 @@ import type { SupplyFormData } from "@/types/draft-types/admin-supply.types";
 // Stub write-paths that would otherwise need to fabricate a full entity throw this instead
 // of faking success — real persistence lands in Sub-02, wired against a real product.
 const NOT_WIRED = 'This action is not available yet.';
-
-export async function getProducts(): Promise<ProductWithPricingDto[]> {
-  return [];
-}
-
-export async function getFeaturedProducts(_limit: number = 4): Promise<ProductWithPricingDto[]> {
-  return [];
-}
-
-export async function getProductById(_id: string): Promise<ProductDetailDto | null> {
-  return null;
-}
 
 export async function getRelatedProducts(_productId: number, _limit: number = 4): Promise<ProductDetails[]> {
   return [];

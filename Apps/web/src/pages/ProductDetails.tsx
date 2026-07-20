@@ -1,62 +1,111 @@
-import React, { useState } from "react";
-import { useParams, Link, Navigate } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useProductDetails } from "@/hooks/use-product-details";
+import { useCatalogProduct } from "@/hooks/useCatalogProducts";
+import { useWilayas, usePlatformDeliveryFee } from "@/hooks/usePlatform";
+import { usePlaceOrder } from "@/hooks/useOrdersPortal";
+import { useClientMe } from "@/hooks/useClientPortal";
+import { useSession } from "@/hooks/useSession";
+import { useSendClientActivity } from "@/hooks/useObservability";
 import { ProductImageGallery } from "@/components/sections/product-details/ProductImageGallery";
 import { ProductCategoryTags } from "@/components/shared/ProductCategoryTags";
 import { ProductPricingSection } from "@/components/sections/product-details/ProductPricingSection";
 import { ProductOrderModal } from "@/components/shared/ProductOrderModal";
 import { ProductErrorBoundary } from "@/components/shared/ProductErrorBoundary";
 import { NotFoundState } from "@/components/shared/NotFoundState";
+import { RelatedProductsStrip } from "@/pages/product-detail/components/RelatedProductsStrip";
 import { toast } from "sonner";
+import { ClientActivityType, UserType, OrderType, type PlaceOrderCommand } from "@dragon-telecom/contract";
 import type { OrderFormValues } from "@/pages/product-detail/order.schema";
+
+interface DeliveryParams {
+  wilayaId: string;
+  communeId: string;
+  orderType: OrderType;
+}
 
 export default function ProductDetails() {
   // PUB-03: routes "by id — never by name" (D1).
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [deliveryParams, setDeliveryParams] = useState<DeliveryParams | null>(null);
 
-  // Fetch product details by id
+  const { data: session } = useSession();
+  const isClient = session?.type === UserType.CLIENT;
+
   const {
     data: product,
     isLoading,
     isError,
-    error
-  } = useProductDetails(id ?? "");
+    error,
+  } = useCatalogProduct(id ?? "");
+  const { data: wilayas } = useWilayas();
+  const { data: fee, isLoading: isFeeLoading } = usePlatformDeliveryFee({
+    wilayaId: deliveryParams?.wilayaId ?? "",
+    communeId: deliveryParams?.communeId,
+  });
+  // Prefill (PUB-03: "prefilled from the profile, editable") — client viewers only; calling
+  // this unconditionally for a guest would fire a doomed 401 straight into the axios
+  // interceptor's redirect-to-login.
+  const { data: clientMe } = useClientMe({ enabled: isClient });
+  const placeOrderMutation = usePlaceOrder();
+  const sendActivity = useSendClientActivity();
 
-  // Handle add to cart
-  const handleAddToCart = async (productId: number, quantity: number) => {
-    try {
-      // Cart isn't wired yet (deferred to Sub-02).
-      toast.success(t("cart.addSuccess"));
-    } catch (error) {
-      toast.error(t("cart.addError"));
-    }
-  };
+  // Beacon: product-view duration, signed-in clients only. Resets on every id change (not just
+  // true unmount) so navigating between two product pages via the related strip still reports
+  // each product's own view time correctly.
+  const mountedAt = useRef(Date.now());
+  useEffect(() => {
+    mountedAt.current = Date.now();
+    return () => {
+      if (isClient && id) {
+        const durationSeconds = Math.round((Date.now() - mountedAt.current) / 1000);
+        sendActivity.mutate({ type: ClientActivityType.PRODUCT_VIEW, productId: id, durationSeconds });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   // Handle order now (ProductPricingSection's stepper hands off the chosen quantity)
-  const handleOrderNow = (quantity: number) => {
-    setQuantity(quantity);
+  const handleOrderNow = (newQuantity: number) => {
+    setQuantity(newQuantity);
+    setDeliveryParams(null);
     setIsOrderModalOpen(true);
   };
 
-  // Handle order modal close
   const handleOrderModalClose = () => {
     setIsOrderModalOpen(false);
   };
 
-  // Handle order submission — real usePlaceOrder + idempotency key (D6) wired in Sprint 5;
-  // this placeholder mirrors handleAddToCart's pattern above (also not wired yet).
-  const handleOrderSubmit = async (_data: OrderFormValues) => {
+  // Real submission (D6: placeOrder already carries an Idempotency-Key, orders.service.ts).
+  // Errors (incl. 409 INSUFFICIENT_STOCK / 403 GUEST_PRICE_HIDDEN) are interpreted by the
+  // modal's own submit handler (Sprint 3) — this just needs to let them propagate.
+  const handleOrderSubmit = async (data: OrderFormValues) => {
+    const command: PlaceOrderCommand = {
+      ...data,
+      clientId: isClient ? (session?.clientId ?? null) : null,
+    };
+    await placeOrderMutation.mutateAsync(command);
     toast.success(t("product.orderSuccess"));
     setIsOrderModalOpen(false);
+    navigate("/orders");
   };
+
+  const prefill = clientMe
+    ? {
+        fullName: `${clientMe.firstName} ${clientMe.lastName}`,
+        phone: clientMe.phone,
+        wilayaId: clientMe.wilayaId,
+        communeId: clientMe.communeId,
+      }
+    : undefined;
 
   // Loading state
   if (isLoading) {
@@ -178,27 +227,6 @@ export default function ProductDetails() {
                   </span>
                 )}
               </div>
-              
-              {/* Rating 
-              {product.rating && (
-              <div className="flex items-center gap-2 mt-2">
-                <div className="flex items-center">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-4 w-4 ${
-                          i < Math.floor(product.rating!)
-                          ? "text-yellow-400 fill-current"
-                          : "text-muted-foreground"
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-muted-foreground">
-                    {product.rating} ({product.reviewCount} {t("product.reviews")})
-                </span>
-              </div>
-              )}*/}
             </div>
 
             {/* Description */}
@@ -216,44 +244,6 @@ export default function ProductDetails() {
 
             )}
 
-            {/* Features 
-            {product.features && product.features.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">{t("product.keyFeatures")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {product.features.map((feature, index) => (
-                  <li key={index} className="flex items-start">
-                        <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0" />
-                        <span className="text-sm">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-                </CardContent>
-              </Card>
-            )}*/}
-
-            {/* Specifications 
-            {product.specifications && Object.keys(product.specifications).length > 0 && (
-            <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">{t("product.specifications")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {Object.entries(product.specifications).map(([key, value]) => (
-                      <div key={key} className="flex justify-between">
-                        <span className="text-sm font-medium">{key}:</span>
-                        <span className="text-sm text-muted-foreground">{value}</span>
-                      </div>
-                    ))}
-                    </div>
-                </CardContent>
-              </Card>
-            )} */}
-
             {/* Pricing Section */}
             <ProductPricingSection
               product={product}
@@ -262,20 +252,25 @@ export default function ProductDetails() {
                             </div>
                           </div>
 
+        {/* Related Products */}
+        <div className="mt-12">
+          <RelatedProductsStrip relatedIds={product.relatedIds} />
+        </div>
+
         {/* Order Modal */}
-        {product && (
-          <ProductOrderModal
-            isOpen={isOrderModalOpen}
-            onClose={handleOrderModalClose}
-            product={product}
-            quantity={quantity}
-            // Bridge (pub-pages Sprint 3): wilayas/fee are parent-owned useWilayas()/
-            // usePlatformDeliveryFee() props, wired in Sprint 5 — empty/absent for now, matching
-            // this page's other still-stub data (the delivery fields simply won't resolve yet).
-            wilayas={[]}
-            onSubmit={handleOrderSubmit}
-          />
-        )}
+        <ProductOrderModal
+          isOpen={isOrderModalOpen}
+          onClose={handleOrderModalClose}
+          product={product}
+          quantity={quantity}
+          wilayas={wilayas ?? []}
+          fee={fee}
+          isFeeLoading={isFeeLoading}
+          onDeliveryParamsChange={setDeliveryParams}
+          prefill={prefill}
+          onSubmit={handleOrderSubmit}
+          isSubmitting={placeOrderMutation.isPending}
+        />
           </div>
         </main>
       </div>
