@@ -391,37 +391,75 @@ that body cannot reliably survive the wire no matter what the backend source cod
 
 ---
 
-### Sprint 6: Inventory & Purchasing — Status: ⬜ Pending
+### Sprint 6: Inventory & Purchasing — Status: ✅ Done
 
 **Goals**
 - New `inventory.service.ts` (stock/movements/reservations/adjustments, §2.4) and `purchasing.service.ts`
-  (suppliers/invoices/payments — absorbs `admin-suppliers`/`supplier-information` stubs, §2.7).
+  (suppliers/invoices/payments — genuinely new territory, no same-named Sub-01 stub, §2.7).
+
+**Scope note (same pattern as Sprints 3-5):** inventory has no MVP UI ported yet, so `inventory.service.ts` is
+clean new territory (zero consumer check needed). Purchasing's pre-existing stubs are class-based
+(`AdminSuppliersService`, consumed via `use-admin-suppliers.ts`/`use-supplier-information.ts`, 15 hook exports
+total for `AdminSuppliers.tsx`/`AdminSupplierInformation.tsx`) — kept untouched; every new purchasing hook is
+prefixed `usePurchasingX` specifically to avoid all 15 (checked before writing any code, including the
+now-standard `use-admin-settings.ts` pass — no purchasing/inventory hits there).
 
 **Tasks**
-- [ ] **Services** `inventory.service.ts` — `getStock`/`exportStockCsv`(**dual-return array vs Blob**),
+- [x] **Services** `inventory.service.ts` — `getStock`(array)/`exportStockCsv`(**Blob**, split into two
+      functions rather than one dual-return — a query hook can only have one result type),
       `listMovements`/`listReservations` (paginated), `createAdjustment`.
-- [ ] **Services** `purchasing.service.ts` — 13 fns (§2.7): suppliers CRUD + detail + stats; invoices CRUD +
-      confirm + cancel; payments list + create.
-- [ ] **Hooks** — `qk.inventory.*` / `qk.purchasing.*`; `createAdjustment` **cross-invalidates**
+- [x] **Services** `purchasing.service.ts` — 13 fns (§2.7): suppliers CRUD + detail + stats; invoices CRUD +
+      confirm(**no body** — confirmed against the real router/interface) + cancel; payments list + create.
+- [x] **Hooks** — 4 new files: `useInventory.ts` (5 hooks), `usePurchasingSuppliers.ts` (5),
+      `usePurchasingInvoices.ts` (6), `usePurchasingPayments.ts` (2). `createAdjustment` cross-invalidates
       `qk.catalog.adminProducts.all()`+`qk.stats.all()`; `confirmSupplierInvoice` cross-invalidates
-      inventory+catalog+supplier; payments invalidate supplier credit (plan §3).
-- [ ] **Fixtures** `inventory.mock.ts` (`StockRow`/`Movement`/`Reservation`/`AdjustmentResult`) + `purchasing.mock.ts`
-      (`Supplier`/`SupplierInvoice`/`ConfirmResult`/`SupplierPayment`/`SupplierDetail`/`SupplierStats`).
-- [ ] **MSW** handlers — 2xx each; **invoice `.refine()` (`amountOnly` XOR `lines`) → 400** (both-absent + both-present);
-      DRAFT-only PATCH-after-confirm → `RESOURCE_CONFLICT`(409); stock CSV branch.
-- [ ] **Integration tests** — dual-return stock, adjustment cross-invalidation, invoice XOR + 409, confirm reprice.
+      inventory+catalog+supplier; payments invalidate the whole `qk.purchasing.all()` prefix (plan §3).
+- [x] **Fixtures** `inventory.mock.ts` (incl. an IN movement with cost fields absent + an OUT/SALE movement with
+      them present) + `purchasing.mock.ts` (incl. a DRAFT invoice with `projectedNewAverageCost` + a CONFIRMED
+      one without it).
+- [x] **MSW** `inventory.handlers.ts` (no route-ordering risk — confirmed, all 4 routes static) +
+      `purchasing.handlers.ts` (`SUPPLIER_STATS` registered before `SUPPLIER_DETAIL`/`SUPPLIER_BY_ID` — same
+      `:id`-pattern risk as Sprints 3-4, confirmed present here too by the backend's own comment).
+- [x] **Integration tests** — dual-return stock (array + Blob), adjustment cross-invalidation, invoice XOR 400 +
+      DRAFT-only 409, confirm reprice-candidates, movement optional-field present/absent.
+
+**2 real bugs found and fixed while writing tests (not pre-existing):**
+1. **`useCreatePurchasingPayment` had the same invalidation-key bug Sprint 5 found for `qk.orders.mine()`** —
+   caught *before* writing a failing test this time, by inspecting the registry first: `qk.purchasing.payments`
+   has no `.all()` sibling (`payments: { list: (query?) => [...] }` only), so invalidating a bare
+   `qk.purchasing.payments.list()` would only match an `undefined`-query cache entry, never one keyed by a real
+   filter object. Fixed by invalidating the broader `qk.purchasing.all()` instead.
+2. **A test-authoring mistake, not a hook bug**: an early draft of the payments hook test pre-seeded the exact
+   cache key the hook itself reads from (`queryClient.setQueryData(qk.purchasing.payments.list(...), "seed")`),
+   which made `isSuccess` trivially true from the seed *before* the real fetch resolved. Separately, `isInvalidated`
+   proved to be a transient flag that clears the instant an actively-mounted query's automatic refetch resolves
+   — asserting it directly races against MSW's fast resolution. Both issues were in tests that have an actively
+   mounted read hook watching the invalidated key; switched those specific assertions to a handler-call-count
+   pattern (already the established style for catalog/orders' own create-mutation tests) instead of
+   `getQueryState(...)?.isInvalidated`, which remains valid **only** when nothing is actively watching the key
+   (as in the cross-domain tests, e.g. `useConfirmPurchasingInvoice`, where inventory/billing/etc. have no
+   mounted observer in that specific test).
 
 **Validation**
-- [ ] `tsc --noEmit` clean; types from `@dragon-telecom/contract`.
-- [ ] Services unwrap + **throw**; `getStock` handles array **and** `Blob`.
-- [ ] Hook shapes correct; cross-domain invalidations (adjustment/confirm/payment) present.
-- [ ] MSW intercepts; fixtures parse; `Movement` optional numerics tested present+absent.
-- [ ] 200 **and** 4xx/5xx covered; no tests in `/src`.
-- [ ] Committed on green: `fe: integration sprint 6 — inventory & purchasing`.
+- [x] `tsc --noEmit` clean (`npm run check`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; `getStock` returns an array, `exportStockCsv` returns a `Blob` (two
+      functions, not one dual-return — cleaner for query-hook typing).
+- [x] Hook shapes correct; cross-domain invalidations (adjustment/confirm/payment) present and verified by
+      call-count or `isInvalidated` as appropriate to whether the target key has an active observer.
+- [x] MSW intercepts (with the `SUPPLIER_STATS` ordering fix baked in from the start); fixtures parse; `Movement`
+      optional numerics tested present (OUT/SALE) and absent (IN/SUPPLIER_INVOICE).
+- [x] Tests cover 200 **and** 4xx/5xx (7+16 service, 4+5 hooks = **32 new tests**, all passing); no test files
+      in `/src`.
+- [x] Full suite: **23/23 files, 206/206 tests passing** (up from 174/174 at Sprint 5 close).
+- [x] Committed on green: `fe: integration sprint 6 — inventory & purchasing`.
+- [x] Lint: fully clean — both service files are entirely new (no old-stub section to reconstruct around, unlike
+      Sprints 3-5's mixed files).
 
-**Risks**
-- `ConfirmResultDto.repriceCandidates` and line `projectedNewAverageCost` (DRAFT-only) — model both states.
-- `getStock` dual-return and `referenceType` open-string on movements.
+**Risks (resolved)**
+- `ConfirmResultDto.repriceCandidates` and line `projectedNewAverageCost` (DRAFT-only) — modelled both states via
+  distinct DRAFT/CONFIRMED invoice fixtures, asserted directly.
+- `getStock` dual-return and `referenceType` open-string on movements — resolved by splitting into two service
+  functions (see Tasks above) and typing `referenceType` as a plain string per the contract.
 
 ---
 
