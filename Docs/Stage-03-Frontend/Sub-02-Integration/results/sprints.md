@@ -1,0 +1,699 @@
+# Stage 03 · Sub-02 · Phase 02 — Integration Engine Sprints
+
+> **No code.** Bottom-up decomposition of [`plan.md`](./plan.md) into sprints, built **core-out**: Axios +
+> Query Client + harness first, then Auth, then feature domains — each fully typed, MSW-backed, and tested
+> before the next. One sprint per fresh session in Phase-03.
+
+---
+
+## Reading notes (apply to every sprint)
+
+- **Contract package is `@dragon-telecom/contract`** — the phase/rules docs' `@app-template/contract` is a
+  placeholder (plan §0.1 C1). Every `import` and every "types from contract" check below means the real package.
+- **The core engine already exists** (Sub-01 Sprint 1): `lib/axios.ts`, `lib/api-path.ts`, `lib/query-client.ts`,
+  `lib/token-store.ts`, `services/auth.service.ts`, `hooks/useSession|useLogin|useLogout`, and the MSW harness
+  *scaffold*. So Sprints 1–2 are **audit + retype + rebuild-stale-tests**, not build-from-scratch (plan §1).
+- **Route → service → hook → key tables are NOT duplicated here** — each feature sprint cites the exact `plan.md §`
+  to build against, so the two docs can't drift. Follow the plan's tables verbatim.
+- **Route builder reality:** routes are full literal paths; use `apiPath(CONST)` + `withParams(CONST,{…})`, never
+  `.BASE`+fragment composition (plan §0.1 C3). Handlers use the same builder via `apiUrl(...)`.
+
+### The service / hook / fixture / MSW pattern (every domain repeats it)
+
+1. **Service** (`src/services/<domain>.service.ts`, pure TS): import the singleton `api` + route consts; type the
+   call `api.<verb><ApiResponse<T>>(...)`; `if (!res.data.success) throw`; `return res.data.data` (the unwrapped
+   DTO). **Throw, never swallow.** Handle the envelope exceptions (plan §0.2): 204/202-null → `void`; `Blob` for
+   PDF/CSV/export; `FormData` for multipart uploads.
+2. **Hook** (`src/hooks/use<Name>.ts`): query hooks → `{data,isLoading,isError,error,refetch}` keyed by `qk.*`;
+   mutation hooks → `{mutate,mutateAsync,isPending,isError,error}` + `queryClient.invalidateQueries` on success,
+   including the **cross-domain** sweeps in plan §3.
+3. **Fixture** (`tests/fixtures/data/<domain>.mock.ts`): build via `XResponseSchema.parse({...})`; lists via
+   `paginated(ItemSchema).parse({items,meta})`. Provide a populated **and** an empty variant. Never a bare mock.
+4. **MSW** (`tests/fixtures/msw/<domain>.handlers.ts`): `apiUrl(CONST)` URLs; export a happy-path array (register
+   in `server.ts`) + a named `*ErrorHandlers` map; every route gets a 2xx handler **and** ≥1 explicit 4xx/5xx that
+   matches the contract's own failure modes. Wrap bodies with the harness `ok()/fail()/noContent()`.
+5. **Integration tests** (`tests/integration/{services,hooks}/`): services → unwrap + mapping + **throws** on
+   4xx/5xx + paginated shape + Blob branch; hooks → state transitions + mutation invalidation refetch.
+
+### What NOT to test (all sprints)
+
+TanStack internals; `sonner` rendering (once, in `tests/unit/lib/query-client.test.ts`); "axios attaches a header"
+as a goal; `apiPath`/`withParams` per service (once, in `tests/unit/lib/api-path.test.ts`); any `src/**` path with
+no test-only branch. Unit tests mock the **hook** (`vi.mock`), never the network; i18n tests mock `useTranslation`
+and assert on **keys**, not translated strings.
+
+---
+
+## Sprint order & scope
+
+| # | Sprint | Domains (plan §) | ~Svc fns | Tier | Rationale |
+|---|---|---|---|---|---|
+| 1 | Core Pipeline | infra + `qk` + MSW harness (§1, §3) | — | Core | Everything depends on it; define **all** keys up front so later cross-invalidations resolve. |
+| 2 | Auth / Identity-session | auth (§2.1 top) | 4 | 2 | Token pipeline proven; **rebuild stale auth tests**; add `ME_PERMISSIONS`. |
+| 3 | Catalog | catalog (§2.2) | 24 | 3–4 | Foundational DTOs reused by cart/orders/sales; biggest domain → solo. |
+| 4 | Clients & POS Clients | clients+pos (§2.3) | 21 | 3–4 | Portal + cart (reuses catalog fixtures) + admin clients + pos-clients. |
+| 5 | Platform & Orders | platform (§2.5) + orders (§2.6) | 18 | 3–4 | Storefront delivery (wilayas/fees/settings) + order lifecycle. |
+| 6 | Inventory & Purchasing | inventory (§2.4) + purchasing (§2.7) | 18 | 4 | Stock + procurement; both cross-invalidate catalog. |
+| 7 | Statistics & Observability | statistics (§2.8) + observability (§2.9) | 14 | 4 | Admin dashboards/reports + audit logs/beacons. |
+| 8 | Identity Admin | identity-admin (§2.1 bottom) | 12 | 4 | Users/roles/pages/technicians (technicians feed repairs). |
+| 9 | Sales & Repairs & Billing | sales (§2.10) + repairs (§2.11) + billing (§2.12) | 19 | 5 | POS/staff back-office; no MVP UI yet — data layer ahead of Sub-03. |
+
+*Every feature sprint (3–9) implements Services + Hooks + fixtures + MSW handlers + integration tests for its
+domain(s), per the pattern above.*
+
+---
+
+### Sprint 1: Core Pipeline — Status: ✅ Done
+
+**Goals**
+- Finalize the shared data-layer foundation: one Axios instance, route builder, Query Client, token store, and the
+  full central `qk` registry (all 13 domains + cross-invalidation matrix) — so no later sprint touches infra.
+- Stand up the reusable MSW/Vitest harness so every later sprint only adds a handler set + fixtures.
+
+**Tasks**
+- [x] **Audit `src/lib/axios.ts`** (exists): confirmed one instance, `baseURL=VITE_API_URL`, Bearer request
+      interceptor, single-flight `refreshTokens()`, 401 → refresh + replay-once → else `clear()`+redirect,
+      `TOKEN_ENDPOINTS` loop-prevention. **Extension done:** populated `PUBLIC_PATH_PREFIXES` (catalog public
+      products/brands/families/models, `WILAYAS`, `FEE`, `SETTINGS_PUBLIC`, `VALIDATE_PHONE`, `REGISTER`).
+- [x] **Audit `src/lib/api-path.ts`** (exists, verbatim rules §3B): kept as-is; no fragment composition (plan §0.1 C3).
+- [x] **Audit `src/lib/query-client.ts`** (exists): confirmed cache-level `onError`, background-refetch-only query
+      toasts, `meta.silentErrorToast` escape hatch, 401/`isCancel` silent (plan §1.1). No changes needed.
+- [x] **Audit `src/lib/token-store.ts` / `src/types/session.ts`** (exist): confirmed JWT-derived session (plan §1.1). No changes.
+- [x] **`src/lib/query-keys.ts` — retyped + extended:** all 13 domains added, ids `string` (UUID), `all()` prefixes +
+      filter-embedding list keys, per the full registry in **plan §3**.
+- [x] **MSW harness — reused & verified** (`tests/fixtures/msw/{envelope,api-url,server}.ts`, `tests/fixtures/wrappers/*`):
+      confirmed `ok/fail/noContent` mirror `sendSuccess`, `apiUrl` uses the same `apiPath`, `server.ts` extension
+      point, `setup.ts` `onUnhandledRequest:'error'` + per-test `tokenStore.clear()`, `.env.test` `VITE_API_URL`.
+- [x] **Verified `vitest.config.ts`** and `tests/unit/lib/{axios,api-path,query-client,token-store,realtime,utils}.test.ts`.
+
+**Scope note — two adjustments made during execution, both documented here rather than silently absorbed:**
+1. **`qkLegacy` compatibility shim added** (not in the original plan). Retyping `qk` broke 5 pre-existing Sub-01
+   stub hooks (`use-products.ts`, `use-product-details.ts`, `use-admin-products.ts`, `use-admin-orders.ts`,
+   `use-my-account.ts`) that reference numeric-id / MVP-only key shapes (`adminList`, `myAccount`, `productByName`,
+   `byStatus`, `search`, numeric `.detail()`) with no contract equivalent. Rewriting those hooks' bodies now would
+   be throwaway work — Sprints 3/5/4 replace them wholesale against real services/DTOs. Instead, `query-keys.ts`
+   now exports a clearly-labeled, temporary `qkLegacy` object (see its header comment) holding exactly the 10 old
+   key-builders those 5 files still need; each entry states which future sprint retires it. The real `qk` registry
+   stays 100% aligned to plan §3 with zero legacy shapes mixed in.
+2. **`tests/fixtures/data/auth.mock.ts` + `tests/fixtures/msw/auth.handlers.ts` rebuilt in Sprint 1, not Sprint 2**
+   (originally planned there). Reason: `tests/fixtures/wrappers/setup.ts` (the global Vitest setup file) imports
+   `server.ts`, which unconditionally imports `auth.handlers.ts`, which imports the (stale) `auth.mock.ts` — a
+   module-load-time crash (`AuthTokensResponseSchema.parse` on `undefined`) there took down **every** test file in
+   the suite at collection time, not just auth-domain tests. This is core-pipeline infrastructure breakage, not an
+   isolated auth-domain gap, so it had to be fixed here. Rebuilt to the real shapes: `IDENTITY_ROUTES.{LOGIN,REFRESH,LOGOUT}`
+   (no `.BASE` split), `LoginResultResponseSchema`/`LoginResultDto`, `RefreshResultResponseSchema`/`RefreshResultDto`.
+   **Scope kept minimal — only what the already-real `auth.service.ts` (`login`/`logout`/`refresh`) needs.**
+   `ME_PERMISSIONS` fixtures/handlers and the two **integration test files**
+   (`tests/integration/services/auth.service.test.ts`, `tests/integration/hooks/auth.test.tsx`, which still call
+   the not-yet-existing `authService.me()`/`qk.auth.me()`) remain Sprint 2's job — see Sprint 2 below, now narrower.
+3. **Also reconciled 3 pre-existing test files** referencing the same stale `AUTH_ROUTES`/`UserRole`/`AuthTokensDTO`
+   symbols directly (not just via the auth fixtures): `tests/unit/lib/axios.test.ts` (→ `IDENTITY_ROUTES`,
+   `RefreshResultDto`, dropped the nonexistent `role` field), `tests/unit/lib/realtime.test.ts` (`UserRole.ADMIN` →
+   `UserType.ADMIN`), `tests/unit/components/layout/ProtectedRoute.test.tsx` (mock session rebuilt to the real
+   `Session` shape `{userId,type,clientId,staffId,profile}` — the component itself, `ProtectedRoute.tsx`, was
+   already correct against `UserType`; only its test was stale). All three are `/src/lib`-scoped or directly
+   blocked `tests/unit/lib/*` from being a meaningful vitest-run gate, so within Sprint 1's own risk note ("existing
+   `axios.test.ts` may assert stale auth shapes — reconcile if so").
+
+**Validation**
+- [x] `tsc --noEmit` clean on `/src`; `tsc --noEmit -p tsconfig.test.json` clean **except** the two Sprint-2-owned
+      integration test files (`auth.service.test.ts`, `auth.test.tsx`) — confirmed via `npm run check`.
+- [x] `qk` covers all 13 domains with `string` ids; cross-invalidation targets (plan §3) all exist as keys.
+- [x] MSW server boots; `onUnhandledRequest:'error'`; harness helpers produce envelope-shaped bodies — confirmed:
+      the whole non-Sprint-2 suite (9 files / 60 tests) now runs instead of crashing at collection.
+- [x] `vitest run` green on `tests/unit/lib/*`: **46/46 passing** (6 files).
+- [x] No test files inside `/src`.
+- [x] Committed on green: `fe: integration sprint 1 — core pipeline`.
+
+**Risks (resolved)**
+- `qk` numeric→string retype ripple — resolved via `qkLegacy` (see scope note #1), not by prematurely rewriting
+  Sprint 3/4/5-owned hooks.
+- `tests/unit/lib/axios.test.ts` stale shapes — confirmed and reconciled (see scope note #3).
+
+---
+
+### Sprint 2: Auth / Identity-session — Status: ✅ Done
+
+**Goals**
+- Prove the auth service + session hooks against the **real** contract.
+- Add the only real "me" endpoint (`ME_PERMISSIONS`) and finish rebuilding the auth integration tests.
+
+**Narrowed scope (Sprint 1 already rebuilt `auth.mock.ts` + `auth.handlers.ts` — see Sprint 1's scope note #2):**
+only the `ME_PERMISSIONS` addition and the two integration test files remained.
+
+**Tasks**
+- [x] **Audit `src/services/auth.service.ts`** (exists): confirmed `login → LoginResultDto` (+`setLoginSession`),
+      `logout → void` (204), `refresh` re-export of the single-flight `refreshTokens`, `IDENTITY_ROUTES`,
+      no `/auth/me` (plan §2.1). No changes needed to the existing three functions.
+- [x] **`src/services/auth.service.ts` — added** `getMyPermissions(): Promise<string[]>` mapping
+      `IDENTITY_ROUTES.ME_PERMISSIONS` (bare `string[]`, no dedicated contract schema — matches
+      `IIdentityService.getEffectivePages` on the backend).
+- [x] **Hooks:** audited `useSession`/`useLogin`/`useLogout` (all correct, no changes); **added**
+      `src/hooks/usePermissions.ts` → `qk.auth.permissions()`.
+- [x] **Extended fixtures** `tests/fixtures/data/auth.mock.ts`: added `mockPermissions` (real `PageKey` values) and
+      — beyond the planned scope, but necessary — a `makeFakeAccessToken()` helper + `mockJwtPayload` so
+      `mockLoginResult`/`mockRefreshResult.accessToken` are now syntactically real (unsigned) JWTs instead of
+      opaque strings. Reason: `useSession`'s real behavior is to **decode** the access token
+      (`token-store.ts#getSession`), so a plain string never exercised that path — every prior "session" fixture
+      assertion was really just checking the JWT-decode failed silently. Added `mockSessionAfterLogin` /
+      `mockSessionAfterRefresh` as the two distinct expected `Session` shapes (profile populated only after a real
+      `login()`/`setLoginSession()`, never after a bare `setTokens()`/refresh).
+- [x] **Extended handlers** `tests/fixtures/msw/auth.handlers.ts`: added `authUrls.mePermissions`, the
+      `ME_PERMISSIONS` 200 handler, and `mePermissionsUnauthorized` 401 override.
+- [x] **Rebuilt** `tests/integration/services/auth.service.test.ts` and `tests/integration/hooks/auth.test.tsx` —
+      see "Finding" below for why this was a behavioral rewrite, not a symbol rename.
+
+**Finding — `useSession`'s queryFn never throws; the old test's "surfaces an error when unauthorized" scenario
+doesn't exist for it.** Reading `src/hooks/useSession.ts` closely: every branch resolves to `Session | null` —
+no access token + no refresh token → `null`; refresh fails → `catch { clear(); return null; }`; refresh succeeds
+or an access token is already present → decode and return. There is no live network call that can surface as
+`isError` for this hook (unlike `usePermissions`, a real authenticated GET with no internal catch, which does
+throw on 401 — used as the contrast case in the new test file). Replaced the fictitious "surfaces an error"
+scenario with the 4 real branches: no-tokens→null, access-token-present→decoded session,
+cold-start-refresh-succeeds→decoded session, cold-start-refresh-fails→null (tokens cleared). `useLogin`'s
+invalidation test now asserts against a real post-login decoded session (not a fixed mock object) — before login
+`useSession` resolves `null` (no tokens), after the invalidated refetch it resolves `mockSessionAfterLogin`.
+
+**Validation**
+- [x] `tsc --noEmit` clean (`npm run check`) — **zero errors, whole project**, including the two rebuilt integration files.
+- [x] Services unwrap `ApiResponse` and **throw** on error (`getMyPermissions` included); `logout` returns `void` on 204.
+- [x] Query hooks return `{data,isLoading,isError,error,refetch}`; `useLogin`/`useLogout` invalidate/clear the right keys.
+- [x] MSW intercepts via the route builder; fixtures parse against contract schemas (`LoginResultResponseSchema`,
+      `RefreshResultResponseSchema`, `JWTPayloadSchema`).
+- [x] Tests cover 200 **and** 401/500 (`getMyPermissions`: 200, 401, cold-start-refresh-then-200; `usePermissions`:
+      200, 401). No test files inside `/src`.
+- [x] Full suite: **11/11 files, 76/76 tests passing** (up from 60/72 with 2 failing files at Sprint 1 close).
+- [x] Committed on green: `fe: integration sprint 2 — auth`.
+
+**Risks (resolved)**
+- The single-flight refresh + cold-start path is subtle — reused the existing (working) axios engine as-is; no
+  token logic duplicated in the service. Confirmed via the cold-start tests in both rebuilt files.
+
+---
+
+### Sprint 3: Catalog — Status: ✅ Done
+
+**Goals**
+- Add real, UUID-typed HTTP for public + staff + admin catalog (products, pricing, images, brands, families,
+  models, categories, stats) per **plan §2.2**.
+- Establish reusable catalog fixtures (products/brands/families) that downstream domains (cart, orders, sales) reuse.
+
+**Scope correction — "replace the stub" was not possible; added a real service alongside it instead.** Before
+writing code, checked which pages/components consume the Sub-01 stub catalog hooks (`use-products.ts`,
+`use-product-details.ts`, `use-admin-products.ts`, `use-brands.ts`, `use-models.ts`): **8 files**
+(`Products.tsx`, `ProductDetails.tsx`, `AdminProducts.tsx`, `AdminProductsAdd.tsx`, and 4 section/filter
+components) import them directly. The global "never touch `/src/pages`/`/src/components`" constraint applies to
+every Sub-02 sprint, not just this one — so replacing those hooks' return shapes now would break 8 files this
+sprint is barred from fixing. **Resolution:** kept the Sub-01 stub functions/hooks completely untouched (still
+serving those 8 pages), and added the real, contract-typed service + hooks **alongside** them under new names.
+Real hook rewiring onto the 8 pages is Sub-03 work, not Sub-02 — corrects Sprint 1's handoff note, which
+over-optimistically implied catalog `qkLegacy` entries retire "by Sprint 3."
+
+**Tasks**
+- [x] **Services** `src/services/catalog.service.ts` — appended all 24 real fns (§2.2), clearly separated from
+      the Sub-01 stub section by a header comment; zero name collisions with the 29 existing stub exports
+      (contract verbs `listX`/`getX` vs. the stubs' `getXs`/`getXById`). Paginated: products/staff/admin lists →
+      `PaginatedResult<…>`; taxonomy/category lists → arrays — confirmed against `Apps/api`'s real router
+      (`catalog.routes.ts`) for every HTTP verb, not guessed.
+- [x] **Hooks** — 3 new files (mirroring the backend's own `ICatalogProductService`/`ICatalogTaxonomyService`/
+      `ICatalogCategoryService` split): `src/hooks/useCatalogProducts.ts` (11 hooks), `useCatalogTaxonomy.ts`
+      (9 hooks), `useClientCategories.ts` (3 hooks). Product create/update/pricing/images cross-invalidate
+      `qk.inventory.all()` (plan §3); brand/family/model mutations invalidate `.all()` (both the public **and**
+      admin cached variant — see qk registry extension below).
+- [x] **`qk` registry extension**: `brands`/`families`/`models` were flat parameterized leaf keys with no
+      `.all()` prefix, so a mutation couldn't invalidate both the public and admin cached variants together —
+      restructured to nested `{all,list}` objects (matching `products`/`adminProducts`). Non-breaking: nothing
+      in real Sub-02 code consumed the old flat shape yet.
+- [x] **Fixtures** `tests/fixtures/data/catalog.mock.ts` — all DTOs via `.parse`, incl. guest-hidden vs.
+      authenticated-pricing product variants, `withCount` vs. without family variant, paginated + (products)
+      empty variant.
+- [x] **MSW** `tests/fixtures/msw/catalog.handlers.ts` — 27 handler registrations (24 fns, 3 share a URL across
+      methods) + 9 named error overrides (400/404/409/500). Registered in `server.ts`.
+- [x] **Integration tests** — `tests/integration/services/catalog.service.test.ts` (26 tests) +
+      `tests/integration/hooks/catalog.test.tsx` (13 tests) — unwrap, paginated shape, throws, FormData path,
+      hook state transitions, mutation invalidation.
+
+**2 real bugs found and fixed while writing tests (not pre-existing — introduced this sprint, caught before commit):**
+1. **MSW handler registration order matters exactly like Express route order.** `PRODUCT_STATS`
+   (`/admin/products/stats`) was registered *after* `ADMIN_PRODUCT_BY_ID` (`/admin/products/:id`) in the
+   handlers array — msw, like the real backend, matches the first registered handler, so the `:id` pattern
+   greedily matched "stats" and `productStats()` silently got a full `AdminProductDto` back instead of stats.
+   The real `catalog.routes.ts` has an explicit comment about this exact ordering requirement; the MSW array
+   needed the same discipline. Fixed by moving `productStats` before `adminProductById`.
+2. **Genuine contract gap, not fixed (out of frontend scope): `AddProductImagesCommand.images` collides with
+   multer's file-field name.** The command's own metadata array is named `images` (per-image `alt`/`position`/
+   `isPrimary`), and multer's `.array('images')` expects file blobs under that exact same multipart field name.
+   A `commandToFormData` encoding sends both under one FormData key, so `body.getAll("images")` returns 2
+   entries (1 JSON string + 1 File), not 1. Documented in the service (`commandToFormData`'s comment) and
+   asserted as the real observed behavior in the test rather than a false "exactly 1 file" expectation — flagged
+   for a contract/backend fix (rename one of the two), added to plan.md §6's open-items list.
+- [x] Also confirmed (same investigation): `CreateProductSchema`/`AddProductImagesSchema` use strict
+      `z.number()`/`z.boolean()` (not `.coerce`) with no JSON-parse preprocessing in
+      `validate-request.middleware.ts` — a real multipart body (all-string fields from multer) will 400 against
+      the live backend regardless of frontend encoding. Same category of gap as #2 above, also flagged, not
+      fixed (backend/contract work).
+
+**Validation**
+- [x] `tsc --noEmit` clean (`npm run check`) — whole project, zero errors.
+- [x] Services unwrap `ApiResponse` and **throw**; `createProduct`/`addImages` send real `multipart/form-data`
+      (verified via `request.headers.get("content-type")` + `request.formData()` in tests).
+- [x] Query hooks `{data,isLoading,isError,error,refetch}`; mutations `{mutate,mutateAsync,isPending,...}` +
+      correct invalidations (verified via handler-call-count assertions, not just "no crash").
+- [x] MSW intercepts (with the route-ordering fix above); fixtures parse against contract schemas; paginated
+      fixtures use `paginated(...)`.
+- [x] Tests cover 200 **and** 4xx/5xx (26 + 13 = **39 new tests**, all passing); no test files in `/src`.
+- [x] Full suite: **13/13 files, 115/115 tests passing** (up from 76/76 at Sprint 2 close).
+- [x] Committed on green: `fe: integration sprint 3 — catalog`.
+- [x] Lint: new code clean; pre-existing stub-section quote-style debt in `catalog.service.ts` left untouched
+      (same precedent as Sprint 1) — confirmed via a reconstruct-and-diff check that `eslint --fix` hadn't
+      silently reformatted the untouched 173 pre-existing lines.
+
+**Risks (resolved)**
+- Guest-vs-viewer price matrix (`priceHidden`/`currentPrice`/`guestPrice`/`inStock`/`inCart` optionals) —
+  covered by two distinct product fixtures (`mockProductGuestHidden`, `mockProductWithPricing`).
+- `FamilyDto.productCount` only with `withCount=true` — covered by a real query-flag branch in the MSW handler
+  (not a separate named override) plus a dedicated test.
+- **New risk discovered, resolved:** the "never touch pages" constraint is stage-wide, not sprint-local — see
+  the scope correction above. Every remaining feature sprint (4–9) should assume the same: new hooks under new
+  names, `qkLegacy`-style shims only where an existing stub hook's key shape breaks incidentally.
+
+---
+
+### Sprint 4: Clients & POS Clients — Status: ✅ Done
+
+**Goals**
+- Add real HTTP for the client portal (validate-phone, register, me, cart), admin clients
+  (list/stats/detail/approve/reject/reset/update), and pos-clients (search/create/admin) per **plan §2.3**.
+
+**Scope note (same pattern as Sprint 3):** checked page/component consumers first — `MyAccount.tsx` (3 stub
+hooks), `Register.tsx`, and `AdminClients.tsx` (3 more) import the Sub-01 stub clients hooks directly. Kept
+those stub functions/hooks untouched; added the real service + 3 new hook files alongside, with names distinct
+from all 10 existing stub hook exports (`useClientMe`/`useUpdateClientMe`/`useChangeClientPassword` vs.
+`useMyAccount`/`useUpdateMyAccount`/`useResetMyAccountPassword`; `useClientDirectory*` vs. `useAdminClients*`).
+No `qkLegacy` additions needed — the 4 stub hooks that import `clients.service.ts` (`use-admin-clients.ts`,
+`use-admin-clients-stats.ts`, `use-registration.ts`, `use-modify-client.ts`) use their own local, inline key
+registries, never the central `qk`.
+
+**Resolved plan.md §6 `*(confirm)*` items** by reading `Apps/api/src/modules/clients/clients.interface.ts` (the
+`IClientsService` interface) directly instead of guessing from the DTO list:
+- `register()` → `{ id: string }`, **not** `ClientMeDto` — register does not log the client in or issue tokens.
+- `addCartItem`/`changeMyPassword`/`resetClientPassword` → `void`, not an echoed DTO.
+- `POS_CLIENT_ROUTES.ADMIN_BY_ID` is **PATCH-only** — there is no GET-by-id POS-client route at all; a
+  `getPosClient(id)` function (implied by the plan's naming symmetry) would have no route to call, so it was
+  correctly not implemented.
+
+**Tasks**
+- [x] **Services** `src/services/clients.service.ts` — 20 real fns appended (not 21 — plan's count included the
+      nonexistent `getPosClient`; see above). Cart reuses **catalog** fixtures.
+- [x] **Hooks** — 3 new files: `useClientPortal.ts` (8 hooks: identity+cart), `useClientDirectory.ts` (7 hooks:
+      admin pipeline), `usePosClients.ts` (5 hooks). Approve/reject invalidate `qk.clients.admin.all()`, which
+      — confirmed by test, not assumed — **already sweeps** `qk.clients.admin.stats()` via TanStack's prefix
+      matching (`stats()` is nested under the `admin` family in the `qk` registry), satisfying plan §2.3's
+      cross-invalidation requirement with no extra invalidation call needed.
+- [x] **Fixtures** `tests/fixtures/data/clients.mock.ts` — all DTOs via `.parse`; cart item reuses
+      `catalog.mock.ts`'s `mockProductWithPricing` directly (not duplicated) since `CartItemDto.product` nests
+      `ProductWithPricingDto`.
+- [x] **MSW** `clients.handlers.ts` — 20 handler registrations + 5 named error overrides, with `ADMIN_STATS`
+      registered before `ADMIN_DETAIL` (same `:id`-pattern greedy-match risk as Sprint 3's `PRODUCT_STATS`,
+      confirmed present here too via the backend's own route-ordering comment).
+- [x] **Integration tests** — `clients.service.test.ts` (21 tests) + `clients.test.tsx` (6 tests), incl. the
+      `.strict()` extra-key 400 and cart/directory/pos-client mutation invalidation.
+
+**Cross-cutting finding (not clients-specific — corrects Sprint 1/2 fixtures too): the MSW harness's `noContent()`
+premise was backwards.** Investigating a `removeFromCart` test crash led to discovering that **every** `204` in
+this backend's controllers (there is exactly one — clients' `removeCartItem`) is still routed through
+`sendSuccess()`, which always calls `.json(body)` regardless of status. But the WHATWG Fetch spec forbids a body
+on null-body statuses (204/205/304) — msw/undici enforce this, and a real browser's fetch/XHR would too — so
+that body cannot reliably survive the wire no matter what the backend source code does.
+- **Fixed:** `removeFromCart` no longer reads `.data.success` at all (mirrors `logout()`'s existing pattern —
+  bare `await`, rely on axios's automatic non-2xx rejection). `clients.handlers.ts` uses `noContent()` (correct).
+- **Also fixed retroactively:** Sprint 2's `auth.handlers.ts` had `logout` returning `noContent()` (204,
+  bodyless) — but `identity.controller.ts` shows the real logout is `sendSuccess(res, null, 200)`, a real 200
+  **with** a genuine envelope (200 isn't a null-body status). Wrong status *and* wrong body shape, silently
+  masked because `auth.service.ts`'s `logout()` never read the body either way. Corrected to `ok(null, 200)`.
+- **`envelope.ts`'s `noContent()` comment rewritten** to state the corrected rule and point future sprints at
+  the right pattern (bare `await`, no body read) for any endpoint that turns out to be a genuine 204.
+
+**Validation**
+- [x] `tsc --noEmit` clean (`npm run check`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; `changeMyPassword`/`addToCart`/`resetClientPassword` return `void` (200/201
+      with a real envelope); `removeFromCart` returns `void` via the corrected bare-await 204 pattern.
+- [x] Hook shapes correct; approve/reject invalidate list **and** stats (verified via handler-call-count
+      assertions, per-request, not just "no crash").
+- [x] MSW intercepts (with the `ADMIN_STATS`/`ADMIN_DETAIL` ordering fix baked in from the start this time);
+      fixtures parse against contract schemas; the `.strict()` 400 is asserted.
+- [x] Tests cover 200 **and** 4xx/5xx (21 + 6 = **27 new tests**, all passing); no test files in `/src`.
+- [x] Full suite: **15/15 files, 142/142 tests passing** (up from 115/115 at Sprint 3 close).
+- [x] Committed on green: `fe: integration sprint 4 — clients`.
+- [x] Lint: new code clean; pre-existing stub-section debt in `clients.service.ts` (5 pre-existing quote/wrap
+      issues) left untouched via the same reconstruct-and-diff technique as Sprint 3.
+
+**Risks (resolved)**
+- Mutation response bodies (`REGISTER`/`APPROVE`/`REJECT`/cart writes) were `*(confirm)*` in the plan — resolved
+  by reading `clients.interface.ts` directly (see "Resolved plan.md §6 items" above), not guessed.
+- `ClientStatus` vs lowercase `PhoneAvailability` — kept distinct in fixtures (`ClientStatus.PENDING`/`APPROVED`
+  vs. `PhoneAvailability.AVAILABLE`/`REGISTERED`), no conflation.
+- **New risk found, resolved:** the MSW harness's `noContent()` helper's own documented premise was wrong for
+  this backend — see the cross-cutting finding above. Any future sprint reaching for `noContent()` should read
+  its corrected comment first rather than assuming a bodyless 204 needs no special service-side handling.
+
+---
+
+### Sprint 5: Platform & Orders — Status: ✅ Done
+**Goals**
+- New `platform.service.ts` (wilayas, delivery fees, settings — absorbs the `admin-settings`/`checkout-delivery`
+  stubs) per **plan §2.5**, and replace `orders.service.ts` with the full order lifecycle per **plan §2.6**.
+
+**Tasks**
+- [x] **Services** `src/services/platform.service.ts` — 9 fns (§2.5): `listWilayas`/`getFee`/`getAdminFees`/
+      `upsertFees`/`importFees`(**FormData**)/`exportFees`(**Blob**)/`getSettings`/`updateSettings`/`getPublicSettings`.
+- [x] **Services** `src/services/orders.service.ts` — 9 fns (§2.6), `STAFF_*`/`ADMIN_*` scope-parameterized;
+      `MY_LIST` → array, backoffice list → `PaginatedResult<OrderDto>`.
+- [x] **Hooks** — `qk.platform.*` / `qk.orders.*`; order confirm/return **cross-invalidate**
+      `qk.inventory.all()`+`qk.billing.all()`+`qk.clients/posClients`+`qk.stats.all()` (plan §3).
+- [x] **Fixtures** `platform.mock.ts` (`Wilaya`/`Fee`/`Settings`/`PublicSettings`/`AdminFees`) + `orders.mock.ts`
+      (`Order`/`OrderStats`, paginated + empty).
+- [x] **MSW** `platform.handlers.ts` + `orders.handlers.ts` — 2xx each; **order-place `.refine()` (delivery⇔PICKUP)
+      → two `VALIDATION_ERROR`(400)** cases; fee/settings anonymous 200s.
+- [x] **Integration tests** — incl. Blob export path, PICKUP-vs-delivery validation, scope-parameterized list/confirm.
+
+**Validation**
+- [x] `tsc --noEmit` clean; types from `@dragon-telecom/contract`.
+- [x] Services unwrap + **throw**; `exportFees` returns `Blob`; `importFees` sends `FormData`.
+- [x] Hook shapes correct; cross-domain invalidations present (order confirm/return).
+- [x] MSW intercepts; fixtures parse; `Record<DocType,…>` settings keyed for every `DocType`.
+- [x] 200 **and** 4xx/5xx covered; no tests in `/src`.
+- [x] Committed on green: `fe: integration sprint 5 — platform & orders`.
+
+**Risks**
+- `deliveryCompany` is a **free-text string** on orders, not an entity (confirms `delivery-companies` deletion).
+- `UpsertFees`/`FEES_IMPORT` result shapes `*(confirm)*` (plan §6.1); `FeeDto.source` must be asserted both ways.
+
+---
+
+### Sprint 6: Inventory & Purchasing — Status: ✅ Done
+
+**Goals**
+- New `inventory.service.ts` (stock/movements/reservations/adjustments, §2.4) and `purchasing.service.ts`
+  (suppliers/invoices/payments — genuinely new territory, no same-named Sub-01 stub, §2.7).
+
+**Scope note (same pattern as Sprints 3-5):** inventory has no MVP UI ported yet, so `inventory.service.ts` is
+clean new territory (zero consumer check needed). Purchasing's pre-existing stubs are class-based
+(`AdminSuppliersService`, consumed via `use-admin-suppliers.ts`/`use-supplier-information.ts`, 15 hook exports
+total for `AdminSuppliers.tsx`/`AdminSupplierInformation.tsx`) — kept untouched; every new purchasing hook is
+prefixed `usePurchasingX` specifically to avoid all 15 (checked before writing any code, including the
+now-standard `use-admin-settings.ts` pass — no purchasing/inventory hits there).
+
+**Tasks**
+- [x] **Services** `inventory.service.ts` — `getStock`(array)/`exportStockCsv`(**Blob**, split into two
+      functions rather than one dual-return — a query hook can only have one result type),
+      `listMovements`/`listReservations` (paginated), `createAdjustment`.
+- [x] **Services** `purchasing.service.ts` — 13 fns (§2.7): suppliers CRUD + detail + stats; invoices CRUD +
+      confirm(**no body** — confirmed against the real router/interface) + cancel; payments list + create.
+- [x] **Hooks** — 4 new files: `useInventory.ts` (5 hooks), `usePurchasingSuppliers.ts` (5),
+      `usePurchasingInvoices.ts` (6), `usePurchasingPayments.ts` (2). `createAdjustment` cross-invalidates
+      `qk.catalog.adminProducts.all()`+`qk.stats.all()`; `confirmSupplierInvoice` cross-invalidates
+      inventory+catalog+supplier; payments invalidate the whole `qk.purchasing.all()` prefix (plan §3).
+- [x] **Fixtures** `inventory.mock.ts` (incl. an IN movement with cost fields absent + an OUT/SALE movement with
+      them present) + `purchasing.mock.ts` (incl. a DRAFT invoice with `projectedNewAverageCost` + a CONFIRMED
+      one without it).
+- [x] **MSW** `inventory.handlers.ts` (no route-ordering risk — confirmed, all 4 routes static) +
+      `purchasing.handlers.ts` (`SUPPLIER_STATS` registered before `SUPPLIER_DETAIL`/`SUPPLIER_BY_ID` — same
+      `:id`-pattern risk as Sprints 3-4, confirmed present here too by the backend's own comment).
+- [x] **Integration tests** — dual-return stock (array + Blob), adjustment cross-invalidation, invoice XOR 400 +
+      DRAFT-only 409, confirm reprice-candidates, movement optional-field present/absent.
+
+**2 real bugs found and fixed while writing tests (not pre-existing):**
+1. **`useCreatePurchasingPayment` had the same invalidation-key bug Sprint 5 found for `qk.orders.mine()`** —
+   caught *before* writing a failing test this time, by inspecting the registry first: `qk.purchasing.payments`
+   has no `.all()` sibling (`payments: { list: (query?) => [...] }` only), so invalidating a bare
+   `qk.purchasing.payments.list()` would only match an `undefined`-query cache entry, never one keyed by a real
+   filter object. Fixed by invalidating the broader `qk.purchasing.all()` instead.
+2. **A test-authoring mistake, not a hook bug**: an early draft of the payments hook test pre-seeded the exact
+   cache key the hook itself reads from (`queryClient.setQueryData(qk.purchasing.payments.list(...), "seed")`),
+   which made `isSuccess` trivially true from the seed *before* the real fetch resolved. Separately, `isInvalidated`
+   proved to be a transient flag that clears the instant an actively-mounted query's automatic refetch resolves
+   — asserting it directly races against MSW's fast resolution. Both issues were in tests that have an actively
+   mounted read hook watching the invalidated key; switched those specific assertions to a handler-call-count
+   pattern (already the established style for catalog/orders' own create-mutation tests) instead of
+   `getQueryState(...)?.isInvalidated`, which remains valid **only** when nothing is actively watching the key
+   (as in the cross-domain tests, e.g. `useConfirmPurchasingInvoice`, where inventory/billing/etc. have no
+   mounted observer in that specific test).
+
+**Validation**
+- [x] `tsc --noEmit` clean (`npm run check`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; `getStock` returns an array, `exportStockCsv` returns a `Blob` (two
+      functions, not one dual-return — cleaner for query-hook typing).
+- [x] Hook shapes correct; cross-domain invalidations (adjustment/confirm/payment) present and verified by
+      call-count or `isInvalidated` as appropriate to whether the target key has an active observer.
+- [x] MSW intercepts (with the `SUPPLIER_STATS` ordering fix baked in from the start); fixtures parse; `Movement`
+      optional numerics tested present (OUT/SALE) and absent (IN/SUPPLIER_INVOICE).
+- [x] Tests cover 200 **and** 4xx/5xx (7+16 service, 4+5 hooks = **32 new tests**, all passing); no test files
+      in `/src`.
+- [x] Full suite: **23/23 files, 206/206 tests passing** (up from 174/174 at Sprint 5 close).
+- [x] Committed on green: `fe: integration sprint 6 — inventory & purchasing`.
+- [x] Lint: fully clean — both service files are entirely new (no old-stub section to reconstruct around, unlike
+      Sprints 3-5's mixed files).
+
+**Risks (resolved)**
+- `ConfirmResultDto.repriceCandidates` and line `projectedNewAverageCost` (DRAFT-only) — modelled both states via
+  distinct DRAFT/CONFIRMED invoice fixtures, asserted directly.
+- `getStock` dual-return and `referenceType` open-string on movements — resolved by splitting into two service
+  functions (see Tasks above) and typing `referenceType` as a plain string per the contract.
+
+---
+
+### Sprint 7: Statistics & Observability — Status: ✅ Done
+
+**Goals**
+- New `statistics.service.ts` (dashboards/overview/filtered/charts/top-products/report — absorbs `dashboard`/
+  `admin-statistics` stubs, §2.8) and `observability.service.ts` (activity beacons/logs — absorbs `admin-logs`, §2.9).
+
+**Scope note (same pattern as Sprints 5-6):** both domains are genuinely new territory — no same-named Sub-01
+stub file exists for either (`dashboard.service.ts`/`admin-statistics.service.ts`/`admin-logs.service.ts` are
+all differently-named), so both are clean new files. Ran the full collision check anyway (including
+`use-admin-settings.ts`, per the standing rule): zero hits against the pre-existing stub hooks
+(`useDashboardStats`/`useDashboardSummary`/`useDashboardData`/`useRefreshDashboardData`/
+`useAdminStatisticsOverview`/`useAdminStatisticsFiltered`/`useAdminStatistics*`/`usePlatformUsers`/
+`useAdminLogs`/`useAdminLogsStats`/`useRefreshAdminLogs`), so all hook names from plan.md §2.8/§2.9 were used
+as-is.
+
+**Tasks**
+- [x] **Services** `statistics.service.ts` — 9 fns; `getReport`/`exportReportCsv` **dual-return (JSON vs Blob)**,
+      same split-function pattern as Sprint 6's `getStock`/`exportStockCsv` (a query hook can only have one
+      result type).
+- [x] **Services** `observability.service.ts` — beacons (`sendClientActivity`/`sendStaffSearch` → **void, 202+null**),
+      `getClientActivity`/`listStaffSearches` (arrays), `listLogs` (paginated), `logStats`.
+- [x] **Hooks** — `useStatistics.ts` (7 query hooks + 1 export mutation) / `useObservability.ts` (2 beacon
+      mutations + 4 query hooks) using `qk.stats.*` / `qk.observability.*` (both already scaffolded in the
+      registry from Sprint 1 — added the one missing `qk.stats.topProducts(query?)` key). Beacons are
+      fire-and-forget mutations with `meta:{silentErrorToast:true}` (real, pre-existing support in
+      `query-client.ts`'s `mutationCache`) so a failed beacon never toasts. No invalidation authored anywhere in
+      either domain — dashboards/stats are read-only by design (no command file at all) and beacons write
+      ephemeral rows nothing here reads back from; both are swept via `qk.stats.all()` from other domains'
+      mutations per plan §3, not from within this sprint.
+- [x] **Fixtures** `statistics.mock.ts` (`AdminDashboard`/`StaffDashboard`/`Overview`/`Filtered`/`Report` all
+      schema-validated; `ChartPoint`/`TopProductDto` as plain typed literals — no contract schema exists for
+      either) + `observability.mock.ts` (`ClientActivity`/`StaffSearch`/`AuditLog`/`LogStats`, all
+      schema-validated).
+- [x] **MSW** handlers — 2xx each; **activity `.refine()` (`SEARCH`+duration) → 400**; report CSV branch (raw
+      `HttpResponse`, envelope bypassed, mirrors platform's `feesExport`); **beacons use `ok(null, 202)`**, not
+      204 (202 is not a WHATWG null-body status, so the envelope survives the wire — confirmed against the real
+      controller).
+- [x] **Integration tests** — 32 new tests: dual-return report (JSON + Blob), 202-null beacon resolves to
+      `undefined`, refine-violation 400, logs pagination, dashboard/overview/filtered/chart/top-products reads,
+      disabled-until-id `useClientActivity` (mirrors `usePlatformDeliveryFee`'s enabled-guard pattern).
+
+**Resolved every plan.md §2.8/§2.9 `*(confirm)*` item by reading the real backend**
+- `CHARTS` returns **`ChartPoint[]`** (`{label,value}[]`), not `ReportDto` as plan.md's placeholder guessed —
+  confirmed against `statistics.interface.ts`'s `getChart` signature. `ChartPoint` has no contract schema of its
+  own; the frontend derives it as `ReportDto["chart"][number]` rather than redeclaring the shape, mirroring how
+  the backend's own mapper extracts it via `ReportResponseSchema.shape.chart`.
+- `TOP_PRODUCTS` has **no contract schema at all** (not even an informal field list) — `Apps/api`'s
+  `statistics.mapper.ts` declares its own local `TopProductResponseSchema`/`TopProductDto`. Mirrored as a plain
+  local TS type in `statistics.service.ts` (same "fill a genuine gap without touching the frozen contract"
+  precedent as orders' `AdminCancelOrderCommand` / platform's `ImportFeesResult`), matching the backend's exact
+  field list (`productId`/`productName`/`brandName`/`familyName`/`quantitySold`/`revenue`/`averagePrice`/
+  `imageUrl?`).
+- `STAFF_SEARCHES` confirmed a **bare array** (`StaffSearchesQuery` carries no `page`/`limit`) — the pagination
+  rule (plan §0.2) applies cleanly, no `*(confirm)*` ambiguity left once the query schema was actually read.
+- Beacons' 202-null envelope behavior confirmed directly against `observability.controller.ts`: `sendSuccess(res,
+  null, 202)` is called, and since 202 (unlike 204/205/304) is not a WHATWG null-body status, the body *does*
+  survive the wire — distinct from Sprint 4's 204 finding, not a repeat of it.
+
+**Validation**
+- [x] `tsc --noEmit` clean (`/src` and `/src`+`/tests`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; beacons return `void` on 202-null; `getReport`/`exportReportCsv` are two
+      functions (JSON vs Blob), not one dual-return — cleaner for query-hook typing, same call as Sprint 6.
+- [x] Hook shapes correct; beacon hooks pass `meta:{silentErrorToast:true}`, verified against the real
+      `mutationCache` implementation in `query-client.ts` (pre-existing, not new).
+- [x] MSW intercepts (no `:id`-pattern route-ordering hazard this sprint — `CHARTS`/`REPORT`/`CLIENT_ACTIVITY`
+      each live under their own distinct static path prefix); fixtures parse (`AdminDashboardDto`/
+      `StaffDashboardDto` validated carefully against the schema despite being the contract's own
+      most-heavily-inferred DTOs).
+- [x] 200 **and** 4xx/5xx covered (9+7 service, 8+8 hooks = **32 new tests**, all passing); no test files in
+      `/src`.
+- [x] Full suite: **27/27 files, 238/238 tests passing** (up from 23/23 · 206/206 at Sprint 6 close).
+- [x] Committed on green: `fe: integration sprint 7 — statistics & observability`.
+- [x] Lint: fully clean — all 12 new files are entirely new (no old-stub section to reconstruct around); ran
+      `eslint --fix` scoped to just those 12 paths (confirmed zero errors afterward), leaving the ~10.2k
+      pre-existing prettier-noise elsewhere in the repo untouched.
+
+**Risks (resolved)**
+- `AdminDashboardDto`/`StaffDashboardDto` (the contract's own flagged most-inferred DTOs) — both fixtures built
+  via `.parse()` against the real schemas without any adjustment needed; the schemas held up as documented.
+- `repairsByStatus` modelled as `Record<string,number>` per the contract, exercised directly in the dashboard
+  fixture. `CHARTS`/`TOP_PRODUCTS` DTOs — resolved by reading the backend (see above), no `*(confirm)*` left.
+
+---
+
+### Sprint 8: Identity Admin — Status: ✅ Done
+
+**Goals**
+- New `identity.service.ts` for users/roles/pages/technicians (§2.1 bottom) — access-control back-office, separate
+  from the auth-session service.
+
+**Scope note (same pattern as Sprints 5-7):** genuinely new territory — no same-named Sub-01 stub file exists.
+The only adjacent stub is `use-admin-settings.ts`'s admin-accounts slice (`useAdminAccounts`/
+`useCreateAdminAccount`/`useUpdateAdminAccount`/`useDeleteAdminAccount`, numeric ids, `AdminSettingsService`) —
+checked and confirmed zero name collisions against the plan's hook names, which were used verbatim.
+
+**Tasks**
+- [x] **Services** `src/services/identity.service.ts` — 12 fns (§2.1): `listUsers`(paginated)/`createUser`/`getUser`/
+      `updateUser`; `listRoles`/`createRole`/`updateRole`/`setRolePages`; `listPages`; `listTechnicians`/
+      `createTechnician`/`updateTechnician`. All 12 routes confirmed 1:1 against `identity.routes.ts` — no
+      `*(confirm)*` surprises this sprint (`ROLE_BY_ID` is PATCH-only, no GET-by-id route exists, matching the
+      plan exactly).
+- [x] **Hooks** — single new file `useIdentity.ts` (12 hooks, mirrors Sprint 5's single-file `usePlatform.ts` for
+      a moderate-size new domain) using `qk.identity.{users,roles,pages,technicians}.*` (already scaffolded in
+      the registry since Sprint 1 — no new keys needed). `createUser`/`updateUser` invalidate `users.all()` (+
+      `users.detail(id)` on update); `createRole`/`updateRole`/`setRolePages` invalidate `roles.all()`;
+      `createTechnician`/`updateTechnician` invalidate `technicians.all()`.
+- [x] **Fixtures** `identity.mock.ts` — `Role`/`User`(×2)/`Page`/`Technician` via `.parse`. One STAFF user with
+      `roles`/`effectivePages` populated + one ADMIN user with both empty and `email`/`lastLoginAt` absent
+      (contract's own comment: admin bypasses the page-key matrix entirely, no `admin(PAGE_KEY)` gating pattern
+      exists) — both edge cases from the plan's Risks section exercised directly.
+- [x] **MSW** `identity-admin.handlers.ts` — 2xx each; **create-user `.refine()` (STAFF w/o `roleIds`; ADMIN w/
+      `roleIds`) → 400**; 404 on `USER_BY_ID`; 409 on duplicate username.
+- [x] **Integration tests** — 19 new tests: both `.refine()` 400s, duplicate-username 409, user 404, paginated
+      users + disabled-until-id `useUser`, role/technician mutation invalidation via call-count assertions
+      (established Sprint 6 pattern for actively-mounted read hooks).
+
+**Validation**
+- [x] `tsc --noEmit` clean (`/src` and `/src`+`/tests`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; `roles`/`pages`/`technicians` lists are arrays, `users` is paginated —
+      confirmed against `identity.interface.ts`'s return types directly, no guessing needed.
+- [x] Hook shapes correct; family invalidations present and verified by handler-call-count assertions.
+- [x] MSW intercepts; fixtures parse; both create-user refine 400s asserted, plus 404/409.
+- [x] 200 **and** 4xx/5xx covered (14 service, 5 hooks = **19 new tests**, all passing); no test files in `/src`.
+- [x] Full suite: **29/29 files, 257/257 tests passing** (up from 27/27 · 238/238 at Sprint 7 close).
+- [x] Committed on green: `fe: integration sprint 8 — identity admin`.
+- [x] Lint: fully clean — all 6 new files are entirely new; `eslint --fix` scoped to just those paths, zero
+      errors after.
+
+**Risks (resolved)**
+- `UserDto.profile`/`email`/`lastLoginAt` optionals; `effectivePages` empty-vs-populated; `roles[]` empty for
+  ADMIN — all modelled directly via the two-user fixture pair (STAFF populated / ADMIN empty+optionals-absent),
+  no ambiguity left once exercised.
+
+---
+
+### Sprint 9: Sales & Repairs & Billing — Status: ✅ Done
+
+**Goals**
+- New `sales.service.ts` (POS drafts/confirm/returns, §2.10), `repairs.service.ts` (repairs + parts + status,
+  §2.11), `billing.service.ts` (invoices + client-payments, §2.12) — the staff/POS back-office. **No MVP UI yet;**
+  this builds the data layer ahead of Sub-03. **This is the final sprint of the 9-sprint plan.**
+
+**Scope note (same pattern as Sprint 6):** all three domains are Tier 5 (no MVP UI), so zero page/component
+consumer checks were needed. Still ran the `use-admin-settings.ts` collision pass per the standing rule — zero
+hits (the only near-miss, `use-supplier-information.ts`'s `useSupplierInvoices`/`useDeleteInvoice`, is
+purchasing's supplier-invoice domain, already handled in Sprint 6, not a real collision).
+
+**Tasks**
+- [x] **Services** `sales.service.ts` — `createDraft`/`updateDraft`/`confirmSale`(→**`ReceiptDto`**)/`listSales`
+      (paginated, scope-parameterized)/`getSale`(by **`reference` string**, scope-parameterized)/`createReturn`
+      (admin-only, single route — `CreateReturnCommand` carries its own `saleId`, no URL param).
+- [x] **Services** `repairs.service.ts` — `listRepairs`(**array**, no pagination)/`createRepair`/`updateRepair`/
+      `addRepairPart`/`removeRepairPart`/`updateRepairStatus`; every route in this domain is a genuine
+      `STAFF_*`/`ADMIN_*` scope-parameterized pair (unlike sales, where only list/detail are actually paired).
+- [x] **Services** `billing.service.ts` — `getMyInvoices`(**paginated**, not the plan's `*(confirm)*` bare-array
+      guess)/`listInvoices`(paginated)/`getInvoice`(by **`number`**)/`getInvoicePdf`(**Blob**)/`cancelInvoice`/
+      `createClientPayment`/`listClientPayments`.
+- [x] **Hooks** — 3 new files (`useSales.ts`, `useRepairs.ts`, `useBilling.ts`) reading `qk.sales.*`/
+      `qk.repairs.*`/`qk.billing.*` (all already scaffolded since Sprint 1). `useConfirmSale`/`useCreateReturn`
+      sweep `qk.sales.all()`+`qk.inventory.all()`+`qk.billing.all()`+`qk.clients.all()`+`qk.posClients.all()`+
+      `qk.stats.all()`; `useAddRepairPart`/`useRemoveRepairPart` sweep `qk.repairs.all()`+`qk.inventory.all()`;
+      `useUpdateRepairStatus` sweeps `qk.repairs.all()`+`qk.inventory.all()`+`qk.billing.all()`;
+      `useCreateClientPayment` sweeps `qk.billing.all()`+`qk.clients.all()`+`qk.posClients.all()` (plan §3's full
+      cross-domain invalidation matrix, all rows for this sprint's mutations).
+- [x] **Fixtures** `sales.mock.ts` (`Sale`/`Receipt`), `repairs.mock.ts` (`Repair`), `billing.mock.ts`
+      (`Invoice`/`ClientPayment`) — all schema-validated, reusing `mockProductWithPricing`/`mockBrand`/`mockModel`
+      from `catalog.mock.ts` per the established cross-domain fixture-reuse pattern.
+- [x] **MSW** handlers — 2xx each; `SaleDraft.lines.min(1)` + repair `reportedIssues.min(1)` → 400; state-guard
+      409s (confirm/cancel conflict); invoice PDF Blob branch (raw `HttpResponse`, mirrors platform's
+      `feesExport`); string-keyed detail routes (`:reference`/`:number`). No `:id`-pattern route-ordering hazard
+      in any of the three domains — checked each param'd route's segment count against its neighbors; unlike the
+      recurring STATS-before-`:id` case, every pair here differs in either method or segment count.
+- [x] **Integration tests** — 46 new tests: receipt-not-sale on confirm, repairs bare array (no `{items,meta}`),
+      invoice PDF Blob, full cross-domain invalidation sweeps (confirm/return/status/payment), string-key routing
+      (reference/number), scope-parameterized reads for all three domains.
+
+**Resolved every plan.md §2.10-2.12 `*(confirm)*` item by reading the real backend**
+- `createReturn` returns **`SaleDto`** — confirmed against `sales.routes.ts`'s `controller.createReturn` wiring
+  and `ISalesService.createReturn`'s return type.
+- `removeRepairPart` returns the updated **`RepairDto`** (200), **not `void`** — confirmed against
+  `repairs.controller.ts`'s `removePart` handler (`sendSuccess(res, result, 200)`).
+- **`STAFF_STATUS`/`ADMIN_STATUS` are mounted with `router.post`, not `router.patch`** as plan.md's table said —
+  a genuine plan-vs-reality discrepancy caught by reading `repairs.routes.ts` directly, not just the interface.
+- `getMyInvoices` is **`PaginatedResult<InvoiceDto>`**, not a bare array as plan.md's own placeholder guessed —
+  confirmed against `billing.interface.ts`'s `getMyInvoices(query, clientId)` signature (it genuinely accepts an
+  `InvoiceListQuery`) and `billing.routes.ts`'s `MY_INVOICES` validation. **Fixed the registry to match**:
+  `qk.billing.mine` was scaffolded keyless (`() => ["billing","mine"]`) since Sprint 1 — updated it to embed the
+  query (`(query?) => ["billing","mine",query]`), the same invalidation-key bug class Sprint 5 found for
+  `qk.orders.mine`, caught here at registry-design time (before any consumer existed) rather than via a failing
+  test.
+- `cancelInvoice` returns **`InvoiceDto`** (200) — confirmed against `billing.controller.ts`'s `cancelInvoice`
+  handler.
+
+**Validation**
+- [x] `tsc --noEmit` clean (`/src` and `/src`+`/tests`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; `getInvoicePdf`/`getMyInvoicePdf` return `Blob`; `confirmSale` returns
+      `ReceiptDto` (a genuinely different shape from `SaleDto`, asserted directly in tests).
+- [x] Hook shapes correct; every cross-domain invalidation from plan §3's matrix present and verified — either by
+      `isInvalidated` (mutations with no actively-mounted observer of the swept key in that test) or
+      handler-call-count (the one actively-mounted case, `useClientPayments`/`useCreateClientPayment`, per the
+      Sprint 6 rule).
+- [x] MSW intercepts; fixtures parse; repairs list confirmed a bare array (no `{items,meta}`), sales/billing
+      detail confirmed keyed by string (`reference`/`number`).
+- [x] 200 **and** 4xx/5xx covered (26 service, 16 hooks = **46 new tests**, all passing); no test files in
+      `/src`.
+- [x] Full suite: **35/35 files, 299/299 tests passing** (up from 29/29 · 257/257 at Sprint 8 close).
+- [x] Committed on green: `fe: integration sprint 9 — sales, repairs & billing`.
+- [x] Lint: fully clean — all 16 new files are entirely new; `eslint --fix` scoped to just those paths plus the
+      one touched pre-existing file (`query-keys.ts`, the `billing.mine` fix), zero errors after.
+
+**Risks (resolved)**
+- Admin-only cost/profit optionals across all three — exercised directly in every fixture (`totalCost`/
+  `totalProfit`/line `costOfGoods`/`profit`/`costSnapshot`/`currentAverageCost` all populated, matching the
+  admin-mapper-keeps-them case; the plan's staff-mapper-strips-them case needs no separate fixture since the
+  fields are simply `.optional()` in the one shared schema). `InvoiceSource` modelled as `SALE` only in the
+  fixture (never `REPAIR`, per the contract's own enum comment).
+- Every delete/cancel/return response body `*(confirm)*` resolved by reading `Apps/api` directly (see above) —
+  no guesses left unverified.
+- Tier-5, no consuming UI — all 46 new tests validate the hooks/services directly; nothing here was, or could
+  be, exercised through a rendered page this stage (that's Sub-03's job).
+
+---
+
+**Sub-02 (Integration Engine) is now complete — all 9 sprints done, all 115 contract routes wired.**
+
+## Exit criteria (all sprints ✅)
+
+Every one of the **115 contract routes** (plan §5) has a Service (unwrapped DTO / `void` / `Blob`), a Hook (correct
+`qk` key + invalidations incl. cross-domain), an MSW 2xx **and** ≥1 explicit 4xx/5xx handler, and a schema-validated
+envelope-shaped fixture — with `tsc --noEmit` clean and `vitest run` green (200 + 4xx/5xx) at each commit. The stale
+auth harness is gone (Sprint 2). No test files in `/src`; no UI touched. Ready to plug into the UI in **Sub-03**.
+
+**Phase-03 note:** execute one sprint per fresh session; load only the rules, `plan.md`, `sprints.md`, and the
+current sprint's contract module files; commit on green; write `report-sprint-NN.md`; wait for `next`.

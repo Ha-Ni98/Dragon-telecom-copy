@@ -12,7 +12,7 @@ import {
   updateAdminProductStock,
   addAdminProductSupply,
 } from '@/services/catalog.service';
-import { qk } from '@/lib/query-keys';
+import { qk, qkLegacy } from '@/lib/query-keys';
 import { useTranslation } from '@/hooks/useTranslation';
 
 /**
@@ -33,7 +33,7 @@ export function useAdminProducts(filters?: AdminProductsFilters) {
  */
 export function useAdminProductsStats() {
   return useQuery({
-    queryKey: qk.catalog.adminProducts.stats(),
+    queryKey: qkLegacy.catalogAdminProductsStats(),
     queryFn: getAdminProductsStats,
     staleTime: 1000 * 60 * 2, // 2 minutes
     retry: 2,
@@ -46,7 +46,7 @@ export function useAdminProductsStats() {
  */
 export function useAdminProduct(productId: number) {
   return useQuery({
-    queryKey: qk.catalog.adminProducts.detail(productId),
+    queryKey: qkLegacy.catalogAdminProductDetail(productId),
     queryFn: () => getAdminProductById(productId),
     enabled: !!productId,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -60,7 +60,7 @@ export function useAdminProduct(productId: number) {
  */
 export function useAdminProductsByStockStatus(status: 'in_stock' | 'low_stock' | 'out_of_stock') {
   return useQuery({
-    queryKey: qk.catalog.adminProducts.byStatus(status),
+    queryKey: qkLegacy.catalogAdminProductsByStatus(status),
     queryFn: () => getAdminProductsByStockStatus(status),
     staleTime: 1000 * 60 * 3, // 3 minutes
     retry: 2,
@@ -73,7 +73,7 @@ export function useAdminProductsByStockStatus(status: 'in_stock' | 'low_stock' |
  */
 export function useAdminProductsSearch(query: string, filters?: Omit<AdminProductsFilters, 'searchQuery'>) {
   return useQuery({
-    queryKey: qk.catalog.adminProducts.search(query, filters),
+    queryKey: qkLegacy.catalogAdminProductsSearch(query, filters),
     queryFn: () => searchAdminProducts(query, filters),
     enabled: query.length >= 2, // Only search if query is at least 2 characters
     staleTime: 1000 * 60 * 2, // 2 minutes
@@ -117,7 +117,7 @@ export function useAddAdminProductSupply() {
       addAdminProductSupply(productId, supply),
     onSuccess: (_, { productId }) => {
       queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.all() });
-      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.detail(productId) });
+      queryClient.invalidateQueries({ queryKey: qkLegacy.catalogAdminProductDetail(productId) });
       toast.success(t('admin.supply.success'), {
         description: t('admin.supply.successDescription'),
       });
@@ -141,7 +141,7 @@ export function useUpdateAdminProductStock() {
       updateAdminProductStock(productId, newQuantity),
     onSuccess: (_, { productId }) => {
       queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.all() });
-      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.detail(productId) });
+      queryClient.invalidateQueries({ queryKey: qkLegacy.catalogAdminProductDetail(productId) });
     },
   });
 }
@@ -177,7 +177,7 @@ export function useRefreshAdminProducts() {
   };
 
   const refreshStats = () => {
-    queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.stats() });
+    queryClient.invalidateQueries({ queryKey: qkLegacy.catalogAdminProductsStats() });
   };
 
   const refreshProducts = () => {

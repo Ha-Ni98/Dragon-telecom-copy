@@ -1,23 +1,32 @@
 import { http } from "msw";
-import { AUTH_ROUTES, ErrorCode } from "@dragon-telecom/contract";
+import { IDENTITY_ROUTES, ErrorCode } from "@dragon-telecom/contract";
 import { apiUrl } from "./api-url";
-import { ok, fail, noContent } from "./envelope";
-import { mockAuthTokens, mockUserSession } from "../data/auth.mock";
+import { ok, fail } from "./envelope";
+import { mockLoginResult, mockRefreshResult, mockPermissions } from "../data/auth.mock";
 
+// IDENTITY_ROUTES are full literal paths (no `.BASE` + fragment split — see api-path.ts).
+// No `/auth/me`: session is derived client-side from the JWT (hooks/useSession.ts).
+// ME_PERMISSIONS is the one real "me" endpoint — effective page keys (Role→Page resolution
+// lives server-side, not in the JWT).
 export const authUrls = {
-  login: apiUrl(AUTH_ROUTES.BASE, AUTH_ROUTES.LOGIN),
-  refresh: apiUrl(AUTH_ROUTES.BASE, AUTH_ROUTES.REFRESH),
-  logout: apiUrl(AUTH_ROUTES.BASE, AUTH_ROUTES.LOGOUT),
-  me: apiUrl(AUTH_ROUTES.BASE, AUTH_ROUTES.ME),
+  login: apiUrl(IDENTITY_ROUTES.LOGIN),
+  refresh: apiUrl(IDENTITY_ROUTES.REFRESH),
+  logout: apiUrl(IDENTITY_ROUTES.LOGOUT),
+  mePermissions: apiUrl(IDENTITY_ROUTES.ME_PERMISSIONS),
 };
 
 // Happy-path defaults — always registered. Individual tests override with `server.use()`
 // for 4xx/5xx variants (test-rules §3).
 export const authHandlers = [
-  http.post(authUrls.login, () => ok(mockAuthTokens)),
-  http.post(authUrls.refresh, () => ok(mockAuthTokens)),
-  http.post(authUrls.logout, () => noContent()),
-  http.get(authUrls.me, () => ok(mockUserSession)),
+  http.post(authUrls.login, () => ok(mockLoginResult)),
+  http.post(authUrls.refresh, () => ok(mockRefreshResult)),
+  // CORRECTED (integration Sprint 4): the real backend's logout is `sendSuccess(res, null, 200)`
+  // — status 200 with a real envelope, not a bodyless 204 (confirmed by reading
+  // identity.controller.ts; the wrong status/body here was never caught because
+  // auth.service.ts's logout() doesn't read the response body either way — see envelope.ts's
+  // noContent() comment for the one real 204 in this backend, which is NOT this endpoint).
+  http.post(authUrls.logout, () => ok(null, 200)),
+  http.get(authUrls.mePermissions, () => ok(mockPermissions)),
 ];
 
 export const authErrorHandlers = {
@@ -25,12 +34,12 @@ export const authErrorHandlers = {
     http.post(authUrls.login, () =>
       fail(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid username or password", 401),
     ),
-  meUnauthorized: () =>
-    http.get(authUrls.me, () => fail(ErrorCode.AUTH_UNAUTHORIZED, "Not authenticated", 401)),
   logoutServerError: () =>
     http.post(authUrls.logout, () => fail(ErrorCode.INTERNAL_SERVER_ERROR, "boom", 500)),
   refreshUnauthorized: () =>
     http.post(authUrls.refresh, () =>
       fail(ErrorCode.AUTH_UNAUTHORIZED, "Invalid refresh token", 401),
     ),
+  mePermissionsUnauthorized: () =>
+    http.get(authUrls.mePermissions, () => fail(ErrorCode.AUTH_UNAUTHORIZED, "expired", 401)),
 };

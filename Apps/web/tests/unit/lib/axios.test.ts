@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { http, delay, HttpResponse } from "msw";
-import { AUTH_ROUTES, ErrorCode, UserRole, type AuthTokensDTO } from "@dragon-telecom/contract";
+import { IDENTITY_ROUTES, ErrorCode, type RefreshResultDto } from "@dragon-telecom/contract";
 import { server } from "../../fixtures/msw/server";
 import { apiUrl } from "../../fixtures/msw/api-url";
 import { ok, fail } from "../../fixtures/msw/envelope";
@@ -9,14 +9,13 @@ import { api, setRedirect, refreshTokens } from "@/lib/axios";
 import * as tokenStore from "@/lib/token-store";
 
 const PROTECTED_URL = apiUrl("/__protected__");
-const REFRESH_URL = apiUrl(AUTH_ROUTES.BASE, AUTH_ROUTES.REFRESH);
-const LOGIN_URL = apiUrl(AUTH_ROUTES.BASE, AUTH_ROUTES.LOGIN);
-const LOGIN_PATH = apiPath(AUTH_ROUTES.BASE, AUTH_ROUTES.LOGIN);
+const REFRESH_URL = apiUrl(IDENTITY_ROUTES.REFRESH);
+const LOGIN_URL = apiUrl(IDENTITY_ROUTES.LOGIN);
+const LOGIN_PATH = apiPath(IDENTITY_ROUTES.LOGIN);
 
-const freshTokens: AuthTokensDTO = {
+const freshTokens: RefreshResultDto = {
   accessToken: "fresh-access",
   refreshToken: "fresh-refresh",
-  role: UserRole.USER,
 };
 
 beforeEach(() => {

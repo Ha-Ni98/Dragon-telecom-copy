@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { BrandWithCount, CategoryWithCount } from '@/types/draft-types/main-page.types';
 import { getBrands, getFamilies } from '@/services/catalog.service';
-import { qk } from '@/lib/query-keys';
+import { qkLegacy } from '@/lib/query-keys';
 
 // Catalog stats (product counts per brand/family) aren't wired yet (Sub-02) — productCount: 0
 // is the typed empty default until then.
@@ -20,7 +20,7 @@ async function getCategoriesWithCount(): Promise<CategoryWithCount[]> {
  */
 export const useBrands = () => {
   return useQuery({
-    queryKey: qk.catalog.brands(),
+    queryKey: qkLegacy.catalogBrandsList(),
     queryFn: getBrandsWithCount,
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
@@ -33,7 +33,7 @@ export const useBrands = () => {
  */
 export const useCategories = () => {
   return useQuery({
-    queryKey: qk.catalog.families(),
+    queryKey: qkLegacy.catalogFamiliesList(),
     queryFn: getCategoriesWithCount,
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,

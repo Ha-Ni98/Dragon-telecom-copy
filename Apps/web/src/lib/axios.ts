@@ -1,6 +1,9 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import {
   IDENTITY_ROUTES,
+  CATALOG_ROUTES,
+  PLATFORM_ROUTES,
+  CLIENT_ROUTES,
   type ApiResponse,
   type RefreshResultDto,
   type RefreshCommand,
@@ -41,9 +44,22 @@ const TOKEN_ENDPOINTS = new Set(
   ),
 );
 
-// EXTENSION POINT (auth): add public path prefixes here if some API surface is anonymous
-// (a 401 there is business logic — an invalid reference — not an expired-session signal).
-const PUBLIC_PATH_PREFIXES: string[] = [];
+// Anonymous API surfaces (no auth required, ever) — a 401 here is business logic (e.g. a
+// stale/invalid resource reference), never an expired session, so it must not trigger a
+// refresh+redirect. Prefix-matched against the request's built path, so a detail route like
+// CATALOG_ROUTES.PRODUCT_DETAIL ('/products/:id') is covered by its own list route's prefix
+// without needing every dynamic-segment variant spelled out (integration plan.md §1.1, §2.5).
+const PUBLIC_PATH_PREFIXES: string[] = [
+  apiPath(CATALOG_ROUTES.PRODUCTS),
+  apiPath(CATALOG_ROUTES.BRANDS),
+  apiPath(CATALOG_ROUTES.FAMILIES),
+  apiPath(CATALOG_ROUTES.MODELS),
+  apiPath(PLATFORM_ROUTES.WILAYAS),
+  apiPath(PLATFORM_ROUTES.FEE),
+  apiPath(PLATFORM_ROUTES.SETTINGS_PUBLIC),
+  apiPath(CLIENT_ROUTES.VALIDATE_PHONE),
+  apiPath(CLIENT_ROUTES.REGISTER),
+];
 const isPublicEndpoint = (url: string): boolean =>
   PUBLIC_PATH_PREFIXES.some((prefix) => url.startsWith(prefix));
 

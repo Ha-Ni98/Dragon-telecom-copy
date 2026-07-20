@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { UserRole } from "@dragon-telecom/contract";
+import { UserType } from "@dragon-telecom/contract";
 import { ProtectedRoute, PublicOnlyRoute } from "@/components/layout/ProtectedRoute";
 import * as AuthProviderModule from "@/components/providers/AuthProvider";
 import * as useSessionHook from "@/hooks/useSession";
@@ -20,9 +20,11 @@ function mockAuth(isReady: boolean, isAuthenticated = false) {
   } as never);
 }
 
-function mockSession(role: UserRole | null) {
+// Matches the real Session shape (src/types/session.ts) — derived from JWT claims, not a
+// server "who am I" response (no such endpoint exists; see hooks/useSession.ts).
+function mockSession(type: UserType | null) {
   vi.mocked(useSessionHook.useSession).mockReturnValue({
-    data: role ? { id: "1", username: "u", role, fullName: "Test User" } : undefined,
+    data: type ? { userId: "1", type, staffId: "1", profile: null } : undefined,
   } as never);
 }
 
@@ -68,16 +70,16 @@ describe("PublicOnlyRoute — role-based redirect off /login", () => {
     expect(screen.getByText("Login Form")).toBeInTheDocument();
   });
 
-  it("redirects an already-authenticated non-admin USER to /, not /admin", () => {
+  it("redirects an already-authenticated non-admin CLIENT to /, not /admin", () => {
     mockAuth(true, true);
-    mockSession(UserRole.USER);
+    mockSession(UserType.CLIENT);
     renderPublicOnly();
     expect(screen.getByText("Public Home")).toBeInTheDocument();
   });
 
   it("redirects an already-authenticated ADMIN to /admin", () => {
     mockAuth(true, true);
-    mockSession(UserRole.ADMIN);
+    mockSession(UserType.ADMIN);
     renderPublicOnly();
     expect(screen.getByText("Admin Home")).toBeInTheDocument();
   });
