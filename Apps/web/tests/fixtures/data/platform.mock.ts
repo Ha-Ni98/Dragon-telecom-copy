@@ -28,7 +28,22 @@ export const mockWilaya: WilayaDto = WilayaResponseSchema.parse({
   ],
 });
 
-export const mockWilayas: WilayaDto[] = [mockWilaya];
+export const mockWilayaOran: WilayaDto = WilayaResponseSchema.parse({
+  id: "aa000000-0000-4000-8000-000000000011",
+  wilayaCode: "31",
+  frName: "Oran",
+  arName: "وهران",
+  communes: [
+    {
+      id: "aa000000-0000-4000-8000-000000000021",
+      communeCode: "3101",
+      frName: "Es Senia",
+      arName: "السانيا",
+    },
+  ],
+});
+
+export const mockWilayas: WilayaDto[] = [mockWilaya, mockWilayaOran];
 
 // Falls back to the settings default when no DeliveryFee row exists for this wilaya/commune.
 export const mockFeeDefault: FeeDto = FeeResponseSchema.parse({

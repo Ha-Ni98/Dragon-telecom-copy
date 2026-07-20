@@ -42,7 +42,8 @@ const withSuspense = (Component: LazyExoticComponent<ComponentType<Record<string
 
 // Not a matched child route, so it can't rely on <Outlet/> resolving to a page — it picks
 // the layout that matches the current session and passes 404 content in as children.
-function CatchAllRoute() {
+// Exported (PUB-11) so pub-pages Sprint 8's unit test can render it directly.
+export function CatchAllRoute() {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslation();
   const content = (

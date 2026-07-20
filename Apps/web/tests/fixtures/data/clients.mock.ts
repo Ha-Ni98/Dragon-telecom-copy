@@ -30,6 +30,11 @@ export const mockPhoneRegistered: ValidatePhoneResultDto = ValidatePhoneResultRe
   status: PhoneAvailability.REGISTERED,
 });
 
+export const mockPhonePending: ValidatePhoneResultDto = ValidatePhoneResultResponseSchema.parse({
+  isValid: true,
+  status: PhoneAvailability.PENDING,
+});
+
 export const mockClientMe: ClientMeDto = ClientMeResponseSchema.parse({
   id: "aa000000-0000-4000-8000-000000000001",
   firstName: "Amine",

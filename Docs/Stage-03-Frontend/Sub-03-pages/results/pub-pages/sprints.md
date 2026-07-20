@@ -550,41 +550,108 @@ none of which existed before this sprint despite their hooks already being real 
 
 ---
 
-### Sprint 8: Unit tests — pages, forms, guards (Tests) — Status: ⬜ Pending
+### Sprint 8: Unit tests — pages, forms, guards (Tests) — Status: ✅ Done
 
 **Goals**
 - `/tests/unit/pages/**` covers each page's reaction to `isLoading`/`isError`/`isSuccess`/empty and each
   form's Zod validation, with **hooks mocked** (no MSW), `useTranslation` mocked.
 
 **Tasks**
-- [ ] `pages/home/` — mock `useCatalogFamilies`/`useCatalogBrands`/`useCatalogProducts`: skeletons, local
+- [x] `pages/home/` — mock `useCatalogFamilies`/`useCatalogBrands`/`useCatalogProducts`: skeletons, local
       error (siblings survive), empty section hidden, card link hrefs, guest heart hidden. (#testing)
-- [ ] `pages/catalog/` — mock catalog hooks + `useSendClientActivity` + `useSearchParams`: filter→URL sync,
-      brand change clears `modelId`, skeleton grid, `EmptyState` reset, guest price zone, `SEARCH` beacon
-      fired. (#testing)
-- [ ] `pages/product-detail/` — mock `useCatalogProduct`/`useWilayas`/`usePlatformDeliveryFee`/
-      `usePlaceOrder`/`useSendClientActivity`: 404 view, price zone by viewer, modal open; `order-form.spec`
-      — quantity>available, delivery-required refine, pickup disables wilaya/fee=0, fee row gating, 409 on
-      quantity field, 403 → `/login`. (#testing)
-- [ ] `pages/login/` — `login.spec` (Zod empties, generic banner, submitting, register link) +
-      `redirect.spec` (PublicOnlyRoute ADMIN/STAFF/CLIENT targets; `StaffLanding` first-permitted-page +
-      empty). (#testing)
-- [ ] `pages/register/` — mock `useWilayas`/`useValidatePhone`/`useRegisterClient`: required errors,
+- [x] `pages/catalog/` — mock catalog hooks + `useSendClientActivity` + real `useSearchParams` (see
+      Corrections): filter→URL sync, brand change clears `modelId`, skeleton grid, `EmptyState` reset,
+      guest price zone, `SEARCH` beacon fired. (#testing)
+- [x] `pages/product-detail/` — mock `useCatalogProduct`/`useWilayas`/`usePlatformDeliveryFee`/
+      `usePlaceOrder`/`useSendClientActivity`: 404 view, price zone by viewer, modal open;
+      `order-form.test.tsx` — quantity ceiling (see Corrections), delivery-required refine (schema-level,
+      see Corrections), pickup disables wilaya/fee=0, fee row gating, 409 on quantity field, 403 →
+      `/login`. (#testing)
+- [x] `pages/login/` — extended the existing `LoginPage.test.tsx` (Zod empties, submitting state,
+      register link) + new `redirect.test.tsx` (`PublicOnlyRoute` STAFF/CLIENT-on-register/back-target
+      targets; `StaffLanding` first-permitted-page + empty). (#testing)
+- [x] `pages/register/` — mock `useWilayas`/`useValidatePhone`/`useRegisterClient`: required errors,
       commune cascade + reset, `registered`/`pending` messages, dialog gate, success panel. (#testing)
-- [ ] `pages/my-account/` — mock `useClientMe`/`useUpdateClientMe`/`useChangeClientPassword`/`useWilayas`:
+- [x] `pages/my-account/` — mock `useClientMe`/`useUpdateClientMe`/`useChangeClientPassword`/`useWilayas`:
       skeleton, phone read-only/absent from schema, **category not rendered**, "Active" badge only,
-      Edit→Save mapped command, Cancel restore, money card values; `password-form.spec` mismatch refine +
-      stripped `confirmPassword`. (#testing)
-- [ ] `pages/not-found/` — static render + home link. (#testing)
+      Edit→Save mapped command, Cancel restore, money card values; `password-form` cases folded into
+      `my-account.test.tsx` (see Corrections) — mismatch refine + stripped `confirmPassword`. (#testing)
+- [x] `pages/not-found/` — static render + home link (`CatchAllRoute` exported from `App.tsx` for this —
+      see Corrections). (#testing)
 
 **Validation**
-- [ ] `vitest run` green; assertions on DOM/behavior, not internal state (test-rules §2).
-- [ ] `useTranslation` mocked (`t: (k)=>k`) — no real translated strings asserted; **no tests in `/src`**.
-- [ ] `tsc --noEmit` clean (typed fixtures from `/tests/fixtures/data`, no `as any` on real assertions).
+- [x] `vitest run` green — 356/356 (299 pre-existing + 57 new), assertions on DOM/behavior (roles, labels,
+      text, `href`/`data-*`), not internal state (test-rules §2).
+- [x] `useTranslation` mocked (`t: (k)=>k`) via the existing `mockTranslation` wrapper — no real translated
+      strings asserted; **no tests in `/src`** (all under `/tests/unit/pages/**`).
+- [x] `tsc --noEmit` clean, both configs; typed fixtures from `/tests/fixtures/data` throughout, no `as any`
+      (the codebase's own established `as never` cast on mock return values is used instead, matching
+      `LoginPage.test.tsx`/`ProtectedRoute.test.tsx`'s pre-existing precedent over the test-rules doc's own
+      illustrative `as any` snippet).
+- [x] `eslint` before/after — `App.tsx` flat (6→6); all new/touched test files clean after `eslint --fix`
+      (12 pre-fix findings, 100% `prettier/prettier`, 0 remaining).
 
 **Risks**
 - Fixtures must be built from contract schemas (`Schema.parse`) so a DTO drift fails the fixture, not a
-  silent green.
+  silent green. *(Held to — two additions to the shared fixtures, `mockPhonePending` (clients.mock.ts) and
+  `mockWilayaOran` (platform.mock.ts), both `ResponseSchema.parse(...)`, not raw literals; every other
+  fixture reused as-is from the existing files.)*
+
+**Corrections & real gaps found this sprint (transparently noted, same pattern as Sprints 1–7):**
+1. **File suffix: `.test.tsx`, not `.spec.tsx`.** `vitest.config.ts`'s `include` is
+   `tests/**/*.test.{ts,tsx}` — a `.spec.tsx` file is silently never collected. The plan's own
+   "`login.spec`"/"`order-form.spec`"/"`redirect.spec`"/"`password-form.spec`" shorthand predates
+   checking that config; every file this sprint uses `.test.tsx`, matching the one pre-existing unit page
+   test (`LoginPage.test.tsx`).
+2. **`CatchAllRoute` (PUB-11) wasn't exported.** It's a local, un-exported function inside `App.tsx` — not
+   a real gap in the app (routing doesn't need it exported), but this sprint can't unit-test a component
+   it can't import. Added `export` (one line, `src/App.tsx`) — behavior-neutral, and now the only real way
+   the 404 page can be exercised in isolation. `PublicLayout`/`AdminLayout` are stubbed to bare
+   passthroughs in the test — their own internals (header/footer/session/cart) belong to their own tests,
+   not PUB-11's.
+3. **"card link hrefs" (Home) don't literally exist.** Every landing-section card is a `<div onClick=…>`/
+   button calling `navigate()`, never a real `<a href>` — true of `CategoriesSection`, `BrandsSection`,
+   and `ProductCard`'s own "View Details" button alike. Tested the equivalent real behavior instead:
+   render two routes (the section + a target-marking route) and assert a click lands on the expected
+   path/query, via a small reusable `LocationProbe` component (`useLocation()` → renders
+   `pathname+search`) rather than a mocked `useNavigate` spy — the actual router's resulting location is
+   stronger, more behavior-level evidence than "was called with these args" (test-rules §2).
+4. **"mock … `useSearchParams`" (Catalog) — used the real one instead.** `Products.tsx`'s entire "filter →
+   URL sync" contract only means something against a real `useSearchParams`/`MemoryRouter`; mocking it
+   would only prove `setSearchParams` was *called*, not that the URL the browser would actually show is
+   correct. `catalog.test.tsx` renders `<Products/>` alongside a `LocationProbe` on the same route and
+   asserts the real resulting location — same reasoning and same helper as #3.
+5. **"quantity>available" (order-form) doesn't exist post-Sprint-3.** That correction (already recorded in
+   Sprint 3) removed the `availableQuantity`-bound `.max()` entirely — `ProductDetailDto` never exposes a
+   real quantity to bound against. The schema's actual client-side ceiling is the flat `MAX_ORDER_QUANTITY
+   = 99`; `order.schema.test.ts` tests exceeding *that*, which is the real analogous check today.
+6. **The delivery-required refine (order.schema.ts) is unreachable through `ProductOrderModal`'s own
+   wired UI.** Traced `handleOrderTypeChange`: every path that leaves `orderType !== PICKUP` also sets
+   `delivery` to a (possibly empty) object in the same call, and every path that sets `PICKUP` clears
+   `delivery` to `undefined` — so `delivery === undefined` while non-pickup, the exact state the refine
+   guards against, can't be produced by clicking through the form. It's still real defense-in-depth
+   (mirrors the contract's own `PlaceOrderSchema` refine) — exercised directly via `orderSchema(t).safeParse(...)`
+   in a new `order.schema.test.ts`, the only way to actually reach that branch.
+7. **`StaffLanding`'s "first-permitted-page" branch is unreachable today too, for an unrelated reason:**
+   `STAFF_PAGE_ROUTES` (`lib/staff-pages.ts`) is currently an empty map by design (Sprint 2's own scope-
+   confinement note — destination pages ship in a later set), so `firstPermittedStaffRoute()` always
+   returns `undefined` in the shipped app; `StaffLanding` always renders its "no permitted pages" empty
+   state in practice right now. Tested that real current behavior directly, **and** proved the navigate
+   branch actually works once a destination ships by temporarily writing one entry into the real exported
+   `STAFF_PAGE_ROUTES` object for a single `it()` (restored via `afterEach`) rather than re-implementing
+   the lookup logic locally — exercises the real function, not a stand-in for it.
+8. **The rendered fee-row/aria-label text isn't the exact translated key.** `` {t("product.deliveryFee")}: ``
+   (colon appended *outside* the `t()` call) means the element's normalized text is
+   `"product.deliveryFee:"`, not `"product.deliveryFee"` — an exact-match `getByText`/`queryByText` never
+   matches it (and, worse, a `queryByText(...).not.toBeInTheDocument()` assertion against the wrong exact
+   string would trivially "pass" whether or not the row actually renders, silently proving nothing). Used
+   a regex (`/product\.deliveryFee/`) once this was traced from a failing `findByText` down to the
+   colon-outside-`t()` JSX pattern.
+9. **No literal "password-form.spec" file** — folded the mismatch-refine and stripped-`confirmPassword`
+   cases into `my-account.test.tsx`'s own describe block instead of a separate file. The password form is
+   `MyAccount.tsx`-local state (`isChangingPassword`), not a separately reachable route/component the way
+   `ProductOrderModal` is — a standalone file would need to re-mount the whole page anyway to reach it, so
+   splitting it out gains nothing.
 
 ---
 
