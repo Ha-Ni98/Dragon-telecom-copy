@@ -547,33 +547,54 @@ as-is.
 
 ---
 
-### Sprint 8: Identity Admin — Status: ⬜ Pending
+### Sprint 8: Identity Admin — Status: ✅ Done
 
 **Goals**
 - New `identity.service.ts` for users/roles/pages/technicians (§2.1 bottom) — access-control back-office, separate
   from the auth-session service.
 
+**Scope note (same pattern as Sprints 5-7):** genuinely new territory — no same-named Sub-01 stub file exists.
+The only adjacent stub is `use-admin-settings.ts`'s admin-accounts slice (`useAdminAccounts`/
+`useCreateAdminAccount`/`useUpdateAdminAccount`/`useDeleteAdminAccount`, numeric ids, `AdminSettingsService`) —
+checked and confirmed zero name collisions against the plan's hook names, which were used verbatim.
+
 **Tasks**
-- [ ] **Services** `src/services/identity.service.ts` — 12 fns (§2.1): `listUsers`(paginated)/`createUser`/`getUser`/
+- [x] **Services** `src/services/identity.service.ts` — 12 fns (§2.1): `listUsers`(paginated)/`createUser`/`getUser`/
       `updateUser`; `listRoles`/`createRole`/`updateRole`/`setRolePages`; `listPages`; `listTechnicians`/
-      `createTechnician`/`updateTechnician`.
-- [ ] **Hooks** — `qk.identity.{users,roles,pages,technicians}.*`; create/update mutations invalidate their family.
-- [ ] **Fixtures** `identity.mock.ts` — `User`/`Role`/`Page`/`Technician`/`StaffProfile` via `.parse`; paginated
-      users + empty variants.
-- [ ] **MSW** `identity-admin.handlers.ts` — 2xx each; **create-user `.refine()` (STAFF w/o `roleIds`; ADMIN w/
+      `createTechnician`/`updateTechnician`. All 12 routes confirmed 1:1 against `identity.routes.ts` — no
+      `*(confirm)*` surprises this sprint (`ROLE_BY_ID` is PATCH-only, no GET-by-id route exists, matching the
+      plan exactly).
+- [x] **Hooks** — single new file `useIdentity.ts` (12 hooks, mirrors Sprint 5's single-file `usePlatform.ts` for
+      a moderate-size new domain) using `qk.identity.{users,roles,pages,technicians}.*` (already scaffolded in
+      the registry since Sprint 1 — no new keys needed). `createUser`/`updateUser` invalidate `users.all()` (+
+      `users.detail(id)` on update); `createRole`/`updateRole`/`setRolePages` invalidate `roles.all()`;
+      `createTechnician`/`updateTechnician` invalidate `technicians.all()`.
+- [x] **Fixtures** `identity.mock.ts` — `Role`/`User`(×2)/`Page`/`Technician` via `.parse`. One STAFF user with
+      `roles`/`effectivePages` populated + one ADMIN user with both empty and `email`/`lastLoginAt` absent
+      (contract's own comment: admin bypasses the page-key matrix entirely, no `admin(PAGE_KEY)` gating pattern
+      exists) — both edge cases from the plan's Risks section exercised directly.
+- [x] **MSW** `identity-admin.handlers.ts` — 2xx each; **create-user `.refine()` (STAFF w/o `roleIds`; ADMIN w/
       `roleIds`) → 400**; 404 on `USER_BY_ID`; 409 on duplicate username.
-- [ ] **Integration tests** — both `.refine()` 400s, paginated users, role/technician mutation invalidation.
+- [x] **Integration tests** — 19 new tests: both `.refine()` 400s, duplicate-username 409, user 404, paginated
+      users + disabled-until-id `useUser`, role/technician mutation invalidation via call-count assertions
+      (established Sprint 6 pattern for actively-mounted read hooks).
 
 **Validation**
-- [ ] `tsc --noEmit` clean; types from `@dragon-telecom/contract`.
-- [ ] Services unwrap + **throw**; `roles`/`pages`/`technicians` lists are arrays, `users` is paginated.
-- [ ] Hook shapes correct; family invalidations present.
-- [ ] MSW intercepts; fixtures parse; both create-user refine 400s asserted.
-- [ ] 200 **and** 4xx/5xx covered; no tests in `/src`.
-- [ ] Committed on green: `fe: integration sprint 8 — identity admin`.
+- [x] `tsc --noEmit` clean (`/src` and `/src`+`/tests`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; `roles`/`pages`/`technicians` lists are arrays, `users` is paginated —
+      confirmed against `identity.interface.ts`'s return types directly, no guessing needed.
+- [x] Hook shapes correct; family invalidations present and verified by handler-call-count assertions.
+- [x] MSW intercepts; fixtures parse; both create-user refine 400s asserted, plus 404/409.
+- [x] 200 **and** 4xx/5xx covered (14 service, 5 hooks = **19 new tests**, all passing); no test files in `/src`.
+- [x] Full suite: **29/29 files, 257/257 tests passing** (up from 27/27 · 238/238 at Sprint 7 close).
+- [x] Committed on green: `fe: integration sprint 8 — identity admin`.
+- [x] Lint: fully clean — all 6 new files are entirely new; `eslint --fix` scoped to just those paths, zero
+      errors after.
 
-**Risks**
-- `UserDto.profile`/`email`/`lastLoginAt` optionals; `effectivePages` empty-vs-populated; `roles[]` empty for ADMIN.
+**Risks (resolved)**
+- `UserDto.profile`/`email`/`lastLoginAt` optionals; `effectivePages` empty-vs-populated; `roles[]` empty for
+  ADMIN — all modelled directly via the two-user fixture pair (STAFF populated / ADMIN empty+optionals-absent),
+  no ambiguity left once exercised.
 
 ---
 

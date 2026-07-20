@@ -9,6 +9,7 @@ import { inventoryHandlers } from "./inventory.handlers";
 import { purchasingHandlers } from "./purchasing.handlers";
 import { statisticsHandlers } from "./statistics.handlers";
 import { observabilityHandlers } from "./observability.handlers";
+import { identityAdminHandlers } from "./identity-admin.handlers";
 
 // EXTENSION POINT (modules): append each new domain's handlers array here.
 const handlers: RequestHandler[] = [
@@ -21,6 +22,7 @@ const handlers: RequestHandler[] = [
   ...purchasingHandlers,
   ...statisticsHandlers,
   ...observabilityHandlers,
+  ...identityAdminHandlers,
 ];
 
 export const server = setupServer(...handlers);
