@@ -374,35 +374,81 @@ none of which existed before this sprint despite their hooks already being real 
 
 ---
 
-### Sprint 6: Wiring — auth & account cluster (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 6: Wiring — auth & account cluster (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - Login (+ `/staff` landing), Register, and My-Account consume the real hooks/forms with granular states.
 
 **Tasks**
-- [ ] **Login:** confirm `useAuth().login` wiring; add the register `<Link>`; keep the generic error
-      banner + submitting state. (#wiring)
-- [ ] **/staff landing:** `StaffLanding` consumes `usePermissions()` and `<Navigate replace>`s to the
-      first permitted page (`PageKey → route` map); empty state when none. (#wiring)
-- [ ] **Register:** wire `useWilayas()` (drop `WilayaProvider`, D8 — uuid + nested communes cascade),
-      `useValidatePhone()` (blur, debounced via `useDebouncedValue`), `useRegisterClient()`; recap dialog
-      is the submit gate; success panel on `{ id }` (no auto-login, no invalidation). Map phone
-      `registered`/`pending` → field messages. (#wiring)
-- [ ] **My Account:** wire `useClientMe()`, profile RHF (`update-me.schema` → `useUpdateClientMe`,
-      Edit/Save/Cancel; phone read-only), password RHF (`change-password.schema` → `useChangeClientPassword`,
-      strip `confirmPassword`, success toast + reset); billing tab `MoneyStatusCard`
-      (credit/totalPaid/totalSold) + My Orders / My Invoices shortcuts. **Remove** the draft-model
-      numeric-status/category logic and the `useState`/`useEffect` mirror. (#wiring)
+- [x] **Login:** `useAuth().login` wiring confirmed unchanged; added the register `<Link>` (the JSX itself
+      was deferred here from Sprint 1, which only prepared the translation keys); error banner +
+      submitting state were already correct — verified only. (#wiring)
+- [x] **/staff landing:** already fully satisfied `StaffLanding`'s spec — built in Sprint 2
+      (`usePermissions()` + `<Navigate replace>`) and extended with an `isError` empty state in Sprint 4.
+      Verified only, no changes this sprint. (#wiring)
+- [x] **Register:** fully rewired onto `useWilayas()` (`WilayaProvider` + `use-wilaya.ts` dropped, D8 —
+      uuid + nested `communes` cascade via `Controller`), `useValidatePhone()` on blur (**not debounced**
+      — see Corrections), `useRegisterClient()` (no auto-login, no invalidation, matches the real hook's
+      existing behavior). Recap dialog is the submit gate; phone `registered`/`pending` map to field
+      messages via the Sprint-1 keys. Removed the redundant `useEffect(isAuthenticated => navigate(...))`
+      — `PublicOnlyRoute` (Sprint 2) already handles this declaratively. (#wiring)
+- [x] **My Account:** fully rewired onto `useClientMe()`, profile RHF (`update-me.schema` →
+      `useUpdateClientMe`, Edit/Save/Cancel via RHF's `values` option — see Corrections — phone stays a
+      plain read-only `<Input>`, never registered with RHF), password RHF (`change-password.schema` →
+      `useChangeClientPassword`, `confirmPassword` stripped before submit, success toast + reset); billing
+      tab `MoneyStatusCard` now fed directly from `ClientMeDto` (no bridge adapter); My Orders (existing)
+      + **My Invoices** (new — see Corrections) shortcuts. Status/category simplification (Sprint 4)
+      untouched, just repointed to `clientMe.createdAt`. `PasswordResetForm` retired — folded into a new
+      inline change-password form (its old schema had no `currentPassword` field, so it couldn't drive
+      the real command; same "fold into the one real consumer" precedent as Sprint 3's `DeliveryForm`).
+      (#wiring)
 
 **Validation**
-- [ ] `UpdateMeCommand` payload never contains `phone`; `ChangeMyPasswordCommand` never contains
-      `confirmPassword`.
-- [ ] `tsc --noEmit` clean; My-Account never renders category; authenticated clients bounce from
-      login/register to `/my-account`.
+- [x] `UpdateMeCommand` payload never contains `phone` — confirmed: `update-me.schema.ts` has no `phone`
+      field, and the profile form's phone `<Input>` is plain (`value=`/`disabled readOnly`), never
+      `register()`ed with RHF.
+- [x] `ChangeMyPasswordCommand` never contains `confirmPassword` — confirmed: destructured out
+      (`const { confirmPassword: _confirmPassword, ...command }`) before `.mutate(command)`.
+- [x] `tsc --noEmit` clean (both configs); My-Account never renders category (unchanged from Sprint 4);
+      authenticated clients bounce from login/register to `/my-account` via `PublicOnlyRoute` (Sprint 2,
+      untouched — Register.tsx's own redundant redirect effect was removed, not duplicated).
+- [x] `vitest run` — 299/299 passed (including `LoginPage.test.tsx`, unaffected by the added register
+      link), no regressions.
+- [x] `eslint` before/after diff, all 9 touched files — `Register.tsx` and `clients.service.ts` improved
+      (68→38, 5→3); `MyAccount.tsx` +27, confirmed 100% `prettier/prettier` via rule-class breakdown; rest
+      flat.
 
 **Risks**
-- Dropping `WilayaProvider` changes the register bundle; ensure no other consumer relies on it.
-- `usePermissions()` first-page resolution must handle the empty-permissions case gracefully.
+- Dropping `WilayaProvider` changes the register bundle; ensure no other consumer relies on it. *(Grep-
+  confirmed zero other consumers before deleting — see Corrections for the full orphaned-file chain this
+  triggered.)*
+- `usePermissions()` first-page resolution must handle the empty-permissions case gracefully. *(Already
+  handled — built in Sprint 2/4, unchanged this sprint.)*
+
+**Corrections & real gaps found this sprint (same transparent pattern as Sprints 1–5):**
+1. **Phone validation is a plain `onBlur` handler, not debounced.** `sprints.md`'s own wording said
+   "blur, debounced via `useDebouncedValue`," but PUB-07's actual source text just says "async-validated
+   on blur" — no debounce requirement. Blur is already a discrete, naturally rate-limited event (you
+   don't blur ten times a second while typing), so layering a debounce on top would be unnecessary
+   complexity the requirement never asked for.
+2. **RHF's `values` option replaces a manual `useEffect` for seeding the profile form.** The original
+   `MyAccount.tsx` (and my own plan) used `useEffect(() => { if (accountData) setUserInfo(accountData) },
+   [accountData])`. RHF 7.x's `useForm({ values })` does this natively — the form's defaults re-sync
+   whenever the referenced object changes by reference (including after `useUpdateClientMe`'s own
+   invalidation triggers a refetch) — a cleaner, effect-free equivalent.
+3. **A large orphaned-file chain, two sprints deep.** Rewiring Register/MyAccount orphaned
+   `use-my-account.ts`, `use-registration.ts`, `use-wilaya.ts`, `wilaya-provider.tsx`,
+   `PasswordResetForm.tsx`/`.schema.ts`, plus their now-dead call chains in `clients.service.ts`
+   (`getMyAccount`/`updateMyAccount`/`resetMyAccountPassword`/`registerClient`/`checkPhoneExists`/
+   `validatePhoneNumber`) and `draft-types/client.types.ts` (`UserAccountData`/`PasswordResetData`).
+   While checking these, also found `use-delivery-fees.ts` and `checkout-delivery.service.ts` **already
+   orphaned since Sprint 3** (when `DeliveryForm.tsx` — their only consumer — was deleted) and missed at
+   the time; cleaned up now. Every deletion was grep-verified for zero remaining consumers first, same
+   discipline as every prior sprint's cleanup.
+4. **"My Invoices" shortcut links to `/invoices`, a route that doesn't exist in this build.** PUB-08
+   requires the shortcut; the contract does have a real `MY_INVOICES` route (`billing.routes.ts`), but no
+   frontend page for it exists in this page set — same scope-confinement precedent as Sprint 2's `/staff`
+   (plan the link, not a destination outside this set's scope).
 
 ---
 

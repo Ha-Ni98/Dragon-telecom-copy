@@ -199,5 +199,4 @@ export const qkLegacy = {
     ["catalog", "admin-products", "search", query, filters] as const,
   ordersAdminList: (query?: unknown) => ["orders", "admin-list", query] as const,
   ordersAdminStats: () => ["orders", "admin-stats"] as const,
-  clientsMyAccount: () => ["clients", "my-account"] as const,
 } as const;

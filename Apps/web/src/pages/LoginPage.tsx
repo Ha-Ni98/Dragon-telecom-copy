@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,6 +139,13 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            {t("auth.login.noAccount")}{" "}
+            <Link to="/register" className="text-primary hover:underline">
+              {t("auth.createAccount")}
+            </Link>
+          </p>
         </div>
       </div>
     </div>

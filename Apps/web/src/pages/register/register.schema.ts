@@ -23,6 +23,10 @@ export function registerSchema(t: ReturnType<typeof useTranslation>["t"]) {
 }
 
 export type RegisterFormValues = z.infer<ReturnType<typeof registerSchema>>;
+// `email`'s `.transform()` makes the schema's input shape (what the form fields/defaultValues
+// use) differ from its output shape (what onSubmit receives) — RHF needs both, via useForm's
+// 3-generic form: useForm<RegisterInput, unknown, RegisterFormValues>().
+export type RegisterInput = z.input<ReturnType<typeof registerSchema>>;
 
 // Compile-time guard — fails to compile if this schema's output drifts from the contract
 // Command (e.g. a renamed/removed contract field).

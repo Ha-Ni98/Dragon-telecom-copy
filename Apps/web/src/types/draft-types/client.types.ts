@@ -38,28 +38,6 @@ export interface RegistrationFormData {
   commune: string;
 }
 
-// Interface for user account data in My Account page
-export interface UserAccountData {
-  idClient: number;
-  clientFirstName: string; // read-only
-  clientLastName: string; // read-only
-  clientEmail: string; // editable
-  clientPhoneNumber: string; // editable
-  clientLocation?: string; // editable (address)
-  clientStatus: ClientStatusCode;
-  idCategory: number;
-  clientCreatedDate: string;
-  clientCredit: number; // red color
-  clientSolde: number; // blue color (balance)
-  clientPaid: number; // green color
-}
-
-// Interface for password reset form data
-export interface PasswordResetData {
-  newPassword: string;
-  confirmPassword: string;
-}
-
 // Enhanced client interface for admin view
 export interface AdminClientWithDetails extends Client {
   totalOrders: number;

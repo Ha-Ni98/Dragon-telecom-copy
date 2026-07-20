@@ -13,9 +13,9 @@ import * as clientsService from "@/services/clients.service";
 import { qk } from "@/lib/query-keys";
 
 // --- Web identity (public + client) ---
-// Names deliberately distinct from the Sub-01 stub hooks (useMyAccount/useRegistration/…) in
-// use-my-account.ts/use-registration.ts — those still serve MyAccount.tsx/Register.tsx until
-// Sub-03 rewires those pages onto these real hooks (integration sprints.md Sprint 4).
+// The Sub-01 stub hooks these once stayed deliberately distinct from (useMyAccount/
+// useRegistration in use-my-account.ts/use-registration.ts) were retired in the pub-pages
+// Sprint 6 rewire — MyAccount.tsx/Register.tsx consume these directly now.
 
 export function useValidatePhone() {
   return useMutation({
