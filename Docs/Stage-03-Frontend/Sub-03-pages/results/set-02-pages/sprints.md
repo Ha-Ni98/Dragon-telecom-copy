@@ -259,40 +259,46 @@ any Wiring.**
 
 ---
 
-### Sprint 6: Wiring — staff & admin cluster (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 6: Wiring — staff & admin cluster (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - STF-01, STF-03, ADM-01 consume the real hooks with **per-widget states off a single aggregate endpoint**
   (plan D10).
 
 **Tasks**
-- [ ] **STF-01 Staff-Dashboard:** wire `useStaffDashboard()` + `usePermissions()`; render each widget's own
+- [x] **STF-01 Staff-Dashboard:** wire `useStaffDashboard()` + `usePermissions()`; render each widget's own
       skeleton off the one query; gate the pending-orders widget on `STAFF_ORDERS` **and** presence of
       `myPendingOrdersCount`; drafts link into POS (`STAFF_POS`, future route — `<Link>` only); **silent-hide
       widgets on error** (layout + sidebar persist). (#wiring)
-- [ ] **STF-03 Staff-Products:** wire `useStaffProducts(query)` (URL-as-state via
+- [x] **STF-03 Staff-Products:** wire `useStaffProducts(query)` (URL-as-state via
       `ProductListQuerySchema.safeParse`), cascade `useCatalogFamilies` / `useCatalogBrands` /
       `useCatalogModels({ brandId })` (**brand change resets `modelId`**), 300 ms debounced search
       (`useDebouncedValue`), `useSendStaffSearch()` beacon on each **executed** search (fire-and-forget,
       `meta.silentErrorToast`, no invalidation); row copies barcode / `<Link>`s to POS. (#wiring)
-- [ ] **ADM-01 Admin-Dashboard:** rewire `AdminDashboard.tsx` off the stub `useDashboardData` onto
+- [x] **ADM-01 Admin-Dashboard:** rewire `AdminDashboard.tsx` off the stub `useDashboardData` onto
       `useAdminDashboard()`; **replace the full-page `if (isLoading) return`** with per-section skeletons;
       add the 4 new widgets; **per-section retry chips** on error; row actions navigate to `/admin/orders`,
       `/admin/clients`, `/admin/products` (existing pages); retire `use-dashboard-data.ts` once orphaned.
       (#wiring)
 
 **Validation**
-- [ ] No `useEffect` fetching; the STF-03 search beacon is the only non-fetch effect (a mutation).
-- [ ] **`tsc --noEmit` clean**; dashboards never blank the layout (per-section skeleton/retry); STF-01
+- [x] No `useEffect` fetching; the STF-03 search beacon is the only non-fetch effect (a mutation) — 3 total
+      `useEffect`s in `StaffProducts.tsx` (2 URL-sync + 1 beacon, same class as Catalog's `Products.tsx`),
+      zero in `StaffDashboard.tsx`/`AdminDashboard.tsx`.
+- [x] **`tsc --noEmit` clean**; dashboards never blank the layout (per-section skeleton/retry); STF-01
       silent-hides on error.
-- [ ] **`useTranslation`:** all copy via `t(...)` (incl. status labels + `%` change).
-- [ ] `vitest run` green.
+- [x] **`useTranslation`:** all copy via `t(...)` (incl. status labels + `%` change).
+- [x] `vitest run` green — 353/353, no regressions.
 
 **Risks**
 - "Widgets load independently" is **one** query (plan D10) — decompose the single result; do not fan out
-  into N queries.
+  into N queries. *(Confirmed — one `useAdminDashboard()`/`useStaffDashboard()` call each, sliced into
+  props.)*
 - STF-03 beacon must fire only on an executed/debounced search (not per keystroke) and never toast on
-  failure.
+  failure. *(Confirmed — fires off `debouncedSearch`, `useSendStaffSearch` carries
+  `meta.silentErrorToast` from Sub-02.)*
+
+**Report:** `report-sprint-06.md`.
 
 ---
 
