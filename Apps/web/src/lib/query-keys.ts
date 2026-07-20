@@ -155,6 +155,7 @@ export const qk = {
     overview: () => ["stats", "overview"] as const,
     filtered: (query?: unknown) => ["stats", "filtered", query] as const,
     chart: (chart: string, query?: unknown) => ["stats", "chart", chart, query] as const,
+    topProducts: (query?: unknown) => ["stats", "top-products", query] as const,
     report: (type: string, query?: unknown) => ["stats", "report", type, query] as const,
   },
   observability: {

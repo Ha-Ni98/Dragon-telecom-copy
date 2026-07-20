@@ -463,36 +463,87 @@ now-standard `use-admin-settings.ts` pass — no purchasing/inventory hits there
 
 ---
 
-### Sprint 7: Statistics & Observability — Status: ⬜ Pending
+### Sprint 7: Statistics & Observability — Status: ✅ Done
 
 **Goals**
 - New `statistics.service.ts` (dashboards/overview/filtered/charts/top-products/report — absorbs `dashboard`/
   `admin-statistics` stubs, §2.8) and `observability.service.ts` (activity beacons/logs — absorbs `admin-logs`, §2.9).
 
+**Scope note (same pattern as Sprints 5-6):** both domains are genuinely new territory — no same-named Sub-01
+stub file exists for either (`dashboard.service.ts`/`admin-statistics.service.ts`/`admin-logs.service.ts` are
+all differently-named), so both are clean new files. Ran the full collision check anyway (including
+`use-admin-settings.ts`, per the standing rule): zero hits against the pre-existing stub hooks
+(`useDashboardStats`/`useDashboardSummary`/`useDashboardData`/`useRefreshDashboardData`/
+`useAdminStatisticsOverview`/`useAdminStatisticsFiltered`/`useAdminStatistics*`/`usePlatformUsers`/
+`useAdminLogs`/`useAdminLogsStats`/`useRefreshAdminLogs`), so all hook names from plan.md §2.8/§2.9 were used
+as-is.
+
 **Tasks**
-- [ ] **Services** `statistics.service.ts` — 7–8 fns; `getReport`/`exportReportCsv` **dual-return (JSON vs Blob)**.
-- [ ] **Services** `observability.service.ts` — beacons (`sendClientActivity`/`sendStaffSearch` → **void, 202+null**),
+- [x] **Services** `statistics.service.ts` — 9 fns; `getReport`/`exportReportCsv` **dual-return (JSON vs Blob)**,
+      same split-function pattern as Sprint 6's `getStock`/`exportStockCsv` (a query hook can only have one
+      result type).
+- [x] **Services** `observability.service.ts` — beacons (`sendClientActivity`/`sendStaffSearch` → **void, 202+null**),
       `getClientActivity`/`listStaffSearches` (arrays), `listLogs` (paginated), `logStats`.
-- [ ] **Hooks** — `qk.stats.*` / `qk.observability.*`; beacons are fire-and-forget mutations with
-      `meta:{silentErrorToast:true}` so a failed beacon never toasts (plan §2.9).
-- [ ] **Fixtures** `statistics.mock.ts` (`AdminDashboard`/`StaffDashboard`/`Overview`/`Filtered`/`Report`) +
-      `observability.mock.ts` (`ClientActivity`/`StaffSearch`/`AuditLog`/`LogStats`).
-- [ ] **MSW** handlers — 2xx each; **activity `.refine()` (`SEARCH`+duration) → 400**; report CSV branch;
-      **beacons use `ok(null, 202)`**, not 204.
-- [ ] **Integration tests** — dual-return report, 202-null beacon returns void, silent-toast beacon, logs pagination.
+- [x] **Hooks** — `useStatistics.ts` (7 query hooks + 1 export mutation) / `useObservability.ts` (2 beacon
+      mutations + 4 query hooks) using `qk.stats.*` / `qk.observability.*` (both already scaffolded in the
+      registry from Sprint 1 — added the one missing `qk.stats.topProducts(query?)` key). Beacons are
+      fire-and-forget mutations with `meta:{silentErrorToast:true}` (real, pre-existing support in
+      `query-client.ts`'s `mutationCache`) so a failed beacon never toasts. No invalidation authored anywhere in
+      either domain — dashboards/stats are read-only by design (no command file at all) and beacons write
+      ephemeral rows nothing here reads back from; both are swept via `qk.stats.all()` from other domains'
+      mutations per plan §3, not from within this sprint.
+- [x] **Fixtures** `statistics.mock.ts` (`AdminDashboard`/`StaffDashboard`/`Overview`/`Filtered`/`Report` all
+      schema-validated; `ChartPoint`/`TopProductDto` as plain typed literals — no contract schema exists for
+      either) + `observability.mock.ts` (`ClientActivity`/`StaffSearch`/`AuditLog`/`LogStats`, all
+      schema-validated).
+- [x] **MSW** handlers — 2xx each; **activity `.refine()` (`SEARCH`+duration) → 400**; report CSV branch (raw
+      `HttpResponse`, envelope bypassed, mirrors platform's `feesExport`); **beacons use `ok(null, 202)`**, not
+      204 (202 is not a WHATWG null-body status, so the envelope survives the wire — confirmed against the real
+      controller).
+- [x] **Integration tests** — 32 new tests: dual-return report (JSON + Blob), 202-null beacon resolves to
+      `undefined`, refine-violation 400, logs pagination, dashboard/overview/filtered/chart/top-products reads,
+      disabled-until-id `useClientActivity` (mirrors `usePlatformDeliveryFee`'s enabled-guard pattern).
+
+**Resolved every plan.md §2.8/§2.9 `*(confirm)*` item by reading the real backend**
+- `CHARTS` returns **`ChartPoint[]`** (`{label,value}[]`), not `ReportDto` as plan.md's placeholder guessed —
+  confirmed against `statistics.interface.ts`'s `getChart` signature. `ChartPoint` has no contract schema of its
+  own; the frontend derives it as `ReportDto["chart"][number]` rather than redeclaring the shape, mirroring how
+  the backend's own mapper extracts it via `ReportResponseSchema.shape.chart`.
+- `TOP_PRODUCTS` has **no contract schema at all** (not even an informal field list) — `Apps/api`'s
+  `statistics.mapper.ts` declares its own local `TopProductResponseSchema`/`TopProductDto`. Mirrored as a plain
+  local TS type in `statistics.service.ts` (same "fill a genuine gap without touching the frozen contract"
+  precedent as orders' `AdminCancelOrderCommand` / platform's `ImportFeesResult`), matching the backend's exact
+  field list (`productId`/`productName`/`brandName`/`familyName`/`quantitySold`/`revenue`/`averagePrice`/
+  `imageUrl?`).
+- `STAFF_SEARCHES` confirmed a **bare array** (`StaffSearchesQuery` carries no `page`/`limit`) — the pagination
+  rule (plan §0.2) applies cleanly, no `*(confirm)*` ambiguity left once the query schema was actually read.
+- Beacons' 202-null envelope behavior confirmed directly against `observability.controller.ts`: `sendSuccess(res,
+  null, 202)` is called, and since 202 (unlike 204/205/304) is not a WHATWG null-body status, the body *does*
+  survive the wire — distinct from Sprint 4's 204 finding, not a repeat of it.
 
 **Validation**
-- [ ] `tsc --noEmit` clean; types from `@dragon-telecom/contract`.
-- [ ] Services unwrap + **throw**; beacons return `void` on 202-null; report handles JSON **and** `Blob`.
-- [ ] Hook shapes correct; beacon hooks suppress error toasts via `meta`.
-- [ ] MSW intercepts; fixtures parse (dashboards validated carefully — most-inferred DTOs).
-- [ ] 200 **and** 4xx/5xx covered; no tests in `/src`.
-- [ ] Committed on green: `fe: integration sprint 7 — statistics & observability`.
+- [x] `tsc --noEmit` clean (`/src` and `/src`+`/tests`) — whole project, zero errors.
+- [x] Services unwrap + **throw**; beacons return `void` on 202-null; `getReport`/`exportReportCsv` are two
+      functions (JSON vs Blob), not one dual-return — cleaner for query-hook typing, same call as Sprint 6.
+- [x] Hook shapes correct; beacon hooks pass `meta:{silentErrorToast:true}`, verified against the real
+      `mutationCache` implementation in `query-client.ts` (pre-existing, not new).
+- [x] MSW intercepts (no `:id`-pattern route-ordering hazard this sprint — `CHARTS`/`REPORT`/`CLIENT_ACTIVITY`
+      each live under their own distinct static path prefix); fixtures parse (`AdminDashboardDto`/
+      `StaffDashboardDto` validated carefully against the schema despite being the contract's own
+      most-heavily-inferred DTOs).
+- [x] 200 **and** 4xx/5xx covered (9+7 service, 8+8 hooks = **32 new tests**, all passing); no test files in
+      `/src`.
+- [x] Full suite: **27/27 files, 238/238 tests passing** (up from 23/23 · 206/206 at Sprint 6 close).
+- [x] Committed on green: `fe: integration sprint 7 — statistics & observability`.
+- [x] Lint: fully clean — all 12 new files are entirely new (no old-stub section to reconstruct around); ran
+      `eslint --fix` scoped to just those 12 paths (confirmed zero errors afterward), leaving the ~10.2k
+      pre-existing prettier-noise elsewhere in the repo untouched.
 
-**Risks**
-- `AdminDashboardDto`/`StaffDashboardDto` are the **most-inferred DTOs** in the contract (author-flagged) —
-  validate against schemas and confirm shapes vs `Apps/api` if fixtures resist (plan §2.8, §6.1).
-- `repairsByStatus` is `Record<string,number>`; `CHARTS`/`TOP_PRODUCTS` DTOs `*(confirm)*`.
+**Risks (resolved)**
+- `AdminDashboardDto`/`StaffDashboardDto` (the contract's own flagged most-inferred DTOs) — both fixtures built
+  via `.parse()` against the real schemas without any adjustment needed; the schemas held up as documented.
+- `repairsByStatus` modelled as `Record<string,number>` per the contract, exercised directly in the dashboard
+  fixture. `CHARTS`/`TOP_PRODUCTS` DTOs — resolved by reading the backend (see above), no `*(confirm)*` left.
 
 ---
 
