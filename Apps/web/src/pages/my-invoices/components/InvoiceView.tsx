@@ -102,26 +102,31 @@ export function InvoiceView({
 
         <Separator className="my-4" />
 
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="pb-2">{t("invoices.detail.lines")}</th>
-              <th className="pb-2 text-right">{t("invoices.detail.quantity")}</th>
-              <th className="pb-2 text-right">{t("invoices.detail.unitPrice")}</th>
-              <th className="pb-2 text-right">{t("invoices.detail.lineTotal")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoice.lines.map((line, i) => (
-              <tr key={i} className="border-t border-border">
-                <td className="py-2">{line.label}</td>
-                <td className="py-2 text-right">{line.quantity}</td>
-                <td className="py-2 text-right">{formatDZD(line.unitPrice)}</td>
-                <td className="py-2 text-right font-medium">{formatDZD(line.lineTotal)}</td>
+        {/* This is a raw <table>, not the shared DataTable (whose mobile answer is a stacked
+            card list) — a snapshot line-items table reads naturally as a real table even on
+            mobile, so it gets a horizontal-scroll container instead (PUB-10, Sprint 7). */}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[420px] text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="pb-2">{t("invoices.detail.lines")}</th>
+                <th className="pb-2 text-right">{t("invoices.detail.quantity")}</th>
+                <th className="pb-2 text-right">{t("invoices.detail.unitPrice")}</th>
+                <th className="pb-2 text-right">{t("invoices.detail.lineTotal")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {invoice.lines.map((line, i) => (
+                <tr key={i} className="border-t border-border">
+                  <td className="py-2">{line.label}</td>
+                  <td className="py-2 text-right">{line.quantity}</td>
+                  <td className="py-2 text-right">{formatDZD(line.unitPrice)}</td>
+                  <td className="py-2 text-right font-medium">{formatDZD(line.lineTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <Separator className="my-4" />
 

@@ -302,32 +302,35 @@ any Wiring.**
 
 ---
 
-### Sprint 7: Polish — responsive, memo/callback, beacons, i18n sweep (Polish) — Status: ⬜ Pending
+### Sprint 7: Polish — responsive, memo/callback, beacons, i18n sweep (Polish) — Status: ✅ Done
 
 **Goals**
 - Mobile-first public (PUB-04/05/09/10) + desktop-first staff/admin (STF/ADM) responsiveness; targeted
   memoization per the plan; a clean i18n / no-inline pass.
 
 **Tasks**
-- [ ] Responsive: cart rows stack on mobile; my-orders cards + filter chips wrap; invoices table
+- [x] Responsive: cart rows stack on mobile; my-orders cards + filter chips wrap; invoices table
       horizontal-scroll on mobile; staff/admin dashboards grid-collapse; `StaffLayout` sidebar →
       drawer/sheet on mobile (desktop-first, best-effort). (#ui)
-- [ ] `useMemo` **only where the plan calls for it:** PUB-09 parsed status filter + derived status counts;
+- [x] `useMemo` **only where the plan calls for it:** PUB-09 parsed status filter + derived status counts;
       STF-03 parsed filter object + derived model options; ADM-01 `repairsByStatus` record → ordered rows.
       `useCallback` for child-passed handlers. (#ui)
-- [ ] STF-03 beacon timing (debounced, fire on executed search); confirm `meta.silentErrorToast` suppresses
+- [x] STF-03 beacon timing (debounced, fire on executed search); confirm `meta.silentErrorToast` suppresses
       failure toasts on both beacons. (#ui)
-- [ ] i18n sweep across all seven pages — no inline strings, keys resolve EN/FR, `ar:""` uniform. (#i18n)
+- [x] i18n sweep across all seven pages — no inline strings, keys resolve EN/FR, `ar:""` uniform. (#i18n)
 
 **Validation**
-- [ ] **`tsc --noEmit` clean**; no over-memoization (clarity over premature optimization, rules §5).
-- [ ] **`useTranslation`:** i18n sweep confirms every string is a key; no inline strings remain.
-- [ ] `PublicLayout` / `StaffLayout` / `AdminLayout` intact across loading/error on every page.
-- [ ] `vitest run` green.
+- [x] **`tsc --noEmit` clean**; no over-memoization (clarity over premature optimization, rules §5).
+- [x] **`useTranslation`:** i18n sweep confirms every string is a key; no inline strings remain (two-pass
+      grep across every set-02-owned file, zero hits).
+- [x] `PublicLayout` / `StaffLayout` / `AdminLayout` intact across loading/error on every page.
+- [x] `vitest run` green — 353/353, no regressions.
 
 **Risks**
 - Admin/staff are desktop-first; mobile is best-effort (horizontal table scroll OK) — don't over-invest in
-  STF-03/ADM-01 mobile.
+  STF-03/ADM-01 mobile. *(Left `MyDraftsList`/admin work-queue rows as-is per this guidance — see report.)*
+
+**Report:** `report-sprint-07.md`.
 
 ---
 

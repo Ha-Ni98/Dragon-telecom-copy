@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { InvoicesTable } from "@/pages/my-invoices/components/InvoicesTable";
 import { SimplePagination } from "@/components/shared/SimplePagination";
@@ -23,21 +23,25 @@ export default function MyInvoices() {
   // plain object literal like this one (no `.parse()` call here to apply the default for us).
   const { data, isLoading, isError, refetch } = useMyInvoices({ page, limit: 20 });
 
-  const handlePageChange = (nextPage: number) => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (nextPage <= 1) next.delete("page");
-        else next.set("page", String(nextPage));
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const handlePageChange = useCallback(
+    (nextPage: number) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (nextPage <= 1) next.delete("page");
+          else next.set("page", String(nextPage));
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
-  const handleRowClick = (invoice: InvoiceDto) => {
-    navigate(`/invoices/${invoice.number}`);
-  };
+  const handleRowClick = useCallback(
+    (invoice: InvoiceDto) => navigate(`/invoices/${invoice.number}`),
+    [navigate],
+  );
 
   return (
     <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">

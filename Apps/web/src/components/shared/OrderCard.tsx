@@ -121,7 +121,7 @@ export function OrderCard({
                 <span className="ml-1">{t(STATUS_LABEL_KEY[order.status])}</span>
               </Badge>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
                 <span>{formatDateTime(order.placedAt)}</span>

@@ -73,18 +73,26 @@ export default function StaffProducts() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
 
-  const handleFamilyChange = (id: string | undefined) =>
-    updateParams({ familyId: id, page: undefined });
-  const handleBrandChange = (id: string | undefined) =>
-    updateParams({ brandId: id, modelId: undefined, page: undefined });
-  const handleModelChange = (id: string | undefined) =>
-    updateParams({ modelId: id, page: undefined });
-  const handleClearFilters = () => {
+  const handleFamilyChange = useCallback(
+    (id: string | undefined) => updateParams({ familyId: id, page: undefined }),
+    [updateParams],
+  );
+  const handleBrandChange = useCallback(
+    (id: string | undefined) => updateParams({ brandId: id, modelId: undefined, page: undefined }),
+    [updateParams],
+  );
+  const handleModelChange = useCallback(
+    (id: string | undefined) => updateParams({ modelId: id, page: undefined }),
+    [updateParams],
+  );
+  const handleClearFilters = useCallback(() => {
     setSearchInput("");
     setSearchParams({}, { replace: true });
-  };
-  const handlePageChange = (page: number) =>
-    updateParams({ page: page <= 1 ? undefined : String(page) });
+  }, [setSearchParams]);
+  const handlePageChange = useCallback(
+    (page: number) => updateParams({ page: page <= 1 ? undefined : String(page) }),
+    [updateParams],
+  );
 
   return (
     <div className="space-y-4">

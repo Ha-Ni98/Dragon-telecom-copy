@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -49,17 +49,20 @@ export default function OrdersPage() {
     return result;
   }, [allOrders]);
 
-  const handleFilterChange = (value: OrderFilterValue) => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (value === "all") next.delete("status");
-        else next.set("status", value);
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const handleFilterChange = useCallback(
+    (value: OrderFilterValue) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value === "all") next.delete("status");
+          else next.set("status", value);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   return (
     <div className="container mx-auto max-w-4xl space-y-6 px-4 py-8">
