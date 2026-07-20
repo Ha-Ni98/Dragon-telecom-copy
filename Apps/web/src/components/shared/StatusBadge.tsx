@@ -1,4 +1,5 @@
 import { useTranslation } from "@/hooks/useTranslation";
+import { InvoiceStatus } from "@dragon-telecom/contract";
 
 export type BadgeTone = "success" | "warning" | "destructive" | "neutral";
 
@@ -40,5 +41,28 @@ export function EnabledBadge({ isEnabled }: { isEnabled: boolean }) {
       tone={isEnabled ? "success" : "neutral"}
       label={isEnabled ? t("common.status.enabled") : t("common.status.disabled")}
     />
+  );
+}
+
+// set-02 PUB-10 — invoices (My-Invoices table + InvoiceView), following the EXTENSION POINT
+// pattern above.
+const INVOICE_STATUS_TONE: Record<InvoiceStatus, BadgeTone> = {
+  [InvoiceStatus.ISSUED]: "warning",
+  [InvoiceStatus.PARTIALLY_PAID]: "warning",
+  [InvoiceStatus.PAID]: "success",
+  [InvoiceStatus.CANCELLED]: "destructive",
+};
+
+const INVOICE_STATUS_LABEL_KEY: Record<InvoiceStatus, string> = {
+  [InvoiceStatus.ISSUED]: "invoices.status.issued",
+  [InvoiceStatus.PARTIALLY_PAID]: "invoices.status.partiallyPaid",
+  [InvoiceStatus.PAID]: "invoices.status.paid",
+  [InvoiceStatus.CANCELLED]: "invoices.status.cancelled",
+};
+
+export function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
+  const { t } = useTranslation();
+  return (
+    <StatusPill tone={INVOICE_STATUS_TONE[status]} label={t(INVOICE_STATUS_LABEL_KEY[status])} />
   );
 }

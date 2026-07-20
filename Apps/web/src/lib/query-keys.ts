@@ -146,6 +146,9 @@ export const qk = {
     // collide every filter variant onto one cache entry (the same class of gap Sprint 5 found
     // for `orders.mine`, caught here at registry-design time instead of via a failing test).
     mine: (query?: unknown) => ["billing", "mine", query] as const,
+    // Distinct from `detail(scope, number)` below — the client-scoped GET has no `scope` (no
+    // client member on BillingScope), so it needs its own key shape rather than a fake scope.
+    mineDetail: (number: string) => ["billing", "mine-detail", number] as const,
     list: (scope: string, query?: unknown) => ["billing", "list", scope, query] as const,
     detail: (scope: string, number: string) => ["billing", "detail", scope, number] as const,
     payments: {

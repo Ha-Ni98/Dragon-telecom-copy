@@ -9733,5 +9733,550 @@
     "en": "Something went wrong while checking which pages you can access.",
     "fr": "Une erreur est survenue lors de la vérification de vos accès.",
     "ar": ""
+  },
+  "cart.pageTitle": {
+    "en": "My Cart",
+    "fr": "Mon Panier",
+    "ar": ""
+  },
+  "cart.subtitle": {
+    "en": "Products you've favorited for quick ordering",
+    "fr": "Produits que vous avez ajoutés en favoris pour commander rapidement",
+    "ar": ""
+  },
+  "cart.emptyBody": {
+    "en": "Browse the catalog and tap the heart on a product to add it here.",
+    "fr": "Parcourez le catalogue et appuyez sur le cœur d'un produit pour l'ajouter ici.",
+    "ar": ""
+  },
+  "cart.errorLoading": {
+    "en": "Couldn't load your favorites",
+    "fr": "Impossible de charger vos favoris",
+    "ar": ""
+  },
+  "cart.errorLoadingBody": {
+    "en": "Something went wrong while fetching your favorites.",
+    "fr": "Une erreur est survenue lors du chargement de vos favoris.",
+    "ar": ""
+  },
+  "cart.priceOnRequest": {
+    "en": "Price on request",
+    "fr": "Prix sur demande",
+    "ar": ""
+  },
+  "cart.remove": {
+    "en": "Remove from favorites",
+    "fr": "Retirer des favoris",
+    "ar": ""
+  },
+  "cart.order": {
+    "en": "Order",
+    "fr": "Commander",
+    "ar": ""
+  },
+  "orderConfirmation.title": {
+    "en": "Order placed!",
+    "fr": "Commande passée !",
+    "ar": ""
+  },
+  "orderConfirmation.subtitle": {
+    "en": "Your order has been received.",
+    "fr": "Votre commande a bien été reçue.",
+    "ar": ""
+  },
+  "orderConfirmation.pendingMessage": {
+    "en": "Your order is pending confirmation — our store will call you at the contact number provided.",
+    "fr": "Votre commande est en attente de confirmation — notre magasin vous appellera au numéro de contact fourni.",
+    "ar": ""
+  },
+  "orderConfirmation.reference": {
+    "en": "Order reference",
+    "fr": "Référence de commande",
+    "ar": ""
+  },
+  "orderConfirmation.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "orderConfirmation.backToCatalog": {
+    "en": "Back to catalog",
+    "fr": "Retour au catalogue",
+    "ar": ""
+  },
+  "orders.packaged": {
+    "en": "Packaged",
+    "fr": "Emballée",
+    "ar": ""
+  },
+  "orders.returned": {
+    "en": "Returned",
+    "fr": "Retournée",
+    "ar": ""
+  },
+  "orders.emptyFiltered": {
+    "en": "No orders match this filter",
+    "fr": "Aucune commande ne correspond à ce filtre",
+    "ar": ""
+  },
+  "orders.errorLoadingBody": {
+    "en": "Something went wrong while fetching your orders.",
+    "fr": "Une erreur est survenue lors du chargement de vos commandes.",
+    "ar": ""
+  },
+  "orders.trackingNumber": {
+    "en": "Tracking Number",
+    "fr": "Numéro de Suivi",
+    "ar": ""
+  },
+  "orders.deliveryCompany": {
+    "en": "Delivery Company",
+    "fr": "Société de Livraison",
+    "ar": ""
+  },
+  "orders.statusTimeline": {
+    "en": "Status Timeline",
+    "fr": "Historique du Statut",
+    "ar": ""
+  },
+  "orders.linkedInvoice": {
+    "en": "View Invoice",
+    "fr": "Voir la Facture",
+    "ar": ""
+  },
+  "orders.pendingOrders": {
+    "en": "Pending Orders",
+    "fr": "Commandes en Attente",
+    "ar": ""
+  },
+  "orders.noPendingOrders": {
+    "en": "No pending orders",
+    "fr": "Aucune commande en attente",
+    "ar": ""
+  },
+  "orders.viewAll": {
+    "en": "View all",
+    "fr": "Voir tout",
+    "ar": ""
+  },
+  "invoices.title": {
+    "en": "My Invoices",
+    "fr": "Mes Factures",
+    "ar": ""
+  },
+  "invoices.subtitle": {
+    "en": "View and download your invoices",
+    "fr": "Consultez et téléchargez vos factures",
+    "ar": ""
+  },
+  "invoices.table.number": {
+    "en": "Invoice #",
+    "fr": "Facture n°",
+    "ar": ""
+  },
+  "invoices.table.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "invoices.table.source": {
+    "en": "Source",
+    "fr": "Source",
+    "ar": ""
+  },
+  "invoices.table.total": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "invoices.source.sale": {
+    "en": "Sale",
+    "fr": "Vente",
+    "ar": ""
+  },
+  "invoices.source.order": {
+    "en": "Order",
+    "fr": "Commande",
+    "ar": ""
+  },
+  "invoices.status.issued": {
+    "en": "Issued",
+    "fr": "Émise",
+    "ar": ""
+  },
+  "invoices.status.partiallyPaid": {
+    "en": "Partially Paid",
+    "fr": "Partiellement Payée",
+    "ar": ""
+  },
+  "invoices.status.paid": {
+    "en": "Paid",
+    "fr": "Payée",
+    "ar": ""
+  },
+  "invoices.status.cancelled": {
+    "en": "Cancelled",
+    "fr": "Annulée",
+    "ar": ""
+  },
+  "invoices.view": {
+    "en": "View",
+    "fr": "Voir",
+    "ar": ""
+  },
+  "invoices.downloadPdf": {
+    "en": "Download PDF",
+    "fr": "Télécharger le PDF",
+    "ar": ""
+  },
+  "invoices.downloading": {
+    "en": "Downloading…",
+    "fr": "Téléchargement…",
+    "ar": ""
+  },
+  "invoices.empty": {
+    "en": "No invoices yet",
+    "fr": "Aucune facture pour l'instant",
+    "ar": ""
+  },
+  "invoices.emptyBody": {
+    "en": "Your invoices will appear here once you have a sale or a completed order.",
+    "fr": "Vos factures apparaîtront ici dès que vous aurez un achat ou une commande finalisée.",
+    "ar": ""
+  },
+  "invoices.errorLoading": {
+    "en": "Couldn't load your invoices",
+    "fr": "Impossible de charger vos factures",
+    "ar": ""
+  },
+  "invoices.errorLoadingBody": {
+    "en": "Something went wrong while fetching your invoices.",
+    "fr": "Une erreur est survenue lors du chargement de vos factures.",
+    "ar": ""
+  },
+  "invoices.notFound": {
+    "en": "Invoice not found",
+    "fr": "Facture introuvable",
+    "ar": ""
+  },
+  "invoices.notFoundBody": {
+    "en": "This invoice number doesn't exist or doesn't belong to your account.",
+    "fr": "Ce numéro de facture n'existe pas ou n'appartient pas à votre compte.",
+    "ar": ""
+  },
+  "invoices.detail.issuedAt": {
+    "en": "Issued on",
+    "fr": "Émise le",
+    "ar": ""
+  },
+  "invoices.detail.dueDate": {
+    "en": "Due date",
+    "fr": "Date d'échéance",
+    "ar": ""
+  },
+  "invoices.detail.billedTo": {
+    "en": "Billed to",
+    "fr": "Facturé à",
+    "ar": ""
+  },
+  "invoices.detail.lines": {
+    "en": "Items",
+    "fr": "Articles",
+    "ar": ""
+  },
+  "invoices.detail.quantity": {
+    "en": "Qty",
+    "fr": "Qté",
+    "ar": ""
+  },
+  "invoices.detail.unitPrice": {
+    "en": "Unit Price",
+    "fr": "Prix Unitaire",
+    "ar": ""
+  },
+  "invoices.detail.lineTotal": {
+    "en": "Line Total",
+    "fr": "Total Ligne",
+    "ar": ""
+  },
+  "invoices.detail.previousCredit": {
+    "en": "Previous Credit",
+    "fr": "Crédit Précédent",
+    "ar": ""
+  },
+  "invoices.detail.newCredit": {
+    "en": "New Credit",
+    "fr": "Nouveau Crédit",
+    "ar": ""
+  },
+  "invoices.backToList": {
+    "en": "Back to invoices",
+    "fr": "Retour aux factures",
+    "ar": ""
+  },
+  "staff.nav.dashboard": {
+    "en": "Dashboard",
+    "fr": "Tableau de bord",
+    "ar": ""
+  },
+  "staff.nav.pos": {
+    "en": "Point of Sale",
+    "fr": "Point de Vente",
+    "ar": ""
+  },
+  "staff.nav.posClients": {
+    "en": "POS Clients",
+    "fr": "Clients POS",
+    "ar": ""
+  },
+  "staff.nav.products": {
+    "en": "Products",
+    "fr": "Produits",
+    "ar": ""
+  },
+  "staff.nav.orders": {
+    "en": "Orders",
+    "fr": "Commandes",
+    "ar": ""
+  },
+  "staff.nav.sales": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "staff.nav.invoices": {
+    "en": "Invoices",
+    "fr": "Factures",
+    "ar": ""
+  },
+  "staff.nav.repairs": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "staff.dashboard.title": {
+    "en": "My Dashboard",
+    "fr": "Mon Tableau de Bord",
+    "ar": ""
+  },
+  "staff.dashboard.subtitle": {
+    "en": "Your sales, drafts, and alerts at a glance",
+    "fr": "Vos ventes, brouillons et alertes en un coup d'œil",
+    "ar": ""
+  },
+  "staff.dashboard.mySalesToday": {
+    "en": "My Sales Today",
+    "fr": "Mes Ventes Aujourd'hui",
+    "ar": ""
+  },
+  "staff.dashboard.myRevenueToday": {
+    "en": "My Revenue Today",
+    "fr": "Mes Revenus Aujourd'hui",
+    "ar": ""
+  },
+  "staff.dashboard.myDrafts": {
+    "en": "My Drafts",
+    "fr": "Mes Brouillons",
+    "ar": ""
+  },
+  "staff.dashboard.draftsEmpty": {
+    "en": "No open drafts",
+    "fr": "Aucun brouillon ouvert",
+    "ar": ""
+  },
+  "staff.dashboard.reference": {
+    "en": "Reference",
+    "fr": "Référence",
+    "ar": ""
+  },
+  "staff.dashboard.age": {
+    "en": "Age",
+    "fr": "Ancienneté",
+    "ar": ""
+  },
+  "staff.dashboard.finishInPos": {
+    "en": "Finish in POS",
+    "fr": "Terminer au POS",
+    "ar": ""
+  },
+  "staff.products.title": {
+    "en": "Products",
+    "fr": "Produits",
+    "ar": ""
+  },
+  "staff.products.subtitle": {
+    "en": "Read-only product lookup",
+    "fr": "Consultation produits en lecture seule",
+    "ar": ""
+  },
+  "staff.products.searchPlaceholder": {
+    "en": "Search by name or barcode…",
+    "fr": "Rechercher par nom ou code-barres…",
+    "ar": ""
+  },
+  "staff.products.filterFamily": {
+    "en": "Family",
+    "fr": "Famille",
+    "ar": ""
+  },
+  "staff.products.filterModel": {
+    "en": "Model",
+    "fr": "Modèle",
+    "ar": ""
+  },
+  "staff.products.allFamilies": {
+    "en": "All Families",
+    "fr": "Toutes les Familles",
+    "ar": ""
+  },
+  "staff.products.allBrands": {
+    "en": "All Brands",
+    "fr": "Toutes les Marques",
+    "ar": ""
+  },
+  "staff.products.allModels": {
+    "en": "All Models",
+    "fr": "Tous les Modèles",
+    "ar": ""
+  },
+  "staff.products.table.barcode": {
+    "en": "Barcode",
+    "fr": "Code-barres",
+    "ar": ""
+  },
+  "staff.products.table.availableQty": {
+    "en": "Available Qty",
+    "fr": "Qté Disponible",
+    "ar": ""
+  },
+  "staff.products.table.defaultPrice": {
+    "en": "Default Price",
+    "fr": "Prix par Défaut",
+    "ar": ""
+  },
+  "staff.products.empty": {
+    "en": "No products found",
+    "fr": "Aucun produit trouvé",
+    "ar": ""
+  },
+  "staff.products.emptyBody": {
+    "en": "Try adjusting your filters.",
+    "fr": "Essayez d'ajuster vos filtres.",
+    "ar": ""
+  },
+  "staff.products.errorLoading": {
+    "en": "Couldn't load products",
+    "fr": "Impossible de charger les produits",
+    "ar": ""
+  },
+  "staff.products.errorLoadingBody": {
+    "en": "Something went wrong while fetching products.",
+    "fr": "Une erreur est survenue lors du chargement des produits.",
+    "ar": ""
+  },
+  "admin.dashboard.pendingRegistrations": {
+    "en": "Pending Registrations",
+    "fr": "Inscriptions en Attente",
+    "ar": ""
+  },
+  "admin.dashboard.noPendingRegistrations": {
+    "en": "No pending registrations",
+    "fr": "Aucune inscription en attente",
+    "ar": ""
+  },
+  "admin.dashboard.repairsByStatus": {
+    "en": "Repairs by Status",
+    "fr": "Réparations par Statut",
+    "ar": ""
+  },
+  "admin.dashboard.draftSalesByStaff": {
+    "en": "Draft Sales by Staff",
+    "fr": "Ventes Brouillons par Employé",
+    "ar": ""
+  },
+  "admin.dashboard.vsPreviousPeriod": {
+    "en": "vs previous period",
+    "fr": "vs période précédente",
+    "ar": ""
+  },
+  "admin.dashboard.staffName": {
+    "en": "Staff",
+    "fr": "Employé",
+    "ar": ""
+  },
+  "admin.dashboard.draftCount": {
+    "en": "Drafts",
+    "fr": "Brouillons",
+    "ar": ""
+  },
+  "admin.dashboard.lowStock.criticalCount": {
+    "en": "{count} Critical",
+    "fr": "{count} Critique",
+    "ar": ""
+  },
+  "admin.dashboard.lowStock.lowCount": {
+    "en": "{count} Low",
+    "fr": "{count} Faible",
+    "ar": ""
+  },
+  "admin.dashboard.lowStock.showingCount": {
+    "en": "Showing {count} products with lowest stock",
+    "fr": "Affichage de {count} produits à stock le plus faible",
+    "ar": ""
+  },
+  "repairs.status.intake": {
+    "en": "Intake",
+    "fr": "Réception",
+    "ar": ""
+  },
+  "repairs.status.processing": {
+    "en": "Processing",
+    "fr": "En Traitement",
+    "ar": ""
+  },
+  "repairs.status.completed": {
+    "en": "Completed",
+    "fr": "Terminée",
+    "ar": ""
+  },
+  "repairs.status.pickedUp": {
+    "en": "Picked Up",
+    "fr": "Récupérée",
+    "ar": ""
+  },
+  "repairs.status.cancelled": {
+    "en": "Cancelled",
+    "fr": "Annulée",
+    "ar": ""
+  },
+  "admin.dashboard.noRepairs": {
+    "en": "No repairs recorded",
+    "fr": "Aucune réparation enregistrée",
+    "ar": ""
+  },
+  "admin.dashboard.noDraftSales": {
+    "en": "No draft sales in progress",
+    "fr": "Aucune vente en brouillon en cours",
+    "ar": ""
+  },
+  "admin.dashboard.retryChip": {
+    "en": "Couldn't load — retry",
+    "fr": "Échec du chargement — réessayer",
+    "ar": ""
+  },
+  "staff.dashboard.draftsEmptyBody": {
+    "en": "Drafts you start in the POS will appear here.",
+    "fr": "Les brouillons que vous commencez au POS apparaîtront ici.",
+    "ar": ""
+  },
+  "staff.products.copyBarcode": {
+    "en": "Copy barcode",
+    "fr": "Copier le code-barres",
+    "ar": ""
+  },
+  "staff.products.jumpToPos": {
+    "en": "Open in POS",
+    "fr": "Ouvrir au POS",
+    "ar": ""
   }
 }
