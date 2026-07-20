@@ -15,12 +15,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShoppingCart, Package, Truck, MapPin } from "lucide-react";
 import { OrderType } from "@dragon-telecom/contract";
-import type { ProductDetailDto, WilayaDto, FeeDto } from "@dragon-telecom/contract";
+import type { ProductWithPricingDto, WilayaDto, FeeDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { orderSchema, type OrderFormValues } from "@/pages/product-detail/order.schema";
@@ -34,7 +40,12 @@ interface DeliveryParams {
 interface ProductOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  product: ProductDetailDto;
+  // set-02 D8: widened from ProductDetailDto — every field this modal reads (id, name,
+  // currentPrice, guestPrice) is on the base ProductWithPricingDto; relatedIds (the one field
+  // ProductDetailDto adds) is never used here. PUB-03's ProductDetails.tsx still passes a
+  // ProductDetailDto (assignable, no change needed there); PUB-04's Cart hands it a
+  // CartItemDto.product, which is exactly a ProductWithPricingDto (Sprint 5).
+  product: ProductWithPricingDto;
   /** Initial quantity, carried over from ProductPricingSection's stepper. */
   quantity: number;
   /** Wilayas (with nested communes) for the cascading selects — parent-owned useWilayas(). */
@@ -162,7 +173,9 @@ export function ProductOrderModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={cn("max-w-2xl min-w-xs w-2xl max-h-[90vh] overflow-y-auto", className)}>
+      <DialogContent
+        className={cn("max-w-2xl min-w-xs w-2xl max-h-[90vh] overflow-y-auto", className)}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <ShoppingCart className="w-5 h-5" />
@@ -232,32 +245,47 @@ export function ProductOrderModal({
               {isAuthenticated && (
                 <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50">
                   <RadioGroupItem value={OrderType.PICKUP} id="pickup" />
-                  <Label htmlFor="pickup" className="flex items-center space-x-3 cursor-pointer flex-1">
+                  <Label
+                    htmlFor="pickup"
+                    className="flex items-center space-x-3 cursor-pointer flex-1"
+                  >
                     <Package className="w-5 h-5 text-primary" />
                     <div>
                       <div className="font-medium">{t("product.pickup")}</div>
-                      <div className="text-sm text-muted-foreground">{t("product.pickupMessage")}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {t("product.pickupMessage")}
+                      </div>
                     </div>
                   </Label>
                 </div>
               )}
               <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50">
                 <RadioGroupItem value={OrderType.DELIVERY_HOME} id="delivery-home" />
-                <Label htmlFor="delivery-home" className="flex items-center space-x-3 cursor-pointer flex-1">
+                <Label
+                  htmlFor="delivery-home"
+                  className="flex items-center space-x-3 cursor-pointer flex-1"
+                >
                   <Truck className="w-5 h-5 text-primary" />
                   <div>
                     <div className="font-medium">{t("product.deliveryToHome")}</div>
-                    <div className="text-sm text-muted-foreground">{t("product.deliveryToHomeDesc")}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {t("product.deliveryToHomeDesc")}
+                    </div>
                   </div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50">
                 <RadioGroupItem value={OrderType.DELIVERY_OFFICE} id="delivery-office" />
-                <Label htmlFor="delivery-office" className="flex items-center space-x-3 cursor-pointer flex-1">
+                <Label
+                  htmlFor="delivery-office"
+                  className="flex items-center space-x-3 cursor-pointer flex-1"
+                >
                   <Truck className="w-5 h-5 text-primary" />
                   <div>
                     <div className="font-medium">{t("product.deliveryToOffice")}</div>
-                    <div className="text-sm text-muted-foreground">{t("product.deliveryToOfficeDesc")}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {t("product.deliveryToOfficeDesc")}
+                    </div>
                   </div>
                 </Label>
               </div>
@@ -285,7 +313,9 @@ export function ProductOrderModal({
                           setValue("delivery.communeId", "");
                         }}
                       >
-                        <SelectTrigger className={cn(errors.delivery?.wilayaId && "border-destructive")}>
+                        <SelectTrigger
+                          className={cn(errors.delivery?.wilayaId && "border-destructive")}
+                        >
                           <SelectValue placeholder={t("product.selectWilaya")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -308,8 +338,14 @@ export function ProductOrderModal({
                     control={control}
                     name="delivery.communeId"
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange} disabled={!watchedWilayaId}>
-                        <SelectTrigger className={cn(errors.delivery?.communeId && "border-destructive")}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={!watchedWilayaId}
+                      >
+                        <SelectTrigger
+                          className={cn(errors.delivery?.communeId && "border-destructive")}
+                        >
                           <SelectValue placeholder={t("product.selectCommune")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -376,7 +412,13 @@ export function ProductOrderModal({
           </div>
 
           <div className="flex space-x-4">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="flex-1">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1"
+            >
               {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isSubmitting} className="flex-1">

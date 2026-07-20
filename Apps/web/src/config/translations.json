@@ -10208,5 +10208,20 @@
     "en": "Drafts",
     "fr": "Brouillons",
     "ar": ""
+  },
+  "admin.dashboard.lowStock.criticalCount": {
+    "en": "{count} Critical",
+    "fr": "{count} Critique",
+    "ar": ""
+  },
+  "admin.dashboard.lowStock.lowCount": {
+    "en": "{count} Low",
+    "fr": "{count} Faible",
+    "ar": ""
+  },
+  "admin.dashboard.lowStock.showingCount": {
+    "en": "Showing {count} products with lowest stock",
+    "fr": "Affichage de {count} produits à stock le plus faible",
+    "ar": ""
   }
 }

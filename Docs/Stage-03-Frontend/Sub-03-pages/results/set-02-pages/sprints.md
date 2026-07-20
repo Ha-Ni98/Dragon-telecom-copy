@@ -134,35 +134,39 @@ any Wiring.**
 
 ---
 
-### Sprint 3: Shared DTO-typed primitives (Primitives & States) — Status: ⬜ Pending
+### Sprint 3: Shared DTO-typed primitives (Primitives & States) — Status: ✅ Done
 
 **Goals**
 - The shared components consumed by this set speak **contract DTOs (uuid ids)** — the prerequisite for all
   wiring (plan D8 + the OrderCard/AdminDashboard retypes).
 
 **Tasks**
-- [ ] `OrderCard` (shared) → retype to `OrderDto` (`id` uuid, `reference`, `status`, `orderType`,
+- [x] `OrderCard` (shared) → retype to `OrderDto` (`id` uuid, `reference`, `status`, `orderType`,
       `productName`, `quantity`, `resolvedPrice`/`unitPrice`, `subtotal`, `deliveryFee`, `totalAmount`,
       `paidAmount`, `wilaya`/`commune`, `deliveryCompany`/`trackingNumber`, `placedAt`, `canBeCancelled`,
       `ageHours`). Drop the numeric-id `OrderWithDetails` draft fields. (#ui)
-- [ ] `CancelOrderDialog` (shared) → keep as a plain confirm (open state + `onConfirm`, no reason field per
+- [x] `CancelOrderDialog` (shared) → keep as a plain confirm (open state + `onConfirm`, no reason field per
       Sprint 1); retype any order prop to `OrderDto`. (#ui)
-- [ ] **D8:** widen `ProductOrderModal`'s `product` prop `ProductDetailDto` → `ProductWithPricingDto` (all
+- [x] **D8:** widen `ProductOrderModal`'s `product` prop `ProductDetailDto` → `ProductWithPricingDto` (all
       fields it reads are on the base); verify PUB-03's existing `ProductDetailDto` call site still compiles
       (assignable — no change there). (#ui)
-- [ ] Retype the 4 reused AdminDashboard section components (`dashboard-stats-section`,
+- [x] Retype the 4 reused AdminDashboard section components (`dashboard-stats-section`,
       `recent-orders-section`, `recent-clients-section`, `low-stock-alert-section`) from draft view-models
       → `AdminDashboardDto` sub-shapes (`stats`, `recentOrders`, `recentClients`, `lowStockProducts`). Keep
       them presentational. (#ui)
 
 **Validation**
-- [ ] **`tsc --noEmit` clean**; no residual `draft-types` imports in the retyped components.
-- [ ] **`useTranslation`:** components stay presentational (no new TanStack hooks); all text via `t(...)`.
-- [ ] `vitest run` green.
+- [x] **`tsc --noEmit` clean**; no residual `draft-types` imports in the retyped components (grep-verified).
+- [x] **`useTranslation`:** components stay presentational (no new TanStack hooks); all text via `t(...)`.
+- [x] `vitest run` green — 353/353, no regressions.
 
 **Risks**
 - `OrderCard`/`CancelOrderDialog` are still consumed by the out-of-set stub `orders-list-section.tsx`
   (numeric ids, `use-orders.ts`) — bridge or flag; don't silently break it (retired in Sprint 5).
+  *(Forked: `orders-list-section.tsx` got its own local `LegacyOrderCard`, since `OrderCard` no longer
+  speaks its shape — see report.)*
+
+**Report:** `report-sprint-03.md`.
 
 ---
 
