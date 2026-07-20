@@ -10223,5 +10223,60 @@
     "en": "Showing {count} products with lowest stock",
     "fr": "Affichage de {count} produits à stock le plus faible",
     "ar": ""
+  },
+  "repairs.status.intake": {
+    "en": "Intake",
+    "fr": "Réception",
+    "ar": ""
+  },
+  "repairs.status.processing": {
+    "en": "Processing",
+    "fr": "En Traitement",
+    "ar": ""
+  },
+  "repairs.status.completed": {
+    "en": "Completed",
+    "fr": "Terminée",
+    "ar": ""
+  },
+  "repairs.status.pickedUp": {
+    "en": "Picked Up",
+    "fr": "Récupérée",
+    "ar": ""
+  },
+  "repairs.status.cancelled": {
+    "en": "Cancelled",
+    "fr": "Annulée",
+    "ar": ""
+  },
+  "admin.dashboard.noRepairs": {
+    "en": "No repairs recorded",
+    "fr": "Aucune réparation enregistrée",
+    "ar": ""
+  },
+  "admin.dashboard.noDraftSales": {
+    "en": "No draft sales in progress",
+    "fr": "Aucune vente en brouillon en cours",
+    "ar": ""
+  },
+  "admin.dashboard.retryChip": {
+    "en": "Couldn't load — retry",
+    "fr": "Échec du chargement — réessayer",
+    "ar": ""
+  },
+  "staff.dashboard.draftsEmptyBody": {
+    "en": "Drafts you start in the POS will appear here.",
+    "fr": "Les brouillons que vous commencez au POS apparaîtront ici.",
+    "ar": ""
+  },
+  "staff.products.copyBarcode": {
+    "en": "Copy barcode",
+    "fr": "Copier le code-barres",
+    "ar": ""
+  },
+  "staff.products.jumpToPos": {
+    "en": "Open in POS",
+    "fr": "Ouvrir au POS",
+    "ar": ""
   }
 }

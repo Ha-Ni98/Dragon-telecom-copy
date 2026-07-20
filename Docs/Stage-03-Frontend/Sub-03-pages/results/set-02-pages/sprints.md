@@ -170,7 +170,7 @@ any Wiring.**
 
 ---
 
-### Sprint 4: Page-local primitives, Skeletons & local fallbacks (Primitives & States) — Status: ⬜ Pending
+### Sprint 4: Page-local primitives, Skeletons & local fallbacks (Primitives & States) — Status: ✅ Done
 
 **Goals**
 - Every page's loading/error/empty **shape-matched** primitives exist as dumb, layout-preserving
@@ -178,37 +178,41 @@ any Wiring.**
   props so the single-query decomposition (plan D10) drops in cleanly in Sprint 6.
 
 **Tasks**
-- [ ] **PUB-04 Cart:** `CartItemRow` (image, name, live price, availability chip, remove-heart, Order
+- [x] **PUB-04 Cart:** `CartItemRow` (image, name, live price, availability chip, remove-heart, Order
       button; **"Price on request" + disabled-Order** variant) + a `CartItemRow` skeleton list; `EmptyState`
       usage. (#ui)
-- [ ] **PUB-05 Order-Confirmation:** `OrderConfirmation` body (success icon, reference, product line, fee,
+- [x] **PUB-05 Order-Confirmation:** `OrderConfirmation` body (success icon, reference, product line, fee,
       total, mode, pending message) — props-driven from an `OrderDto`; the `<Navigate to="/">` direct-nav
       guard scaffold. (#ui)
-- [ ] **PUB-09 My-Orders:** status filter chips + summary count chips (+ skeleton); `OrderCard` skeleton
+- [x] **PUB-09 My-Orders:** status filter chips + summary count chips (+ skeleton); `OrderCard` skeleton
       cards; per-filter `EmptyState`; expandable detail layout (mode, wilaya/commune, tracking, timeline,
       invoice-link placeholder). (#ui)
-- [ ] **PUB-10 My-Invoices:** `MyInvoices` `DataTable` column defs + `TableSkeleton`; `InvoiceView`
+- [x] **PUB-10 My-Invoices:** `MyInvoices` `DataTable` column defs + `TableSkeleton`; `InvoiceView`
       read-only body (header snapshot + `lines[]` table + PDF button) with its own skeleton + local 404
       `NotFoundState`. (#ui)
-- [ ] **STF-01 Staff-Dashboard:** widget shells + skeletons — `MySalesTodayCard` (2 `StatCard`s),
+- [x] **STF-01 Staff-Dashboard:** widget shells + skeletons — `MySalesTodayCard` (2 `StatCard`s),
       `MyDraftsList`, `PendingOrdersWidget`, `LowStockList`; per-widget `StatCardSkeleton`/list skeleton;
       silent-hide-on-error branch scaffold. (#ui)
-- [ ] **STF-03 Staff-Products:** `StaffProductFilters` bar (search + family/brand/model selects) +
+- [x] **STF-03 Staff-Products:** `StaffProductFilters` bar (search + family/brand/model selects) +
       `DataTable` column defs (**no image column**, data-driven category-price columns from
       `categoryPrices[]`); `TableSkeleton`; `EmptyState` + clear-filters. (#ui)
-- [ ] **ADM-01 Admin-Dashboard:** new widget shells + skeletons — `PendingOrdersWidget`,
+- [x] **ADM-01 Admin-Dashboard:** new widget shells + skeletons — `PendingOrdersWidget`,
       `PendingRegistrationsWidget`, `RepairsByStatusWidget`, `DraftSalesByStaffWidget`; a per-section
       **retry-chip** fallback primitive. (#ui)
 
 **Validation**
-- [ ] Each skeleton matches the real content's shape (no CLS on resolve).
-- [ ] **`tsc --noEmit` clean**; **`useTranslation`:** all copy via `t(...)`.
-- [ ] All primitives are dumb (props only, no hooks); layout preserved in every error/empty branch.
-- [ ] `vitest run` green.
+- [x] Each skeleton matches the real content's shape (no CLS on resolve).
+- [x] **`tsc --noEmit` clean**; **`useTranslation`:** all copy via `t(...)`.
+- [x] All primitives are dumb (props only, no hooks); layout preserved in every error/empty branch.
+- [x] `vitest run` green — 353/353, no regressions.
 
 **Risks**
 - Skeleton dimensions drifting from the DTO-driven layout cause CLS — size to real content.
+  *(Sized against the real DTO fields throughout — see report.)*
 - Build dashboard widgets to take `isLoading`/`isError`/`data` props (one shared query in Sprint 6, not N).
+  *(All 4 new ADM-01 widgets + all 3 STF-01 widgets take exactly that shape.)*
+
+**Report:** `report-sprint-04.md`.
 
 ---
 
