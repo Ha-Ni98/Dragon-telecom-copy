@@ -40,4 +40,4 @@ Read and follow strictly:
 - **Sprints:** sprints.md
 - **Rules:** front-end-rules.md , front-end-test-rules.md
 
-Constraints: no inline strings (text via `useTranslation` + `translations.json`); implement Skeleton + localized error states whenever a hook is consumed (layout never crashes); forms use React Hook Form + Zod aligned to `@app-template/contract`. Take the first sprint not ✅, validate (`tsc`, `vitest run`), commit on green, update docs, stop and wait for `next`.
+Constraints: no inline strings (text via `useTranslation` + `translations.json`); implement Skeleton + localized error states whenever a hook is consumed (layout never crashes); forms use React Hook Form + Zod aligned to `@app-template/contract`. Take the first sprint not ✅, validate (`tsc`, `vitest run`), update docs, commit on green, stop and wait for `next`.
