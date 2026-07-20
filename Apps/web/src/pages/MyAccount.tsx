@@ -184,7 +184,9 @@ export default function MyAccount() {
           </div>
 
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2">
+            {/* "Credits & Balance" doesn't fit a 50%-width tab at mobile widths (TabsTrigger is
+                whitespace-nowrap) — stack the two tabs below sm, side-by-side from sm+ up. */}
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2">
               <TabsTrigger value="profile">{t('account.profile')}</TabsTrigger>
               <TabsTrigger value="billing">{t('account.billing')}</TabsTrigger>
             </TabsList>
@@ -193,7 +195,7 @@ export default function MyAccount() {
               <form onSubmit={handleProfileSubmit(onProfileSubmit)}>
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <CardTitle className="flex items-center gap-2">
                           <User className="h-5 w-5" />
@@ -201,7 +203,7 @@ export default function MyAccount() {
                         </CardTitle>
                         <CardDescription>{t('account.personalInfoDesc')}</CardDescription>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {isEditing ? (
                           <>
                             <Button type="button" variant="outline" onClick={handleCancel}>

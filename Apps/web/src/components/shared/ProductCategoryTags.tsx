@@ -96,7 +96,7 @@ export function ProductCategoryTags({
             }
           }}
         >
-          +{remainingCount} more
+          {t('tags.moreCount', { count: remainingCount })}
         </Badge>
       )}
     </div>

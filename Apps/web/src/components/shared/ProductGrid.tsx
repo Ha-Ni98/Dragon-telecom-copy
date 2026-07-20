@@ -10,6 +10,28 @@ import { useTranslation } from '@/hooks/useTranslation';
 import type { ProductWithPricingDto } from '@dragon-telecom/contract';
 import { ProductCard } from './ProductCard';
 
+// Tailwind's JIT scanner only picks up complete, literal class names — `grid-cols-${n}` is
+// never emitted for any `n` because the scanner can't see past the template-literal split.
+// These lookups keep every possible class name literal in the source so the CSS always ships.
+const MOBILE_COLS_CLASS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+};
+const TABLET_COLS_CLASS: Record<number, string> = {
+  1: 'sm:grid-cols-1',
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-3',
+  4: 'sm:grid-cols-4',
+};
+const DESKTOP_COLS_CLASS: Record<number, string> = {
+  1: 'lg:grid-cols-1',
+  2: 'lg:grid-cols-2',
+  3: 'lg:grid-cols-3',
+  4: 'lg:grid-cols-4',
+};
+
 /**
  * ProductGrid component props
  */
@@ -24,10 +46,6 @@ interface ProductGridProps {
   onRetry?: () => void;
   /** Clears active filters — shown as the empty-state action when provided. */
   onClearFilters?: () => void;
-  /** Callback when a product is clicked */
-  onProductClick?: (productId: string) => void;
-  /** Callback when a product is added to cart */
-  onAddToCart?: (productId: string) => void;
   /** Whether to show prices (overrides authentication check) */
   showPrice?: boolean;
   /** Custom className for styling */
@@ -60,8 +78,6 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   error,
   onRetry,
   onClearFilters,
-  onProductClick,
-  onAddToCart,
   showPrice,
   className = '',
   columns = {
@@ -76,7 +92,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   paginationClassName = ''
 }) => {
   const { t } = useTranslation();
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -125,11 +141,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
    * Generate grid column classes based on responsive breakpoints
    */
   const getGridClasses = (): string => {
-    const mobileCols = columns.mobile || 1;
-    const tabletCols = columns.tablet || 2;
-    const desktopCols = columns.desktop || 3;
-    
-    return `grid grid-cols-${mobileCols} sm:grid-cols-${tabletCols} lg:grid-cols-${desktopCols} gap-4 md:gap-6`;
+    const mobileCols = MOBILE_COLS_CLASS[columns.mobile ?? 1] ?? MOBILE_COLS_CLASS[1];
+    const tabletCols = TABLET_COLS_CLASS[columns.tablet ?? 2] ?? TABLET_COLS_CLASS[2];
+    const desktopCols = DESKTOP_COLS_CLASS[columns.desktop ?? 3] ?? DESKTOP_COLS_CLASS[3];
+
+    return `grid ${mobileCols} ${tabletCols} ${desktopCols} gap-4 md:gap-6`;
   };
 
   /**
@@ -219,27 +235,6 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
       </div>
     </div>
   );
-
-  // /**
-  //  * Handle product click
-  //  */
-  // const handleProductClick = (productId: number) => {
-  //   onProductClick?.(productId);
-  // };
-
-  // /**
-  //  * Handle add to cart
-  //  */
-  // const handleAddToCart = ( productId: number) => {
-  //   onAddToCart?.(productId);
-  // };
-
-  // /**
-  //  * Handle add to wishlist
-  //  */
-  // const handleAddToWishlist = (product: ProductWithDetails) => {
-  //   onAddToWishlist?.(product);
-  // };
 
   return (
     <div className="space-y-6">

@@ -32,7 +32,7 @@ export function MoneyStatusCard({ credit, totalPaid, totalSold }: MoneyStatusCar
           <div
             className="text-center p-4 border rounded-lg bg-red-50 dark:bg-red-950/20"
             role="region"
-            aria-label={`Credit: ${credit.toLocaleString()} DA`}
+            aria-label={`${t('account.credit')}: ${credit.toLocaleString()} DA`}
           >
             <div className="text-2xl font-bold text-red-600 dark:text-red-400 mb-1">
               {credit.toLocaleString()} DA
@@ -46,7 +46,7 @@ export function MoneyStatusCard({ credit, totalPaid, totalSold }: MoneyStatusCar
           <div
             className="text-center p-4 border rounded-lg bg-green-50 dark:bg-green-950/20"
             role="region"
-            aria-label={`Total paid: ${totalPaid.toLocaleString()} DA`}
+            aria-label={`${t('account.totalPaid')}: ${totalPaid.toLocaleString()} DA`}
           >
             <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
               {totalPaid.toLocaleString()} DA
@@ -60,7 +60,7 @@ export function MoneyStatusCard({ credit, totalPaid, totalSold }: MoneyStatusCar
           <div
             className="text-center p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20"
             role="region"
-            aria-label={`Total sold: ${totalSold.toLocaleString()} DA`}
+            aria-label={`${t('account.totalSold')}: ${totalSold.toLocaleString()} DA`}
           >
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
               {totalSold.toLocaleString()} DA

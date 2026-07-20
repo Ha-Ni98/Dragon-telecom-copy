@@ -140,6 +140,20 @@ export default function Products() {
     [updateParams],
   );
 
+  const handleInStockChange = useCallback(
+    (inStock: boolean) => {
+      updateParams({ inStock: inStock ? "true" : undefined, page: undefined });
+    },
+    [updateParams],
+  );
+
+  const handleSortChange = useCallback(
+    (sort: string) => {
+      updateParams({ sort: sort === "default" ? undefined : sort, page: undefined });
+    },
+    [updateParams],
+  );
+
   const handleClearFilters = useCallback(() => {
     setSearchInput("");
     setSearchParams({}, { replace: true });
@@ -183,6 +197,10 @@ export default function Products() {
                 onCategoryChange={handleCategoryChange}
                 selectedModel={filters.modelId ?? "all"}
                 onModelChange={handleModelChange}
+                inStock={filters.inStock ?? false}
+                onInStockChange={handleInStockChange}
+                sort={filters.sort ?? "default"}
+                onSortChange={handleSortChange}
                 brands={brands}
                 categories={families}
                 models={models}

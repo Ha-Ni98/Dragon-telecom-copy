@@ -63,8 +63,8 @@ export const ProductListHeader: React.FC<ProductListHeaderProps> = ({
         .replace('{count}', filteredCount.toString())
         .replace('{total}', totalProducts.toString());
     }
-    
-    return `${totalProducts} ${totalProducts === 1 ? 'product' : 'products'} available`;
+
+    return t('products.results.available', { count: totalProducts });
   };
 
   /**
@@ -99,21 +99,21 @@ export const ProductListHeader: React.FC<ProductListHeaderProps> = ({
         {hasActiveFilters && (
           <Badge variant="secondary" className="flex items-center gap-1">
             <Package className="h-3 w-3" />
-            {filteredCount} of {totalProducts}
+            {t('products.stats.filteredOf', { count: filteredCount, total: totalProducts })}
           </Badge>
         )}
-        
+
         {featuredCount && featuredCount > 0 && (
           <Badge variant="default" className="flex items-center gap-1">
             <Star className="h-3 w-3" />
-            {featuredCount} Featured
+            {t('products.stats.featured', { count: featuredCount })}
           </Badge>
         )}
-        
+
         {averageRating && averageRating > 0 && (
           <Badge variant="outline" className="flex items-center gap-1">
             <TrendingUp className="h-3 w-3" />
-            {averageRating.toFixed(1)}★ Avg Rating
+            {averageRating.toFixed(1)}★ {t('products.stats.avgRating')}
           </Badge>
         )}
       </div>

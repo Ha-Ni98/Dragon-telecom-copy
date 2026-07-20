@@ -89,9 +89,9 @@ export function HeroSection() {
               <div className="glass rounded-2xl p-6 animate-float w-[28rem] h-[34rem]">
                 <div className="bg-white rounded-xl p-6 shadow-elegant w-full h-[32rem] flex flex-col">
                   <div className="bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg mb-8 flex items-center justify-center overflow-hidden h-[30rem]">
-                    <img 
-                      src={sparePartsImage} 
-                      alt="Spare Parts"
+                    <img
+                      src={sparePartsImage}
+                      alt={t('hero.sparePartsTitle')}
                       className="w-full h-full object-cover"
                     />
                   </div>

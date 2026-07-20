@@ -121,7 +121,7 @@ export const ProductImageGallery = memo(function ProductImageGallery({
               onClick={() => setIsZoomed(!isZoomed)}
               role="button"
               tabIndex={0}
-              aria-label={`${currentImageAlt}. Click to ${isZoomed ? 'zoom out' : 'zoom in'}`}
+              aria-label={`${currentImageAlt}. ${t(isZoomed ? 'gallery.zoomOut' : 'gallery.zoomIn')}`}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();

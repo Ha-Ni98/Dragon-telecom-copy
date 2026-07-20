@@ -126,7 +126,7 @@ export default function Register() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">{t('register.firstName')}</Label>
                       <Input
@@ -181,7 +181,7 @@ export default function Register() {
                     {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
                     {!errors.phone && phoneConflict && <p className="text-sm text-destructive">{phoneConflict}</p>}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="wilayaId">{t('register.wilaya')}</Label>
                       <Controller

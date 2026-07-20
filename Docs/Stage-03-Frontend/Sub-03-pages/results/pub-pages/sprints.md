@@ -452,27 +452,101 @@ none of which existed before this sprint despite their hooks already being real 
 
 ---
 
-### Sprint 7: Polish — responsive, memo/callback, beacons, i18n sweep (Polish) — Status: ⬜ Pending
+### Sprint 7: Polish — responsive, memo/callback, beacons, i18n sweep (Polish) — Status: ✅ Done
 
 **Goals**
 - Mobile-first public responsiveness, targeted memoization per the plan, and a clean i18n/no-inline pass.
 
 **Tasks**
-- [ ] Responsive: Catalog filters as `drawer`/`sheet` on mobile; grid 1/2/4 cols; Home sections and
+- [x] Responsive: Catalog filters as `drawer`/`sheet` on mobile; grid 1/2/4 cols; Home sections and
       Detail two-column collapse; account tabs stack on mobile. (#ui)
-- [ ] `useMemo` only where the plan calls for it: parsed-filter object (stable query key), derived
+- [x] `useMemo` only where the plan calls for it: parsed-filter object (stable query key), derived
       model/commune options, order running total, bounded `relatedIds`. `useCallback` for child-passed
       handlers. (#ui)
-- [ ] Beacon timing via `useRef(mountTs)` + unmount cleanup; confirm `meta.silentErrorToast` suppresses
+- [x] Beacon timing via `useRef(mountTs)` + unmount cleanup; confirm `meta.silentErrorToast` suppresses
       failure toasts. (#ui)
-- [ ] i18n sweep across all seven pages — no inline strings, keys resolve in EN/FR, `ar:""` uniform. (#i18n)
+- [x] i18n sweep across all seven pages — no inline strings, keys resolve in EN/FR, `ar:""` uniform. (#i18n)
 
 **Validation**
-- [ ] `tsc --noEmit` clean; no over-memoization (clarity over premature optimization, rules §5).
-- [ ] Global `PublicLayout`/`AdminLayout` intact across loading/error on every page.
+- [x] `tsc --noEmit` clean (both configs); no over-memoization (clarity over premature optimization, rules §5).
+- [x] Global `PublicLayout`/`AdminLayout` intact across loading/error on every page (unchanged this sprint).
+- [x] `vitest run` — 299/299 passed, no regressions.
+- [x] `eslint` before/after diff on all 10 touched files — 6 flat or improved; 4 increased
+      (`MoneyStatusCard.tsx` +3, `ProductCategoryTags.tsx` +1, `ProductFilters.tsx` +16,
+      `ProductGrid.tsx` +10), confirmed via rule-class breakdown to be 100% `prettier/prettier`
+      (pre-existing formatting noise), zero new rule violations.
 
 **Risks**
-- Drawer/sheet filter state must stay URL-synced (don't fork state into the drawer).
+- Drawer/sheet filter state must stay URL-synced (don't fork state into the drawer). *(Confirmed: the
+  Sheet has no state of its own beyond open/closed — the same URL-bound props render inline on desktop
+  and inside the Sheet on mobile, one set of controls, two places it renders.)*
+
+**Corrections & real gaps found this sprint (transparently noted, same pattern as Sprints 1–6):**
+1. **`ProductFilters` had no mobile drawer at all** — PUB-02's own UI line is explicit: *"`ProductFilters`
+   (drawer on mobile)"*. It was a plain always-visible block since Sprint 3's retype. Wrapped the same
+   controls in a `Sheet` (shadcn, already used by `PublicHeader`'s mobile nav — matches existing
+   convention) behind a `sm:hidden` trigger button; the identical JSX still renders inline on `sm:`+ so
+   no state was forked between the two surfaces.
+2. **`ProductFilters`/`Products.tsx` never exposed `inStock` or `sort`** — PUB-02's UI line also lists
+   *"in-stock toggle, sort"* alongside the brand/family/model selects that Sprint 3 did retype; both
+   fields exist on `ProductListQuerySchema` (`catalog.query.ts`) but no UI ever surfaced them. Added a
+   `Switch` + a `Select` (backed by the real `ProductSort` enum) and wired both through to the URL the
+   same way every other filter already works (`updateParams`, cleared to `undefined` at the default).
+   **Correction to PUB-02.md's "Family multi-select" wording:** the contract's `familyId` is a single
+   `uuid`, not an array — single-select (the existing, Sprint-3 behavior) is what the contract actually
+   supports; the requirement doc's "multi-select" phrasing doesn't match the schema and the contract wins
+   (source-of-truth ruling, plan.md).
+3. **`ProductGrid`'s responsive columns were built from Tailwind's #1 documented anti-pattern.**
+   `getGridClasses()` built class names via string interpolation — `` `grid-cols-${mobileCols} sm:grid-cols-${tabletCols} lg:grid-cols-${desktopCols}` `` — which Tailwind's JIT content scanner cannot see past
+   (it only recognizes complete literal class tokens in the source text). The specific combinations this
+   page set happens to use were accidentally safe (each literal token already appears elsewhere in the
+   app from unrelated static grids), so nothing visibly broke — but it was one caller change away from
+   silently shipping a grid that never collapses at `sm:`/`lg:`. Replaced with three static
+   number→literal-class lookup tables so every possible class name is guaranteed present in the
+   scanned source, independent of runtime `columns` values. While in the file: removed the two
+   `onProductClick`/`onAddToCart` props (grep-verified zero callers anywhere) and ~20 lines of
+   commented-out dead handlers left over from the Sub-01 template.
+4. **Account tabs ("Profile" / "Credits & Balance") don't actually fit `grid-cols-2` on mobile.**
+   The task bullet's "stack on mobile" was initially assessed as unnecessary (2 short tabs, seemed to
+   fit) — but `account.billing`'s real copy is *"Credits & Balance"* (`"Crédits et Solde"` in FR), and
+   shadcn's `TabsTrigger` is `whitespace-nowrap` by design, so at a 320–375px viewport that label
+   overflows its 50%-width grid cell. Fixed: `grid-cols-1 sm:grid-cols-2` (stacked below `sm`, matching
+   the task's literal wording, which was right — my first read of it wasn't).
+5. **A CardHeader button row on My Account could overflow on mobile.** "Personal Information" +
+   description on the left and two buttons ("Edit" + "Change Password", or "Cancel" + "Save") on the
+   right, all in one non-wrapping `flex justify-between` row — tight-to-broken under ~375px. Changed to
+   `flex-col sm:flex-row` with `flex-wrap` on the button group.
+6. **Register's two 2-column field grids had no mobile breakpoint at all** (`grid-cols-2`, not
+   `grid-cols-1 sm:grid-cols-2` like every other multi-field grid in this page set) — a plain leftover
+   from the Sub-01 template that Sprint 3/6 didn't touch since they only retyped/rewired the form, not
+   its layout. Fixed both (name row, wilaya/commune row) to match the mobile-first convention used
+   everywhere else.
+7. **Five confirmed-reachable hardcoded English strings**, found by tracing every `aria-label`/JSX text
+   node in the seven pages' full component tree back to whether a real caller actually reaches that
+   branch (not just grepping for quotes): `ProductListHeader`'s no-filter results text (`"{n} products
+   available"` — the *default* state of the Catalog page, reachable on every unfiltered visit, not an
+   edge case); `MoneyStatusCard`'s three aria-labels (`` `Credit: ${n} DA` `` etc. — reused the existing
+   `t('account.credit')` etc. labels already rendered as visible text in the same component instead of
+   inventing new keys); `hero-section.tsx`'s `alt="Spare Parts"` (reused `t('hero.sparePartsTitle')`);
+   `ProductImageGallery`'s zoom aria-label (reused the existing `gallery.zoomIn`/`zoomOut` keys already
+   used by the dedicated zoom button two lines away). `ProductListHeader`'s other three inline strings
+   (`"{n} of {n}"`, `"{n} Featured"`, `"Avg Rating"`) and `ProductCategoryTags`' `"+{n} more"` are
+   currently unreachable with this page set's real callers (no caller passes `featuredCount`/
+   `averageRating`, and the only `ProductCategoryTags` caller never exceeds `maxDisplay`) — fixed anyway
+   since they're inline in components this sprint already touched and cheap to close out now rather than
+   leave as latent gaps for the next caller.
+8. **`RelatedProductsStrip`'s `boundedIds` was *not* wrapped in the `useMemo` the plan named.** The
+   plan's task list explicitly says "bounded `relatedIds`" — but the real implementation is a single
+   `.slice(0, 4)` on an already-short array, re-run only when `RelatedProductsStrip` itself re-renders
+   (i.e., when `relatedIds` — its own prop — changes). Memoizing a cheaper operation than the memo's own
+   comparison would be the over-memoization the validation checklist explicitly warns against (rules
+   §5) — left as a plain slice, this is a correction to the plan, not a gap.
+9. **No browser available in this session to visually verify the new mobile Sheet/Switch/Select
+   controls.** Validation for this sprint is `tsc`/`vitest`/`eslint` plus a structural JSX read-through
+   (Sheet open-state wiring, prop threading Products.tsx → ProductFilters, URL round-trip via the same
+   `updateParams` helper every other filter already uses) — not an actual rendered-viewport check. Flagging
+   this explicitly per the project's own rule: type/test checks verify correctness, not that it *looks*
+   right at 375px.
 
 ---
 

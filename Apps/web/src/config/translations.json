@@ -6749,6 +6749,26 @@
     "fr": "Aucun produit trouvé correspondant à vos critères",
     "ar": ""
   },
+  "products.results.available": {
+    "en": "{count} products available",
+    "fr": "{count} produits disponibles",
+    "ar": ""
+  },
+  "products.stats.filteredOf": {
+    "en": "{count} of {total}",
+    "fr": "{count} sur {total}",
+    "ar": ""
+  },
+  "products.stats.featured": {
+    "en": "{count} Featured",
+    "fr": "{count} en vedette",
+    "ar": ""
+  },
+  "products.stats.avgRating": {
+    "en": "Avg Rating",
+    "fr": "Note moyenne",
+    "ar": ""
+  },
   "products.reviews": {
     "en": "reviews",
     "fr": "avis",
@@ -7012,6 +7032,11 @@
   "tags.showMore": {
     "en": "Show {count} more categories",
     "fr": "Afficher {count} catégories supplémentaires",
+    "ar": ""
+  },
+  "tags.moreCount": {
+    "en": "+{count} more",
+    "fr": "+{count} de plus",
     "ar": ""
   },
   "wishlist.accessDenied": {
@@ -7352,6 +7377,56 @@
   "products.filters.clearToSeeAll": {
     "en": "Clear filters to see all products.",
     "fr": "Effacez les filtres pour voir tous les produits.",
+    "ar": ""
+  },
+  "products.filters.inStock": {
+    "en": "In stock only",
+    "fr": "En stock uniquement",
+    "ar": ""
+  },
+  "products.filters.removeInStock": {
+    "en": "Remove in-stock filter",
+    "fr": "Supprimer le filtre en stock",
+    "ar": ""
+  },
+  "products.filters.sort": {
+    "en": "Sort by",
+    "fr": "Trier par",
+    "ar": ""
+  },
+  "products.filters.sortDefault": {
+    "en": "Default",
+    "fr": "Par défaut",
+    "ar": ""
+  },
+  "products.filters.sortNewest": {
+    "en": "Newest",
+    "fr": "Plus récent",
+    "ar": ""
+  },
+  "products.filters.sortPriceAsc": {
+    "en": "Price: Low to High",
+    "fr": "Prix croissant",
+    "ar": ""
+  },
+  "products.filters.sortPriceDesc": {
+    "en": "Price: High to Low",
+    "fr": "Prix décroissant",
+    "ar": ""
+  },
+  "products.filters.sortName": {
+    "en": "Name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "products.filters.removeSort": {
+    "en": "Remove sort",
+    "fr": "Supprimer le tri",
+    "ar": ""
+  },
+  "products.filters.openFilters": {
+    "en": "Open filters",
+    "fr": "Ouvrir les filtres",
     "ar": ""
   },
   "products.errorLoading": {
