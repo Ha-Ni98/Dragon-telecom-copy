@@ -334,50 +334,56 @@ any Wiring.**
 
 ---
 
-### Sprint 8: Unit tests — pages, forms, guards (Tests) — Status: ⬜ Pending
+### Sprint 8: Unit tests — pages, forms, guards (Tests) — Status: ✅ Done
 
 **Goals**
 - `/tests/unit/pages/**` covers each page's reaction to `isLoading`/`isError`/`isSuccess`/empty, with
   **hooks mocked** (no MSW) and `useTranslation` mocked.
 
 **Tasks**
-- [ ] `pages/cart/cart.test.tsx` — mock `useClientCart`/`useRemoveFromCart`/`usePlaceOrder`/`useWilayas`/
+- [x] `pages/cart/cart.test.tsx` — mock `useClientCart`/`useRemoveFromCart`/`usePlaceOrder`/`useWilayas`/
       `usePlatformDeliveryFee`: skeleton / empty / error; priced row opens the modal; `priceHidden` row
       **disables Order**; remove calls the hook with `productId`; submit → `/order-confirmation` (assert via
       a `LocationProbe`, not a mocked `useNavigate`). (#testing)
-- [ ] `pages/order-confirmation/order-confirmation.test.tsx` — render with/without `state.order` (a
+- [x] `pages/order-confirmation/order-confirmation.test.tsx` — render with/without `state.order` (a
       `OrderResponseSchema.parse(...)` fixture): fields render; client-only link present only for a CLIENT
       session; **no-state → redirect to `/`** (LocationProbe). (#testing)
-- [ ] `pages/my-orders/my-orders.test.tsx` — mock `useMyOrders`/`useCancelMyOrder` + real `useSearchParams`:
+- [x] `pages/my-orders/my-orders.test.tsx` — mock `useMyOrders`/`useCancelMyOrder` + real `useSearchParams`:
       skeleton cards; filter → `?status=`; **counts from the unfiltered mock**; Cancel shown only when
       `canBeCancelled`; confirm calls `useCancelMyOrder(id)`; per-filter empty. (#testing)
-- [ ] `pages/my-invoices/my-invoices.test.tsx` — mock `useMyInvoices`/`useMyInvoice`/`useMyInvoicePdf`:
+- [x] `pages/my-invoices/my-invoices.test.tsx` — mock `useMyInvoices`/`useMyInvoice`/`useMyInvoicePdf`:
       `TableSkeleton`; rows (number/date/source/total/paid/status); empty; row → `InvoiceView` from
       `lines[]`; foreign number → local 404; PDF button calls the hook. (#testing)
-- [ ] `pages/staff-dashboard/staff-dashboard.test.tsx` — mock `useStaffDashboard`/`usePermissions`:
+- [x] `pages/staff-dashboard/staff-dashboard.test.tsx` — mock `useStaffDashboard`/`usePermissions`:
       per-section skeletons (no full-page blank); widgets render; **pending-orders widget hidden without
       `STAFF_ORDERS`**, shown with it; error → widgets hidden, layout intact. (#testing)
-- [ ] `pages/staff-products/staff-products.test.tsx` — mock `useStaffProducts` + taxonomy +
+- [x] `pages/staff-products/staff-products.test.tsx` — mock `useStaffProducts` + taxonomy +
       `useSendStaffSearch` + real `useSearchParams`: `TableSkeleton`; columns incl. one per `categoryPrices`
       entry and **no image cell**; filter → URL; **brand change clears `modelId`**; executed search fires
       the beacon with `{ query }`; empty + reset. (#testing)
-- [ ] `pages/admin-dashboard/admin-dashboard.test.tsx` — mock `useAdminDashboard`: per-section skeletons (no
+- [x] `pages/admin-dashboard/admin-dashboard.test.tsx` — mock `useAdminDashboard`: per-section skeletons (no
       full-page blank); all widgets + `%` change; error → **per-section retry chips** (layout intact);
       pending-order row → `/admin/orders` (LocationProbe). (#testing)
 
 **Validation**
-- [ ] `vitest run` green (new specs added); assertions on DOM/behavior (roles/labels/text/`href`/`data-*`),
-      not internal state.
-- [ ] **`useTranslation` mocked** (`t: (k) => k`); no real translated strings asserted; **no tests in
+- [x] `vitest run` green (new specs added) — 393/393 (353 + 40 new), 51/51 files; assertions on DOM/behavior
+      (roles/labels/text/`href`/`data-*`), not internal state.
+- [x] **`useTranslation` mocked** (`t: (k) => k`); no real translated strings asserted; **no tests in
       `/src`**; files named `*.test.tsx`.
-- [ ] **`tsc --noEmit` clean**; typed fixtures from `/tests/fixtures/data` (envelope-validated via
-      `Schema.parse`); no `as any` (use the codebase's `as never` mock-return precedent).
+- [x] **`tsc --noEmit` clean**; typed fixtures from `/tests/fixtures/data` (envelope-validated via
+      `Schema.parse`) — all reused from Sub-02's own pre-built fixtures, zero new ones needed; no `as any`
+      anywhere (grep-confirmed).
 
 **Risks**
 - New fixtures (`OrderDto`, `CartItemDto`, `InvoiceDto`, `StaffDashboardDto`, `AdminDashboardDto`,
   `StaffProductDto`) must be `ResponseSchema.parse(...)` so DTO drift fails the fixture, not a silent green.
+  *(None were new — Sub-02 had already built every one of these ahead of any consuming UI; one existing
+  fixture, `mockAdminDashboard.repairsByStatus`, had placeholder keys that predated the real `RepairStatus`
+  enum and was corrected — see report.)*
 - Navigation assertions use a `LocationProbe` on the target route (set-01 precedent), not a mocked
-  `useNavigate`.
+  `useNavigate`. *(Used throughout — Cart submit, ADM-01 pending-order row, My-Invoices row click.)*
+
+**Report:** `report-sprint-08.md`.
 
 ---
 

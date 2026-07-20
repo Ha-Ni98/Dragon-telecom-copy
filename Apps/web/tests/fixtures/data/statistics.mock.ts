@@ -108,7 +108,12 @@ export const mockAdminDashboard: AdminDashboardDto = AdminDashboardResponseSchem
       reorderThreshold: 5,
     },
   ],
-  repairsByStatus: { PENDING: 3, IN_PROGRESS: 2, COMPLETED: 10 },
+  // Keys are real RepairStatus values (repairs.enums.ts: INTAKE/PROCESSING/COMPLETED/
+  // PICKED_UP/CANCELLED) — the schema itself only requires z.record(z.string(), z.number())
+  // so it can't catch a wrong key; PENDING/IN_PROGRESS (this fixture's values pre-set-02) were
+  // never real RepairStatus members, corrected once set-02's RepairsByStatusWidget became the
+  // first real consumer.
+  repairsByStatus: { INTAKE: 3, PROCESSING: 2, COMPLETED: 10 },
   draftSalesByStaff: [
     { staffId: "20000000-0000-4000-8000-000000000003", staffName: "Sara Haddad", draftCount: 2 },
   ],
