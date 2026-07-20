@@ -12023,5 +12023,10 @@
     "en": "in stock",
     "fr": "en stock",
     "ar": ""
+  },
+  "common.actions.save": {
+    "en": "Save",
+    "fr": "Enregistrer",
+    "ar": ""
   }
 }

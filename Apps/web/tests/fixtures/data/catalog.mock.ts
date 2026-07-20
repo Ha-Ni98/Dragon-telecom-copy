@@ -150,6 +150,9 @@ export const mockAdminProduct: AdminProductDto = AdminProductResponseSchema.pars
   categoryPrices: [
     { categoryId: mockClientCategory.id, categoryName: mockClientCategory.name, price: 4200 },
   ],
+  // set-03 Sprint 5 finding — AdminProductDto now carries images too (mirrors
+  // mockProductWithPricing's, the public DTO that already had them).
+  images: mockProductWithPricing.images,
   createdAt: "2026-01-02T00:00:00.000Z",
   quantityOnHand: 10,
   quantityReserved: 2,

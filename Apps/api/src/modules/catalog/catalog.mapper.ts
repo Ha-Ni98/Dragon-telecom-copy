@@ -134,6 +134,7 @@ export class CatalogMapper {
         ? { defaultSalePrice: CatalogMapper.toMoney(product.defaultSalePrice) }
         : {}),
       categoryPrices,
+      images: product.images.map((image) => CatalogMapper.toProductImageDto(image)),
       createdAt: product.createdAt.toISOString(),
       quantityOnHand: product.quantityOnHand,
       quantityReserved: product.quantityReserved,

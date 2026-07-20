@@ -122,21 +122,23 @@ Each sprint's **Validation** block repeats these; only sprint-specific extras ar
 
 ---
 
-### Sprint 5: Wiring — Products trio (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 5: Wiring — Products trio (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - ADM-02/03/04 fully wired onto real catalog hooks; Sub-01 stub imports deleted.
 
 **Tasks**
-- [ ] ADM-02: `useAdminCatalogProducts`, `useProductStats`, `useUpdateProduct` (optimistic publish/enable toggles + rollback), taxonomy filter hooks; row Edit → `<Link>` to `/admin/products/:id`. Remove `use-admin-products` imports. (#wiring)
-- [ ] ADM-03: `useCatalogFamilies/Brands/Models(brandId)`, `useCatalogClientCategories`, inline-create `useCreateCatalogFamily/Brand/Model`, submit `useCreateProduct` (multipart); refines from `CreateProductCommand`; SKU/barcode uniqueness → field errors; success → navigate to new product. Wire `use-product-name-generation`. (#wiring #forms)
-- [ ] ADM-04: `useAdminCatalogProduct(id)`, edit-mode `useUpdateProduct` (details) + `useUpdatePricing` (pricing, reads new `categoryPrices` from A1), images `useAddProductImages`/`useUpdateProductImages`; tabs → `useMovements({productId})` + supply/sales-history wrappers (A4). Remove `use-admin-product-information`/`use-product-pricing` stub imports. (#wiring)
+- [x] ADM-02: `useAdminCatalogProducts`, `useProductStats`, `useUpdateProduct` (optimistic publish/enable toggles + rollback), taxonomy filter hooks; row Edit → `<Link>` to `/admin/products/:id`. Remove `use-admin-products` imports. (#wiring)
+- [x] ADM-03: `useCatalogFamilies/Brands/Models(brandId)`, `useCatalogClientCategories`, inline-create `useCreateCatalogFamily/Brand/Model`, submit `useCreateProduct` (multipart); refines from `CreateProductCommand`; SKU/barcode uniqueness → field errors; success → navigate to new product. **`use-product-name-generation` deleted, not wired** — a fake stub simulating a network call for plain string concatenation; inlined the real logic instead. (#wiring #forms)
+- [x] ADM-04: `useAdminCatalogProduct(id)`, edit-mode `useUpdateProduct` (details) + `useUpdatePricing` (pricing, reads new `categoryPrices` from A1), images `useAddProductImages`/`useUpdateProductImages`; tabs → `useMovements({productId})` + supply/sales-history wrappers (A4). Remove `use-admin-product-information`/`use-product-pricing` stub imports. **New contract fix found mid-sprint:** `AdminProductDto` also had no `images` field (only the public DTO did) — fixed the same way as A1 (see report). (#wiring)
 
 **Validation**
-- [ ] Global gates. Extra: no `use-admin-*` stub imports remain in products pages; pricing card renders category prices (proves A1 end-to-end); toggles roll back on error.
+- [x] Global gates. Extra: no `use-admin-*` stub imports remain in products pages (grep-verified); pricing card renders category prices (proves A1 end-to-end); toggles roll back on error (local-state rollback, not cache surgery).
 
 **Risks**
 - Stub→real DTO id switch (numeric→uuid) rippling through props; multipart submit wiring.
+
+**Report:** [report-sprint-05.md](./report-sprint-05.md)
 
 ---
 
