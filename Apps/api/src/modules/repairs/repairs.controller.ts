@@ -25,6 +25,17 @@ export class RepairsController {
     }
   };
 
+  // Serves both STAFF_BY_ID and ADMIN_BY_ID (set-03 B1).
+  getRepair = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as RepairIdParams;
+      const result = await this.service.getRepair(id, req.user!);
+      sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   // Serves both STAFF_CREATE and ADMIN_CREATE.
   createRepair = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

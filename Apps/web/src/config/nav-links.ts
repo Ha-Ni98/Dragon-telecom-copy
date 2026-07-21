@@ -10,6 +10,8 @@ import {
   ClipboardList,
   Receipt,
   Wrench,
+  CreditCard,
+  FileSpreadsheet,
   type LucideIcon,
 } from "lucide-react";
 import { PageKey } from "@dragon-telecom/contract";
@@ -38,10 +40,14 @@ export function isNavGroup(item: AdminNavItem): item is NavGroup {
 // declares the intended paths the ported pages/admin/<feature>/ pages will mount at.
 export const ADMIN_NAV_LINKS: AdminNavItem[] = [
   { to: "/admin", labelKey: "admin.nav.dashboard", icon: LayoutDashboard },
+  { to: "/admin/pos", labelKey: "admin.nav.pos", icon: CreditCard },
   { to: "/admin/products", labelKey: "admin.nav.products", icon: Package },
   { to: "/admin/clients", labelKey: "admin.nav.clients", icon: Users },
   { to: "/admin/suppliers", labelKey: "admin.nav.suppliers", icon: Truck },
   { to: "/admin/orders", labelKey: "admin.nav.orders", icon: ShoppingCart },
+  { to: "/admin/sales", labelKey: "admin.nav.sales", icon: Receipt },
+  { to: "/admin/invoices", labelKey: "admin.nav.invoices", icon: FileSpreadsheet },
+  { to: "/admin/repairs", labelKey: "admin.nav.repairs", icon: Wrench },
   { to: "/admin/statistics", labelKey: "admin.nav.statistics", icon: BarChart3 },
   { to: "/admin/logs", labelKey: "admin.nav.logs", icon: FileText },
   { to: "/admin/settings", labelKey: "admin.nav.settings", icon: Settings },

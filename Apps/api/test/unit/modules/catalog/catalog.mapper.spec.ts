@@ -223,6 +223,7 @@ describe('CatalogMapper', () => {
           averageCost: new Prisma.Decimal(3500),
           isPublished: true,
         }),
+        [],
       );
       expect(dto.quantityOnHand).toBe(20);
       expect(dto.quantityReserved).toBe(5);
@@ -234,6 +235,7 @@ describe('CatalogMapper', () => {
     it('derives stockStatus: out_of_stock when available <= 0', () => {
       const dto = CatalogMapper.toAdminProductDto(
         buildProduct({ quantityOnHand: 5, quantityReserved: 5, reorderThreshold: 2 }),
+        [],
       );
       expect(dto.stockStatus).toBe(StockStatus.OUT_OF_STOCK);
     });
@@ -241,6 +243,7 @@ describe('CatalogMapper', () => {
     it('derives stockStatus: low_stock when available <= reorderThreshold', () => {
       const dto = CatalogMapper.toAdminProductDto(
         buildProduct({ quantityOnHand: 10, quantityReserved: 8, reorderThreshold: 5 }),
+        [],
       );
       expect(dto.stockStatus).toBe(StockStatus.LOW_STOCK);
     });
@@ -248,13 +251,24 @@ describe('CatalogMapper', () => {
     it('derives stockStatus: in_stock when available > reorderThreshold', () => {
       const dto = CatalogMapper.toAdminProductDto(
         buildProduct({ quantityOnHand: 50, quantityReserved: 5, reorderThreshold: 5 }),
+        [],
       );
       expect(dto.stockStatus).toBe(StockStatus.IN_STOCK);
+    });
+
+    it('passes categoryPrices through unchanged (set-03 A1)', () => {
+      const dto = CatalogMapper.toAdminProductDto(buildProduct({}), [
+        { categoryId: '99999999-9999-4999-8999-999999999999', categoryName: 'Wholesale', price: 850 },
+      ]);
+      expect(dto.categoryPrices).toEqual([
+        { categoryId: '99999999-9999-4999-8999-999999999999', categoryName: 'Wholesale', price: 850 },
+      ]);
     });
 
     it('converts Decimal-typed money to number', () => {
       const dto = CatalogMapper.toAdminProductDto(
         buildProduct({ guestPrice: new Prisma.Decimal(1200), defaultSalePrice: new Prisma.Decimal(1500) }),
+        [],
       );
       expect(dto.guestPrice).toBe(1200);
       expect(dto.defaultSalePrice).toBe(1500);

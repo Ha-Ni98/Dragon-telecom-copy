@@ -1,247 +1,214 @@
-/**
- * Admin Products Page Component
- * Main page component that orchestrates all admin products functionality
- * Integrates statistics cards, filters, and products table
- */
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Plus } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SimplePagination } from "@/components/shared/SimplePagination";
+import { Button } from "@/components/ui/button";
+import { AdminProductsStatsCards } from "@/pages/admin/products/components/admin-products-stats-cards";
+import { AdminProductsFilters } from "@/pages/admin/products/components/admin-products-filters";
+import { AdminProductsTable } from "@/pages/admin/products/components/admin-products-table";
+import {
+  useAdminCatalogProducts,
+  useProductStats,
+  useUpdateProduct,
+} from "@/hooks/useCatalogProducts";
+import { useCatalogFamilies, useCatalogBrands, useCatalogModels } from "@/hooks/useCatalogTaxonomy";
+import { useSendStaffSearch } from "@/hooks/useObservability";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useTranslation } from "@/hooks/useTranslation";
+import {
+  ProductListQuerySchema,
+  StockStatus,
+  type ProductListQuery,
+  type AdminProductDto,
+} from "@dragon-telecom/contract";
 
-import { useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ErrorBoundary } from '@/components/error-boundary';
-import { AdminProductsStatsCards } from '@/pages/admin/products/components/admin-products-stats-cards';
-import { AdminProductsFiltersSection } from '@/pages/admin/products/components/admin-products-filters-section';
-import { AdminProductsTable } from '@/pages/admin/products/components/admin-products-table';
-import { AdminProductsSupplyDialog } from '@/pages/admin/products/components/admin-products-supply-dialog';
-import { useAdminProducts, useAdminProductsStats, useRefreshAdminProducts, useDeleteAdminProduct, useAddAdminProductSupply } from '@/hooks/use-admin-products';
-import { AdminProductsFilters } from '@/types/draft-types/admin.types';
-import { SupplyFormData } from '@/types/draft-types/admin-supply.types';
-import { useTranslation } from '@/hooks/useTranslation';
-import { toast } from 'sonner';
-
-/**
- * Admin Products Page Component
- * Integrates all admin products components with proper data flow and state management
- */
+// ADM-02 — set-03 Sprint 5 rewire (was numeric-id use-admin-products stub hooks + a delete/
+// add-stock flow that isn't in the spec: "No stock entry here — stock arrives only via
+// supplier invoices (ADM-08) or adjustments (ADM-06)"). URL-as-state mirrors
+// StaffProducts.tsx's precedent (set-02); the admin search also fires the STAFF_SEARCH beacon
+// (ADM-02 §Interactions: "admin searches are audited too").
 export default function AdminProducts() {
-  const navigate = useNavigate();
   const { t } = useTranslation();
-  
-  // Filter state with comprehensive initialization
-  const [filters, setFilters] = useState<AdminProductsFilters>({
-    searchQuery: '',
-    page: 1,
-    limit: 20,
-    familyId: undefined,
-    brandId: undefined,
-    modelId: undefined
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const filters: ProductListQuery = useMemo(() => {
+    const raw = Object.fromEntries(searchParams.entries());
+    const parsed = ProductListQuerySchema.safeParse(raw);
+    return parsed.success ? parsed.data : { page: 1, limit: 20 };
+  }, [searchParams]);
+
+  const updateParams = useCallback(
+    (patch: Record<string, string | undefined>) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          for (const [key, value] of Object.entries(patch)) {
+            if (value === undefined || value === "") next.delete(key);
+            else next.set(key, value);
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const [searchInput, setSearchInput] = useState(filters.search ?? "");
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
+  useEffect(() => {
+    if (debouncedSearch !== (filters.search ?? "")) {
+      updateParams({ search: debouncedSearch || undefined, page: undefined });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+  useEffect(() => {
+    setSearchInput(filters.search ?? "");
+  }, [filters.search]);
+
+  const sendStaffSearch = useSendStaffSearch();
+  useEffect(() => {
+    if (debouncedSearch.trim()) sendStaffSearch.mutate({ query: debouncedSearch.trim() });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  // Client-side only — ProductListQuery has no stockStatus param (just a boolean inStock).
+  const [stockStatus, setStockStatus] = useState<StockStatus | undefined>();
+
+  const {
+    data: productsResult,
+    isLoading: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts,
+  } = useAdminCatalogProducts(filters);
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = useProductStats();
+  const { data: families } = useCatalogFamilies({}, true);
+  const { data: brands } = useCatalogBrands(true);
+  const { data: models } = useCatalogModels({ brandId: filters.brandId }, true, {
+    enabled: !!filters.brandId,
   });
 
-  // Supply dialog state
-  const [supplyDialogOpen, setSupplyDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<{
-    id: number;
-    name: string;
-    stock: number;
-  } | null>(null);
+  const products = useMemo(() => {
+    const items = productsResult?.items ?? [];
+    return stockStatus ? items.filter((p) => p.stockStatus === stockStatus) : items;
+  }, [productsResult, stockStatus]);
 
-  // Data fetching hooks
-  const { 
-    data: productsData, 
-    isLoading: productsLoading, 
-    error: productsError,
-    refetch: refetchProducts 
-  } = useAdminProducts(filters);
-  
-  const { 
-    data: statsData, 
-    isLoading: statsLoading, 
-    error: statsError,
-    refetch: refetchStats 
-  } = useAdminProductsStats();
-
-  // Refresh functionality
-  const { refreshAll } = useRefreshAdminProducts();
-
-  // Delete mutation
-  const deleteProductMutation = useDeleteAdminProduct();
-
-  // Supply (add stock) mutation
-  const addSupplyMutation = useAddAdminProductSupply();
-
-  /**
-   * Handle filter changes with proper state coordination
-   */
-  const handleFiltersChange = useCallback((newFilters: AdminProductsFilters) => {
-    setFilters(prevFilters => ({
-      ...prevFilters,
-      ...newFilters,
-      page: 1 // Reset to first page when filters change
-    }));
-  }, []);
-
-  /**
-   * Handle page changes
-   */
-  const handlePageChange = useCallback((page: number) => {
-    setFilters(prevFilters => ({
-      ...prevFilters,
-      page
-    }));
-  }, []);
-
-  /**
-   * Handle edit action
-   */
-  const handleEdit = useCallback((productId: number) => {
-    navigate(`/admin/products/${productId}`);
-  }, [navigate]);
-
-  /**
-   * Handle add to stock action with dialog opening
-   */
-  const handleAddStock = useCallback((productId: number) => {
-    // Find the product in the current data
-    const product = productsData?.products.find(p => p.idProduct === productId);
-    if (product) {
-      setSelectedProduct({
-        id: product.idProduct,
-        name: product.productName,
-        stock: product.stockQuantity
-      });
-      setSupplyDialogOpen(true);
-    } else {
-      toast.error(t('admin.products.productNotFound'), {
-        description: t('admin.products.productNotFoundDescription')
-      });
-    }
-  }, [productsData, t]);
-
-  /**
-   * Handle delete action; success/error toasts are owned by the mutation.
-   */
-  const handleDelete = useCallback(async (productId: number) => {
-    try {
-      await deleteProductMutation.mutateAsync(productId);
-    } catch {
-      // Error toast is handled by useDeleteAdminProduct
-    }
-  }, [deleteProductMutation]);
-
-  /**
-   * Handle retry for errors
-   */
+  const handleFamilyChange = useCallback(
+    (id: string | undefined) => updateParams({ familyId: id, page: undefined }),
+    [updateParams],
+  );
+  const handleBrandChange = useCallback(
+    (id: string | undefined) => updateParams({ brandId: id, modelId: undefined, page: undefined }),
+    [updateParams],
+  );
+  const handleModelChange = useCallback(
+    (id: string | undefined) => updateParams({ modelId: id, page: undefined }),
+    [updateParams],
+  );
+  const handleClearFilters = useCallback(() => {
+    setSearchInput("");
+    setStockStatus(undefined);
+    setSearchParams({}, { replace: true });
+  }, [setSearchParams]);
+  const handlePageChange = useCallback(
+    (page: number) => updateParams({ page: page <= 1 ? undefined : String(page) }),
+    [updateParams],
+  );
   const handleRetry = useCallback(() => {
     if (productsError) refetchProducts();
     if (statsError) refetchStats();
   }, [productsError, statsError, refetchProducts, refetchStats]);
 
-  /**
-   * Handle refresh
-   */
-  const handleRefresh = useCallback(() => {
-    refreshAll();
-  }, [refreshAll]);
+  // Optimistic publish/enable toggles with rollback (ADM-02 §Interactions) — local override
+  // state rather than cache surgery, since useUpdateProduct() is a shared, generic mutation
+  // also used by ADM-04's full-form save (which doesn't want optimistic list-row behavior).
+  const [optimisticOverrides, setOptimisticOverrides] = useState<
+    Record<string, Partial<Pick<AdminProductDto, "isPublished" | "isEnabled">>>
+  >({});
+  const updateProduct = useUpdateProduct();
 
-  /**
-   * Handle supply dialog close
-   */
-  const handleSupplyDialogClose = useCallback(() => {
-    setSupplyDialogOpen(false);
-    setSelectedProduct(null);
-  }, []);
-
-  /**
-   * Handle supply save; success/error toasts are owned by the mutation.
-   */
-  const handleSupplySave = useCallback(async (supplyData: SupplyFormData) => {
-    if (!selectedProduct) return;
-    try {
-      await addSupplyMutation.mutateAsync({ productId: selectedProduct.id, supply: supplyData });
-      handleSupplyDialogClose();
-    } catch {
-      // Error toast is handled by useAddAdminProductSupply
-    }
-  }, [selectedProduct, addSupplyMutation, handleSupplyDialogClose]);
-
-  /**
-   * Get combined loading state with memoization
-   */
-  const isAnyLoading = useMemo(() => productsLoading || statsLoading, [productsLoading, statsLoading]);
+  const applyToggle = useCallback(
+    (
+      product: AdminProductDto,
+      patch: Partial<Pick<AdminProductDto, "isPublished" | "isEnabled">>,
+    ) => {
+      setOptimisticOverrides((prev) => ({ ...prev, [product.id]: patch }));
+      updateProduct.mutate(
+        { id: product.id, command: patch },
+        {
+          onSuccess: () => {
+            setOptimisticOverrides((prev) => {
+              const { [product.id]: _dropped, ...rest } = prev;
+              return rest;
+            });
+          },
+          onError: () => {
+            setOptimisticOverrides((prev) => {
+              const { [product.id]: _dropped, ...rest } = prev;
+              return rest;
+            });
+          },
+        },
+      );
+    },
+    [updateProduct],
+  );
 
   return (
-    <ErrorBoundary>
-      <div 
-        className="space-y-6"
-        role="main"
-        aria-label={t('admin.products.title')}
-        aria-describedby="admin-products-description"
-      >
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">{t('admin.products.title')}</h1>
-            <p 
-              id="admin-products-description"
-              className="text-muted-foreground"
-            >
-              {t('admin.products.description')}
-            </p>
-          </div>
-          <Button
-            onClick={() => navigate('/admin/products/add')}
-            className="w-full sm:w-auto"
-            aria-label={t('admin.products.addProduct')}
-            title={t('admin.products.addProduct')}
-          >
-            <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
-            {t('admin.products.addProduct')}
-          </Button>
-        </div>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <PageHeader title={t("admin.productsList.pageTitle")} />
+        <Button asChild>
+          <Link to="/admin/products/add">
+            <Plus className="mr-2 h-4 w-4" />
+            {t("admin.productsList.addButton")}
+          </Link>
+        </Button>
+      </div>
 
-        {/* Statistics Cards */}
-        <AdminProductsStatsCards
-          stats={statsData}
-          loading={statsLoading}
-          error={statsError?.message || null}
-          onRetry={handleRetry}
-          onRefresh={handleRefresh}
-          showRefresh={false}
-        />
+      <AdminProductsStatsCards stats={stats} isLoading={statsLoading} />
 
-        {/* Filters Section */}
-        <AdminProductsFiltersSection
-          onFiltersChange={handleFiltersChange}
-          loading={isAnyLoading}
-        />
+      <AdminProductsFilters
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        families={families ?? []}
+        familyId={filters.familyId}
+        onFamilyChange={handleFamilyChange}
+        brands={brands ?? []}
+        brandId={filters.brandId}
+        onBrandChange={handleBrandChange}
+        models={models ?? []}
+        modelId={filters.modelId}
+        onModelChange={handleModelChange}
+        stockStatus={stockStatus}
+        onStockStatusChange={setStockStatus}
+        onClearFilters={handleClearFilters}
+      />
 
-        {/* Products Table */}
-        <AdminProductsTable
-          data={productsData}
-          loading={productsLoading}
-          error={productsError?.message || null}
-          onRetry={handleRetry}
-          onRefresh={handleRefresh}
-          showRefresh={true}
-          onEdit={handleEdit}
-          onAddStock={handleAddStock}
-          onDelete={handleDelete}
+      <AdminProductsTable
+        products={products}
+        isLoading={productsLoading}
+        isError={productsError}
+        onRetry={handleRetry}
+        onClearFilters={handleClearFilters}
+        optimisticOverrides={optimisticOverrides}
+        onTogglePublished={(product, isPublished) => applyToggle(product, { isPublished })}
+        onToggleEnabled={(product, isEnabled) => applyToggle(product, { isEnabled })}
+      />
+
+      {productsResult && productsResult.meta.totalPages > 1 && (
+        <SimplePagination
+          page={productsResult.meta.page}
+          totalPages={productsResult.meta.totalPages}
           onPageChange={handlePageChange}
         />
-
-        {/* Supply Dialog */}
-        {selectedProduct && (
-          <AdminProductsSupplyDialog
-            open={supplyDialogOpen}
-            onClose={handleSupplyDialogClose}
-            productId={selectedProduct.id}
-            productName={selectedProduct.name}
-            currentStock={selectedProduct.stock}
-            onSave={handleSupplySave}
-            loading={addSupplyMutation.isPending}
-          />
-        )}
-      </div>
-    </ErrorBoundary>
+      )}
+    </div>
   );
 }

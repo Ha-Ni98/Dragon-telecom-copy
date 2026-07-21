@@ -10278,5 +10278,1755 @@
     "en": "Open in POS",
     "fr": "Ouvrir au POS",
     "ar": ""
+  },
+  "staff.pos.pageTitle": {
+    "en": "Point of Sale",
+    "fr": "Point de vente",
+    "ar": ""
+  },
+  "staff.pos.search.placeholder": {
+    "en": "Scan or search products (F2)",
+    "fr": "Scanner ou rechercher des produits (F2)",
+    "ar": ""
+  },
+  "staff.pos.search.empty": {
+    "en": "No products found",
+    "fr": "Aucun produit trouvé",
+    "ar": ""
+  },
+  "staff.pos.search.error": {
+    "en": "Couldn't load products — retry",
+    "fr": "Échec du chargement des produits — réessayer",
+    "ar": ""
+  },
+  "staff.pos.familyQuickPick.title": {
+    "en": "Quick pick",
+    "fr": "Sélection rapide",
+    "ar": ""
+  },
+  "staff.pos.ticket.title": {
+    "en": "Ticket",
+    "fr": "Ticket",
+    "ar": ""
+  },
+  "staff.pos.ticket.empty": {
+    "en": "Scan or search to add a line",
+    "fr": "Scannez ou recherchez pour ajouter une ligne",
+    "ar": ""
+  },
+  "staff.pos.ticket.qty": {
+    "en": "Qty",
+    "fr": "Qté",
+    "ar": ""
+  },
+  "staff.pos.ticket.resolvedPrice": {
+    "en": "Resolved price",
+    "fr": "Prix résolu",
+    "ar": ""
+  },
+  "staff.pos.ticket.chargedPrice": {
+    "en": "Charged price",
+    "fr": "Prix facturé",
+    "ar": ""
+  },
+  "staff.pos.ticket.lineTotal": {
+    "en": "Line total",
+    "fr": "Total ligne",
+    "ar": ""
+  },
+  "staff.pos.ticket.serials": {
+    "en": "Serial numbers",
+    "fr": "Numéros de série",
+    "ar": ""
+  },
+  "staff.pos.ticket.remove": {
+    "en": "Remove",
+    "fr": "Retirer",
+    "ar": ""
+  },
+  "staff.pos.ticket.discount": {
+    "en": "Discount",
+    "fr": "Remise",
+    "ar": ""
+  },
+  "staff.pos.ticket.total": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.pos.clientZone.title": {
+    "en": "POS client",
+    "fr": "Client point de vente",
+    "ar": ""
+  },
+  "staff.pos.clientZone.searchPlaceholder": {
+    "en": "Search by name or phone",
+    "fr": "Rechercher par nom ou téléphone",
+    "ar": ""
+  },
+  "staff.pos.clientZone.attach": {
+    "en": "Attach",
+    "fr": "Rattacher",
+    "ar": ""
+  },
+  "staff.pos.clientZone.detach": {
+    "en": "Detach",
+    "fr": "Détacher",
+    "ar": ""
+  },
+  "staff.pos.clientZone.quickAdd": {
+    "en": "Quick add",
+    "fr": "Ajout rapide",
+    "ar": ""
+  },
+  "staff.pos.clientZone.creditRequiresClient": {
+    "en": "A POS client is required for an unpaid balance",
+    "fr": "Un client point de vente est requis pour un solde impayé",
+    "ar": ""
+  },
+  "staff.pos.quickAddClient.title": {
+    "en": "Quick add POS client",
+    "fr": "Ajout rapide d'un client point de vente",
+    "ar": ""
+  },
+  "staff.pos.quickAddClient.nameLabel": {
+    "en": "Name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "staff.pos.quickAddClient.nameRequired": {
+    "en": "Name is required",
+    "fr": "Le nom est requis",
+    "ar": ""
+  },
+  "staff.pos.quickAddClient.phoneLabel": {
+    "en": "Phone",
+    "fr": "Téléphone",
+    "ar": ""
+  },
+  "staff.pos.quickAddClient.submit": {
+    "en": "Create",
+    "fr": "Créer",
+    "ar": ""
+  },
+  "staff.pos.payment.title": {
+    "en": "Payment (F4)",
+    "fr": "Paiement (F4)",
+    "ar": ""
+  },
+  "staff.pos.payment.paidAmountLabel": {
+    "en": "Paid amount",
+    "fr": "Montant payé",
+    "ar": ""
+  },
+  "staff.pos.payment.paidAmountInvalid": {
+    "en": "Paid amount must be zero or more",
+    "fr": "Le montant payé doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "staff.pos.payment.changeDue": {
+    "en": "Change due",
+    "fr": "Monnaie à rendre",
+    "ar": ""
+  },
+  "staff.pos.payment.newCredit": {
+    "en": "New credit",
+    "fr": "Nouveau crédit",
+    "ar": ""
+  },
+  "staff.pos.payment.confirm": {
+    "en": "Confirm (Enter)",
+    "fr": "Confirmer (Entrée)",
+    "ar": ""
+  },
+  "staff.pos.payment.insufficientStock": {
+    "en": "Not enough stock for this line",
+    "fr": "Stock insuffisant pour cette ligne",
+    "ar": ""
+  },
+  "staff.pos.drafts.title": {
+    "en": "My drafts",
+    "fr": "Mes brouillons",
+    "ar": ""
+  },
+  "staff.pos.drafts.empty": {
+    "en": "No drafts yet",
+    "fr": "Aucun brouillon pour l'instant",
+    "ar": ""
+  },
+  "staff.pos.drafts.groupedByStaff": {
+    "en": "Grouped by staff",
+    "fr": "Regroupé par employé",
+    "ar": ""
+  },
+  "staff.pos.receipt.title": {
+    "en": "Receipt",
+    "fr": "Reçu",
+    "ar": ""
+  },
+  "staff.pos.receipt.previousCredit": {
+    "en": "Previous credit",
+    "fr": "Crédit précédent",
+    "ar": ""
+  },
+  "staff.pos.receipt.grandTotal": {
+    "en": "Grand total",
+    "fr": "Total général",
+    "ar": ""
+  },
+  "staff.pos.receipt.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "staff.pos.receipt.newCredit": {
+    "en": "New credit",
+    "fr": "Nouveau crédit",
+    "ar": ""
+  },
+  "staff.pos.receipt.print": {
+    "en": "Print",
+    "fr": "Imprimer",
+    "ar": ""
+  },
+  "admin.pos.pageTitle": {
+    "en": "POS (all staff)",
+    "fr": "Point de vente (tout le personnel)",
+    "ar": ""
+  },
+  "admin.pos.drafts.title": {
+    "en": "All drafts",
+    "fr": "Tous les brouillons",
+    "ar": ""
+  },
+  "staff.orders.pageTitle": {
+    "en": "Orders",
+    "fr": "Commandes",
+    "ar": ""
+  },
+  "staff.orders.stats.pending": {
+    "en": "Pending",
+    "fr": "En attente",
+    "ar": ""
+  },
+  "staff.orders.stats.confirmed": {
+    "en": "Confirmed",
+    "fr": "Confirmées",
+    "ar": ""
+  },
+  "staff.orders.stats.inDelivery": {
+    "en": "In delivery",
+    "fr": "En livraison",
+    "ar": ""
+  },
+  "staff.orders.tabs.all": {
+    "en": "All",
+    "fr": "Toutes",
+    "ar": ""
+  },
+  "staff.orders.search.placeholder": {
+    "en": "Search orders",
+    "fr": "Rechercher des commandes",
+    "ar": ""
+  },
+  "staff.orders.dateRange.label": {
+    "en": "Date range",
+    "fr": "Plage de dates",
+    "ar": ""
+  },
+  "staff.orders.table.reference": {
+    "en": "Reference",
+    "fr": "Référence",
+    "ar": ""
+  },
+  "staff.orders.table.client": {
+    "en": "Client",
+    "fr": "Client",
+    "ar": ""
+  },
+  "staff.orders.table.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "staff.orders.table.quantity": {
+    "en": "Qty",
+    "fr": "Qté",
+    "ar": ""
+  },
+  "staff.orders.table.type": {
+    "en": "Type",
+    "fr": "Type",
+    "ar": ""
+  },
+  "staff.orders.table.total": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.orders.table.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "staff.orders.table.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "staff.orders.table.age": {
+    "en": "Age",
+    "fr": "Âge",
+    "ar": ""
+  },
+  "staff.orders.table.ageFlag": {
+    "en": "Pending > 24h",
+    "fr": "En attente > 24h",
+    "ar": ""
+  },
+  "staff.orders.table.empty": {
+    "en": "No orders match these filters",
+    "fr": "Aucune commande ne correspond à ces filtres",
+    "ar": ""
+  },
+  "staff.orders.table.error": {
+    "en": "Couldn't load orders — retry",
+    "fr": "Échec du chargement des commandes — réessayer",
+    "ar": ""
+  },
+  "staff.orders.showDialog.title": {
+    "en": "Order details",
+    "fr": "Détails de la commande",
+    "ar": ""
+  },
+  "staff.orders.showDialog.frozenPrice": {
+    "en": "Frozen price",
+    "fr": "Prix figé",
+    "ar": ""
+  },
+  "staff.orders.showDialog.liveAvailability": {
+    "en": "Live availability",
+    "fr": "Disponibilité en direct",
+    "ar": ""
+  },
+  "staff.orders.showDialog.timeline": {
+    "en": "Timeline",
+    "fr": "Chronologie",
+    "ar": ""
+  },
+  "staff.orders.confirmDialog.title": {
+    "en": "Confirm order",
+    "fr": "Confirmer la commande",
+    "ar": ""
+  },
+  "staff.orders.confirmDialog.unitPriceLabel": {
+    "en": "Charged price (optional)",
+    "fr": "Prix facturé (facultatif)",
+    "ar": ""
+  },
+  "staff.orders.confirmDialog.unitPriceInvalid": {
+    "en": "Charged price must be zero or more",
+    "fr": "Le prix facturé doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "staff.orders.confirmDialog.serialsLabel": {
+    "en": "Serial numbers",
+    "fr": "Numéros de série",
+    "ar": ""
+  },
+  "staff.orders.confirmDialog.paidAmountLabel": {
+    "en": "Paid amount",
+    "fr": "Montant payé",
+    "ar": ""
+  },
+  "staff.orders.confirmDialog.paidAmountInvalid": {
+    "en": "Paid amount must be zero or more",
+    "fr": "Le montant payé doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "staff.orders.confirmDialog.insufficientStock": {
+    "en": "Not enough stock for this order",
+    "fr": "Stock insuffisant pour cette commande",
+    "ar": ""
+  },
+  "staff.orders.confirmDialog.submit": {
+    "en": "Confirm",
+    "fr": "Confirmer",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.title": {
+    "en": "Update status",
+    "fr": "Mettre à jour le statut",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.statusLabel": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.deliveryCompanyLabel": {
+    "en": "Delivery company",
+    "fr": "Société de livraison",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.deliveryCompanyRequired": {
+    "en": "Delivery company is required",
+    "fr": "La société de livraison est requise",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.trackingNumberLabel": {
+    "en": "Tracking number",
+    "fr": "Numéro de suivi",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.trackingNumberRequired": {
+    "en": "Tracking number is required",
+    "fr": "Le numéro de suivi est requis",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.submit": {
+    "en": "Update",
+    "fr": "Mettre à jour",
+    "ar": ""
+  },
+  "admin.orders.pageTitle": {
+    "en": "Orders",
+    "fr": "Commandes",
+    "ar": ""
+  },
+  "admin.orders.returnDialog.title": {
+    "en": "Issue return",
+    "fr": "Émettre un retour",
+    "ar": ""
+  },
+  "admin.orders.returnDialog.quantityLabel": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.orders.returnDialog.quantityMin": {
+    "en": "Quantity must be at least 1",
+    "fr": "La quantité doit être d'au moins 1",
+    "ar": ""
+  },
+  "admin.orders.returnDialog.quantityExceedsOrdered": {
+    "en": "Quantity cannot exceed the ordered amount",
+    "fr": "La quantité ne peut pas dépasser la quantité commandée",
+    "ar": ""
+  },
+  "admin.orders.returnDialog.restockLabel": {
+    "en": "Restock",
+    "fr": "Réapprovisionner",
+    "ar": ""
+  },
+  "admin.orders.returnDialog.refundAmountLabel": {
+    "en": "Refund amount",
+    "fr": "Montant du remboursement",
+    "ar": ""
+  },
+  "admin.orders.returnDialog.refundAmountInvalid": {
+    "en": "Refund amount must be zero or more",
+    "fr": "Le montant du remboursement doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "admin.orders.returnDialog.reasonLabel": {
+    "en": "Reason (optional)",
+    "fr": "Motif (facultatif)",
+    "ar": ""
+  },
+  "admin.orders.returnDialog.submit": {
+    "en": "Issue return",
+    "fr": "Émettre le retour",
+    "ar": ""
+  },
+  "admin.orders.cancelDialog.title": {
+    "en": "Cancel order",
+    "fr": "Annuler la commande",
+    "ar": ""
+  },
+  "admin.orders.cancelDialog.reasonLabel": {
+    "en": "Reason (optional)",
+    "fr": "Motif (facultatif)",
+    "ar": ""
+  },
+  "admin.orders.cancelDialog.submit": {
+    "en": "Cancel order",
+    "fr": "Annuler la commande",
+    "ar": ""
+  },
+  "staff.sales.pageTitle": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "staff.sales.status.draft": {
+    "en": "Draft",
+    "fr": "Brouillon",
+    "ar": ""
+  },
+  "staff.sales.status.completed": {
+    "en": "Completed",
+    "fr": "Terminée",
+    "ar": ""
+  },
+  "staff.sales.table.reference": {
+    "en": "Reference",
+    "fr": "Référence",
+    "ar": ""
+  },
+  "staff.sales.table.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "staff.sales.table.client": {
+    "en": "POS client",
+    "fr": "Client point de vente",
+    "ar": ""
+  },
+  "staff.sales.table.counter": {
+    "en": "Comptoir",
+    "fr": "Comptoir",
+    "ar": ""
+  },
+  "staff.sales.table.total": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.sales.table.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "staff.sales.table.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "staff.sales.table.empty": {
+    "en": "No sales match these filters",
+    "fr": "Aucune vente ne correspond à ces filtres",
+    "ar": ""
+  },
+  "staff.sales.table.error": {
+    "en": "Couldn't load sales — retry",
+    "fr": "Échec du chargement des ventes — réessayer",
+    "ar": ""
+  },
+  "staff.sales.detail.title": {
+    "en": "Sale details",
+    "fr": "Détails de la vente",
+    "ar": ""
+  },
+  "staff.sales.detail.resolvedPrice": {
+    "en": "Resolved price",
+    "fr": "Prix résolu",
+    "ar": ""
+  },
+  "staff.sales.detail.chargedPrice": {
+    "en": "Charged price",
+    "fr": "Prix facturé",
+    "ar": ""
+  },
+  "staff.sales.detail.serials": {
+    "en": "Serial numbers",
+    "fr": "Numéros de série",
+    "ar": ""
+  },
+  "staff.sales.detail.reprint": {
+    "en": "Reprint receipt",
+    "fr": "Réimprimer le reçu",
+    "ar": ""
+  },
+  "staff.sales.detail.resumeDraft": {
+    "en": "Resume in POS",
+    "fr": "Reprendre au POS",
+    "ar": ""
+  },
+  "staff.sales.detail.forbidden": {
+    "en": "This sale isn't yours",
+    "fr": "Cette vente ne vous appartient pas",
+    "ar": ""
+  },
+  "admin.sales.pageTitle": {
+    "en": "Sales & returns",
+    "fr": "Ventes et retours",
+    "ar": ""
+  },
+  "admin.sales.filters.dateRange": {
+    "en": "Date range",
+    "fr": "Plage de dates",
+    "ar": ""
+  },
+  "admin.sales.filters.seller": {
+    "en": "Seller",
+    "fr": "Vendeur",
+    "ar": ""
+  },
+  "admin.sales.filters.posClient": {
+    "en": "POS client",
+    "fr": "Client point de vente",
+    "ar": ""
+  },
+  "admin.sales.filters.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "admin.sales.table.seller": {
+    "en": "Seller",
+    "fr": "Vendeur",
+    "ar": ""
+  },
+  "admin.sales.table.footerTotal": {
+    "en": "Total (filtered)",
+    "fr": "Total (filtré)",
+    "ar": ""
+  },
+  "admin.sales.detail.costOfGoods": {
+    "en": "Cost of goods",
+    "fr": "Coût des marchandises",
+    "ar": ""
+  },
+  "admin.sales.detail.profit": {
+    "en": "Profit",
+    "fr": "Profit",
+    "ar": ""
+  },
+  "admin.sales.detail.creditSnapshot": {
+    "en": "Credit: previous → new",
+    "fr": "Crédit : précédent → nouveau",
+    "ar": ""
+  },
+  "admin.sales.detail.invoiceLink": {
+    "en": "View invoice",
+    "fr": "Voir la facture",
+    "ar": ""
+  },
+  "admin.sales.detail.issueReturn": {
+    "en": "Issue return",
+    "fr": "Émettre un retour",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.title": {
+    "en": "Issue return",
+    "fr": "Émettre un retour",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.quantityLabel": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.quantityMin": {
+    "en": "Quantity must be at least 1",
+    "fr": "La quantité doit être d'au moins 1",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.quantityExceedsRemaining": {
+    "en": "Quantity cannot exceed the remaining returnable amount",
+    "fr": "La quantité ne peut pas dépasser le solde restant à retourner",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.restockLabel": {
+    "en": "Restock",
+    "fr": "Réapprovisionner",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.refundAmountLabel": {
+    "en": "Refund amount",
+    "fr": "Montant du remboursement",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.refundAmountInvalid": {
+    "en": "Refund amount must be zero or more",
+    "fr": "Le montant du remboursement doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.linesRequired": {
+    "en": "At least one line is required",
+    "fr": "Au moins une ligne est requise",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.typeLabel": {
+    "en": "Type",
+    "fr": "Type",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.typeRefund": {
+    "en": "Refund",
+    "fr": "Remboursement",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.typeExchange": {
+    "en": "Exchange",
+    "fr": "Échange",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.reasonLabel": {
+    "en": "Reason (optional)",
+    "fr": "Motif (facultatif)",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.submit": {
+    "en": "Issue return",
+    "fr": "Émettre le retour",
+    "ar": ""
+  },
+  "staff.invoices.pageTitle": {
+    "en": "Invoices",
+    "fr": "Factures",
+    "ar": ""
+  },
+  "staff.invoices.table.number": {
+    "en": "Number",
+    "fr": "Numéro",
+    "ar": ""
+  },
+  "staff.invoices.table.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "staff.invoices.table.client": {
+    "en": "Client",
+    "fr": "Client",
+    "ar": ""
+  },
+  "staff.invoices.table.source": {
+    "en": "Source",
+    "fr": "Source",
+    "ar": ""
+  },
+  "staff.invoices.table.total": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.invoices.table.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "staff.invoices.table.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "staff.invoices.table.empty": {
+    "en": "No invoices to show",
+    "fr": "Aucune facture à afficher",
+    "ar": ""
+  },
+  "staff.invoices.table.error": {
+    "en": "Couldn't load invoices — retry",
+    "fr": "Échec du chargement des factures — réessayer",
+    "ar": ""
+  },
+  "staff.invoices.snapshot.title": {
+    "en": "Invoice",
+    "fr": "Facture",
+    "ar": ""
+  },
+  "staff.invoices.snapshot.pdf": {
+    "en": "Download PDF",
+    "fr": "Télécharger le PDF",
+    "ar": ""
+  },
+  "staff.invoices.snapshot.print": {
+    "en": "Print",
+    "fr": "Imprimer",
+    "ar": ""
+  },
+  "staff.invoices.recordPayment.title": {
+    "en": "Record payment",
+    "fr": "Enregistrer un paiement",
+    "ar": ""
+  },
+  "staff.invoices.recordPayment.amountLabel": {
+    "en": "Amount",
+    "fr": "Montant",
+    "ar": ""
+  },
+  "staff.invoices.recordPayment.amountInvalid": {
+    "en": "Amount must be greater than zero",
+    "fr": "Le montant doit être supérieur à zéro",
+    "ar": ""
+  },
+  "staff.invoices.recordPayment.previousCredit": {
+    "en": "Previous credit",
+    "fr": "Crédit précédent",
+    "ar": ""
+  },
+  "staff.invoices.recordPayment.newCredit": {
+    "en": "New credit",
+    "fr": "Nouveau crédit",
+    "ar": ""
+  },
+  "staff.invoices.recordPayment.submit": {
+    "en": "Record payment",
+    "fr": "Enregistrer le paiement",
+    "ar": ""
+  },
+  "admin.invoices.pageTitle": {
+    "en": "Invoices & payments",
+    "fr": "Factures et paiements",
+    "ar": ""
+  },
+  "admin.invoices.tabs.outgoing": {
+    "en": "Outgoing",
+    "fr": "Sortantes",
+    "ar": ""
+  },
+  "admin.invoices.tabs.incoming": {
+    "en": "Incoming",
+    "fr": "Entrantes",
+    "ar": ""
+  },
+  "admin.invoices.tabs.payments": {
+    "en": "Payments",
+    "fr": "Paiements",
+    "ar": ""
+  },
+  "admin.invoices.outgoing.table.averageCost": {
+    "en": "Current avg. cost",
+    "fr": "Coût moyen actuel",
+    "ar": ""
+  },
+  "admin.invoices.outgoing.table.profit": {
+    "en": "Profit",
+    "fr": "Profit",
+    "ar": ""
+  },
+  "admin.invoices.outgoing.cancelDialog.title": {
+    "en": "Cancel invoice",
+    "fr": "Annuler la facture",
+    "ar": ""
+  },
+  "admin.invoices.outgoing.cancelDialog.reasonLabel": {
+    "en": "Reason (optional)",
+    "fr": "Motif (facultatif)",
+    "ar": ""
+  },
+  "admin.invoices.outgoing.cancelDialog.submit": {
+    "en": "Cancel invoice",
+    "fr": "Annuler la facture",
+    "ar": ""
+  },
+  "admin.invoices.incoming.table.supplier": {
+    "en": "Supplier",
+    "fr": "Fournisseur",
+    "ar": ""
+  },
+  "admin.invoices.incoming.table.total": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "admin.invoices.incoming.table.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "admin.invoices.incoming.table.outstanding": {
+    "en": "Outstanding",
+    "fr": "Solde restant",
+    "ar": ""
+  },
+  "admin.invoices.incoming.table.dueDate": {
+    "en": "Due date",
+    "fr": "Date d'échéance",
+    "ar": ""
+  },
+  "admin.invoices.incoming.table.overdue": {
+    "en": "Overdue",
+    "fr": "En retard",
+    "ar": ""
+  },
+  "admin.invoices.payments.tabs.client": {
+    "en": "Client ledger",
+    "fr": "Registre client",
+    "ar": ""
+  },
+  "admin.invoices.payments.tabs.supplier": {
+    "en": "Supplier ledger",
+    "fr": "Registre fournisseur",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.reference": {
+    "en": "Reference",
+    "fr": "Référence",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.counterpart": {
+    "en": "Counterpart",
+    "fr": "Contrepartie",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.invoice": {
+    "en": "Invoice",
+    "fr": "Facture",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.onAccount": {
+    "en": "On account",
+    "fr": "Sur compte",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.amount": {
+    "en": "Amount",
+    "fr": "Montant",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.creditMovement": {
+    "en": "Previous → new credit",
+    "fr": "Crédit précédent → nouveau",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.staff": {
+    "en": "Staff",
+    "fr": "Employé",
+    "ar": ""
+  },
+  "admin.invoices.recordSupplierPayment.title": {
+    "en": "Record supplier payment",
+    "fr": "Enregistrer un paiement fournisseur",
+    "ar": ""
+  },
+  "admin.invoices.recordSupplierPayment.amountLabel": {
+    "en": "Amount",
+    "fr": "Montant",
+    "ar": ""
+  },
+  "admin.invoices.recordSupplierPayment.amountInvalid": {
+    "en": "Amount must be greater than zero",
+    "fr": "Le montant doit être supérieur à zéro",
+    "ar": ""
+  },
+  "admin.invoices.recordSupplierPayment.submit": {
+    "en": "Record payment",
+    "fr": "Enregistrer le paiement",
+    "ar": ""
+  },
+  "staff.repairs.pageTitle": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "staff.repairs.board.intake": {
+    "en": "Intake",
+    "fr": "Réception",
+    "ar": ""
+  },
+  "staff.repairs.board.processing": {
+    "en": "Processing",
+    "fr": "En traitement",
+    "ar": ""
+  },
+  "staff.repairs.board.completed": {
+    "en": "Completed",
+    "fr": "Terminée",
+    "ar": ""
+  },
+  "staff.repairs.board.pickedUp": {
+    "en": "Picked up",
+    "fr": "Récupérée",
+    "ar": ""
+  },
+  "staff.repairs.board.cancelled": {
+    "en": "Cancelled",
+    "fr": "Annulée",
+    "ar": ""
+  },
+  "staff.repairs.board.unpaidBadge": {
+    "en": "Unpaid",
+    "fr": "Impayée",
+    "ar": ""
+  },
+  "staff.repairs.board.technicianFilter": {
+    "en": "Technician",
+    "fr": "Technicien",
+    "ar": ""
+  },
+  "staff.repairs.board.empty": {
+    "en": "No repair tickets",
+    "fr": "Aucun ticket de réparation",
+    "ar": ""
+  },
+  "staff.repairs.board.error": {
+    "en": "Couldn't load repairs — retry",
+    "fr": "Échec du chargement des réparations — réessayer",
+    "ar": ""
+  },
+  "staff.repairs.intake.title": {
+    "en": "New repair",
+    "fr": "Nouvelle réparation",
+    "ar": ""
+  },
+  "staff.repairs.intake.customerNameLabel": {
+    "en": "Customer name",
+    "fr": "Nom du client",
+    "ar": ""
+  },
+  "staff.repairs.intake.customerNameRequired": {
+    "en": "Customer name is required",
+    "fr": "Le nom du client est requis",
+    "ar": ""
+  },
+  "staff.repairs.intake.customerPhoneLabel": {
+    "en": "Customer phone",
+    "fr": "Téléphone du client",
+    "ar": ""
+  },
+  "staff.repairs.intake.customerPhoneRequired": {
+    "en": "Customer phone is required",
+    "fr": "Le téléphone du client est requis",
+    "ar": ""
+  },
+  "staff.repairs.intake.attachClient": {
+    "en": "Attach POS client",
+    "fr": "Rattacher un client point de vente",
+    "ar": ""
+  },
+  "staff.repairs.intake.brandLabel": {
+    "en": "Brand",
+    "fr": "Marque",
+    "ar": ""
+  },
+  "staff.repairs.intake.modelLabel": {
+    "en": "Model",
+    "fr": "Modèle",
+    "ar": ""
+  },
+  "staff.repairs.intake.imeiLabel": {
+    "en": "IMEI (optional)",
+    "fr": "IMEI (facultatif)",
+    "ar": ""
+  },
+  "staff.repairs.intake.reportedIssuesLabel": {
+    "en": "Reported issues",
+    "fr": "Problèmes signalés",
+    "ar": ""
+  },
+  "staff.repairs.intake.reportedIssuesRequired": {
+    "en": "Select at least one issue",
+    "fr": "Sélectionnez au moins un problème",
+    "ar": ""
+  },
+  "staff.repairs.intake.issue.charging": {
+    "en": "Charging",
+    "fr": "Charge",
+    "ar": ""
+  },
+  "staff.repairs.intake.issue.display": {
+    "en": "Display",
+    "fr": "Écran",
+    "ar": ""
+  },
+  "staff.repairs.intake.issue.battery": {
+    "en": "Battery",
+    "fr": "Batterie",
+    "ar": ""
+  },
+  "staff.repairs.intake.issue.camera": {
+    "en": "Camera",
+    "fr": "Caméra",
+    "ar": ""
+  },
+  "staff.repairs.intake.issue.speaker": {
+    "en": "Speaker",
+    "fr": "Haut-parleur",
+    "ar": ""
+  },
+  "staff.repairs.intake.issue.microphone": {
+    "en": "Microphone",
+    "fr": "Microphone",
+    "ar": ""
+  },
+  "staff.repairs.intake.issue.waterDamage": {
+    "en": "Water damage",
+    "fr": "Dégât des eaux",
+    "ar": ""
+  },
+  "staff.repairs.intake.issue.software": {
+    "en": "Software",
+    "fr": "Logiciel",
+    "ar": ""
+  },
+  "staff.repairs.intake.issue.other": {
+    "en": "Other",
+    "fr": "Autre",
+    "ar": ""
+  },
+  "staff.repairs.intake.reportedIssueOtherLabel": {
+    "en": "Describe the issue",
+    "fr": "Décrivez le problème",
+    "ar": ""
+  },
+  "staff.repairs.intake.reportedIssueOtherRequired": {
+    "en": "Describe the issue",
+    "fr": "Décrivez le problème",
+    "ar": ""
+  },
+  "staff.repairs.intake.technicianLabel": {
+    "en": "Technician",
+    "fr": "Technicien",
+    "ar": ""
+  },
+  "staff.repairs.intake.submit": {
+    "en": "Create & print claim slip",
+    "fr": "Créer et imprimer le bon de dépôt",
+    "ar": ""
+  },
+  "staff.repairs.detail.title": {
+    "en": "Repair ticket",
+    "fr": "Ticket de réparation",
+    "ar": ""
+  },
+  "staff.repairs.detail.diagnosisLabel": {
+    "en": "Diagnosis",
+    "fr": "Diagnostic",
+    "ar": ""
+  },
+  "staff.repairs.detail.partsEditor": {
+    "en": "Parts",
+    "fr": "Pièces",
+    "ar": ""
+  },
+  "staff.repairs.detail.labourPriceLabel": {
+    "en": "Labour price",
+    "fr": "Prix de la main-d'œuvre",
+    "ar": ""
+  },
+  "staff.repairs.detail.totals": {
+    "en": "Totals",
+    "fr": "Totaux",
+    "ar": ""
+  },
+  "staff.repairs.detail.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "staff.repairs.detail.timeline": {
+    "en": "Status timeline",
+    "fr": "Chronologie du statut",
+    "ar": ""
+  },
+  "staff.repairs.addPart.title": {
+    "en": "Add part",
+    "fr": "Ajouter une pièce",
+    "ar": ""
+  },
+  "staff.repairs.addPart.productLabel": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "staff.repairs.addPart.quantityLabel": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "staff.repairs.addPart.quantityMin": {
+    "en": "Quantity must be at least 1",
+    "fr": "La quantité doit être d'au moins 1",
+    "ar": ""
+  },
+  "staff.repairs.addPart.quantityExceedsAvailable": {
+    "en": "Quantity exceeds the available stock",
+    "fr": "La quantité dépasse le stock disponible",
+    "ar": ""
+  },
+  "staff.repairs.addPart.unitPriceLabel": {
+    "en": "Price charged",
+    "fr": "Prix facturé",
+    "ar": ""
+  },
+  "staff.repairs.addPart.unitPriceInvalid": {
+    "en": "Price must be zero or more",
+    "fr": "Le prix doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "staff.repairs.addPart.serialsLabel": {
+    "en": "Serial numbers (optional)",
+    "fr": "Numéros de série (facultatif)",
+    "ar": ""
+  },
+  "staff.repairs.addPart.submit": {
+    "en": "Add part",
+    "fr": "Ajouter la pièce",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.title": {
+    "en": "Update status",
+    "fr": "Mettre à jour le statut",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.technicianLabel": {
+    "en": "Technician",
+    "fr": "Technicien",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.technicianRequired": {
+    "en": "A technician is required",
+    "fr": "Un technicien est requis",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.paidAmountLabel": {
+    "en": "Paid amount",
+    "fr": "Montant payé",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.paidAmountInvalid": {
+    "en": "Paid amount must be zero or more",
+    "fr": "Le montant payé doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.paidAmountRequired": {
+    "en": "Paid amount is required",
+    "fr": "Le montant payé est requis",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.consumedPartReturnsLabel": {
+    "en": "Restock choice per part",
+    "fr": "Choix de réapprovisionnement par pièce",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.consumedPartReturnsRequired": {
+    "en": "Choose a restock option for every consumed part",
+    "fr": "Choisissez une option de réapprovisionnement pour chaque pièce consommée",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.submit": {
+    "en": "Update status",
+    "fr": "Mettre à jour le statut",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.dragRejected": {
+    "en": "That move isn't allowed",
+    "fr": "Ce déplacement n'est pas autorisé",
+    "ar": ""
+  },
+  "admin.repairs.pageTitle": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "admin.repairs.detail.costOfGoods": {
+    "en": "Cost of goods",
+    "fr": "Coût des marchandises",
+    "ar": ""
+  },
+  "admin.repairs.detail.profit": {
+    "en": "Profit",
+    "fr": "Profit",
+    "ar": ""
+  },
+  "admin.productsList.pageTitle": {
+    "en": "Products",
+    "fr": "Produits",
+    "ar": ""
+  },
+  "admin.productsList.addButton": {
+    "en": "Add product",
+    "fr": "Ajouter un produit",
+    "ar": ""
+  },
+  "admin.productsList.stats.total": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "admin.productsList.stats.inStock": {
+    "en": "In stock",
+    "fr": "En stock",
+    "ar": ""
+  },
+  "admin.productsList.stats.lowStock": {
+    "en": "Low stock",
+    "fr": "Stock faible",
+    "ar": ""
+  },
+  "admin.productsList.stats.outOfStock": {
+    "en": "Out of stock",
+    "fr": "Rupture de stock",
+    "ar": ""
+  },
+  "admin.productsList.filters.search": {
+    "en": "Search products",
+    "fr": "Rechercher des produits",
+    "ar": ""
+  },
+  "admin.productsList.filters.family": {
+    "en": "Family",
+    "fr": "Famille",
+    "ar": ""
+  },
+  "admin.productsList.filters.brand": {
+    "en": "Brand",
+    "fr": "Marque",
+    "ar": ""
+  },
+  "admin.productsList.filters.model": {
+    "en": "Model",
+    "fr": "Modèle",
+    "ar": ""
+  },
+  "admin.productsList.filters.stockStatus": {
+    "en": "Stock status",
+    "fr": "Statut du stock",
+    "ar": ""
+  },
+  "admin.productsList.table.image": {
+    "en": "Image",
+    "fr": "Image",
+    "ar": ""
+  },
+  "admin.productsList.table.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.productsList.table.barcode": {
+    "en": "Barcode",
+    "fr": "Code-barres",
+    "ar": ""
+  },
+  "admin.productsList.table.taxonomy": {
+    "en": "Taxonomy",
+    "fr": "Taxonomie",
+    "ar": ""
+  },
+  "admin.productsList.table.onHand": {
+    "en": "On hand",
+    "fr": "En stock",
+    "ar": ""
+  },
+  "admin.productsList.table.reserved": {
+    "en": "Reserved",
+    "fr": "Réservé",
+    "ar": ""
+  },
+  "admin.productsList.table.available": {
+    "en": "Available",
+    "fr": "Disponible",
+    "ar": ""
+  },
+  "admin.productsList.table.avgCost": {
+    "en": "Avg. cost",
+    "fr": "Coût moyen",
+    "ar": ""
+  },
+  "admin.productsList.table.stockBadge": {
+    "en": "Stock",
+    "fr": "Stock",
+    "ar": ""
+  },
+  "admin.productsList.table.published": {
+    "en": "Published",
+    "fr": "Publié",
+    "ar": ""
+  },
+  "admin.productsList.table.enabled": {
+    "en": "Enabled",
+    "fr": "Activé",
+    "ar": ""
+  },
+  "admin.productsList.table.edit": {
+    "en": "Edit",
+    "fr": "Modifier",
+    "ar": ""
+  },
+  "admin.productsList.table.empty": {
+    "en": "No products match these filters",
+    "fr": "Aucun produit ne correspond à ces filtres",
+    "ar": ""
+  },
+  "admin.productsList.table.error": {
+    "en": "Couldn't load products — retry",
+    "fr": "Échec du chargement des produits — réessayer",
+    "ar": ""
+  },
+  "admin.productsAdd.pageTitle": {
+    "en": "Add product",
+    "fr": "Ajouter un produit",
+    "ar": ""
+  },
+  "admin.productsAdd.card.basicInfo": {
+    "en": "Basic info",
+    "fr": "Informations de base",
+    "ar": ""
+  },
+  "admin.productsAdd.card.initialStock": {
+    "en": "Initial stock",
+    "fr": "Stock initial",
+    "ar": ""
+  },
+  "admin.productsAdd.card.pricing": {
+    "en": "Pricing",
+    "fr": "Tarification",
+    "ar": ""
+  },
+  "admin.productsAdd.card.pricingLocked": {
+    "en": "Pricing unlocks once initial stock is entered",
+    "fr": "La tarification se débloque une fois le stock initial saisi",
+    "ar": ""
+  },
+  "admin.productsAdd.card.images": {
+    "en": "Images",
+    "fr": "Images",
+    "ar": ""
+  },
+  "admin.productsAdd.barcodeLabel": {
+    "en": "Barcode",
+    "fr": "Code-barres",
+    "ar": ""
+  },
+  "admin.productsAdd.autoGenerateBarcode": {
+    "en": "Auto-generate",
+    "fr": "Générer automatiquement",
+    "ar": ""
+  },
+  "admin.productsAdd.nameLabel": {
+    "en": "Name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "admin.productsAdd.nameRequired": {
+    "en": "Name is required",
+    "fr": "Le nom est requis",
+    "ar": ""
+  },
+  "admin.productsAdd.descriptionLabel": {
+    "en": "Description",
+    "fr": "Description",
+    "ar": ""
+  },
+  "admin.productsAdd.familyLabel": {
+    "en": "Family",
+    "fr": "Famille",
+    "ar": ""
+  },
+  "admin.productsAdd.familyRequired": {
+    "en": "Choose an existing family or name a new one",
+    "fr": "Choisissez une famille existante ou nommez-en une nouvelle",
+    "ar": ""
+  },
+  "admin.productsAdd.brandLabel": {
+    "en": "Brand",
+    "fr": "Marque",
+    "ar": ""
+  },
+  "admin.productsAdd.brandRequired": {
+    "en": "Choose an existing brand or name a new one",
+    "fr": "Choisissez une marque existante ou nommez-en une nouvelle",
+    "ar": ""
+  },
+  "admin.productsAdd.modelLabel": {
+    "en": "Model",
+    "fr": "Modèle",
+    "ar": ""
+  },
+  "admin.productsAdd.modelExclusive": {
+    "en": "Choose an existing model or name a new one, not both",
+    "fr": "Choisissez un modèle existant ou nommez-en un nouveau, pas les deux",
+    "ar": ""
+  },
+  "admin.productsAdd.createNew": {
+    "en": "Create new",
+    "fr": "Créer nouveau",
+    "ar": ""
+  },
+  "admin.productsAdd.initialQuantityLabel": {
+    "en": "Initial quantity",
+    "fr": "Quantité initiale",
+    "ar": ""
+  },
+  "admin.productsAdd.initialQuantityInvalid": {
+    "en": "Initial quantity must be zero or more",
+    "fr": "La quantité initiale doit être égale ou supérieure à zéro",
+    "ar": ""
+  },
+  "admin.productsAdd.initialUnitCostLabel": {
+    "en": "Initial unit cost",
+    "fr": "Coût unitaire initial",
+    "ar": ""
+  },
+  "admin.productsAdd.initialUnitCostInvalid": {
+    "en": "Initial unit cost must be zero or more",
+    "fr": "Le coût unitaire initial doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "admin.productsAdd.initialUnitCostRequired": {
+    "en": "Initial unit cost is required when quantity is greater than zero",
+    "fr": "Le coût unitaire initial est requis lorsque la quantité est supérieure à zéro",
+    "ar": ""
+  },
+  "admin.productsAdd.guestPriceLabel": {
+    "en": "Guest price",
+    "fr": "Prix invité",
+    "ar": ""
+  },
+  "admin.productsAdd.guestPriceInvalid": {
+    "en": "Guest price must be zero or more",
+    "fr": "Le prix invité doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "admin.productsAdd.guestPriceHelper": {
+    "en": "Empty ⇒ hidden from guests and guest ordering blocked",
+    "fr": "Vide ⇒ masqué aux invités et commande invité bloquée",
+    "ar": ""
+  },
+  "admin.productsAdd.defaultSalePriceLabel": {
+    "en": "Default sale price",
+    "fr": "Prix de vente par défaut",
+    "ar": ""
+  },
+  "admin.productsAdd.defaultSalePriceInvalid": {
+    "en": "Default sale price must be zero or more",
+    "fr": "Le prix de vente par défaut doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "admin.productsAdd.categoryPriceLabel": {
+    "en": "Category price",
+    "fr": "Prix par catégorie",
+    "ar": ""
+  },
+  "admin.productsAdd.marginLabel": {
+    "en": "Margin",
+    "fr": "Marge",
+    "ar": ""
+  },
+  "admin.productsAdd.pricingRequiresStock": {
+    "en": "Pricing requires initial stock",
+    "fr": "La tarification nécessite un stock initial",
+    "ar": ""
+  },
+  "admin.productsAdd.reorderThresholdLabel": {
+    "en": "Reorder threshold",
+    "fr": "Seuil de réapprovisionnement",
+    "ar": ""
+  },
+  "admin.productsAdd.confirmDialog.title": {
+    "en": "Confirm new product",
+    "fr": "Confirmer le nouveau produit",
+    "ar": ""
+  },
+  "admin.productsAdd.confirmDialog.submit": {
+    "en": "Create product",
+    "fr": "Créer le produit",
+    "ar": ""
+  },
+  "admin.productInfo.pageTitle": {
+    "en": "Product information",
+    "fr": "Informations produit",
+    "ar": ""
+  },
+  "admin.productInfo.back": {
+    "en": "Back",
+    "fr": "Retour",
+    "ar": ""
+  },
+  "admin.productInfo.card.details": {
+    "en": "Details",
+    "fr": "Détails",
+    "ar": ""
+  },
+  "admin.productInfo.card.images": {
+    "en": "Images",
+    "fr": "Images",
+    "ar": ""
+  },
+  "admin.productInfo.card.pricing": {
+    "en": "Pricing",
+    "fr": "Tarification",
+    "ar": ""
+  },
+  "admin.productInfo.card.stock": {
+    "en": "Stock",
+    "fr": "Stock",
+    "ar": ""
+  },
+  "admin.productInfo.details.nameRequired": {
+    "en": "Name is required",
+    "fr": "Le nom est requis",
+    "ar": ""
+  },
+  "admin.productInfo.pricing.guestPriceInvalid": {
+    "en": "Guest price must be zero or more",
+    "fr": "Le prix invité doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "admin.productInfo.pricing.defaultSalePriceInvalid": {
+    "en": "Default sale price must be zero or more",
+    "fr": "Le prix de vente par défaut doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "admin.productInfo.stock.onHand": {
+    "en": "On hand",
+    "fr": "En stock",
+    "ar": ""
+  },
+  "admin.productInfo.stock.reserved": {
+    "en": "Reserved",
+    "fr": "Réservé",
+    "ar": ""
+  },
+  "admin.productInfo.stock.available": {
+    "en": "Available",
+    "fr": "Disponible",
+    "ar": ""
+  },
+  "admin.productInfo.stock.avgCost": {
+    "en": "Avg. cost",
+    "fr": "Coût moyen",
+    "ar": ""
+  },
+  "admin.productInfo.stock.stockValue": {
+    "en": "Stock value",
+    "fr": "Valeur du stock",
+    "ar": ""
+  },
+  "admin.productInfo.stock.threshold": {
+    "en": "Reorder threshold",
+    "fr": "Seuil de réapprovisionnement",
+    "ar": ""
+  },
+  "admin.productInfo.tabs.movements": {
+    "en": "Movements",
+    "fr": "Mouvements",
+    "ar": ""
+  },
+  "admin.productInfo.tabs.supplyHistory": {
+    "en": "Supply history",
+    "fr": "Historique d'approvisionnement",
+    "ar": ""
+  },
+  "admin.productInfo.tabs.salesHistory": {
+    "en": "Sales history",
+    "fr": "Historique des ventes",
+    "ar": ""
+  },
+  "admin.productInfo.movements.remainingQty": {
+    "en": "Remaining qty",
+    "fr": "Qté restante",
+    "ar": ""
+  },
+  "admin.productInfo.movements.costOfGoods": {
+    "en": "Cost of goods",
+    "fr": "Coût des marchandises",
+    "ar": ""
+  },
+  "admin.productInfo.movements.profit": {
+    "en": "Profit",
+    "fr": "Profit",
+    "ar": ""
+  },
+  "admin.productInfo.movements.sourceDocument": {
+    "en": "Source document",
+    "fr": "Document source",
+    "ar": ""
+  },
+  "admin.productInfo.supplyHistory.supplier": {
+    "en": "Supplier",
+    "fr": "Fournisseur",
+    "ar": ""
+  },
+  "admin.productInfo.supplyHistory.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.productInfo.supplyHistory.unitCost": {
+    "en": "Unit cost",
+    "fr": "Coût unitaire",
+    "ar": ""
+  },
+  "admin.productInfo.supplyHistory.landedCost": {
+    "en": "Landed cost",
+    "fr": "Coût de revient",
+    "ar": ""
+  },
+  "admin.productInfo.salesHistory.document": {
+    "en": "Document",
+    "fr": "Document",
+    "ar": ""
+  },
+  "admin.productInfo.salesHistory.resolvedVsCharged": {
+    "en": "Resolved vs charged",
+    "fr": "Résolu vs facturé",
+    "ar": ""
+  },
+  "common.errors.insufficientStock": {
+    "en": "Not enough stock",
+    "fr": "Stock insuffisant",
+    "ar": ""
+  },
+  "common.errors.creditRequiresClient": {
+    "en": "A client is required for an unpaid balance",
+    "fr": "Un client est requis pour un solde impayé",
+    "ar": ""
+  },
+  "common.errors.pricingRequiresStock": {
+    "en": "Pricing requires initial stock",
+    "fr": "La tarification nécessite un stock initial",
+    "ar": ""
+  },
+  "admin.nav.pos": {
+    "en": "POS",
+    "fr": "Point de vente",
+    "ar": ""
+  },
+  "admin.nav.sales": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "admin.nav.invoices": {
+    "en": "Invoices",
+    "fr": "Factures",
+    "ar": ""
+  },
+  "admin.nav.repairs": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "common.pricing.resolvedPrice": {
+    "en": "Resolved price",
+    "fr": "Prix résolu",
+    "ar": ""
+  },
+  "common.age.hours": {
+    "en": "{count}h ago",
+    "fr": "il y a {count}h",
+    "ar": ""
+  },
+  "common.age.days": {
+    "en": "{count}d ago",
+    "fr": "il y a {count}j",
+    "ar": ""
+  },
+  "common.actions.decrease": {
+    "en": "Decrease",
+    "fr": "Diminuer",
+    "ar": ""
+  },
+  "common.actions.increase": {
+    "en": "Increase",
+    "fr": "Augmenter",
+    "ar": ""
+  },
+  "common.units.inStock": {
+    "en": "in stock",
+    "fr": "en stock",
+    "ar": ""
+  },
+  "common.actions.save": {
+    "en": "Save",
+    "fr": "Enregistrer",
+    "ar": ""
   }
 }

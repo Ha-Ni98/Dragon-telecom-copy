@@ -22,4 +22,9 @@ export const STAFF_PAGE_ORDER: PageKey[] = [
 
 export const STAFF_PAGE_ROUTES: Partial<Record<PageKey, string>> = {
   [PageKey.STAFF_PRODUCTS]: "/staff/products",
+  [PageKey.STAFF_POS]: "/staff/pos",
+  [PageKey.STAFF_ORDERS]: "/staff/orders",
+  [PageKey.STAFF_SALES]: "/staff/sales",
+  [PageKey.STAFF_INVOICES]: "/staff/invoices",
+  [PageKey.STAFF_REPAIRS]: "/staff/repairs",
 };

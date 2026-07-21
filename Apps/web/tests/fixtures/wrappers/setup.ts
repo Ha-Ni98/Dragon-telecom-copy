@@ -48,6 +48,22 @@ if (typeof globalThis.IntersectionObserver === "undefined") {
   } as unknown as typeof IntersectionObserver;
 }
 
+// Nor window.matchMedia — vaul's Drawer (shadcn's Drawer, used by MyDraftsDrawer/mobile
+// sheets) checks `matchMedia('(display-mode: standalone)')` in a mount effect. Needed by any
+// test that opens a Drawer, not just set-03's POS drafts drawer (first hit here).
+if (typeof window !== "undefined" && !window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+}
+
 afterEach(() => {
   // RTL's auto-cleanup hooks into a global afterEach when the test runner exposes one;
   // this project runs with `globals: false` (vitest.config.ts), so nothing unmounts

@@ -15,7 +15,7 @@ import { qk } from "@/lib/query-keys";
 
 export function useOrdersList(scope: OrderScope, query: BackofficeOrdersQuery) {
   return useQuery({
-    queryKey: qk.orders.admin.list(query),
+    queryKey: qk.orders.list(scope, query),
     queryFn: () => ordersService.listOrders(scope, query),
   });
 }

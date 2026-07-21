@@ -6,9 +6,13 @@ export const MyOrdersQuerySchema = z.object({
 });
 export type MyOrdersQuery = z.infer<typeof MyOrdersQuerySchema>;
 
+// `from`/`to` (set-03 A2) — STF-04/ADM-09 §UI: "status tabs ... + search + date range", filtered
+// on the order's own date. Optional, so every existing caller that omits them is unaffected.
 export const BackofficeOrdersQuerySchema = z.object({
   status: z.enum(OrderStatus).optional(),
   search: z.string().optional(),
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });

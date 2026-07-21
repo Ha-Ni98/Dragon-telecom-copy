@@ -12,6 +12,19 @@ export const message = (err: unknown): string => {
   return translate("common.errors.crashTitle", getLanguage());
 };
 
+// Business-rule sentinels (INSUFFICIENT_STOCK, CREDIT_REQUIRES_CLIENT, PRICING_REQUIRES_STOCK)
+// travel as the *message*, not `error.code` — `Apps/api`'s ConflictError/BadRequestError take
+// `(message, details?)`, and `code` is always the generic ErrorCode the class hardcodes
+// (RESOURCE_CONFLICT/VALIDATION_ERROR respectively; confirmed against
+// `Apps/api/src/common/errors/index.ts` and `inventory.service.ts`'s
+// `throw new ConflictError('INSUFFICIENT_STOCK', {...})`). A field-error check must compare
+// this against `apiErrorMessage(err)`, never `err.response?.data?.error?.code`.
+export const apiErrorMessage = (err: unknown): string | undefined => {
+  if (!axios.isAxiosError(err)) return undefined;
+  const data = err.response?.data as ApiResponse<unknown> | undefined;
+  return data && !data.success ? data.error.message : undefined;
+};
+
 // 401s are handled by the axios interceptor (redirect), never a toast. Canceled/aborted
 // requests (unmount, refetch superseded) are silent too — neither is a failure worth
 // surfacing to the user.

@@ -20,6 +20,18 @@ export function useRepairs(scope: RepairsScope, query: RepairListQuery) {
   });
 }
 
+// set-03 B1 — single-ticket read (ADM-13/STF-07 ticket detail drawer). `enabled: !!id`
+// (Sprint 7 fix) mirrors every other by-id hook in this codebase (useCatalogProduct, useSale,
+// useMyInvoice, …) — without it, mounting the drawer before a ticket is selected would fire
+// `GET .../repairs/` with an empty id segment.
+export function useRepair(scope: RepairsScope, id: string) {
+  return useQuery({
+    queryKey: qk.repairs.detail(scope, id),
+    queryFn: () => repairsService.getRepair(scope, id),
+    enabled: !!id,
+  });
+}
+
 export function useCreateRepair() {
   const queryClient = useQueryClient();
   return useMutation({
