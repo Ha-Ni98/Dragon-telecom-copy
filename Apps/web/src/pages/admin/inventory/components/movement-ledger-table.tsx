@@ -4,6 +4,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { NotFoundState } from "@/components/shared/NotFoundState";
+import { Button } from "@/components/ui/button";
 import { StatusPill, type BadgeTone } from "@/components/shared/StatusBadge";
 import { ClipboardList } from "lucide-react";
 import { MovementDirection, type MovementDto } from "@dragon-telecom/contract";
@@ -12,6 +14,8 @@ import { useTranslation } from "@/hooks/useTranslation";
 interface MovementLedgerTableProps {
   data: MovementDto[];
   isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
 }
 
 const DIRECTION_TONE: Record<MovementDirection, BadgeTone> = {
@@ -38,7 +42,12 @@ function referenceCell(movement: MovementDto) {
 // members (SUPPLIER_INVOICE/INITIAL_STOCK/ADJUSTMENT_IN/.../PENDING_RELEASE) — rendered as its
 // raw value rather than 11 new translation keys, matching `referenceType`'s own "open string,
 // not a fabricated union" contract convention.
-export function MovementLedgerTable({ data, isLoading = false }: MovementLedgerTableProps) {
+export function MovementLedgerTable({
+  data,
+  isLoading = false,
+  isError = false,
+  onRetry,
+}: MovementLedgerTableProps) {
   const { t, language } = useTranslation();
 
   const columns = useMemo<ColumnDef<MovementDto>[]>(
@@ -100,6 +109,22 @@ export function MovementLedgerTable({ data, isLoading = false }: MovementLedgerT
   );
 
   if (isLoading) return <TableSkeleton rows={6} columns={7} />;
+
+  if (isError) {
+    return (
+      <NotFoundState
+        title={t("admin.inventory.error")}
+        body=""
+        action={
+          onRetry && (
+            <Button variant="outline" onClick={onRetry}>
+              {t("common.actions.tryAgain")}
+            </Button>
+          )
+        }
+      />
+    );
+  }
 
   return (
     <DataTable

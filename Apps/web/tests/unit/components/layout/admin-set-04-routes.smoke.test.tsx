@@ -3,6 +3,7 @@ import { Suspense, lazy } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { UserType } from "@dragon-telecom/contract";
 import { RoleGuard } from "@/components/layout/RoleGuard";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -97,24 +98,36 @@ describe("set-04 new admin routes (Sprint 2 — route registration smoke)", () =
     "mounts $path inside RoleGuard -> AdminLayout and resolves the page without a blank/error screen",
     async ({ path, initial, titleKey, importer }) => {
       const LazyPage = lazy(importer as () => Promise<{ default: React.ComponentType }>);
+      // Sprint 5 wired three of these seven routes onto real TanStack Query hooks (inventory/
+      // pos-clients/staff-searches) — a bare QueryClient is now required for those pages to
+      // mount at all (no MSW here; the real hooks just resolve to an errored/pending query,
+      // which is fine — this test only proves the shell renders).
+      const queryClient = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, gcTime: Infinity },
+          mutations: { retry: false },
+        },
+      });
 
       render(
-        <MemoryRouter initialEntries={[initial]}>
-          <Routes>
-            <Route element={<RoleGuard allow={[UserType.ADMIN, UserType.STAFF]} />}>
-              <Route element={<AdminLayout />}>
-                <Route
-                  path={path}
-                  element={
-                    <Suspense fallback={<PageLoader />}>
-                      <LazyPage />
-                    </Suspense>
-                  }
-                />
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={[initial]}>
+            <Routes>
+              <Route element={<RoleGuard allow={[UserType.ADMIN, UserType.STAFF]} />}>
+                <Route element={<AdminLayout />}>
+                  <Route
+                    path={path}
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <LazyPage />
+                      </Suspense>
+                    }
+                  />
+                </Route>
               </Route>
-            </Route>
-          </Routes>
-        </MemoryRouter>,
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
       );
 
       // The page resolves past the lazy-import Suspense boundary...

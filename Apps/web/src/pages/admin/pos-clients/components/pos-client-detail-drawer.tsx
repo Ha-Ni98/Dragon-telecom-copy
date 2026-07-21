@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { NotFoundState } from "@/components/shared/NotFoundState";
 import { CreditMovementPreview } from "@/components/shared/CreditMovementPreview";
 import { Receipt, CreditCard, History } from "lucide-react";
 import type { PosClientDto, SaleDto, ClientPaymentDto } from "@dragon-telecom/contract";
@@ -21,8 +22,10 @@ interface PosClientDetailDrawerProps {
   client: PosClientDto | null;
   sales?: SaleDto[];
   salesLoading?: boolean;
+  salesError?: boolean;
   payments?: ClientPaymentDto[];
   paymentsLoading?: boolean;
+  paymentsError?: boolean;
   creditHistory?: CreditHistoryRow[];
   onRecordPayment?: () => void;
 }
@@ -32,16 +35,20 @@ function formatCurrency(amount: number): string {
 }
 
 // ADM-11 detail drawer — headline comes from the clicked row (no re-fetch, plan §Page 4). Sales/
-// Payments tabs each mount their query lazily on activation (Sprint 5); Credit history is a
-// `useMemo` merge of those two row sets, computed by the parent page, not fetched here.
+// Payments both fetch as soon as a client is selected (Sprint 5) rather than strictly per-tab —
+// the Credit history tab needs both row sets merged regardless of which sub-tab is active, so
+// gating either query behind its own tab would leave Credit history incomplete. Computed by the
+// parent page via `useMemo`, not fetched here.
 export function PosClientDetailDrawer({
   open,
   onOpenChange,
   client,
   sales = [],
   salesLoading = false,
+  salesError = false,
   payments = [],
   paymentsLoading = false,
+  paymentsError = false,
   creditHistory = [],
   onRecordPayment,
 }: PosClientDetailDrawerProps) {
@@ -95,6 +102,8 @@ export function PosClientDetailDrawer({
           <TabsContent value="sales">
             {salesLoading ? (
               <TableSkeleton rows={4} columns={2} />
+            ) : salesError ? (
+              <NotFoundState title={t("admin.posClients.error")} body="" />
             ) : sales.length === 0 ? (
               <EmptyState
                 icon={<Receipt className="h-6 w-6" />}
@@ -116,6 +125,8 @@ export function PosClientDetailDrawer({
           <TabsContent value="payments">
             {paymentsLoading ? (
               <TableSkeleton rows={4} columns={2} />
+            ) : paymentsError ? (
+              <NotFoundState title={t("admin.posClients.error")} body="" />
             ) : payments.length === 0 ? (
               <EmptyState
                 icon={<CreditCard className="h-6 w-6" />}

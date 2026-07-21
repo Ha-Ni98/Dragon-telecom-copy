@@ -4,6 +4,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { NotFoundState } from "@/components/shared/NotFoundState";
+import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import type { StaffSearchDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -11,11 +13,18 @@ import { useTranslation } from "@/hooks/useTranslation";
 interface StaffSearchesTableProps {
   data: StaffSearchDto[];
   isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
 }
 
 // ADM-19 — StaffSearchDto (observability.dtos.ts). Matched-product links to ADM-06's movements
 // tab (plan §Page 10).
-export function StaffSearchesTable({ data, isLoading = false }: StaffSearchesTableProps) {
+export function StaffSearchesTable({
+  data,
+  isLoading = false,
+  isError = false,
+  onRetry,
+}: StaffSearchesTableProps) {
   const { t, language } = useTranslation();
 
   const columns = useMemo<ColumnDef<StaffSearchDto>[]>(
@@ -56,6 +65,22 @@ export function StaffSearchesTable({ data, isLoading = false }: StaffSearchesTab
   );
 
   if (isLoading) return <TableSkeleton rows={5} columns={4} />;
+
+  if (isError) {
+    return (
+      <NotFoundState
+        title={t("admin.staffSearches.error")}
+        body=""
+        action={
+          onRetry && (
+            <Button variant="outline" onClick={onRetry}>
+              {t("common.actions.tryAgain")}
+            </Button>
+          )
+        }
+      />
+    );
+  }
 
   return (
     <DataTable

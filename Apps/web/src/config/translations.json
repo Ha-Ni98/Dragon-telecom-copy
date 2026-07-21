@@ -12265,8 +12265,8 @@
     "ar": ""
   },
   "admin.inventory.adjustment.success": {
-    "en": "Adjustment posted successfully",
-    "fr": "Ajustement enregistré avec succès",
+    "en": "Adjustment {reference} posted successfully",
+    "fr": "Ajustement {reference} enregistré avec succès",
     "ar": ""
   },
   "admin.inventory.adjustment.error": {

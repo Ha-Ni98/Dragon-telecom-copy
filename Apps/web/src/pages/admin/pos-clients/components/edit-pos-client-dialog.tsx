@@ -1,4 +1,4 @@
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -86,22 +86,25 @@ export function EditPosClientDialog({
                 </FormItem>
               )}
             />
-            <FormItem>
-              <FormLabel>{t("admin.posClients.form.category")}</FormLabel>
-              <Controller
-                control={form.control}
-                name="categoryId"
-                render={({ field }) => (
-                  <AutocompleteInput
-                    value={field.value ?? ""}
-                    onChange={field.onChange}
-                    suggestions={categoryOptions}
-                    disabled={isSaving}
-                  />
-                )}
-              />
-              <FormDescription>{t("admin.posClients.form.categoryHelp")}</FormDescription>
-            </FormItem>
+            <FormField
+              control={form.control}
+              name="categoryId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("admin.posClients.form.category")}</FormLabel>
+                  <FormControl>
+                    <AutocompleteInput
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      suggestions={categoryOptions}
+                      disabled={isSaving}
+                    />
+                  </FormControl>
+                  <FormDescription>{t("admin.posClients.form.categoryHelp")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="isEnabled"

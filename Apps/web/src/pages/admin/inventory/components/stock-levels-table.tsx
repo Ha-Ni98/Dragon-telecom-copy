@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { NotFoundState } from "@/components/shared/NotFoundState";
 import { Package, Download } from "lucide-react";
 import type { StockRowDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -13,6 +14,8 @@ import { useTranslation } from "@/hooks/useTranslation";
 interface StockLevelsTableProps {
   data: StockRowDto[];
   isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   lowStockOnly: boolean;
   onLowStockOnlyChange: (value: boolean) => void;
   onExportCsv?: () => void;
@@ -23,6 +26,8 @@ interface StockLevelsTableProps {
 export function StockLevelsTable({
   data,
   isLoading = false,
+  isError = false,
+  onRetry,
   lowStockOnly,
   onLowStockOnlyChange,
   onExportCsv,
@@ -88,6 +93,18 @@ export function StockLevelsTable({
 
       {isLoading ? (
         <TableSkeleton rows={6} columns={6} />
+      ) : isError ? (
+        <NotFoundState
+          title={t("admin.inventory.error")}
+          body=""
+          action={
+            onRetry && (
+              <Button variant="outline" onClick={onRetry}>
+                {t("common.actions.tryAgain")}
+              </Button>
+            )
+          }
+        />
       ) : (
         <DataTable
           columns={columns}

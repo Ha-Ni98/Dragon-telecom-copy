@@ -1,4 +1,4 @@
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -75,21 +75,25 @@ export function AddPosClientDialog({
                 </FormItem>
               )}
             />
-            <FormItem>
-              <FormLabel>{t("admin.posClients.form.category")}</FormLabel>
-              <Controller
-                control={form.control}
-                name="categoryId"
-                render={({ field }) => (
-                  <AutocompleteInput
-                    value={field.value ?? ""}
-                    onChange={field.onChange}
-                    suggestions={categoryOptions}
-                    disabled={isSaving}
-                  />
-                )}
-              />
-            </FormItem>
+            <FormField
+              control={form.control}
+              name="categoryId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("admin.posClients.form.category")}</FormLabel>
+                  <FormControl>
+                    <AutocompleteInput
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      suggestions={categoryOptions}
+                      disabled={isSaving}
+                    />
+                  </FormControl>
+                  <FormDescription>{t("admin.posClients.form.categoryHelp")}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="initialCredit"
@@ -109,7 +113,6 @@ export function AddPosClientDialog({
                 </FormItem>
               )}
             />
-            <FormDescription>{t("admin.posClients.form.categoryHelp")}</FormDescription>
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 type="button"

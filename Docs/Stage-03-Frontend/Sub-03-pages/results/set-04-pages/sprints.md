@@ -98,20 +98,22 @@ document.**
 
 ---
 
-### Sprint 5: Wiring — Inventory, POS clients, Staff searches (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 5: Wiring — Inventory, POS clients, Staff searches (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - Three read-heavy pages live on real hooks with granular states + their forms.
 
 **Tasks**
-- [ ] **(#wiring)** Inventory: `useStock`/`useMovements`/`useReservations` + filters; `useCreateAdjustment` (RHF, invalidates the three inventory keys + `qk.catalog.adminProducts`); `useExportStockCsv`; reference cells as `<Link>`.
-- [ ] **(#wiring)** POS clients: `usePosClientsList` + `useCreatePosClient`/`useUpdatePosClient`; detail drawer tabs via `useSales('admin',{posClientId})` + `useClientPayments({posClientId},{enabled})`; **credit-history tab = `useMemo` merge** of those rows on `previous→new` credit + date. Drawer headline from the clicked row (no re-fetch).
-- [ ] **(#wiring)** Staff searches: `useStaffSearches` + filters; product link `<Link>` → ADM-04 movements tab.
-- [ ] **(#testing)** Wiring smoke: mocked hooks drive success/loading/error for each; adjustment form posts.
+- [x] **(#wiring)** Inventory: `useStock`/`useMovements`/`useReservations` + filters; `useCreateAdjustment` (RHF, invalidates the three inventory keys + `qk.catalog.adminProducts`); `useExportStockCsv`; reference cells as `<Link>`.
+- [x] **(#wiring)** POS clients: `usePosClientsList` + `useCreatePosClient`/`useUpdatePosClient`; detail drawer tabs via `useSales('admin',{posClientId})` + `useClientPayments({posClientId},{enabled})`; **credit-history tab = `useMemo` merge** of those rows on `previous→new` credit + date. Drawer headline from the clicked row (no re-fetch).
+- [x] **(#wiring)** Staff searches: `useStaffSearches` + filters; product link `<Link>` → ADM-04 movements tab.
+- [x] **(#testing)** Wiring smoke: mocked hooks drive success/loading/error for each; adjustment form posts.
 
 **Validation** — standard checklist (success/loading/error via `vi.mock`).
 
 **Risks** — credit-merge ordering when a sale and payment share a timestamp (define a stable tiebreak); reservation `age` derivation reads server time, not client clock.
+
+**Outcome** — see `report-sprint-05.md`. All three pages wired; `useSales` gained an `options?.enabled` param (matching `useInvoices`/`useStaffProducts` precedent) since ADM-11's drawer needs to gate it, unlike POS's always-on ticket search. Both sales + payments fetch together as soon as a POS client row is clicked (not strictly per-tab) because the credit-history tab needs both regardless of which sub-tab is active. Found and fixed a genuine Sprint-4 scaffold bug: the `categoryId` field in both POS-client dialogs used a bare `<Controller>` + `<FormLabel>` outside `<FormField>`, which crashes once the dialog is actually opened (never caught by Sprint 4's tests, which never opened them). `tsc`/`eslint`/`vitest run` all green (567 tests, 15 new).
 
 ---
 
