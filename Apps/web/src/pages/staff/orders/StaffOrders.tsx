@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from "react";
-import axios from "axios";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SimplePagination } from "@/components/shared/SimplePagination";
@@ -22,6 +21,7 @@ import {
 import { useAdminCatalogProduct } from "@/hooks/useCatalogProducts";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
+import { apiErrorMessage } from "@/lib/query-client";
 import { OrderStatus, type OrderDto, type BackofficeOrdersQuery } from "@dragon-telecom/contract";
 import type { ConfirmOrderFormValues } from "@/pages/staff/orders/confirm-order.schema";
 import type { OrderStatusFormValues } from "@/pages/staff/orders/order-status.schema";
@@ -30,14 +30,6 @@ import type { ReturnOrderFormValues } from "@/pages/admin/orders/components/retu
 
 interface Props {
   scope?: "staff" | "admin";
-}
-
-function insufficientStockCode(err: unknown): boolean {
-  return (
-    axios.isAxiosError(err) &&
-    (err.response?.data as { error?: { code?: string } } | undefined)?.error?.code ===
-      "INSUFFICIENT_STOCK"
-  );
 }
 
 // STF-04 `/staff/orders` = ADM-09 `/admin/orders` (scope-driven twin). set-03 Sprint 6 wiring —
@@ -121,7 +113,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
           toast.success(t("staff.orders.confirmDialog.submit"));
         },
         onError: (err) => {
-          if (insufficientStockCode(err)) {
+          if (apiErrorMessage(err) === "INSUFFICIENT_STOCK") {
             setStockError(t("staff.orders.confirmDialog.insufficientStock"));
           }
         },

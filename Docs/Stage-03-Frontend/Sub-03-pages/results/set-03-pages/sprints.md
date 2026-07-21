@@ -162,20 +162,23 @@ Each sprint's **Validation** block repeats these; only sprint-specific extras ar
 
 ---
 
-### Sprint 7: Wiring — POS & Repairs (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 7: Wiring — POS & Repairs (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - The two interaction-heavy twins wired; keyboard, drafts, board drag, parts editor working.
 
 **Tasks**
-- [ ] POS: `useStaffProducts`(admin:`useAdminCatalogProducts`), `usePosClientSearch`, `useQuickCreatePosClient`, drafts `useSales(scope,{status:'DRAFT'})`, `useCreateDraft`/`useUpdateDraft` (PATCH-on-change), `useConfirmSale`. Client attach re-resolves line prices (delta visible); per-line override edits `unitPrice`; underpayment/no-client → `CREDIT_REQUIRES_CLIENT`; shortfall → `INSUFFICIENT_STOCK` on the line; receipt view + print. Admin drawer groups drafts by staff. (#wiring #forms)
-- [ ] Repairs: `useRepairs(scope,q)`, `useRepair(scope,id)` (B1), `useTechnicians`, `useCreateRepair`/`useUpdateRepair`/`useAddRepairPart`/`useRemoveRepairPart`/`useUpdateRepairStatus`. Board drag = status transition (snap-back + toast on server reject); intake prints claim slip; parts editor reserves + live availability; PICKED_UP → cash payment dialog; staff mapping omits profit/cost. Rewire `useRepair` detail into `RepairTicketDetail`. (#wiring #forms)
+- [x] POS: `useStaffProducts` for **both** scopes (not `useAdminCatalogProducts` for admin — `PosProductSearch` is hard-typed to `StaffProductDto[]`, which already has everything a ticket needs; using the admin DTO would need a second component variant), `usePosClientSearch`, `useQuickCreatePosClient`, drafts `useSales(scope,{status:'DRAFT'})`, `useCreateDraft`/`useUpdateDraft` (debounced PATCH-on-change, with a synchronous flush-then-confirm to close the race between an in-flight debounce and Confirm), `useConfirmSale`. Client attach re-resolves non-overridden line prices (delta visible); per-line override edits `unitPrice`; underpayment/no-client → `CREDIT_REQUIRES_CLIENT` on the attach zone; shortfall → `INSUFFICIENT_STOCK` on the payment panel; receipt view + print. Admin drawer groups drafts by staff. (#wiring #forms)
+- [x] Repairs: `useRepairs(scope,q)`, `useRepair(scope,id)` (B1, gained a needed `enabled: !!id` gate), `useTechnicians`, `useCreateRepair`/`useUpdateRepair`/`useAddRepairPart`/`useRemoveRepairPart`/`useUpdateRepairStatus`. Board drag always fires the bare `{toStatus}` command and lets the server be the judge (snap-back + toast on reject) rather than pre-routing to a form — PROCESSING/PICKED_UP/post-completion-CANCELLED need extra fields a drag can't supply, so those three specifically always bounce on drag and must go through the ticket detail's "Update status" button instead (documented UX gap). Parts editor reserves via `useAddRepairPart`; staff mapping omits profit/cost (component-level gating, already built Sprint 4). Rewired `useRepair` detail into `RepairTicketDetail`. (#wiring #forms)
+- [x] **Real bug found and fixed, affecting both this sprint and Sprint 6:** `INSUFFICIENT_STOCK`/`CREDIT_REQUIRES_CLIENT` travel as the backend error's **message**, not `error.code` (`Apps/api`'s `ConflictError`/`BadRequestError` take `(message, details?)`; `code` is always the generic `RESOURCE_CONFLICT`/`VALIDATION_ERROR`). Sprint 6's order-confirm field-error check was comparing against `error.code` and would never have matched in production. Added `apiErrorMessage()` to `lib/query-client.ts` and fixed both call sites.
 
 **Validation**
-- [ ] Global gates. Extra: F2/F4/Enter handlers fire (no `useEffect` fetch); confirm idempotent/double-click safe; rejected drag snaps back; PROCESSING refine requires technician, PICKED_UP requires `paidAmount`.
+- [x] Global gates. Extra: F2/F4 focus shortcuts and a focus-scoped Enter (only confirms when the paid-amount field itself has focus, so typing in product/client search doesn't trigger it) via `useKeyboardShortcuts`, no `useEffect` fetch (the one `useEffect` in POS is the debounced draft-PATCH side effect, not a query — same sanctioned pattern as `AdminProducts.tsx`'s debounced-search-to-URL sync); confirm flushes the live draft state synchronously before calling `useConfirmSale`, so a double-click or a pending debounce can't confirm stale data; drag rejection relies on the board never doing an optimistic move (cards only reflect query data, so a failed mutation is a no-op visually); PROCESSING refine requires technician, PICKED_UP requires `paidAmount` (both already enforced by Sprint 1's `repair-status.schema.ts`, exercised here for the first time against real mutations).
 
 **Risks**
-- Incremental draft PATCH races; drag optimistic state vs server validation; keyboard focus stealing.
+- Incremental draft PATCH races — mitigated by the flush-before-confirm. Drag vs server validation — resolved by never pre-guessing the server's answer. Keyboard focus stealing — Enter is scoped to the paid-amount field's own focus state, not global.
+
+**Report:** [report-sprint-07.md](./report-sprint-07.md)
 
 ---
 

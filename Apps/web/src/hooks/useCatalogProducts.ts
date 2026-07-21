@@ -27,10 +27,15 @@ export function useCatalogProduct(id: string) {
   });
 }
 
-export function useStaffProducts(query: ProductListQuery) {
+// `options.enabled` (set-03 Sprint 7) — the repairs parts-editor reuses this for its product
+// picker and only wants it to fire once the tech has typed something, unlike POS's own product
+// grid which lists everything up front; omitting `options` keeps every existing caller's
+// always-on behavior (react-query treats `enabled: undefined` as enabled).
+export function useStaffProducts(query: ProductListQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.catalog.staffProducts.list(query),
     queryFn: () => catalogService.listStaffProducts(query),
+    enabled: options?.enabled,
   });
 }
 
