@@ -7,6 +7,7 @@ import {
   MapPin,
   RefreshCw,
   AlertTriangle,
+  CheckCircle,
   FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,13 @@ import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SimplePagination } from "@/components/shared/SimplePagination";
 import { useTranslation } from "@/hooks/useTranslation";
-import type { ExcelImportResult } from "@/types/draft-types";
 import { ExcelFileUploader } from "@/components/shared/excel-file-uploader";
+import {
+  useAdminDeliveryFees,
+  useImportAdminDeliveryFees,
+  useExportAdminDeliveryFees,
+} from "@/hooks/usePlatform";
+import { downloadBlob } from "@/lib/utils";
 import type { AdminFeesDto } from "@dragon-telecom/contract";
 
 interface DeliveryFeesSectionProps {
@@ -71,23 +77,30 @@ function formatCurrency(amount: number): string {
 // `wilayas[] -> communes[]` shape (one resolved fee per wilaya + only the communes with an
 // explicit override), not the old view-model's flat `{wilaya, commune, deliveryHome,
 // deliveryOffice}[]` — flattened into table rows here (`communeName` absent = the wilaya-level
-// default row). Data is a local placeholder instead of the incompatible stub hook
-// `useDeliveryFees` (`use-admin-settings.ts`) — Sprint 8 swaps this for `useAdminDeliveryFees`/
-// `useImport/ExportAdminDeliveryFees`. The Excel uploader's own `ExcelImportResult` contract
-// (a shared component, `components/shared/excel-file-uploader.tsx`) still predates the real
-// dry-run-report flow the plan calls for — flagged for Sprint 8, not solved here.
+// default row). Sprint 8 wires `useAdminDeliveryFees`/`useImport/ExportAdminDeliveryFees`.
+// Scope note: the requirement's "dry-run validation report before applying" needs either a
+// backend preview endpoint or client-side .xlsx row parsing — neither exists (no approved
+// parsing library, single atomic `FEES_IMPORT` endpoint, no separate dry-run mode). Rather than
+// fabricate row-level validation client-side, the import is wired as a single confirm-and-apply
+// step against the real endpoint — the backend's own all-or-nothing guarantee is what the
+// requirement's parenthetical actually asks for. Row-level pre-apply validation is deferred to a
+// contract change, not invented here (same "flag rather than approximate" call as Sprint 6's
+// landed-cost note).
 export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
   const { t } = useTranslation();
 
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [importResult, setImportResult] = useState<ExcelImportResult | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [importedCount, setImportedCount] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
 
-  const fees: AdminFeesDto | undefined = undefined;
-  const isLoading = false;
-  const isError = false;
+  const feesQuery = useAdminDeliveryFees();
+  const importFees = useImportAdminDeliveryFees();
+  const exportFees = useExportAdminDeliveryFees();
+
+  const fees: AdminFeesDto | undefined = feesQuery.data;
+  const isLoading = feesQuery.isLoading;
+  const isError = feesQuery.isError;
 
   const rows = useMemo(() => (fees ? flattenFeeRows(fees) : []), [fees]);
   const paginatedRows = useMemo(
@@ -104,14 +117,18 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
     [rows],
   );
 
-  const handleFileProcessed = (result: ExcelImportResult) => {
-    setImportResult(result);
-    setIsProcessing(false);
+  const handleFileSelected = (file: File) => {
+    setImportedCount(null);
+    importFees.mutate(file, {
+      onSuccess: (result) => setImportedCount(result.imported),
+    });
   };
   const handleImportDialogClose = () => {
     setIsImportDialogOpen(false);
-    setImportResult(null);
-    setIsProcessing(false);
+    setImportedCount(null);
+  };
+  const handleExport = () => {
+    exportFees.mutate({}, { onSuccess: (blob) => downloadBlob("delivery-fees.csv", blob) });
   };
 
   const columns: ColumnDef<FeeRow>[] = [
@@ -180,11 +197,21 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
               <CardDescription>{t("admin.settings.delivery.description")}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={isLoading}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+                onClick={() => feesQuery.refetch()}
+              >
                 <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                 {t("common.actions.refresh")}
               </Button>
-              <Button variant="outline" size="sm" disabled={!rows.length}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!rows.length || exportFees.isPending}
+                onClick={handleExport}
+              >
                 <Download className="mr-2 h-4 w-4" />
                 {t("admin.settings.delivery.exportExcel")}
               </Button>
@@ -271,34 +298,31 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
 
           <div className="space-y-6">
             <ExcelFileUploader
-              onFileProcessed={handleFileProcessed}
-              disabled={isProcessing}
-              isProcessing={isProcessing}
+              onFileSelected={handleFileSelected}
+              disabled={importFees.isPending}
+              isProcessing={importFees.isPending}
             />
 
-            {importResult && (
-              <Alert variant={importResult.success ? "default" : "destructive"}>
-                <AlertTriangle className="h-4 w-4" />
+            {importedCount !== null && (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {importResult.message}
-                  {importResult.errors && importResult.errors.length > 0 && (
-                    <ul className="mt-2 list-inside list-disc">
-                      {importResult.errors.map((error, index) => (
-                        <li key={index} className="text-sm">
-                          {error}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  {t("admin.settings.delivery.importedBody", { count: importedCount })}
                 </AlertDescription>
               </Alert>
             )}
 
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={handleImportDialogClose} disabled={isProcessing}>
-                {importResult ? t("admin.settings.delivery.close") : t("common.actions.cancel")}
+              <Button
+                variant="outline"
+                onClick={handleImportDialogClose}
+                disabled={importFees.isPending}
+              >
+                {importedCount !== null
+                  ? t("admin.settings.delivery.close")
+                  : t("common.actions.cancel")}
               </Button>
-              {importResult?.success && (
+              {importedCount !== null && (
                 <Button onClick={handleImportDialogClose}>
                   {t("admin.settings.delivery.continue")}
                 </Button>

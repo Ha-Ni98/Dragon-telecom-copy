@@ -155,20 +155,22 @@ document.**
 
 ---
 
-### Sprint 8: Wiring — Statistics, Settings, Audit logs (all rewire) (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 8: Wiring — Statistics, Settings, Audit logs (all rewire) (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - The three remaining rewire pages live on real hooks with per-widget/per-tab states.
 
 **Tasks**
-- [ ] **(#wiring)** Statistics: swap to `useOverview`/`useFiltered`/`useChart`/`useTopProducts`/`useReport` + `useExportReportCsv`; URL-synced `dateRange`/`familyId` via `useSearchParams`; per-widget independent states; report-picker (chart + `DataTable` + CSV); drill ids as `<Link>`.
-- [ ] **(#wiring)** Settings: `usePlatformSettings`/`useUpdatePlatformSettings` (Store/Invoicing/Storefront featured-only); `useAdminDeliveryFees`/`useUpsert/Import/ExportAdminDeliveryFees` (import dry-run report, invalidates `['wilayas']`); categories via `useCatalogClientCategories` + create/update; hierarchy via `useCatalogTaxonomy` (families/brands/models, `useSetModelFamilies`, disable-only). Drop the stub "accounts" section (ADM-16 owns users) — flag to owner.
-- [ ] **(#wiring)** Audit logs: swap to `useLogs` + `useLogStats`; user-filter source = `useUsers` (identity), not the stub `usePlatformUsers`; entity links; no mutation UI.
-- [ ] **(#testing)** Mocked-hook wiring smoke; statistics one-widget-error isolation; settings sequence-decrease 409; delivery-fee dry-run.
+- [x] **(#wiring)** Statistics: swap to `useOverview`/`useFiltered`/`useChart`/`useTopProducts`/`useReport` + `useExportReportCsv`; URL-synced `dateRange`/`familyId` via `useSearchParams`; per-widget independent states; report-picker (chart + `DataTable` + CSV); drill ids as `<Link>`.
+- [x] **(#wiring)** Settings: `usePlatformSettings`/`useUpdatePlatformSettings` (Store/Invoicing/Storefront featured-only); `useAdminDeliveryFees`/`useUpsert/Import/ExportAdminDeliveryFees` (import dry-run report, invalidates `['wilayas']`); categories via `useCatalogClientCategories` + create/update; hierarchy via `useCatalogTaxonomy` (families/brands/models, `useSetModelFamilies`, disable-only). Drop the stub "accounts" section (ADM-16 owns users) — flag to owner.
+- [x] **(#wiring)** Audit logs: swap to `useLogs` + `useLogStats`; user-filter source = `useUsers` (identity), not the stub `usePlatformUsers`; entity links; no mutation UI.
+- [x] **(#testing)** Mocked-hook wiring smoke; statistics one-widget-error isolation; settings sequence-decrease 409; delivery-fee dry-run.
 
 **Validation** — standard checklist. Additionally: a single statistics widget error leaves siblings rendered.
 
 **Risks** — statistics widgets sharing a cache key would couple their loading — keep per-widget keys; delivery-fee import must be all-or-nothing (dry-run before apply).
+
+**Outcome** — see `report-sprint-08.md`. All three pages wired; new `report-picker.tsx` component built (Sprint 4 never built one for this rewire page) — one report type at a time, its own `useReport`/`useExportReportCsv`, a bar chart + `DataTable` + CSV export, drill ids as `<Link>` for `product`/`client`/`supplier` entities. Real gap found in `useAdminDeliveryFees`'s import flow: the shared `excel-file-uploader.tsx` component was a pure Sub-01 mock that fabricated parsed rows instead of reading the real file and never called a real endpoint — fixed by having it hand the raw `File` to the caller (`onFileSelected`, replacing `onFileProcessed`), since no approved client-side `.xlsx`-parsing library exists and the backend's `FEES_IMPORT` route has no separate dry-run mode. The requirement's "dry-run validation report" is therefore delivered as a confirm-and-apply step against the real atomic endpoint, not a fabricated row-level preview — flagged rather than invented (same call as Sprint 6's landed-cost note). `handleCreateModel`'s families are set via a second `useSetModelFamilies` call after `useCreateCatalogModel` succeeds (the create command itself carries no `familyIds` — confirmed against `taxonomy.schema.ts`). `tsc`/`eslint`/`vitest run` all green (622 tests, 15 new); ~10.2k pre-existing `draft-types`/`excel-file-uploader.tsx` lint noise confirmed untouched beyond the lines this sprint's edit actually removed.
 
 ---
 

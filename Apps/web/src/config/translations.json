@@ -12889,6 +12889,71 @@
     "fr": "Voir les détails",
     "ar": ""
   },
+  "admin.statistics.reports.description": {
+    "en": "Pick a report type for a detailed table, chart, and CSV export",
+    "fr": "Choisissez un type de rapport pour un tableau détaillé, un graphique et un export CSV",
+    "ar": ""
+  },
+  "admin.statistics.reports.selectType": {
+    "en": "Select a report",
+    "fr": "Sélectionner un rapport",
+    "ar": ""
+  },
+  "admin.statistics.reports.empty": {
+    "en": "No data for this report",
+    "fr": "Aucune donnée pour ce rapport",
+    "ar": ""
+  },
+  "admin.statistics.reports.error": {
+    "en": "Failed to load this report",
+    "fr": "Échec du chargement de ce rapport",
+    "ar": ""
+  },
+  "admin.statistics.reports.types.sales-by-product": {
+    "en": "Sales by product",
+    "fr": "Ventes par produit",
+    "ar": ""
+  },
+  "admin.statistics.reports.types.sales-by-client": {
+    "en": "Sales by client",
+    "fr": "Ventes par client",
+    "ar": ""
+  },
+  "admin.statistics.reports.types.sales-by-category": {
+    "en": "Sales by category",
+    "fr": "Ventes par catégorie",
+    "ar": ""
+  },
+  "admin.statistics.reports.types.sales-by-seller": {
+    "en": "Sales by seller",
+    "fr": "Ventes par vendeur",
+    "ar": ""
+  },
+  "admin.statistics.reports.types.stock-movements": {
+    "en": "Stock movements",
+    "fr": "Mouvements de stock",
+    "ar": ""
+  },
+  "admin.statistics.reports.types.repairs": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "admin.statistics.reports.types.supplier-spend": {
+    "en": "Supplier spend",
+    "fr": "Dépenses fournisseurs",
+    "ar": ""
+  },
+  "admin.statistics.reports.types.ageing": {
+    "en": "Ageing",
+    "fr": "Ancienneté",
+    "ar": ""
+  },
+  "admin.statistics.reports.types.client-browsing": {
+    "en": "Client browsing",
+    "fr": "Navigation des clients",
+    "ar": ""
+  },
   "admin.statistics.widgetError": {
     "en": "Failed to load this widget",
     "fr": "Échec du chargement de ce widget",
@@ -13392,6 +13457,26 @@
   "admin.settings.categories.pricedProductCount": {
     "en": "Priced Products",
     "fr": "Produits tarifés",
+    "ar": ""
+  },
+  "admin.settings.categories.createSuccess": {
+    "en": "Category created",
+    "fr": "Catégorie créée",
+    "ar": ""
+  },
+  "admin.settings.categories.updateSuccess": {
+    "en": "Category updated",
+    "fr": "Catégorie mise à jour",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.createSuccess": {
+    "en": "Created successfully",
+    "fr": "Créé avec succès",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.disableSuccess": {
+    "en": "Disabled successfully",
+    "fr": "Désactivé avec succès",
     "ar": ""
   },
   "admin.logs.entity": {

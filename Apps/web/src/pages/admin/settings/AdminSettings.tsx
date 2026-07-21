@@ -3,7 +3,9 @@
  * Complete settings management interface with all sections
  */
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import axios from "axios";
+import { toast } from "sonner";
 import {
   Settings,
   Tag,
@@ -37,15 +39,32 @@ import { StoreSettingsForm } from "@/pages/admin/settings/components/store-setti
 import { InvoicingSettingsForm } from "@/pages/admin/settings/components/invoicing-settings-form";
 import { HierarchyPanel } from "@/pages/admin/settings/components/hierarchy-panel";
 import { StorefrontSettings } from "@/pages/admin/settings/components/storefront-settings";
-import type { FamilyDto, BrandDto, DeviceModelDto } from "@dragon-telecom/contract";
+import { TableSkeleton } from "@/components/shared/TableSkeleton";
+import { NotFoundState } from "@/components/shared/NotFoundState";
+import type { StoreSettingsFormValues } from "@/pages/admin/settings/components/store-settings.schema";
+import type { InvoicingSettingsFormValues } from "@/pages/admin/settings/components/invoicing-settings.schema";
+import { usePlatformSettings, useUpdatePlatformSettings } from "@/hooks/usePlatform";
+import {
+  useCatalogFamilies,
+  useCatalogBrands,
+  useCatalogModels,
+  useCreateCatalogFamily,
+  useCreateCatalogBrand,
+  useCreateCatalogModel,
+  useUpdateCatalogFamily,
+  useUpdateCatalogBrand,
+  useUpdateCatalogModel,
+  useSetModelFamilies,
+} from "@/hooks/useCatalogTaxonomy";
+import { useAdminCatalogProducts } from "@/hooks/useCatalogProducts";
 
 // ADM-17 — Sprint 3 retyped the tabs whose existing component was structurally compatible with
-// the real DTOs (Categories -> ClientCategoryDto; Delivery fees -> AdminFeesDto). Sprint 4 adds
-// the remaining four tabs as page-local primitives with placeholder data (no hooks yet — Sprint 8
-// wires `usePlatformSettings`/`useUpdatePlatformSettings` + `useCatalogFamilies/Brands/Models`).
-// "Accounts" stays dropped from the active tree (not deleted): ADM-16 (Users & roles) now owns
-// user management (plan §Deletion Audit) — the stub `admin-accounts-section.tsx`/
-// `admin-account-dialog.tsx` are flagged for Sprint 9.
+// the real DTOs (Categories -> ClientCategoryDto; Delivery fees -> AdminFeesDto). Sprint 4 added
+// the remaining four tabs as page-local primitives with placeholder data. Sprint 8 wires
+// `usePlatformSettings`/`useUpdatePlatformSettings` (Store/Invoicing/Storefront) +
+// `useCatalogFamilies/Brands/Models` (Hierarchy). "Accounts" stays dropped from the active tree
+// (not deleted): ADM-16 (Users & roles) now owns user management (plan §Deletion Audit) — the
+// stub `admin-accounts-section.tsx`/`admin-account-dialog.tsx` are flagged for Sprint 9.
 export default function AdminSettings() {
   const { t } = useTranslation();
 
@@ -53,11 +72,127 @@ export default function AdminSettings() {
   const SHOW_GENERAL_SETTINGS = false;
 
   const [activeTab, setActiveTab] = useState(SHOW_GENERAL_SETTINGS ? "general" : "categories");
+  const [sequenceDecreaseError, setSequenceDecreaseError] = useState(false);
 
-  const [families] = useState<FamilyDto[]>([]);
-  const [brands] = useState<BrandDto[]>([]);
-  const [models] = useState<DeviceModelDto[]>([]);
-  const [featuredProducts] = useState<{ id: string; name: string }[]>([]);
+  const settingsQuery = usePlatformSettings();
+  const updateSettings = useUpdatePlatformSettings();
+
+  const families = useCatalogFamilies({}, true);
+  const brands = useCatalogBrands(true);
+  const models = useCatalogModels({}, true);
+  const createFamily = useCreateCatalogFamily();
+  const createBrand = useCreateCatalogBrand();
+  const createModel = useCreateCatalogModel();
+  const updateFamily = useUpdateCatalogFamily();
+  const updateBrand = useUpdateCatalogBrand();
+  const updateModel = useUpdateCatalogModel();
+  const setModelFamilies = useSetModelFamilies();
+  const hierarchyLoading = families.isLoading || brands.isLoading || models.isLoading;
+
+  // Product options for the Storefront featured-picker — same "one generous page, no
+  // search-as-you-type UI in a wiring sprint" call as AdminInventory's adjustment-form product
+  // picker (useAdminCatalogProducts({ page: 1, limit: 100 })). A featured product outside this
+  // first 100 falls back to showing its raw id in the chip until it appears in this page.
+  const adminProducts = useAdminCatalogProducts({ page: 1, limit: 100 });
+  const featuredIds = useMemo(
+    () => settingsQuery.data?.storefront.featuredProductIds ?? [],
+    [settingsQuery.data],
+  );
+  const productNameById = useMemo(
+    () => new Map((adminProducts.data?.items ?? []).map((p) => [p.id, p.name])),
+    [adminProducts.data],
+  );
+  const featuredProducts = useMemo(
+    () => featuredIds.map((id) => ({ id, name: productNameById.get(id) ?? id })),
+    [featuredIds, productNameById],
+  );
+  const productOptions = useMemo(
+    () =>
+      (adminProducts.data?.items ?? [])
+        .filter((p) => !featuredIds.includes(p.id))
+        .map((p) => ({ value: p.id, label: p.name })),
+    [adminProducts.data, featuredIds],
+  );
+
+  const handleSaveStore = (values: StoreSettingsFormValues) => {
+    updateSettings.mutate(
+      { store: values },
+      { onSuccess: () => toast.success(t("admin.settings.saveSuccess")) },
+    );
+  };
+
+  const handleSaveInvoicing = (values: InvoicingSettingsFormValues) => {
+    setSequenceDecreaseError(false);
+    updateSettings.mutate(
+      { invoicing: values },
+      {
+        onSuccess: () => toast.success(t("admin.settings.saveSuccess")),
+        onError: (err) => {
+          if (axios.isAxiosError(err) && err.response?.status === 409) {
+            setSequenceDecreaseError(true);
+          }
+        },
+      },
+    );
+  };
+
+  const handleAddFeatured = (productId: string) => {
+    updateSettings.mutate({ storefront: { featuredProductIds: [...featuredIds, productId] } });
+  };
+
+  const handleRemoveFeatured = (productId: string) => {
+    updateSettings.mutate({
+      storefront: { featuredProductIds: featuredIds.filter((id) => id !== productId) },
+    });
+  };
+
+  const handleCreateFamily = (name: string) => {
+    createFamily.mutate(
+      { name },
+      { onSuccess: () => toast.success(t("admin.settings.hierarchy.createSuccess")) },
+    );
+  };
+  const handleCreateBrand = (name: string) => {
+    createBrand.mutate(
+      { name },
+      { onSuccess: () => toast.success(t("admin.settings.hierarchy.createSuccess")) },
+    );
+  };
+  const handleCreateModel = (name: string, brandId: string, familyIds: string[]) => {
+    createModel.mutate(
+      { name, brandId },
+      {
+        onSuccess: (model) => {
+          toast.success(t("admin.settings.hierarchy.createSuccess"));
+          if (familyIds.length > 0) {
+            setModelFamilies.mutate({ id: model.id, command: { familyIds } });
+          }
+        },
+      },
+    );
+  };
+  const handleDisableFamily = (id: string) => {
+    updateFamily.mutate(
+      { id, command: { isEnabled: false } },
+      { onSuccess: () => toast.success(t("admin.settings.hierarchy.disableSuccess")) },
+    );
+  };
+  const handleDisableBrand = (id: string) => {
+    updateBrand.mutate(
+      { id, command: { isEnabled: false } },
+      { onSuccess: () => toast.success(t("admin.settings.hierarchy.disableSuccess")) },
+    );
+  };
+  const handleDisableModel = (id: string) => {
+    updateModel.mutate(
+      { id, command: { isEnabled: false } },
+      { onSuccess: () => toast.success(t("admin.settings.hierarchy.disableSuccess")) },
+    );
+  };
+
+  const handleSaveStorefront = () => {
+    toast.success(t("admin.settings.saveSuccess"));
+  };
 
   return (
     <div className="space-y-6">
@@ -318,38 +453,94 @@ export default function AdminSettings() {
 
         {/* Store Tab */}
         <TabsContent value="store">
-          <StoreSettingsForm onSave={() => {}} />
+          {settingsQuery.isLoading ? (
+            <TableSkeleton rows={3} columns={1} />
+          ) : settingsQuery.isError ? (
+            <NotFoundState
+              icon={<Store className="h-6 w-6" />}
+              title={t("admin.settings.saveError")}
+              body={t("admin.settings.description")}
+              action={
+                <Button variant="outline" size="sm" onClick={() => settingsQuery.refetch()}>
+                  {t("common.retry")}
+                </Button>
+              }
+            />
+          ) : (
+            <StoreSettingsForm
+              values={settingsQuery.data?.store}
+              onSave={handleSaveStore}
+              isSaving={updateSettings.isPending}
+            />
+          )}
         </TabsContent>
 
         {/* Invoicing Tab */}
         <TabsContent value="invoicing">
-          <InvoicingSettingsForm onSave={() => {}} />
+          {settingsQuery.isLoading ? (
+            <TableSkeleton rows={4} columns={1} />
+          ) : settingsQuery.isError ? (
+            <NotFoundState
+              icon={<Receipt className="h-6 w-6" />}
+              title={t("admin.settings.saveError")}
+              body={t("admin.settings.description")}
+              action={
+                <Button variant="outline" size="sm" onClick={() => settingsQuery.refetch()}>
+                  {t("common.retry")}
+                </Button>
+              }
+            />
+          ) : (
+            <InvoicingSettingsForm
+              values={settingsQuery.data?.invoicing}
+              onSave={handleSaveInvoicing}
+              isSaving={updateSettings.isPending}
+              sequenceDecreaseError={sequenceDecreaseError}
+            />
+          )}
         </TabsContent>
 
         {/* Hierarchy Tab */}
         <TabsContent value="hierarchy">
           <HierarchyPanel
-            families={families}
-            brands={brands}
-            models={models}
-            onCreateFamily={() => {}}
-            onCreateBrand={() => {}}
-            onCreateModel={() => {}}
-            onDisableFamily={() => {}}
-            onDisableBrand={() => {}}
-            onDisableModel={() => {}}
+            families={families.data ?? []}
+            brands={brands.data ?? []}
+            models={models.data ?? []}
+            isLoading={hierarchyLoading}
+            onCreateFamily={handleCreateFamily}
+            onCreateBrand={handleCreateBrand}
+            onCreateModel={handleCreateModel}
+            onDisableFamily={handleDisableFamily}
+            onDisableBrand={handleDisableBrand}
+            onDisableModel={handleDisableModel}
           />
         </TabsContent>
 
         {/* Storefront Tab */}
         <TabsContent value="storefront">
-          <StorefrontSettings
-            featuredProducts={featuredProducts}
-            productOptions={[]}
-            onAdd={() => {}}
-            onRemove={() => {}}
-            onSave={() => {}}
-          />
+          {settingsQuery.isLoading ? (
+            <TableSkeleton rows={3} columns={1} />
+          ) : settingsQuery.isError ? (
+            <NotFoundState
+              icon={<Star className="h-6 w-6" />}
+              title={t("admin.settings.saveError")}
+              body={t("admin.settings.description")}
+              action={
+                <Button variant="outline" size="sm" onClick={() => settingsQuery.refetch()}>
+                  {t("common.retry")}
+                </Button>
+              }
+            />
+          ) : (
+            <StorefrontSettings
+              featuredProducts={featuredProducts}
+              productOptions={productOptions}
+              onAdd={handleAddFeatured}
+              onRemove={handleRemoveFeatured}
+              onSave={handleSaveStorefront}
+              isSaving={updateSettings.isPending}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

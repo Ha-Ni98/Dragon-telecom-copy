@@ -8,20 +8,20 @@ import { Upload, FileSpreadsheet, Loader2, AlertCircle, CheckCircle, X } from 'l
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/hooks/useTranslation';
-import { ExcelImportResult } from '@/types/draft-types/admin-settings.types';
 
 /**
  * Props for the ExcelFileUploader component
  */
 interface ExcelFileUploaderProps {
-  /** Callback when file is selected and processed */
-  onFileProcessed: (result: ExcelImportResult) => void;
+  /** Called with the raw selected file once client-side validation (type/size) passes — the
+   * caller owns the real upload (Sprint 8: `useImportAdminDeliveryFees`), since this component
+   * has no way to parse/validate .xlsx rows itself without an approved parsing library. */
+  onFileSelected: (file: File) => void;
   /** Whether the uploader is disabled */
   disabled?: boolean;
-  /** Whether a file is being processed */
+  /** Whether the caller's real upload mutation is in flight */
   isProcessing?: boolean;
   /** Custom className for styling */
   className?: string;
@@ -36,7 +36,7 @@ interface ExcelFileUploaderProps {
  * Provides drag-and-drop functionality for Excel files with validation
  */
 export function ExcelFileUploader({
-  onFileProcessed,
+  onFileSelected,
   disabled = false,
   isProcessing = false,
   className,
@@ -51,7 +51,6 @@ export function ExcelFileUploader({
   const [dragCounter, setDragCounter] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
@@ -73,58 +72,12 @@ export function ExcelFileUploader({
   };
 
   /**
-   * Simulate Excel file processing
-   * In a real application, this would use a library like xlsx to parse the file
+   * Handle file selection — validates client-side (type/size only) then hands the raw File
+   * up to the caller, which owns the real upload/import call.
    */
-  const processExcelFile = async (file: File): Promise<ExcelImportResult> => {
-    return new Promise((resolve) => {
-      // Simulate processing time
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            
-            // Simulate file parsing and validation
-            setTimeout(() => {
-              // Mock validation - in real app, this would parse the Excel file
-              const mockResult: ExcelImportResult = {
-                success: true,
-                data: [
-                  {
-                    wilaya: 'Alger',
-                    commune: 'Alger Centre',
-                    deliveryOffice: 500,
-                    deliveryHome: 800,
-                  },
-                  {
-                    wilaya: 'Oran',
-                    commune: 'Oran Centre',
-                    deliveryOffice: 400,
-                    deliveryHome: 700,
-                  },
-                ],
-                message: `Successfully imported ${2} delivery fee entries`,
-              };
-              
-              resolve(mockResult);
-            }, 500);
-            
-            return 100;
-          }
-          return prev + 10;
-        });
-      }, 100);
-    });
-  };
-
-  /**
-   * Handle file selection
-   */
-  const handleFileSelected = useCallback(async (file: File) => {
+  const handleFileSelected = useCallback((file: File) => {
     setValidationError(null);
-    setProgress(0);
 
-    // Validate file
     const error = validateFile(file);
     if (error) {
       setValidationError(error);
@@ -132,19 +85,8 @@ export function ExcelFileUploader({
     }
 
     setSelectedFile(file);
-
-    try {
-      const result = await processExcelFile(file);
-      onFileProcessed(result);
-    } catch (error) {
-      const errorResult: ExcelImportResult = {
-        success: false,
-        message: 'Failed to process Excel file',
-        errors: ['An error occurred while processing the file'],
-      };
-      onFileProcessed(errorResult);
-    }
-  }, [onFileProcessed, maxSize, allowedTypes]);
+    onFileSelected(file);
+  }, [onFileSelected, maxSize, allowedTypes]);
 
   /**
    * Handle drag over
@@ -223,7 +165,6 @@ export function ExcelFileUploader({
   const clearFile = useCallback(() => {
     setSelectedFile(null);
     setValidationError(null);
-    setProgress(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -305,16 +246,6 @@ export function ExcelFileUploader({
         </CardContent>
       </Card>
 
-      {/* Progress Bar */}
-      {isProcessing && progress > 0 && (
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span>{t('admin.settings.delivery.processingFileShort')}</span>
-            <span>{progress}%</span>
-          </div>
-          <Progress value={progress} className="w-full" />
-        </div>
-      )}
 
       {/* Selected File Info */}
       {selectedFile && !isProcessing && (

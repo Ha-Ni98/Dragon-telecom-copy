@@ -1,14 +1,25 @@
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { toast } from "sonner";
 import { Plus, Tag, Trash2, Edit, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { NotFoundState } from "@/components/shared/NotFoundState";
 import { EnabledBadge } from "@/components/shared/StatusBadge";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { ClientCategoryDto } from "@dragon-telecom/contract";
+import {
+  useCatalogClientCategories,
+  useCreateCatalogClientCategory,
+  useUpdateCatalogClientCategory,
+} from "@/hooks/useClientCategories";
+import type {
+  CreateClientCategoryFormValues,
+  UpdateClientCategoryFormValues,
+} from "@/pages/admin/settings/components/client-category.schema";
 import { ClientCategoryDialog } from "./client-category-dialog";
 
 interface ClientCategoriesSectionProps {
@@ -18,10 +29,8 @@ interface ClientCategoriesSectionProps {
 // ADM-17 Settings Categories tab — retyped off ClientCategoryDto (catalog.dtos.ts): `id` (uuid,
 // was `idCategory: number`), `isEnabled` (was a local `CategoryStatusCode` enum),
 // `memberCount`/`pricedProductCount` (the plan's "member/priced-product warning columns" — the
-// old view-model had neither). Data is a local placeholder instead of the incompatible stub
-// hooks `use-admin-settings.ts`'s `useClientCategories`/`useCreate/Update/DeleteClientCategory`
-// — Sprint 8 swaps these for the real `useCatalogClientCategories`/`useCreate/
-// UpdateCatalogClientCategory` (useClientCategories.ts). Delete becomes disable-only (no
+// old view-model had neither). Sprint 8 wiring: `useCatalogClientCategories`/`useCreate/
+// UpdateCatalogClientCategory` (useClientCategories.ts). Delete is disable-only (no
 // `useDeleteClientCategory` on the real hook — categories are never hard-deleted).
 export function ClientCategoriesSection({ className }: ClientCategoriesSectionProps) {
   const { t } = useTranslation();
@@ -29,12 +38,44 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ClientCategoryDto | null>(null);
 
-  const categories: ClientCategoryDto[] = [];
-  const isLoading = false;
+  const categoriesQuery = useCatalogClientCategories();
+  const createCategory = useCreateCatalogClientCategory();
+  const updateCategory = useUpdateCatalogClientCategory();
+
+  const categories = categoriesQuery.data ?? [];
+  const isLoading = categoriesQuery.isLoading;
+  const isError = categoriesQuery.isError;
 
   const openEditDialog = (category: ClientCategoryDto) => {
     setSelectedCategory(category);
     setIsEditDialogOpen(true);
+  };
+
+  const handleCreate = (values: CreateClientCategoryFormValues) => {
+    createCategory.mutate(values, {
+      onSuccess: () => {
+        toast.success(t("admin.settings.categories.createSuccess"));
+        setIsAddDialogOpen(false);
+      },
+    });
+  };
+
+  const handleUpdate = (values: UpdateClientCategoryFormValues) => {
+    if (!selectedCategory) return;
+    updateCategory.mutate(
+      { id: selectedCategory.id, command: values },
+      {
+        onSuccess: () => {
+          toast.success(t("admin.settings.categories.updateSuccess"));
+          setIsEditDialogOpen(false);
+          setSelectedCategory(null);
+        },
+      },
+    );
+  };
+
+  const handleDisable = (category: ClientCategoryDto) => {
+    updateCategory.mutate({ id: category.id, command: { isEnabled: false } });
   };
 
   const columns: ColumnDef<ClientCategoryDto>[] = [
@@ -76,6 +117,7 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
             size="sm"
             className="text-destructive hover:text-destructive"
             disabled={!row.original.isEnabled}
+            onClick={() => handleDisable(row.original)}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -97,7 +139,12 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
               <CardDescription>{t("admin.clients.categories.description")}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => categoriesQuery.refetch()}
+                disabled={isLoading}
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 {t("common.actions.refresh")}
               </Button>
@@ -111,6 +158,17 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
         <CardContent>
           {isLoading ? (
             <TableSkeleton rows={3} columns={4} />
+          ) : isError ? (
+            <NotFoundState
+              icon={<Tag className="h-6 w-6" />}
+              title={t("admin.clients.categories.loadError")}
+              body={t("admin.clients.categories.description")}
+              action={
+                <Button variant="outline" size="sm" onClick={() => categoriesQuery.refetch()}>
+                  {t("common.retry")}
+                </Button>
+              }
+            />
           ) : (
             <DataTable
               columns={columns}
@@ -147,8 +205,8 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
       <ClientCategoryDialog
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
-        onSave={() => setIsAddDialogOpen(false)}
-        isSaving={false}
+        onSave={(data) => handleCreate(data as CreateClientCategoryFormValues)}
+        isSaving={createCategory.isPending}
       />
 
       {selectedCategory && (
@@ -158,12 +216,9 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
             setIsEditDialogOpen(false);
             setSelectedCategory(null);
           }}
-          onSave={() => {
-            setIsEditDialogOpen(false);
-            setSelectedCategory(null);
-          }}
+          onSave={(data) => handleUpdate(data as UpdateClientCategoryFormValues)}
           category={selectedCategory}
-          isSaving={false}
+          isSaving={updateCategory.isPending}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 import {
@@ -9,16 +9,21 @@ import { AdminStatisticsOverviewCards } from "@/pages/admin/statistics/component
 import { AdminStatisticsFilteredCards } from "@/pages/admin/statistics/components/admin-statistics-filtered-cards";
 import { AdminStatisticsCharts } from "@/pages/admin/statistics/components/admin-statistics-charts";
 import { AdminTopSellingProducts } from "@/pages/admin/products/components/admin-top-selling-products";
+import { ReportPicker } from "@/pages/admin/statistics/components/report-picker";
 import { generateDateRangeData } from "@/lib/date-utils";
+import { ChartType } from "@dragon-telecom/contract";
+import { useOverview, useFiltered, useChart, useTopProducts } from "@/hooks/useStatistics";
+import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
 import { useTranslation } from "@/hooks/useTranslation";
 
-// ADM-15 — retyped onto OverviewDto/FilteredDto/ChartPoint[]/TopProductDto (Sprint 3,
-// presentational only). Data is local placeholders instead of the incompatible stub hooks
-// `use-admin-statistics*` (numeric-id view-models) — Sprint 8 swaps these for
-// `useOverview`/`useFiltered`/`useChart`/`useTopProducts`, each independently loaded per widget
-// (plan §Page 6 "one widget's error never blanks the others"), at which point this shell needs
-// no further prop-shape changes. The URL-synced dateRange/family filter state is a genuine UI
-// concern (not DTO-shaped) and is kept as-is.
+function toISODate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+// ADM-15 — Sprint 8 wiring. Every widget below loads independently (its own hook, its own
+// isLoading/isError) so one widget's failure never blanks the others (plan §Page 6). The
+// URL-synced dateRange/family filter state predates this sprint (Sprint 3) and is kept as-is —
+// it now also drives the `from`/`to`/`familyId` query object shared by useFiltered/useChart.
 export default function AdminStatistics() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -29,6 +34,28 @@ export default function AdminStatistics() {
   });
   const [selectedFamily, setSelectedFamily] = useState<string>(
     () => searchParams.get("family") || "all",
+  );
+
+  const filterQuery = useMemo(
+    () => ({
+      from: toISODate(selectedDateRange.startDate),
+      to: toISODate(selectedDateRange.endDate),
+      familyId: selectedFamily !== "all" ? selectedFamily : undefined,
+    }),
+    [selectedDateRange, selectedFamily],
+  );
+
+  const overview = useOverview();
+  const filtered = useFiltered(filterQuery);
+  const revenueChart = useChart(ChartType.REVENUE, filterQuery);
+  const ordersChart = useChart(ChartType.ORDERS, filterQuery);
+  const clientsChart = useChart(ChartType.CLIENTS, filterQuery);
+  const salesByFamilyChart = useChart(ChartType.SALES_BY_FAMILY, filterQuery);
+  const topProducts = useTopProducts({});
+  const families = useCatalogFamilies({}, false);
+  const familyOptions = useMemo(
+    () => (families.data ?? []).map((f) => ({ id: f.id, name: f.name })),
+    [families.data],
   );
 
   const updateURLParams = useCallback(
@@ -65,25 +92,41 @@ export default function AdminStatistics() {
         subtitle={t("admin.statistics.description")}
       />
 
-      <AdminStatisticsOverviewCards stats={undefined} loading={false} />
+      <AdminStatisticsOverviewCards stats={overview.data} loading={overview.isLoading} />
 
       <AdminStatisticsFilters
         selectedDateRange={selectedDateRange}
         onDateRangeChange={handleDateRangeChange}
         selectedFamily={selectedFamily}
         onFamilyChange={handleFamilyChange}
-        families={[]}
+        families={familyOptions}
       />
 
       <AdminStatisticsFilteredCards
-        stats={undefined}
+        stats={filtered.data}
         periodLabel={selectedDateRange.label}
-        loading={false}
+        loading={filtered.isLoading}
       />
 
-      <AdminStatisticsCharts />
+      <AdminStatisticsCharts
+        revenueData={revenueChart.data}
+        revenueLoading={revenueChart.isLoading}
+        ordersData={ordersChart.data}
+        ordersLoading={ordersChart.isLoading}
+        clientsData={clientsChart.data}
+        clientsLoading={clientsChart.isLoading}
+        salesByFamilyData={salesByFamilyChart.data}
+        salesByFamilyLoading={salesByFamilyChart.isLoading}
+      />
 
-      <AdminTopSellingProducts products={[]} loading={false} />
+      <AdminTopSellingProducts
+        products={topProducts.data ?? []}
+        loading={topProducts.isLoading}
+        error={topProducts.isError ? t("admin.statistics.error") : undefined}
+        onRetry={() => topProducts.refetch()}
+      />
+
+      <ReportPicker from={filterQuery.from} to={filterQuery.to} />
     </div>
   );
 }
