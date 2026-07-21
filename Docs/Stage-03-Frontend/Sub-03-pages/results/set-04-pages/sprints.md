@@ -42,17 +42,17 @@ document.**
 
 ---
 
-### Sprint 2: Routes, guards & lazy registration (Foundation) — Status: ⬜ Pending
+### Sprint 2: Routes, guards & lazy registration (Foundation) — Status: ✅ Done
 
 **Goals**
 - Seven new routes mounted under `AdminLayout`, code-split; existing five untouched but confirmed.
 - No new hooks needed — this sprint proves that (mapping check), adds none.
 
 **Tasks**
-- [ ] **(#wiring)** In `App.tsx`, add `React.lazy()` + `withSuspense()` routes: `/admin/inventory`, `/admin/supplier-invoices`, `/admin/supplier-invoices/:id`, `/admin/pos-clients`, `/admin/clients/:id`, `/admin/users`, `/admin/activity/staff-searches`. Keep the single `RoleGuard allow={[ADMIN, STAFF]}` shell + page-registry gating (plan §Access); attach `RouteErrorBoundary` to each.
-- [ ] **(#wiring)** Add nav entries (where the admin sidebar/registry lists pages) for the seven new routes; verify staff-registry keys exist so "admin only" holds.
-- [ ] **(#wiring)** Hook-inventory check: confirm each page's `use[Name]` exists (`useInventory`, `usePurchasing*`, `usePosClients`, `useSales`, `useBilling`, `useClientDirectory`, `useObservability`, `useIdentity`, `useStatistics`, `usePlatform`, `useCatalogTaxonomy`, `useClientCategories`, `useCatalogProducts`). Record the confirmation; add **no** new hook.
-- [ ] **(#testing)** Smoke render each new route with mocked hooks returning `isLoading` → shows a skeleton within `AdminLayout`, no crash.
+- [x] **(#wiring)** In `App.tsx`, add `React.lazy()` + `withSuspense()` routes: `/admin/inventory`, `/admin/supplier-invoices`, `/admin/supplier-invoices/:id`, `/admin/pos-clients`, `/admin/clients/:id`, `/admin/users`, `/admin/activity/staff-searches`. Keep the single `RoleGuard allow={[ADMIN, STAFF]}` shell + page-registry gating (plan §Access); attach `RouteErrorBoundary` to each.
+- [x] **(#wiring)** Add nav entries (where the admin sidebar/registry lists pages) for the seven new routes; verify staff-registry keys exist so "admin only" holds.
+- [x] **(#wiring)** Hook-inventory check: confirm each page's `use[Name]` exists (`useInventory`, `usePurchasing*`, `usePosClients`, `useSales`, `useBilling`, `useClientDirectory`, `useObservability`, `useIdentity`, `useStatistics`, `usePlatform`, `useCatalogTaxonomy`, `useClientCategories`, `useCatalogProducts`). Record the confirmation; add **no** new hook.
+- [x] **(#testing)** Smoke render each new route with mocked hooks returning `isLoading` → shows a skeleton within `AdminLayout`, no crash.
 
 **Validation** — standard checklist. Additionally: navigating to each new route renders the shell + a skeleton (not a blank/error); `tsc` clean.
 

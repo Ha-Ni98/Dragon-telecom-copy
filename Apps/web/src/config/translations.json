@@ -13343,5 +13343,30 @@
     "en": "Search query",
     "fr": "Terme de recherche",
     "ar": ""
+  },
+  "admin.nav.inventory": {
+    "en": "Inventory",
+    "fr": "Inventaire",
+    "ar": ""
+  },
+  "admin.nav.posClients": {
+    "en": "POS clients",
+    "fr": "Clients point de vente",
+    "ar": ""
+  },
+  "admin.nav.supplierInvoices": {
+    "en": "Supplier invoices",
+    "fr": "Factures fournisseurs",
+    "ar": ""
+  },
+  "admin.nav.users": {
+    "en": "Users & roles",
+    "fr": "Utilisateurs et rôles",
+    "ar": ""
+  },
+  "admin.nav.staffSearches": {
+    "en": "Staff searches",
+    "fr": "Recherches du personnel",
+    "ar": ""
   }
 }

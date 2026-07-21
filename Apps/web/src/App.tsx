@@ -56,6 +56,19 @@ const AdminPos = lazy(() => import("@/pages/admin/pos/AdminPos"));
 const AdminSales = lazy(() => import("@/pages/admin/sales/AdminSales"));
 const AdminInvoices = lazy(() => import("@/pages/admin/invoices/AdminInvoices"));
 const AdminRepairs = lazy(() => import("@/pages/admin/repairs/AdminRepairs"));
+// set-04: the remaining admin back-office pages (plan.md's ten-page list) — Sprint 2 mounts
+// the routes; the pages themselves are placeholders until Sprints 4-8 build them out.
+const AdminInventory = lazy(() => import("@/pages/admin/inventory/AdminInventory"));
+const AdminSupplierInvoices = lazy(
+  () => import("@/pages/admin/supplier-invoices/AdminSupplierInvoices"),
+);
+const AdminSupplierInvoiceEditor = lazy(
+  () => import("@/pages/admin/supplier-invoices/AdminSupplierInvoiceEditor"),
+);
+const AdminPosClients = lazy(() => import("@/pages/admin/pos-clients/AdminPosClients"));
+const AdminClientDetail = lazy(() => import("@/pages/admin/clients/AdminClientDetail"));
+const AdminUsers = lazy(() => import("@/pages/admin/users/AdminUsers"));
+const AdminStaffSearches = lazy(() => import("@/pages/admin/staff-searches/AdminStaffSearches"));
 
 const withSuspense = (Component: LazyExoticComponent<ComponentType<Record<string, never>>>) => (
   <Suspense fallback={<PageLoader />}>
@@ -193,6 +206,19 @@ const router = createBrowserRouter([
             errorElement: <RouteErrorBoundary />,
           },
           {
+            // declared after the static /admin/clients route above so the two never collide
+            // (Sprint 2 §Risks — react-router v6 also ranks static segments first regardless
+            // of declaration order, this is belt-and-suspenders for readability).
+            path: "/admin/clients/:id",
+            element: withSuspense(AdminClientDetail),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/inventory",
+            element: withSuspense(AdminInventory),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
             path: "/admin/orders",
             element: withSuspense(AdminOrders),
             errorElement: <RouteErrorBoundary />,
@@ -220,6 +246,33 @@ const router = createBrowserRouter([
           {
             path: "/admin/suppliers/:idSupplier",
             element: withSuspense(AdminSupplierInformation),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/supplier-invoices",
+            element: withSuspense(AdminSupplierInvoices),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            // `:id === "new"` is the create-flow sentinel (no separate `/new` route — Sprint 2
+            // §Risks); `?supplierId=` preselects the supplier when linked from ADM-07.
+            path: "/admin/supplier-invoices/:id",
+            element: withSuspense(AdminSupplierInvoiceEditor),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/pos-clients",
+            element: withSuspense(AdminPosClients),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/users",
+            element: withSuspense(AdminUsers),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/activity/staff-searches",
+            element: withSuspense(AdminStaffSearches),
             errorElement: <RouteErrorBoundary />,
           },
           {
