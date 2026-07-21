@@ -13398,5 +13398,25 @@
     "en": "Entity",
     "fr": "Entité",
     "ar": ""
+  },
+  "admin.settings.tabs.store": {
+    "en": "Store",
+    "fr": "Magasin",
+    "ar": ""
+  },
+  "admin.settings.tabs.invoicing": {
+    "en": "Invoicing",
+    "fr": "Facturation",
+    "ar": ""
+  },
+  "admin.settings.tabs.hierarchy": {
+    "en": "Hierarchy",
+    "fr": "Hiérarchie",
+    "ar": ""
+  },
+  "admin.settings.tabs.storefront": {
+    "en": "Storefront",
+    "fr": "Vitrine",
+    "ar": ""
   }
 }

@@ -4,7 +4,18 @@
  */
 
 import React, { useState } from "react";
-import { Settings, Tag, Truck, Bell, Shield, Palette } from "lucide-react";
+import {
+  Settings,
+  Tag,
+  Truck,
+  Bell,
+  Shield,
+  Palette,
+  Store,
+  Receipt,
+  Layers,
+  Star,
+} from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,18 +33,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ClientCategoriesSection } from "@/pages/admin/clients/components/client-categories-section";
 import { DeliveryFeesSection } from "@/pages/admin/settings/components/delivery-fees-section";
+import { StoreSettingsForm } from "@/pages/admin/settings/components/store-settings-form";
+import { InvoicingSettingsForm } from "@/pages/admin/settings/components/invoicing-settings-form";
+import { HierarchyPanel } from "@/pages/admin/settings/components/hierarchy-panel";
+import { StorefrontSettings } from "@/pages/admin/settings/components/storefront-settings";
+import type { FamilyDto, BrandDto, DeviceModelDto } from "@dragon-telecom/contract";
 
-// ADM-17 — Sprint 3 retypes only the tabs whose existing component was structurally
-// compatible with the real DTOs (Categories -> ClientCategoryDto; Delivery fees -> AdminFeesDto).
-// Two tabs are dropped from the active tree here, not deleted (Sprint 9 grep-gates the actual
-// file removal):
-//  - "Accounts": ADM-16 (Users & roles) now owns user management (plan §Deletion Audit) — the
-//    stub `admin-accounts-section.tsx`/`admin-account-dialog.tsx` are flagged for Sprint 9.
-//  - "Hierarchy": the existing `product-hierarchy-section.tsx` models one family+brand per
-//    model (delete support) — structurally incompatible with the real taxonomy DTOs' disable-
-//    only convention and `SetModelFamiliesCommand`'s families **multi-select** (a model can
-//    belong to several families). This isn't a rename/retype, it's a rebuild — correctly
-//    Sprint 4's "hierarchy-panel" (new), not this sprint's job.
+// ADM-17 — Sprint 3 retyped the tabs whose existing component was structurally compatible with
+// the real DTOs (Categories -> ClientCategoryDto; Delivery fees -> AdminFeesDto). Sprint 4 adds
+// the remaining four tabs as page-local primitives with placeholder data (no hooks yet — Sprint 8
+// wires `usePlatformSettings`/`useUpdatePlatformSettings` + `useCatalogFamilies/Brands/Models`).
+// "Accounts" stays dropped from the active tree (not deleted): ADM-16 (Users & roles) now owns
+// user management (plan §Deletion Audit) — the stub `admin-accounts-section.tsx`/
+// `admin-account-dialog.tsx` are flagged for Sprint 9.
 export default function AdminSettings() {
   const { t } = useTranslation();
 
@@ -41,6 +53,11 @@ export default function AdminSettings() {
   const SHOW_GENERAL_SETTINGS = false;
 
   const [activeTab, setActiveTab] = useState(SHOW_GENERAL_SETTINGS ? "general" : "categories");
+
+  const [families] = useState<FamilyDto[]>([]);
+  const [brands] = useState<BrandDto[]>([]);
+  const [models] = useState<DeviceModelDto[]>([]);
+  const [featuredProducts] = useState<{ id: string; name: string }[]>([]);
 
   return (
     <div className="space-y-6">
@@ -56,7 +73,7 @@ export default function AdminSettings() {
       {/* Settings Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList
-          className={`grid w-full grid-cols-2 ${SHOW_GENERAL_SETTINGS ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}
+          className={`grid w-full grid-cols-2 ${SHOW_GENERAL_SETTINGS ? "lg:grid-cols-7" : "lg:grid-cols-6"}`}
         >
           {SHOW_GENERAL_SETTINGS && (
             <TabsTrigger value="general" className="flex items-center gap-2">
@@ -71,6 +88,22 @@ export default function AdminSettings() {
           <TabsTrigger value="delivery" className="flex items-center gap-2">
             <Truck className="h-4 w-4" />
             <span className="hidden sm:inline">{t("admin.settings.delivery")}</span>
+          </TabsTrigger>
+          <TabsTrigger value="store" className="flex items-center gap-2">
+            <Store className="h-4 w-4" />
+            <span className="hidden sm:inline">{t("admin.settings.tabs.store")}</span>
+          </TabsTrigger>
+          <TabsTrigger value="invoicing" className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            <span className="hidden sm:inline">{t("admin.settings.tabs.invoicing")}</span>
+          </TabsTrigger>
+          <TabsTrigger value="hierarchy" className="flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            <span className="hidden sm:inline">{t("admin.settings.tabs.hierarchy")}</span>
+          </TabsTrigger>
+          <TabsTrigger value="storefront" className="flex items-center gap-2">
+            <Star className="h-4 w-4" />
+            <span className="hidden sm:inline">{t("admin.settings.tabs.storefront")}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -281,6 +314,42 @@ export default function AdminSettings() {
         {/* Delivery Fees Tab */}
         <TabsContent value="delivery">
           <DeliveryFeesSection />
+        </TabsContent>
+
+        {/* Store Tab */}
+        <TabsContent value="store">
+          <StoreSettingsForm onSave={() => {}} />
+        </TabsContent>
+
+        {/* Invoicing Tab */}
+        <TabsContent value="invoicing">
+          <InvoicingSettingsForm onSave={() => {}} />
+        </TabsContent>
+
+        {/* Hierarchy Tab */}
+        <TabsContent value="hierarchy">
+          <HierarchyPanel
+            families={families}
+            brands={brands}
+            models={models}
+            onCreateFamily={() => {}}
+            onCreateBrand={() => {}}
+            onCreateModel={() => {}}
+            onDisableFamily={() => {}}
+            onDisableBrand={() => {}}
+            onDisableModel={() => {}}
+          />
+        </TabsContent>
+
+        {/* Storefront Tab */}
+        <TabsContent value="storefront">
+          <StorefrontSettings
+            featuredProducts={featuredProducts}
+            productOptions={[]}
+            onAdd={() => {}}
+            onRemove={() => {}}
+            onSave={() => {}}
+          />
         </TabsContent>
       </Tabs>
     </div>

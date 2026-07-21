@@ -76,23 +76,25 @@ document.**
 
 ---
 
-### Sprint 4: Page-local primitives, Skeletons & local fallbacks (Primitives & States) — Status: ⬜ Pending
+### Sprint 4: Page-local primitives, Skeletons & local fallbacks (Primitives & States) — Status: ✅ Done
 
 **Goals**
 - Every new page's dumb components, tab scaffolds, skeletons, and local error/empty fallbacks exist (no data yet).
 
 **Tasks**
-- [ ] **(#ui)** Inventory: `stock-levels-table`, `movement-ledger-table`, `reservations-table`, `adjustment-form` + `adjustment-line-editor`, `inventory-filters`, per-tab skeletons.
-- [ ] **(#ui)** Supplier invoices: `supplier-invoices-table`, `invoice-header-form`, `amount-only-switch`, `invoice-line-editor`, `inline-create-product-dialog`, `confirm-bar`, `reprice-prompt`, `record-payment-dialog`.
-- [ ] **(#ui)** POS clients: `pos-clients-table`, `add`/`edit-pos-client-dialog`, `pos-client-detail-drawer` (Sales/Payments/Credit tabs scaffold).
-- [ ] **(#ui)** Client detail: `client-detail-header`, tab set (Overview/Orders/Invoices/Payments/Browsing), `approval-dialog`, `reset-password-dialog`, `browsing-activity-table`.
-- [ ] **(#ui)** Users: `users-table`, `user-dialog` (type switch + live effective-page list), `roles-table`, `role-dialog` (grouped permission matrix). Staff-searches: `staff-search-filters` + table. Settings new tab forms (`store`, `invoicing`, `categories-table`, `hierarchy-panel`, `storefront` featured-only w/ deferral note).
-- [ ] **(#ui)** For every page/tab: a shape-matched Shadcn `Skeleton` (reuse `TableSkeleton`/`StatCardSkeleton`) and a local `<NotFoundState />`/`<EmptyState />` **inside** the content area.
-- [ ] **(#testing)** Render each primitive in isolation with static props; assert skeleton and empty states render.
+- [x] **(#ui)** Inventory: `stock-levels-table`, `movement-ledger-table`, `reservations-table`, `adjustment-form` + `adjustment-line-editor`, `inventory-filters`, per-tab skeletons.
+- [x] **(#ui)** Supplier invoices: `supplier-invoices-table`, `invoice-header-form`, `amount-only-switch`, `invoice-line-editor`, `inline-create-product-dialog`, `confirm-bar`, `reprice-prompt`, `record-payment-dialog`.
+- [x] **(#ui)** POS clients: `pos-clients-table`, `add`/`edit-pos-client-dialog`, `pos-client-detail-drawer` (Sales/Payments/Credit tabs scaffold).
+- [x] **(#ui)** Client detail: `client-detail-header`, tab set (Overview/Orders/Invoices/Payments/Browsing), `approval-dialog`, `reset-password-dialog`, `browsing-activity-table`.
+- [x] **(#ui)** Users: `users-table`, `user-dialog` (type switch + live effective-page list), `roles-table`, `role-dialog` (grouped permission matrix). Staff-searches: `staff-search-filters` + table. Settings new tab forms (`store`, `invoicing`, `categories-table`, `hierarchy-panel`, `storefront` featured-only w/ deferral note).
+- [x] **(#ui)** For every page/tab: a shape-matched Shadcn `Skeleton` (reuse `TableSkeleton`/`StatCardSkeleton`) and a local `<NotFoundState />`/`<EmptyState />` **inside** the content area.
+- [x] **(#testing)** Render each primitive in isolation with static props; assert skeleton and empty states render.
 
 **Validation** — standard checklist. Additionally: every page renders skeleton + empty + error **without** the shell/tab bar/filter bar disappearing.
 
 **Risks** — `DataTable` renders desktop + mobile simultaneously in jsdom (use `getAllByText` in tests — set-02 note); tab scaffolds must not fetch on mount (lazy `enabled`).
+
+**Outcome** — see `report-sprint-04.md`. All page-local primitives built across ten pages; `AdminSettings.tsx` now renders all six tabs (Categories/Delivery/Store/Invoicing/Hierarchy/Storefront) on placeholder state. `product-hierarchy-section.tsx` rebuilt as `hierarchy-panel.tsx` (Sprint 3 deferral). One Sprint-2 route-smoke expectation (`/admin/clients/:id` titleKey) was stale against the real Sprint-4 body and corrected to assert the actual NotFoundState copy. `tsc`/`eslint`/`vitest run` all green (552 tests); ~10.2k pre-existing `draft-types` lint noise confirmed untouched.
 
 ---
 
