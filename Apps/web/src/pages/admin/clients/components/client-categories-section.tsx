@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { Plus, Tag, Trash2, Edit, RefreshCw } from "lucide-react";
@@ -46,10 +46,10 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
   const isLoading = categoriesQuery.isLoading;
   const isError = categoriesQuery.isError;
 
-  const openEditDialog = (category: ClientCategoryDto) => {
+  const openEditDialog = useCallback((category: ClientCategoryDto) => {
     setSelectedCategory(category);
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
   const handleCreate = (values: CreateClientCategoryFormValues) => {
     createCategory.mutate(values, {
@@ -74,57 +74,63 @@ export function ClientCategoriesSection({ className }: ClientCategoriesSectionPr
     );
   };
 
-  const handleDisable = (category: ClientCategoryDto) => {
-    updateCategory.mutate({ id: category.id, command: { isEnabled: false } });
-  };
+  const handleDisable = useCallback(
+    (category: ClientCategoryDto) => {
+      updateCategory.mutate({ id: category.id, command: { isEnabled: false } });
+    },
+    [updateCategory],
+  );
 
-  const columns: ColumnDef<ClientCategoryDto>[] = [
-    {
-      accessorKey: "name",
-      header: t("admin.clients.categories.name"),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2 font-medium">
-          <Tag className="h-4 w-4 text-muted-foreground" />
-          {row.original.name}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "isEnabled",
-      header: t("common.labels.status"),
-      cell: ({ row }) => <EnabledBadge isEnabled={row.original.isEnabled} />,
-    },
-    {
-      accessorKey: "memberCount",
-      header: t("admin.settings.categories.memberCount"),
-      cell: ({ row }) => row.original.memberCount,
-    },
-    {
-      accessorKey: "pricedProductCount",
-      header: t("admin.settings.categories.pricedProductCount"),
-      cell: ({ row }) => row.original.pricedProductCount,
-    },
-    {
-      id: "actions",
-      header: () => <div className="text-right">{t("common.actions.action")}</div>,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={() => openEditDialog(row.original)}>
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            disabled={!row.original.isEnabled}
-            onClick={() => handleDisable(row.original)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-  ];
+  const columns = useMemo<ColumnDef<ClientCategoryDto>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: t("admin.clients.categories.name"),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2 font-medium">
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            {row.original.name}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "isEnabled",
+        header: t("common.labels.status"),
+        cell: ({ row }) => <EnabledBadge isEnabled={row.original.isEnabled} />,
+      },
+      {
+        accessorKey: "memberCount",
+        header: t("admin.settings.categories.memberCount"),
+        cell: ({ row }) => row.original.memberCount,
+      },
+      {
+        accessorKey: "pricedProductCount",
+        header: t("admin.settings.categories.pricedProductCount"),
+        cell: ({ row }) => row.original.pricedProductCount,
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-right">{t("common.actions.action")}</div>,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => openEditDialog(row.original)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              disabled={!row.original.isEnabled}
+              onClick={() => handleDisable(row.original)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [t, openEditDialog, handleDisable],
+  );
 
   return (
     <div className={className}>

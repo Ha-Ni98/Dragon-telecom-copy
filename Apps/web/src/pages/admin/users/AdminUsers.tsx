@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -55,15 +55,15 @@ export default function AdminUsers() {
   const updateRole = useUpdateRole();
   const setRolePages = useSetRolePages();
 
-  const openUserDialog = (user: UserDto | null) => {
+  const openUserDialog = useCallback((user: UserDto | null) => {
     setLastAdminGuardError(undefined);
     setEditingUser(user);
     setIsUserDialogOpen(true);
-  };
-  const openRoleDialog = (role: RoleDto | null) => {
+  }, []);
+  const openRoleDialog = useCallback((role: RoleDto | null) => {
     setEditingRole(role);
     setIsRoleDialogOpen(true);
-  };
+  }, []);
 
   const handleSaveCreateUser = (values: CreateUserFormValues) => {
     createUser.mutate(values, {

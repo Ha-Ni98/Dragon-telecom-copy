@@ -131,38 +131,41 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
     exportFees.mutate({}, { onSuccess: (blob) => downloadBlob("delivery-fees.csv", blob) });
   };
 
-  const columns: ColumnDef<FeeRow>[] = [
-    {
-      accessorKey: "wilayaName",
-      header: t("admin.settings.delivery.wilaya"),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2 font-medium">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          {row.original.wilayaName}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "communeName",
-      header: t("admin.settings.delivery.commune"),
-      cell: ({ row }) =>
-        row.original.communeName ? (
-          <Badge variant="outline">{row.original.communeName}</Badge>
-        ) : (
-          <span className="text-muted-foreground">-</span>
+  const columns = useMemo<ColumnDef<FeeRow>[]>(
+    () => [
+      {
+        accessorKey: "wilayaName",
+        header: t("admin.settings.delivery.wilaya"),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2 font-medium">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            {row.original.wilayaName}
+          </div>
         ),
-    },
-    {
-      accessorKey: "deliveryOffice",
-      header: t("admin.settings.delivery.deliveryOffice"),
-      cell: ({ row }) => formatCurrency(row.original.deliveryOffice),
-    },
-    {
-      accessorKey: "deliveryHome",
-      header: t("admin.settings.delivery.deliveryHome"),
-      cell: ({ row }) => formatCurrency(row.original.deliveryHome),
-    },
-  ];
+      },
+      {
+        accessorKey: "communeName",
+        header: t("admin.settings.delivery.commune"),
+        cell: ({ row }) =>
+          row.original.communeName ? (
+            <Badge variant="outline">{row.original.communeName}</Badge>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          ),
+      },
+      {
+        accessorKey: "deliveryOffice",
+        header: t("admin.settings.delivery.deliveryOffice"),
+        cell: ({ row }) => formatCurrency(row.original.deliveryOffice),
+      },
+      {
+        accessorKey: "deliveryHome",
+        header: t("admin.settings.delivery.deliveryHome"),
+        cell: ({ row }) => formatCurrency(row.original.deliveryHome),
+      },
+    ],
+    [t],
+  );
 
   const renderMobileRow = (fee: FeeRow) => (
     <div className="space-y-2 p-4">

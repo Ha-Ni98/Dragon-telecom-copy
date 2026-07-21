@@ -119,9 +119,14 @@ export default function AdminSupplierInvoiceEditor() {
   const isAmountOnly = watch("amountOnly") !== undefined;
   const watchedShipping = watch("shippingCost") ?? 0;
 
-  const footerSubtotal = (watchedLines ?? []).reduce(
-    (sum, line) => sum + (line.quantity ?? 0) * (line.unitCost ?? 0),
-    0,
+  // Recomputes per keystroke over every line — memoized per the plan's ADM-08 footer-math note.
+  const footerSubtotal = useMemo(
+    () =>
+      (watchedLines ?? []).reduce(
+        (sum, line) => sum + (line.quantity ?? 0) * (line.unitCost ?? 0),
+        0,
+      ),
+    [watchedLines],
   );
   const footerTotal = footerSubtotal + watchedShipping;
 

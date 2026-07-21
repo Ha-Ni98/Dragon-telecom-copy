@@ -174,20 +174,22 @@ document.**
 
 ---
 
-### Sprint 9: Polish & stub teardown (Polish) — Status: ⬜ Pending
+### Sprint 9: Polish & stub teardown (Polish) — Status: ✅ Done
 
 **Goals**
 - Responsive/desktop-first pass; `useMemo`/`useCallback` where the plan calls for it; **grep-gated deletion of orphaned Sub-01 stubs**.
 
 **Tasks**
-- [ ] **(#ui)** Desktop-first responsive classes; horizontal table scroll acceptable; tab bars/filters usable on narrow viewports.
-- [ ] **(#ui)** Apply `useMemo` (DataTable column defs, ADM-08 footer math, credit-history merge, effective-page list) and `useCallback` (row-action handlers) — only where named.
-- [ ] **(#cleanup)** Deletion audit (plan §Deletion Audit) **behind `grep -rl <symbol> src/` = 0**: delete stub hooks (`use-admin-suppliers`, `use-supplier-information`, `use-supplier-information-page-state`, `use-admin-clients`, `use-admin-clients-stats`, `use-admin-clients-search`, `use-modify-client`, `use-admin-logs`, `use-admin-settings`, `use-admin-statistics`); gate `use-recent-clients`/`use-recent-orders` (dashboard). Delete stub services (`admin-suppliers`, `supplier-information`, `admin-logs`, `admin-settings`, `admin-statistics` — **keep `statistics.service.ts`**); prune stub-only methods from mixed `clients.service.ts`/`catalog.service.ts`. Remove owned `draft-types` files (`admin-suppliers`, `supplier`, `admin-settings`, `admin-statistics`, `logs`, admin-client portions of `client.types`) + their `index.ts` re-exports; gate the rest. Drop the stub Settings "accounts" section.
-- [ ] **(#testing)** Full `tsc --noEmit` + `vitest run` after each deletion batch (green gate).
+- [x] **(#ui)** Desktop-first responsive classes; horizontal table scroll acceptable; tab bars/filters usable on narrow viewports.
+- [x] **(#ui)** Apply `useMemo` (DataTable column defs, ADM-08 footer math, credit-history merge, effective-page list) and `useCallback` (row-action handlers) — only where named.
+- [x] **(#cleanup)** Deletion audit (plan §Deletion Audit) **behind `grep -rl <symbol> src/` = 0**: delete stub hooks (`use-admin-suppliers`, `use-supplier-information`, `use-supplier-information-page-state`, `use-admin-clients`, `use-admin-clients-stats`, `use-admin-clients-search`, `use-modify-client`, `use-admin-logs`, `use-admin-settings`, `use-admin-statistics`, `use-recent-clients`, `use-recent-orders`). Delete stub services (`admin-suppliers`, `supplier-information`, `admin-logs`, `admin-settings`, `admin-statistics` — **kept `statistics.service.ts`**); pruned stub-only methods from mixed `clients.service.ts`/`catalog.service.ts`. Removed owned `draft-types` files (`admin-suppliers`, `admin-settings`, `logs`, admin-client portions of `client.types`) + their `index.ts` re-exports. Dropped the stub Settings "accounts" section.
+- [x] **(#testing)** Full `tsc --noEmit` + `vitest run` after each deletion batch (green gate).
 
 **Validation** — standard checklist. Additionally: zero `draft-types`/`admin-*.service` importers remain among this set's pages; lint + `tsc` green after teardown.
 
 **Risks** — deleting a stub still imported by an out-of-set page → the grep gate is mandatory before each removal; mixed-service pruning accidentally removing a real method.
+
+**Outcome** — see `report-sprint-09.md`. Three real plan-premise corrections found via the grep gate: (1) `use-recent-clients.ts`/`use-recent-orders.ts` were confirmed fully orphaned (the dashboard's own components take `AdminDashboardDto` as props since set-02 Sprint 3) and deleted rather than left gated. (2) `admin-statistics.types.ts` and `supplier.types.ts` — both named for deletion in the plan — turned out to have a real remaining consumer each (`lib/date-utils.ts`'s `generateDateRangeData`/`DateRangeFilter`, actively used by the now-wired `AdminStatistics.tsx`; and `admin-product-information.types.ts` → the real `AdminProductInformation.tsx` products page) and were gated instead. (3) `use-admin-settings.ts`/`admin-settings.service.ts`/`admin-settings.types.ts` — assumed gated by the plan (product-hierarchy-section.tsx, out-of-set) — turned out fully deletable once it was discovered `product-hierarchy-section.tsx` (+ its only consumer `model-dialog.tsx`/`model-dialog.schema.ts`) had zero remaining importers anywhere in the app (a stale, forgotten dead-code chain from before the Products page's own real-hook migration); deleted all five files together, which also unblocked a full `logs.types.ts` deletion. `catalog.service.ts`'s entire Sub-01 stub block (`getBrands`/`getFamilies`/`getModels`/`getRelatedProducts`/`searchProducts` + 17 `getAdminProduct*`/`updateAdminProduct*` stub methods) was confirmed fully dead the same way — the products page was already fully wired to `useCatalogProducts.ts`/`useCatalogTaxonomy.ts` — and pruned per the plan's explicit "admin-product stub methods" instruction. `tsc`/`eslint`/`vitest run` all green after every batch (622 tests, unchanged); lint noise dropped from ~4780 to ~3983 problems repo-wide as a side effect of the deletions. One further dead file (`pages/admin/suppliers/components/supplier-modify-dialog.tsx` + its schema, zero consumers) was found but left untouched — it didn't block any explicitly-named deletion target, so removing it was out of this sprint's grep-gate discipline; flagged for a future pass.
 
 ---
 

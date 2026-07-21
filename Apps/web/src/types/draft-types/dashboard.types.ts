@@ -3,8 +3,6 @@
  * These types support the admin dashboard functionality
  */
 
-import { Client, OrderWithDetails } from "./index";
-
 /**
  * Dashboard statistics interface
  * Contains key metrics for the admin dashboard

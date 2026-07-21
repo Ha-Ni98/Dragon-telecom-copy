@@ -62,9 +62,10 @@ import { useAdminCatalogProducts } from "@/hooks/useCatalogProducts";
 // the real DTOs (Categories -> ClientCategoryDto; Delivery fees -> AdminFeesDto). Sprint 4 added
 // the remaining four tabs as page-local primitives with placeholder data. Sprint 8 wires
 // `usePlatformSettings`/`useUpdatePlatformSettings` (Store/Invoicing/Storefront) +
-// `useCatalogFamilies/Brands/Models` (Hierarchy). "Accounts" stays dropped from the active tree
-// (not deleted): ADM-16 (Users & roles) now owns user management (plan §Deletion Audit) — the
-// stub `admin-accounts-section.tsx`/`admin-account-dialog.tsx` are flagged for Sprint 9.
+// `useCatalogFamilies/Brands/Models` (Hierarchy). "Accounts" was already dropped from the active
+// tab tree here since Sprint 4: ADM-16 (Users & roles) owns user management (plan §Deletion
+// Audit) — the stub `admin-accounts-section.tsx`/`admin-account-dialog.tsx` files themselves
+// were deleted in Sprint 9 (zero remaining consumers).
 export default function AdminSettings() {
   const { t } = useTranslation();
 
