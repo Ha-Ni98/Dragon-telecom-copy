@@ -5,7 +5,7 @@ import { CreditMovementPreview } from "@/components/shared/CreditMovementPreview
 import { InvoiceStatusBadge } from "@/components/shared/StatusBadge";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
-import type { InvoiceDto } from "@dragon-telecom/contract";
+import { InvoiceStatus, type InvoiceDto } from "@dragon-telecom/contract";
 
 interface InvoiceSnapshotViewProps {
   invoice: InvoiceDto;
@@ -14,14 +14,24 @@ interface InvoiceSnapshotViewProps {
   /** ADM-14 §UI — cost + profit per line and the current avg cost joined beside each product
    * row are admin-only; staff (STF-06) sees the plain snapshot. */
   scope?: "staff" | "admin";
+  /** Admin-only "cancel" action (ADM-14 §UI) — Sprint 6 addition, mirrors the reprint/resume/
+   * issue-return action-footer pattern already used by OrderShowDialog/SaleDetailDrawer. */
+  onCancel?: () => void;
+  /** "Record payment" (STF-06/ADM-14 §Forms) — Sprint 6 addition, same reasoning as onCancel;
+   * only meaningful when the invoice has a posClientId (an ORDER-sourced invoice tied to a
+   * clients-module client, not a POS client, has none — CreateClientPaymentCommand requires it). */
+  onRecordPayment?: () => void;
 }
 
-// Dumb, props-only (Sprint 4) — Sprint 6 wires useMyInvoice()/useInvoice('admin', number).
+// Dumb, props-only (Sprint 4, cancel/record-payment actions added Sprint 6) — Sprint 6 wires
+// useMyInvoice()/useInvoice('admin', number) + useCancelInvoice()/useCreateClientPayment().
 export function InvoiceSnapshotView({
   invoice,
   onDownloadPdf,
   onPrint,
   scope = "staff",
+  onCancel,
+  onRecordPayment,
 }: InvoiceSnapshotViewProps) {
   const { t, language } = useTranslation();
 
@@ -86,6 +96,19 @@ export function InvoiceSnapshotView({
           <Printer className="mr-1 h-3.5 w-3.5" />
           {t("staff.invoices.snapshot.print")}
         </Button>
+        {invoice.posClientId &&
+          invoice.status !== InvoiceStatus.CANCELLED &&
+          invoice.status !== InvoiceStatus.PAID &&
+          onRecordPayment && (
+            <Button size="sm" onClick={onRecordPayment}>
+              {t("staff.invoices.recordPayment.title")}
+            </Button>
+          )}
+        {scope === "admin" && invoice.status !== InvoiceStatus.CANCELLED && onCancel && (
+          <Button variant="destructive" size="sm" onClick={onCancel}>
+            {t("admin.invoices.outgoing.cancelDialog.title")}
+          </Button>
+        )}
       </div>
     </div>
   );

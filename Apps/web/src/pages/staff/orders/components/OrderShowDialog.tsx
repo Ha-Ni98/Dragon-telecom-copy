@@ -1,9 +1,10 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { ResolvedVsChargedPrice } from "@/components/shared/ResolvedVsChargedPrice";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD, formatDateTime } from "@/lib/utils";
-import type { OrderDto } from "@dragon-telecom/contract";
+import { OrderStatus, type OrderDto } from "@dragon-telecom/contract";
 
 interface OrderShowDialogProps {
   open: boolean;
@@ -12,18 +13,41 @@ interface OrderShowDialogProps {
   /** Live re-check (STF-04 §UI: "live availability re-check") — the caller's own
    * useCatalogProduct(order.productId) read, passed in rather than fetched here. */
   liveAvailableQuantity?: number;
+  /** ADM-09 adds cancel/return; both are absent for scope="staff" (STF-04 §Interactions). */
+  scope?: "staff" | "admin";
+  /** Sprint 6 addition — this dialog is the only place a row's forward-state/cancel/return
+   * actions can be launched from (OrdersTable has no per-row action column); mirrors
+   * SaleDetailDrawer's own action-footer pattern (same cluster, same sprint). Each callback
+   * is optional so the dialog stays a pure read view when none are wired (e.g. tests). */
+  onConfirm?: () => void;
+  onUpdateStatus?: () => void;
+  onCancel?: () => void;
+  onReturn?: () => void;
 }
 
-// Dumb, props-only (Sprint 4) — Sprint 6 wires this to the row click + a live product read.
+// Dumb, props-only (Sprint 4, action footer added Sprint 6) — Sprint 6 wires this to the row
+// click + a live product read + the mutation dialogs.
 export function OrderShowDialog({
   open,
   onOpenChange,
   order,
   liveAvailableQuantity,
+  scope = "staff",
+  onConfirm,
+  onUpdateStatus,
+  onCancel,
+  onReturn,
 }: OrderShowDialogProps) {
   const { t, language } = useTranslation();
 
   if (!order) return null;
+
+  const showConfirm = order.status === OrderStatus.PENDING && !!onConfirm;
+  const showUpdateStatus =
+    !!onUpdateStatus &&
+    [OrderStatus.CONFIRMED, OrderStatus.PACKAGED, OrderStatus.IN_DELIVERY].includes(order.status);
+  const showCancel = scope === "admin" && order.canBeCancelled && !!onCancel;
+  const showReturn = scope === "admin" && order.status === OrderStatus.COMPLETED && !!onReturn;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -101,6 +125,34 @@ export function OrderShowDialog({
             <span>{t("staff.orders.table.total")}</span>
             <span>{formatDZD(order.totalAmount, language)}</span>
           </div>
+
+          {(showConfirm || showUpdateStatus || showCancel || showReturn) && (
+            <>
+              <Separator />
+              <div className="flex flex-wrap gap-2">
+                {showConfirm && (
+                  <Button size="sm" onClick={onConfirm}>
+                    {t("staff.orders.confirmDialog.submit")}
+                  </Button>
+                )}
+                {showUpdateStatus && (
+                  <Button size="sm" variant="outline" onClick={onUpdateStatus}>
+                    {t("staff.orders.statusDialog.title")}
+                  </Button>
+                )}
+                {showReturn && (
+                  <Button size="sm" variant="outline" onClick={onReturn}>
+                    {t("admin.orders.returnDialog.title")}
+                  </Button>
+                )}
+                {showCancel && (
+                  <Button size="sm" variant="destructive" onClick={onCancel}>
+                    {t("admin.orders.cancelDialog.title")}
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

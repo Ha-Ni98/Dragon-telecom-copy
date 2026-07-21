@@ -18,10 +18,14 @@ import { qk } from "@/lib/query-keys";
 // AdminSettingsService), the pre-existing Sub-01 stub surface still serving whatever page
 // consumes it until Sub-03. No other identity-shaped stub hooks exist anywhere in `/src/hooks`.
 
-export function useUsers(query: UserListQuery) {
+// `options.enabled` (set-03 Sprint 6) — ADM-10's seller-search filter only wants this to fire
+// for scope="admin"; staff users may not even hold the identity:list-users permission, so an
+// unconditional call from the shared Sales tree would background-403 on every staff page visit.
+export function useUsers(query: UserListQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.identity.users.list(query),
     queryFn: () => identityService.listUsers(query),
+    enabled: options?.enabled,
   });
 }
 

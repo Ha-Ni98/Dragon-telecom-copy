@@ -142,21 +142,23 @@ Each sprint's **Validation** block repeats these; only sprint-specific extras ar
 
 ---
 
-### Sprint 6: Wiring — Orders, Sales, Invoices twins (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 6: Wiring — Orders, Sales, Invoices twins (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - The three table-centric twins wired `scope`-driven; admin-only affordances gated.
 
 **Tasks**
-- [ ] Orders: `useOrdersList(scope, q)`, `useOrderStats(scope)`, `useConfirmOrder`, `useUpdateOrderStatus`; admin-gate `useAdminCancelOrder` + `useReturnOrder`. Default PENDING tab, search + date range (A2), age flag. Rewire `AdminOrders.tsx` off `use-admin-orders`. (#wiring #forms)
-- [ ] Sales: `useSales(scope, q)`, `useSale(scope, ref)`; admin-gate `useCreateReturn` + profit/seller cols + footer totals + `ReturnDialog`; DRAFT row → `<Link>` to POS. Seller/date/client filters via A3. (#wiring #forms)
-- [ ] Invoices: staff `useMyInvoices`/`useMyInvoice`/`useMyInvoicePdf`; admin tabs `useInvoices('admin',q)`/`useInvoice`/`useInvoicePdf`/`useCancelInvoice`, Incoming `usePurchasingInvoices`, ledgers `useClientPayments`+`usePurchasingPayments`; payment mutations `useCreateClientPayment`/`useCreatePurchasingPayment` with `CreditMovementPreview`. Lazy-per-tab queries. (#wiring #forms)
+- [x] Orders: `useOrdersList(scope, q)`, `useOrderStats(scope)`, `useConfirmOrder`, `useUpdateOrderStatus`; admin-gate `useAdminCancelOrder` + `useReturnOrder`. Default PENDING tab, search + date range (A2), age flag. Rewire `AdminOrders.tsx` off `use-admin-orders`. **`OrderShowDialog` gained an action footer** (Confirm/Update status/Cancel/Return) — Sprint 4 left it a pure read view with nowhere to launch mutations from, since `OrdersTable` has no action column; also fixed a real `qk.orders.*` cache-key bug (staff/admin shared one key, `.admin.list` label regardless of scope). (#wiring #forms)
+- [x] Sales: `useSales(scope, q)`, `useSale(scope, ref)`; admin-gate `useCreateReturn` + profit/seller cols + footer totals + `ReturnDialog`; DRAFT row → resume-in-POS button inside the drawer. Seller/date/client filters via A3 — resolved from `SalesFilters`' free-text inputs to `sellerId`/`posClientId` only on an exact name match (no picker UI exists on that component), never a "first match" guess. (#wiring #forms)
+- [x] Invoices: staff `useMyInvoices`/`useMyInvoice`/`useMyInvoicePdf`; admin tabs `useInvoices('admin',q)`/`useInvoice`/`useInvoicePdf`/`useCancelInvoice`, Incoming `usePurchasingInvoices`, ledgers `useClientPayments`+`usePurchasingPayments`; payment mutations `useCreateClientPayment`/`useCreatePurchasingPayment` with `CreditMovementPreview`. Lazy-per-tab queries (added `enabled` options to `useInvoices`/`useClientPayments`/`usePurchasingInvoices`/`usePurchasingPayments`). **Two Sprint-4 gaps filled:** `InvoiceSnapshotView` had no cancel/record-payment buttons; `IncomingInvoicesTable` had no `onRowClick` (needed as the only entry point for "record supplier payment"). Built a new `CancelInvoiceDialog`+schema — Sprint 4 built every other invoices dialog but missed this one. (#wiring #forms)
 
 **Validation**
-- [ ] Global gates. Extra: admin-only actions absent for `scope="staff"`; correct invalidation keys fire (`['orders']`+stats+dashboard; `['sales','admin']`+inventory+pos-clients; invoice/pos-client/supplier keys); staff invoice/sales lists scoped to self.
+- [x] Global gates. Extra: admin-only actions absent for `scope="staff"` (return/cancel buttons gated on `scope==="admin"` inside `OrderShowDialog`/`SaleDetailDrawer`/`InvoiceSnapshotView`); invalidation keys match the plan's cross-domain matrix (already correct in the pre-existing Sub-02 hooks, verified not re-implemented); staff invoice/sales lists scoped to self via the STAFF_* routes. tsc/eslint clean across the package; full `vitest run` 54/54 files, 400/400 tests, no regressions.
 
 **Risks**
-- Twin gating leaks (a staff mount showing return/cancel); wrong invalidation keys leaving stale tables.
+- Twin gating leaks (a staff mount showing return/cancel) — mitigated by gating in the shared dumb components, not the page. Wrong invalidation keys leaving stale tables — the one real bug found (`qk.orders.*`) is fixed; documented in report-sprint-06.md.
+
+**Report:** [report-sprint-06.md](./report-sprint-06.md)
 
 ---
 

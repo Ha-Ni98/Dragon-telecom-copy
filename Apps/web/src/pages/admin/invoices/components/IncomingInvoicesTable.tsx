@@ -16,15 +16,23 @@ interface IncomingInvoicesTableProps {
   isLoading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
+  /** Sprint 6 addition — no CRUD/edit affordance on the invoice itself (still "read-only" per
+   * ADM-14 §UI), but a row click is the only entry point for "record supplier payment"
+   * (acceptance criteria), since this table has no other action column. Every sibling table in
+   * this cluster (Orders/Sales/Outgoing invoices) already has onRowClick; this one was the
+   * outlier. */
+  onRowClick?: (invoice: SupplierInvoiceDto) => void;
 }
 
-// Admin-only, read-only (ADM-14 §UI: "Incoming: read-only accounting view over supplier
-// invoices"). Dumb, props-only (Sprint 4) — Sprint 6 wires usePurchasingInvoices() around this.
+// Admin-only (ADM-14 §UI: "Incoming: read-only accounting view over supplier invoices" — no
+// edit/delete on the invoice, but see onRowClick above). Dumb, props-only (Sprint 4, onRowClick
+// added Sprint 6) — Sprint 6 wires usePurchasingInvoices() around this.
 export function IncomingInvoicesTable({
   invoices,
   isLoading,
   isError,
   onRetry,
+  onRowClick,
 }: IncomingInvoicesTableProps) {
   const { t, language } = useTranslation();
 
@@ -109,6 +117,8 @@ export function IncomingInvoicesTable({
       data={invoices ?? []}
       getRowKey={(invoice) => invoice.id}
       renderMobileRow={renderMobileRow}
+      getRowClassName={onRowClick ? () => "cursor-pointer" : undefined}
+      onRowClick={onRowClick}
       emptyState={
         <EmptyState
           icon={<FileText className="h-6 w-6" />}

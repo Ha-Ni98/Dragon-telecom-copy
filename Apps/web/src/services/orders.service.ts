@@ -1,7 +1,6 @@
 // Orders domain (client-facing + admin order management) — Sub-01 scaffolding. See
 // catalog.service.ts's header comment for the numeric-id/view-model scope decision this follows.
-import type { OrderWithDetails, AdminOrderWithDetails, AdminOrdersStats } from "@/types/draft-types/order.types";
-import type { OrderStatusCode } from "@/types/draft-types/enums.types";
+import type { OrderWithDetails } from "@/types/draft-types/order.types";
 
 export async function getMyOrders(): Promise<OrderWithDetails[]> {
   return [];
@@ -9,37 +8,14 @@ export async function getMyOrders(): Promise<OrderWithDetails[]> {
 
 export async function cancelOrder(_orderId: number): Promise<void> {}
 
-export interface AdminOrdersQuery {
-  page: number;
-  limit: number;
-  search?: string;
-  status?: OrderStatusCode;
-}
-
-export interface AdminOrdersPage {
-  orders: AdminOrderWithDetails[];
-  total: number;
-  totalPages: number;
-}
-
-export async function getAdminOrders(_query: AdminOrdersQuery): Promise<AdminOrdersPage> {
-  return { orders: [], total: 0, totalPages: 0 };
-}
-
-export async function getAdminOrdersStats(): Promise<AdminOrdersStats> {
-  return { totalOrdersThisMonth: 0, pendingOrders: 0, confirmedOrders: 0, deliveryOrders: 0 };
-}
-
-export async function updateAdminOrder(_orderId: number, _updates: Partial<AdminOrderWithDetails>): Promise<void> {}
-
 // ============================================================================
 // Sub-02 real orders service — contract-typed, HTTP-wired (integration
 // plan.md §2.6). Consumed by the new hooks (useOrdersPortal.ts,
-// useOrdersDirectory.ts), NOT by the Sub-01 stub hooks above — those still
-// call the stub functions above and stay wired to the pre-existing pages
-// until Sub-03 rewires them (integration sprints.md Sprint 5 handoff note,
-// same pattern as Sprints 3/4). `cancelOrder` above (Sub-01 stub) is why the
-// real admin-cancel function below is named `adminCancelOrder` instead.
+// useOrdersDirectory.ts). set-03 Sprint 6 rewired AdminOrders.tsx onto this
+// (and useOrdersDirectory.ts) directly, retiring the Sub-01 admin stub
+// (getAdminOrders/getAdminOrdersStats/updateAdminOrder, use-admin-orders.ts) —
+// `cancelOrder` above (still Sub-01, client-facing MY_CANCEL) is why the real
+// admin-cancel function below is named `adminCancelOrder` instead.
 // ============================================================================
 import { api } from "@/lib/axios";
 import { apiPath, withParams } from "@/lib/api-path";

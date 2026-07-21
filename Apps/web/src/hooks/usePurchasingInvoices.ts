@@ -8,10 +8,16 @@ import type {
 import * as purchasingService from "@/services/purchasing.service";
 import { qk } from "@/lib/query-keys";
 
-export function usePurchasingInvoices(query: SupplierInvoiceListQuery) {
+// `options.enabled` (set-03 Sprint 6) — ADM-14's read-only Incoming tab is lazy-per-tab
+// (plan.md §5), same reason as useInvoices'/useClientPayments' own `enabled` option.
+export function usePurchasingInvoices(
+  query: SupplierInvoiceListQuery,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: qk.purchasing.invoices.list(query),
     queryFn: () => purchasingService.listSupplierInvoices(query),
+    enabled: options?.enabled,
   });
 }
 

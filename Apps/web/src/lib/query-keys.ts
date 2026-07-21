@@ -106,10 +106,12 @@ export const qk = {
   orders: {
     all: () => ["orders"] as const,
     mine: (query?: unknown) => ["orders", "mine", query] as const,
-    admin: {
-      list: (query?: unknown) => ["orders", "admin", "list", query] as const,
-      detail: (id: string) => ["orders", "admin", "detail", id] as const,
-    },
+    // `scope` embedded (set-03 Sprint 6 fix) — the bare `admin`-labelled shape below collided
+    // staff/admin caches under one key once useOrdersList(scope, query) was actually called from
+    // both scopes of the same StaffOrders/AdminOrders twin tree with equivalent filter objects;
+    // same bug class as the qk.orders.mine()/qk.purchasing.payments.list() fixes noted elsewhere.
+    list: (scope: string, query?: unknown) => ["orders", "list", scope, query] as const,
+    detail: (scope: string, id: string) => ["orders", "detail", scope, id] as const,
     stats: (scope: string) => ["orders", "stats", scope] as const,
   },
   purchasing: {
@@ -200,6 +202,4 @@ export const qkLegacy = {
     ["catalog", "admin-products", "by-status", status] as const,
   catalogAdminProductsSearch: (query: string, filters?: unknown) =>
     ["catalog", "admin-products", "search", query, filters] as const,
-  ordersAdminList: (query?: unknown) => ["orders", "admin-list", query] as const,
-  ordersAdminStats: () => ["orders", "admin-stats"] as const,
 } as const;

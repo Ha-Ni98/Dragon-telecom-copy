@@ -6,10 +6,14 @@ import type {
 import * as purchasingService from "@/services/purchasing.service";
 import { qk } from "@/lib/query-keys";
 
-export function usePurchasingPayments(query: SupplierPaymentListQuery) {
+export function usePurchasingPayments(
+  query: SupplierPaymentListQuery,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: qk.purchasing.payments.list(query),
     queryFn: () => purchasingService.listSupplierPayments(query),
+    enabled: options?.enabled,
   });
 }
 
