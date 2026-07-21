@@ -23,7 +23,7 @@ document.**
 
 ---
 
-### Sprint 1: Schemas, i18n & the A2 contract/API change (Foundation) — Status: ⬜ Pending
+### Sprint 1: Schemas, i18n & the A2 contract/API change (Foundation) — Status: ✅ Done
 
 **Goals**
 - Every form's Zod wrapper exists and type-checks against `@dragon-telecom/contract`.
@@ -31,10 +31,10 @@ document.**
 - A2 landed end-to-end (contract field + stats service) so ADM-12's 4th card can wire later.
 
 **Tasks**
-- [ ] **(#backend/contract, A2)** Add `newThisMonth: z.number().int().min(0)` to `ClientStatsResponseSchema` (`Apps/contract/src/modules/clients/clients.dtos.ts`); rebuild `@dragon-telecom/contract`. In `Apps/api` admin-client stats handler, compute `newThisMonth = count(clients WHERE createdAt >= startOfMonth(now))`; update its service unit test + a fixture. No route/verb change.
-- [ ] **(#schema)** Co-locate command-wrapping schemas (wrap contract commands; only UI-local refines): `adjustment.schema.ts` (IN-delta `unitCost` required), `supplier-invoice.schema.ts` (amountOnly XOR lines + per-line positive qty/cost), `pos-client.schema.ts`, `approve-client.schema.ts` (username server-error target), `reset-client-password.schema.ts` (min-length + confirm match), `user.schema.ts` (type/roleIds refine — roleIds iff STAFF), `role.schema.ts` (+ `SetRolePagesCommand`), settings per-tab schemas (`store`, `invoicing`, `client-category`, taxonomy commands, `UpsertFeesCommand`), supplier create/update wrappers.
-- [ ] **(#i18n)** Add keys to `src/config/translations.json` for all ten pages under `admin.inventory.*`, `admin.suppliers.*`, `admin.supplierInvoices.*`, `admin.posClients.*`, `admin.clients.*`, `admin.statistics.*`, `admin.users.*`, `admin.settings.*`, `admin.logs.*`, `admin.staffSearches.*`; reuse existing `common.*` keys. `ar` = `""`.
-- [ ] **(#testing)** Contract schema `.parse()` round-trip tests for each new wrapper live in `/tests`; A2 stats service test green.
+- [x] **(#backend/contract, A2)** Add `newThisMonth: z.number().int().min(0)` to `ClientStatsResponseSchema` (`Apps/contract/src/modules/clients/clients.dtos.ts`); rebuild `@dragon-telecom/contract`. In `Apps/api` admin-client stats handler, compute `newThisMonth = count(clients WHERE createdAt >= startOfMonth(now))`; update its service unit test + a fixture. No route/verb change.
+- [x] **(#schema)** Co-locate command-wrapping schemas (wrap contract commands; only UI-local refines): `adjustment.schema.ts` (IN-delta `unitCost` required), `supplier-invoice.schema.ts` (amountOnly XOR lines + per-line positive qty/cost), `pos-client.schema.ts`, `approve-client.schema.ts` (username server-error target), `reset-client-password.schema.ts` (min-length + confirm match), `user.schema.ts` (type/roleIds refine — roleIds iff STAFF), `role.schema.ts` (+ `SetRolePagesCommand`), settings per-tab schemas (`store`, `invoicing`, `client-category`, taxonomy commands, `UpsertFeesCommand`), supplier create/update wrappers.
+- [x] **(#i18n)** Add keys to `src/config/translations.json` for all ten pages under `admin.inventory.*`, `admin.suppliers.*`, `admin.supplierInvoices.*`, `admin.posClients.*`, `admin.clients.*`, `admin.statistics.*`, `admin.users.*`, `admin.settings.*`, `admin.logs.*`, `admin.staffSearches.*`; reuse existing `common.*` keys. `ar` = `""`.
+- [x] **(#testing)** Contract schema `.parse()` round-trip tests for each new wrapper live in `/tests`; A2 stats service test green.
 
 **Validation** — standard checklist. Additionally: contract builds; `newThisMonth` visible in the rebuilt package types; no inline strings introduced.
 

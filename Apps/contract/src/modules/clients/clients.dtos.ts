@@ -80,5 +80,6 @@ export const ClientStatsResponseSchema = z.object({
   pending: z.number().int().min(0),
   approved: z.number().int().min(0),
   rejected: z.number().int().min(0),
+  newThisMonth: z.number().int().min(0),
 });
 export type ClientStatsDto = z.infer<typeof ClientStatsResponseSchema>;

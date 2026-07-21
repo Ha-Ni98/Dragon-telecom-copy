@@ -12028,5 +12028,1320 @@
     "en": "Save",
     "fr": "Enregistrer",
     "ar": ""
+  },
+  "admin.inventory.title": {
+    "en": "Inventory",
+    "fr": "Inventaire",
+    "ar": ""
+  },
+  "admin.inventory.description": {
+    "en": "Track stock levels, movements, reservations, and post adjustments",
+    "fr": "Suivez les niveaux de stock, les mouvements, les réservations et enregistrez des ajustements",
+    "ar": ""
+  },
+  "admin.inventory.tabs.stock": {
+    "en": "Stock levels",
+    "fr": "Niveaux de stock",
+    "ar": ""
+  },
+  "admin.inventory.tabs.movements": {
+    "en": "Movement ledger",
+    "fr": "Journal des mouvements",
+    "ar": ""
+  },
+  "admin.inventory.tabs.reservations": {
+    "en": "Reservations",
+    "fr": "Réservations",
+    "ar": ""
+  },
+  "admin.inventory.tabs.adjustments": {
+    "en": "Adjustments",
+    "fr": "Ajustements",
+    "ar": ""
+  },
+  "admin.inventory.error": {
+    "en": "Failed to load inventory data",
+    "fr": "Échec du chargement des données d'inventaire",
+    "ar": ""
+  },
+  "admin.inventory.retry": {
+    "en": "Retry",
+    "fr": "Réessayer",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.lowStock": {
+    "en": "Low stock",
+    "fr": "Stock faible",
+    "ar": ""
+  },
+  "admin.inventory.stock.empty": {
+    "en": "No stock rows found",
+    "fr": "Aucune ligne de stock trouvée",
+    "ar": ""
+  },
+  "admin.inventory.stock.lowStockOnly": {
+    "en": "Low stock only",
+    "fr": "Stock faible uniquement",
+    "ar": ""
+  },
+  "admin.inventory.stock.exportCsv": {
+    "en": "Export CSV",
+    "fr": "Exporter en CSV",
+    "ar": ""
+  },
+  "admin.inventory.movements.table.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "admin.inventory.movements.table.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.inventory.movements.table.type": {
+    "en": "Type",
+    "fr": "Type",
+    "ar": ""
+  },
+  "admin.inventory.movements.table.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.inventory.movements.table.reference": {
+    "en": "Reference",
+    "fr": "Référence",
+    "ar": ""
+  },
+  "admin.inventory.movements.table.cogs": {
+    "en": "COGS",
+    "fr": "Coût des marchandises vendues",
+    "ar": ""
+  },
+  "admin.inventory.movements.table.profit": {
+    "en": "Profit",
+    "fr": "Profit",
+    "ar": ""
+  },
+  "admin.inventory.movements.table.staff": {
+    "en": "Staff",
+    "fr": "Employé",
+    "ar": ""
+  },
+  "admin.inventory.movements.empty": {
+    "en": "No movements found",
+    "fr": "Aucun mouvement trouvé",
+    "ar": ""
+  },
+  "admin.inventory.movements.filters.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.inventory.movements.filters.type": {
+    "en": "Type",
+    "fr": "Type",
+    "ar": ""
+  },
+  "admin.inventory.movements.filters.dateRange": {
+    "en": "Date range",
+    "fr": "Plage de dates",
+    "ar": ""
+  },
+  "admin.inventory.movements.filters.staff": {
+    "en": "Staff",
+    "fr": "Employé",
+    "ar": ""
+  },
+  "admin.inventory.reservations.table.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.inventory.reservations.table.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.inventory.reservations.table.holder": {
+    "en": "Holder",
+    "fr": "Détenteur",
+    "ar": ""
+  },
+  "admin.inventory.reservations.table.age": {
+    "en": "Age",
+    "fr": "Ancienneté",
+    "ar": ""
+  },
+  "admin.inventory.reservations.empty": {
+    "en": "No reservations found",
+    "fr": "Aucune réservation trouvée",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.title": {
+    "en": "New adjustment",
+    "fr": "Nouvel ajustement",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reason": {
+    "en": "Reason",
+    "fr": "Motif",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reason.count": {
+    "en": "Count",
+    "fr": "Comptage",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reason.damage": {
+    "en": "Damage",
+    "fr": "Dommage",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reason.loss": {
+    "en": "Loss",
+    "fr": "Perte",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reason.correction": {
+    "en": "Correction",
+    "fr": "Correction",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.note": {
+    "en": "Note",
+    "fr": "Note",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.addLine": {
+    "en": "Add line",
+    "fr": "Ajouter une ligne",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.removeLine": {
+    "en": "Remove line",
+    "fr": "Supprimer la ligne",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.countedQuantity": {
+    "en": "Counted quantity",
+    "fr": "Quantité comptée",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.systemQuantity": {
+    "en": "System quantity",
+    "fr": "Quantité système",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.delta": {
+    "en": "Delta",
+    "fr": "Écart",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.unitCost": {
+    "en": "Unit cost",
+    "fr": "Coût unitaire",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.submit": {
+    "en": "Post adjustment",
+    "fr": "Enregistrer l'ajustement",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.success": {
+    "en": "Adjustment posted successfully",
+    "fr": "Ajustement enregistré avec succès",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.error": {
+    "en": "Failed to post adjustment",
+    "fr": "Échec de l'enregistrement de l'ajustement",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.lineRequired": {
+    "en": "At least one line is required",
+    "fr": "Au moins une ligne est requise",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.unitCostRequiredForIncrease": {
+    "en": "Unit cost is required when the counted quantity increases stock",
+    "fr": "Le coût unitaire est requis lorsque la quantité comptée augmente le stock",
+    "ar": ""
+  },
+  "admin.supplierInvoices.title": {
+    "en": "Supplier invoices",
+    "fr": "Factures fournisseurs",
+    "ar": ""
+  },
+  "admin.supplierInvoices.description": {
+    "en": "Record goods receipts and manage the confirm-and-reprice flow",
+    "fr": "Enregistrez les réceptions de marchandises et gérez le flux de confirmation et de re-tarification",
+    "ar": ""
+  },
+  "admin.supplierInvoices.error": {
+    "en": "Failed to load supplier invoices",
+    "fr": "Échec du chargement des factures fournisseurs",
+    "ar": ""
+  },
+  "admin.supplierInvoices.empty": {
+    "en": "No supplier invoices found",
+    "fr": "Aucune facture fournisseur trouvée",
+    "ar": ""
+  },
+  "admin.supplierInvoices.addInvoice": {
+    "en": "Add invoice",
+    "fr": "Ajouter une facture",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.supplier": {
+    "en": "Supplier",
+    "fr": "Fournisseur",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.reference": {
+    "en": "Reference",
+    "fr": "Référence",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.amount": {
+    "en": "Amount",
+    "fr": "Montant",
+    "ar": ""
+  },
+  "admin.supplierInvoices.status.draft": {
+    "en": "Draft",
+    "fr": "Brouillon",
+    "ar": ""
+  },
+  "admin.supplierInvoices.status.confirmed": {
+    "en": "Confirmed",
+    "fr": "Confirmée",
+    "ar": ""
+  },
+  "admin.supplierInvoices.status.cancelled": {
+    "en": "Cancelled",
+    "fr": "Annulée",
+    "ar": ""
+  },
+  "admin.supplierInvoices.filters.supplier": {
+    "en": "Supplier",
+    "fr": "Fournisseur",
+    "ar": ""
+  },
+  "admin.supplierInvoices.filters.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "admin.supplierInvoices.filters.dateRange": {
+    "en": "Date range",
+    "fr": "Plage de dates",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.title": {
+    "en": "Supplier invoice",
+    "fr": "Facture fournisseur",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.supplier": {
+    "en": "Supplier",
+    "fr": "Fournisseur",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.supplierReference": {
+    "en": "Supplier reference",
+    "fr": "Référence fournisseur",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.invoiceDate": {
+    "en": "Invoice date",
+    "fr": "Date de facture",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.dueDate": {
+    "en": "Due date",
+    "fr": "Date d'échéance",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.shippingCost": {
+    "en": "Shipping cost",
+    "fr": "Frais de port",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.amountOnly": {
+    "en": "Amount only",
+    "fr": "Montant uniquement",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.note": {
+    "en": "Note",
+    "fr": "Note",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.amountOnlyXorLines": {
+    "en": "Enter either an amount or line items, not both",
+    "fr": "Saisissez soit un montant, soit des lignes, mais pas les deux",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.quantityMin": {
+    "en": "Quantity must be at least 1",
+    "fr": "La quantité doit être d'au moins 1",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.addLine": {
+    "en": "Add line",
+    "fr": "Ajouter une ligne",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.unitCost": {
+    "en": "Unit cost",
+    "fr": "Coût unitaire",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.serialNumbers": {
+    "en": "Serial numbers",
+    "fr": "Numéros de série",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.landedUnitCost": {
+    "en": "Landed unit cost",
+    "fr": "Coût unitaire rendu",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.projectedAvgCost": {
+    "en": "Projected new average cost",
+    "fr": "Nouveau coût moyen projeté",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.subtotal": {
+    "en": "Subtotal",
+    "fr": "Sous-total",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.save": {
+    "en": "Save draft",
+    "fr": "Enregistrer le brouillon",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.confirm": {
+    "en": "Confirm",
+    "fr": "Confirmer",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.cancel": {
+    "en": "Cancel invoice",
+    "fr": "Annuler la facture",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.cancelReason": {
+    "en": "Cancellation reason",
+    "fr": "Motif d'annulation",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.alreadyConfirmed": {
+    "en": "This invoice is already confirmed and can no longer be edited",
+    "fr": "Cette facture est déjà confirmée et ne peut plus être modifiée",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.notFound": {
+    "en": "Supplier invoice not found",
+    "fr": "Facture fournisseur introuvable",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.createProduct": {
+    "en": "Create product",
+    "fr": "Créer un produit",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.title": {
+    "en": "Update pricing",
+    "fr": "Mettre à jour la tarification",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.apply": {
+    "en": "Apply",
+    "fr": "Appliquer",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.skip": {
+    "en": "Skip",
+    "fr": "Ignorer",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.skipAll": {
+    "en": "Skip all",
+    "fr": "Tout ignorer",
+    "ar": ""
+  },
+  "admin.supplierInvoices.payment.title": {
+    "en": "Record payment",
+    "fr": "Enregistrer un paiement",
+    "ar": ""
+  },
+  "admin.supplierInvoices.payment.amount": {
+    "en": "Amount",
+    "fr": "Montant",
+    "ar": ""
+  },
+  "admin.supplierInvoices.payment.paidAt": {
+    "en": "Paid at",
+    "fr": "Payé le",
+    "ar": ""
+  },
+  "admin.supplierInvoices.payment.success": {
+    "en": "Payment recorded successfully",
+    "fr": "Paiement enregistré avec succès",
+    "ar": ""
+  },
+  "admin.posClients.title": {
+    "en": "POS clients",
+    "fr": "Clients point de vente",
+    "ar": ""
+  },
+  "admin.posClients.description": {
+    "en": "Manage walk-in clients created at the point of sale",
+    "fr": "Gérez les clients de passage créés au point de vente",
+    "ar": ""
+  },
+  "admin.posClients.error": {
+    "en": "Failed to load POS clients",
+    "fr": "Échec du chargement des clients point de vente",
+    "ar": ""
+  },
+  "admin.posClients.empty": {
+    "en": "No POS clients found",
+    "fr": "Aucun client point de vente trouvé",
+    "ar": ""
+  },
+  "admin.posClients.addClient": {
+    "en": "Add client",
+    "fr": "Ajouter un client",
+    "ar": ""
+  },
+  "admin.posClients.table.code": {
+    "en": "Code",
+    "fr": "Code",
+    "ar": ""
+  },
+  "admin.posClients.table.name": {
+    "en": "Name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "admin.posClients.table.phone": {
+    "en": "Phone",
+    "fr": "Téléphone",
+    "ar": ""
+  },
+  "admin.posClients.table.category": {
+    "en": "Category",
+    "fr": "Catégorie",
+    "ar": ""
+  },
+  "admin.posClients.table.credit": {
+    "en": "Credit",
+    "fr": "Crédit",
+    "ar": ""
+  },
+  "admin.posClients.table.totalPaid": {
+    "en": "Total paid",
+    "fr": "Total payé",
+    "ar": ""
+  },
+  "admin.posClients.table.totalSold": {
+    "en": "Total sold",
+    "fr": "Total vendu",
+    "ar": ""
+  },
+  "admin.posClients.table.linkedAccount": {
+    "en": "Linked account",
+    "fr": "Compte lié",
+    "ar": ""
+  },
+  "admin.posClients.table.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "admin.posClients.form.name": {
+    "en": "Name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "admin.posClients.form.nameRequired": {
+    "en": "Name is required",
+    "fr": "Le nom est requis",
+    "ar": ""
+  },
+  "admin.posClients.form.phone": {
+    "en": "Phone",
+    "fr": "Téléphone",
+    "ar": ""
+  },
+  "admin.posClients.form.category": {
+    "en": "Category",
+    "fr": "Catégorie",
+    "ar": ""
+  },
+  "admin.posClients.form.categoryHelp": {
+    "en": "Changing the category only re-resolves future prices",
+    "fr": "Changer la catégorie ne modifie que les prix futurs",
+    "ar": ""
+  },
+  "admin.posClients.form.initialCredit": {
+    "en": "Initial credit",
+    "fr": "Crédit initial",
+    "ar": ""
+  },
+  "admin.posClients.createSuccess": {
+    "en": "POS client created successfully",
+    "fr": "Client point de vente créé avec succès",
+    "ar": ""
+  },
+  "admin.posClients.updateSuccess": {
+    "en": "POS client updated successfully",
+    "fr": "Client point de vente mis à jour avec succès",
+    "ar": ""
+  },
+  "admin.posClients.detail.title": {
+    "en": "Client details",
+    "fr": "Détails du client",
+    "ar": ""
+  },
+  "admin.posClients.detail.tabs.sales": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "admin.posClients.detail.tabs.payments": {
+    "en": "Payments",
+    "fr": "Paiements",
+    "ar": ""
+  },
+  "admin.posClients.detail.tabs.creditHistory": {
+    "en": "Credit history",
+    "fr": "Historique du crédit",
+    "ar": ""
+  },
+  "admin.posClients.detail.creditHistory.empty": {
+    "en": "No credit history yet",
+    "fr": "Aucun historique de crédit pour le moment",
+    "ar": ""
+  },
+  "admin.posClients.detail.creditHistory.previous": {
+    "en": "Previous credit",
+    "fr": "Crédit précédent",
+    "ar": ""
+  },
+  "admin.posClients.detail.creditHistory.new": {
+    "en": "New credit",
+    "fr": "Nouveau crédit",
+    "ar": ""
+  },
+  "admin.posClients.detail.recordPayment": {
+    "en": "Record payment",
+    "fr": "Enregistrer un paiement",
+    "ar": ""
+  },
+  "admin.clients.approval.title": {
+    "en": "Approve client",
+    "fr": "Approuver le client",
+    "ar": ""
+  },
+  "admin.clients.approval.recap": {
+    "en": "Registration recap",
+    "fr": "Récapitulatif de l'inscription",
+    "ar": ""
+  },
+  "admin.clients.approval.username": {
+    "en": "Username",
+    "fr": "Nom d'utilisateur",
+    "ar": ""
+  },
+  "admin.clients.approval.usernameRequired": {
+    "en": "Username is required",
+    "fr": "Le nom d'utilisateur est requis",
+    "ar": ""
+  },
+  "admin.clients.approval.password": {
+    "en": "Password",
+    "fr": "Mot de passe",
+    "ar": ""
+  },
+  "admin.clients.approval.passwordMinLength": {
+    "en": "Password must be at least 8 characters",
+    "fr": "Le mot de passe doit contenir au moins 8 caractères",
+    "ar": ""
+  },
+  "admin.clients.approval.category": {
+    "en": "Category",
+    "fr": "Catégorie",
+    "ar": ""
+  },
+  "admin.clients.approval.categoryRequired": {
+    "en": "Category is required",
+    "fr": "La catégorie est requise",
+    "ar": ""
+  },
+  "admin.clients.approval.approve": {
+    "en": "Approve",
+    "fr": "Approuver",
+    "ar": ""
+  },
+  "admin.clients.approval.reject": {
+    "en": "Reject",
+    "fr": "Refuser",
+    "ar": ""
+  },
+  "admin.clients.approval.rejectReason": {
+    "en": "Rejection reason",
+    "fr": "Motif de refus",
+    "ar": ""
+  },
+  "admin.clients.approval.usernameTaken": {
+    "en": "This username is already taken",
+    "fr": "Ce nom d'utilisateur est déjà pris",
+    "ar": ""
+  },
+  "admin.clients.approval.success": {
+    "en": "Client approved successfully",
+    "fr": "Client approuvé avec succès",
+    "ar": ""
+  },
+  "admin.clients.approval.rejectSuccess": {
+    "en": "Client rejected",
+    "fr": "Client refusé",
+    "ar": ""
+  },
+  "admin.clients.detail.title": {
+    "en": "Client details",
+    "fr": "Détails du client",
+    "ar": ""
+  },
+  "admin.clients.detail.notFound": {
+    "en": "Client not found",
+    "fr": "Client introuvable",
+    "ar": ""
+  },
+  "admin.clients.detail.tabs.overview": {
+    "en": "Overview",
+    "fr": "Aperçu",
+    "ar": ""
+  },
+  "admin.clients.detail.tabs.orders": {
+    "en": "Orders",
+    "fr": "Commandes",
+    "ar": ""
+  },
+  "admin.clients.detail.tabs.invoices": {
+    "en": "Invoices",
+    "fr": "Factures",
+    "ar": ""
+  },
+  "admin.clients.detail.tabs.payments": {
+    "en": "Payments",
+    "fr": "Paiements",
+    "ar": ""
+  },
+  "admin.clients.detail.tabs.browsing": {
+    "en": "Browsing activity",
+    "fr": "Activité de navigation",
+    "ar": ""
+  },
+  "admin.clients.resetPassword.title": {
+    "en": "Reset password",
+    "fr": "Réinitialiser le mot de passe",
+    "ar": ""
+  },
+  "admin.clients.resetPassword.newPassword": {
+    "en": "New password",
+    "fr": "Nouveau mot de passe",
+    "ar": ""
+  },
+  "admin.clients.resetPassword.minLength": {
+    "en": "Password must be at least 6 characters",
+    "fr": "Le mot de passe doit contenir au moins 6 caractères",
+    "ar": ""
+  },
+  "admin.clients.resetPassword.confirmPassword": {
+    "en": "Confirm password",
+    "fr": "Confirmer le mot de passe",
+    "ar": ""
+  },
+  "admin.clients.resetPassword.confirmRequired": {
+    "en": "Please confirm the new password",
+    "fr": "Veuillez confirmer le nouveau mot de passe",
+    "ar": ""
+  },
+  "admin.clients.resetPassword.warning": {
+    "en": "This immediately signs the client out of every device",
+    "fr": "Cela déconnecte immédiatement le client de tous les appareils",
+    "ar": ""
+  },
+  "admin.clients.resetPassword.success": {
+    "en": "Password reset successfully",
+    "fr": "Mot de passe réinitialisé avec succès",
+    "ar": ""
+  },
+  "admin.clients.browsing.table.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "admin.clients.browsing.table.query": {
+    "en": "Search query",
+    "fr": "Terme de recherche",
+    "ar": ""
+  },
+  "admin.clients.browsing.table.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.clients.browsing.table.timeSpent": {
+    "en": "Time spent",
+    "fr": "Temps passé",
+    "ar": ""
+  },
+  "admin.clients.browsing.empty": {
+    "en": "No browsing activity found",
+    "fr": "Aucune activité de navigation trouvée",
+    "ar": ""
+  },
+  "admin.suppliers.supplierNameRequired": {
+    "en": "Supplier name is required",
+    "fr": "Le nom du fournisseur est requis",
+    "ar": ""
+  },
+  "admin.suppliers.disableConfirm": {
+    "en": "Are you sure you want to disable this supplier?",
+    "fr": "Êtes-vous sûr de vouloir désactiver ce fournisseur ?",
+    "ar": ""
+  },
+  "admin.suppliers.disableSuccess": {
+    "en": "Supplier disabled successfully",
+    "fr": "Fournisseur désactivé avec succès",
+    "ar": ""
+  },
+  "admin.suppliers.enableSuccess": {
+    "en": "Supplier enabled successfully",
+    "fr": "Fournisseur activé avec succès",
+    "ar": ""
+  },
+  "admin.suppliers.notFound": {
+    "en": "Supplier not found",
+    "fr": "Fournisseur introuvable",
+    "ar": ""
+  },
+  "admin.statistics.reports.title": {
+    "en": "Reports",
+    "fr": "Rapports",
+    "ar": ""
+  },
+  "admin.statistics.reports.exportCsv": {
+    "en": "Export CSV",
+    "fr": "Exporter en CSV",
+    "ar": ""
+  },
+  "admin.statistics.reports.groupBy": {
+    "en": "Group by",
+    "fr": "Grouper par",
+    "ar": ""
+  },
+  "admin.statistics.reports.viewDetails": {
+    "en": "View details",
+    "fr": "Voir les détails",
+    "ar": ""
+  },
+  "admin.statistics.widgetError": {
+    "en": "Failed to load this widget",
+    "fr": "Échec du chargement de ce widget",
+    "ar": ""
+  },
+  "admin.users.title": {
+    "en": "Users & roles",
+    "fr": "Utilisateurs et rôles",
+    "ar": ""
+  },
+  "admin.users.description": {
+    "en": "Manage staff/admin accounts and role-based page access",
+    "fr": "Gérez les comptes du personnel/administrateurs et l'accès aux pages basé sur les rôles",
+    "ar": ""
+  },
+  "admin.users.tabs.users": {
+    "en": "Users",
+    "fr": "Utilisateurs",
+    "ar": ""
+  },
+  "admin.users.tabs.roles": {
+    "en": "Roles",
+    "fr": "Rôles",
+    "ar": ""
+  },
+  "admin.users.error": {
+    "en": "Failed to load users",
+    "fr": "Échec du chargement des utilisateurs",
+    "ar": ""
+  },
+  "admin.users.table.username": {
+    "en": "Username",
+    "fr": "Nom d'utilisateur",
+    "ar": ""
+  },
+  "admin.users.table.fullName": {
+    "en": "Full name",
+    "fr": "Nom complet",
+    "ar": ""
+  },
+  "admin.users.table.jobTitle": {
+    "en": "Job title",
+    "fr": "Poste",
+    "ar": ""
+  },
+  "admin.users.table.type": {
+    "en": "Type",
+    "fr": "Type",
+    "ar": ""
+  },
+  "admin.users.table.roles": {
+    "en": "Roles",
+    "fr": "Rôles",
+    "ar": ""
+  },
+  "admin.users.table.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "admin.users.table.lastLogin": {
+    "en": "Last login",
+    "fr": "Dernière connexion",
+    "ar": ""
+  },
+  "admin.users.table.type.admin": {
+    "en": "Admin",
+    "fr": "Administrateur",
+    "ar": ""
+  },
+  "admin.users.table.type.staff": {
+    "en": "Staff",
+    "fr": "Employé",
+    "ar": ""
+  },
+  "admin.users.empty": {
+    "en": "No users found",
+    "fr": "Aucun utilisateur trouvé",
+    "ar": ""
+  },
+  "admin.users.addUser": {
+    "en": "Add user",
+    "fr": "Ajouter un utilisateur",
+    "ar": ""
+  },
+  "admin.users.form.username": {
+    "en": "Username",
+    "fr": "Nom d'utilisateur",
+    "ar": ""
+  },
+  "admin.users.form.usernameRequired": {
+    "en": "Username is required",
+    "fr": "Le nom d'utilisateur est requis",
+    "ar": ""
+  },
+  "admin.users.form.email": {
+    "en": "Email",
+    "fr": "E-mail",
+    "ar": ""
+  },
+  "admin.users.form.password": {
+    "en": "Password",
+    "fr": "Mot de passe",
+    "ar": ""
+  },
+  "admin.users.form.passwordMinLength": {
+    "en": "Password must be at least 8 characters",
+    "fr": "Le mot de passe doit contenir au moins 8 caractères",
+    "ar": ""
+  },
+  "admin.users.form.type": {
+    "en": "Type",
+    "fr": "Type",
+    "ar": ""
+  },
+  "admin.users.form.firstName": {
+    "en": "First name",
+    "fr": "Prénom",
+    "ar": ""
+  },
+  "admin.users.form.lastName": {
+    "en": "Last name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "admin.users.form.phone": {
+    "en": "Phone",
+    "fr": "Téléphone",
+    "ar": ""
+  },
+  "admin.users.form.jobTitle": {
+    "en": "Job title",
+    "fr": "Poste",
+    "ar": ""
+  },
+  "admin.users.form.roles": {
+    "en": "Roles",
+    "fr": "Rôles",
+    "ar": ""
+  },
+  "admin.users.form.roleIdsRequiredForStaff": {
+    "en": "At least one role is required for staff users",
+    "fr": "Au moins un rôle est requis pour les utilisateurs employés",
+    "ar": ""
+  },
+  "admin.users.form.roleIdsForbiddenForAdmin": {
+    "en": "Roles cannot be assigned to admin users",
+    "fr": "Les rôles ne peuvent pas être attribués aux utilisateurs administrateurs",
+    "ar": ""
+  },
+  "admin.users.form.effectivePages": {
+    "en": "Effective pages",
+    "fr": "Pages effectives",
+    "ar": ""
+  },
+  "admin.users.form.lastAdminGuard": {
+    "en": "At least one enabled admin account must remain",
+    "fr": "Au moins un compte administrateur activé doit subsister",
+    "ar": ""
+  },
+  "admin.users.createSuccess": {
+    "en": "User created successfully",
+    "fr": "Utilisateur créé avec succès",
+    "ar": ""
+  },
+  "admin.users.updateSuccess": {
+    "en": "User updated successfully",
+    "fr": "Utilisateur mis à jour avec succès",
+    "ar": ""
+  },
+  "admin.users.roles.table.code": {
+    "en": "Code",
+    "fr": "Code",
+    "ar": ""
+  },
+  "admin.users.roles.table.name": {
+    "en": "Name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "admin.users.roles.table.description": {
+    "en": "Description",
+    "fr": "Description",
+    "ar": ""
+  },
+  "admin.users.roles.table.pages": {
+    "en": "Pages",
+    "fr": "Pages",
+    "ar": ""
+  },
+  "admin.users.roles.table.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "admin.users.roles.empty": {
+    "en": "No roles found",
+    "fr": "Aucun rôle trouvé",
+    "ar": ""
+  },
+  "admin.users.addRole": {
+    "en": "Add role",
+    "fr": "Ajouter un rôle",
+    "ar": ""
+  },
+  "admin.users.roleForm.code": {
+    "en": "Code",
+    "fr": "Code",
+    "ar": ""
+  },
+  "admin.users.roleForm.codeRequired": {
+    "en": "Code is required",
+    "fr": "Le code est requis",
+    "ar": ""
+  },
+  "admin.users.roleForm.name": {
+    "en": "Name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "admin.users.roleForm.nameRequired": {
+    "en": "Name is required",
+    "fr": "Le nom est requis",
+    "ar": ""
+  },
+  "admin.users.roleForm.description": {
+    "en": "Description",
+    "fr": "Description",
+    "ar": ""
+  },
+  "admin.users.roleForm.pages": {
+    "en": "Pages",
+    "fr": "Pages",
+    "ar": ""
+  },
+  "admin.users.roleForm.systemRoleReadOnly": {
+    "en": "System roles cannot be modified",
+    "fr": "Les rôles système ne peuvent pas être modifiés",
+    "ar": ""
+  },
+  "admin.users.roleForm.selectAllInGroup": {
+    "en": "Select all",
+    "fr": "Tout sélectionner",
+    "ar": ""
+  },
+  "admin.users.createRoleSuccess": {
+    "en": "Role created successfully",
+    "fr": "Rôle créé avec succès",
+    "ar": ""
+  },
+  "admin.users.updateRoleSuccess": {
+    "en": "Role updated successfully",
+    "fr": "Rôle mis à jour avec succès",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.tabs.families": {
+    "en": "Families",
+    "fr": "Familles",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.tabs.brands": {
+    "en": "Brands",
+    "fr": "Marques",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.tabs.models": {
+    "en": "Models",
+    "fr": "Modèles",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.nameRequired": {
+    "en": "Name is required",
+    "fr": "Le nom est requis",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.addFamily": {
+    "en": "Add family",
+    "fr": "Ajouter une famille",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.addBrand": {
+    "en": "Add brand",
+    "fr": "Ajouter une marque",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.addModel": {
+    "en": "Add model",
+    "fr": "Ajouter un modèle",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.parentFamily": {
+    "en": "Parent family",
+    "fr": "Famille parente",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.featured": {
+    "en": "Featured",
+    "fr": "Mis en avant",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.icon": {
+    "en": "Icon",
+    "fr": "Icône",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.logo": {
+    "en": "Logo",
+    "fr": "Logo",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.brand": {
+    "en": "Brand",
+    "fr": "Marque",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.families": {
+    "en": "Families",
+    "fr": "Familles",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.disableOnly": {
+    "en": "Models/brands/families are disabled, not deleted, to keep product references intact",
+    "fr": "Les modèles/marques/familles sont désactivés, pas supprimés, afin de conserver les références produit",
+    "ar": ""
+  },
+  "admin.settings.invoicing.title": {
+    "en": "Invoicing",
+    "fr": "Facturation",
+    "ar": ""
+  },
+  "admin.settings.invoicing.prefix": {
+    "en": "Prefix",
+    "fr": "Préfixe",
+    "ar": ""
+  },
+  "admin.settings.invoicing.nextSequence": {
+    "en": "Next sequence",
+    "fr": "Prochaine séquence",
+    "ar": ""
+  },
+  "admin.settings.invoicing.footerNote": {
+    "en": "Footer note",
+    "fr": "Note de bas de page",
+    "ar": ""
+  },
+  "admin.settings.invoicing.sequenceDecreaseError": {
+    "en": "The next sequence cannot be lowered",
+    "fr": "La prochaine séquence ne peut pas être diminuée",
+    "ar": ""
+  },
+  "admin.settings.categories.form.nameRequired": {
+    "en": "Category name is required",
+    "fr": "Le nom de la catégorie est requis",
+    "ar": ""
+  },
+  "admin.settings.storefront.title": {
+    "en": "Storefront",
+    "fr": "Vitrine",
+    "ar": ""
+  },
+  "admin.settings.storefront.featuredProducts": {
+    "en": "Featured products",
+    "fr": "Produits mis en avant",
+    "ar": ""
+  },
+  "admin.settings.storefront.deliveryCompaniesNote": {
+    "en": "Delivery companies are managed in a later release",
+    "fr": "Les sociétés de livraison seront gérées dans une prochaine version",
+    "ar": ""
+  },
+  "admin.settings.saveSuccess": {
+    "en": "Settings saved successfully",
+    "fr": "Paramètres enregistrés avec succès",
+    "ar": ""
+  },
+  "admin.settings.saveError": {
+    "en": "Failed to save settings",
+    "fr": "Échec de l'enregistrement des paramètres",
+    "ar": ""
+  },
+  "admin.settings.delivery.dryRun.title": {
+    "en": "Dry-run validation",
+    "fr": "Validation à blanc",
+    "ar": ""
+  },
+  "admin.settings.delivery.dryRun.apply": {
+    "en": "Apply",
+    "fr": "Appliquer",
+    "ar": ""
+  },
+  "admin.settings.delivery.dryRun.errorsFound": {
+    "en": "{count} rows have validation errors",
+    "fr": "{count} lignes contiennent des erreurs de validation",
+    "ar": ""
+  },
+  "admin.logs.viewStaffSearches": {
+    "en": "View staff searches",
+    "fr": "Voir les recherches du personnel",
+    "ar": ""
+  },
+  "admin.staffSearches.title": {
+    "en": "Staff search audit",
+    "fr": "Audit des recherches du personnel",
+    "ar": ""
+  },
+  "admin.staffSearches.description": {
+    "en": "Track inventory-count searches performed by staff",
+    "fr": "Suivez les recherches de comptage d'inventaire effectuées par le personnel",
+    "ar": ""
+  },
+  "admin.staffSearches.error": {
+    "en": "Failed to load staff searches",
+    "fr": "Échec du chargement des recherches du personnel",
+    "ar": ""
+  },
+  "admin.staffSearches.empty": {
+    "en": "No staff searches found",
+    "fr": "Aucune recherche du personnel trouvée",
+    "ar": ""
+  },
+  "admin.staffSearches.table.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "admin.staffSearches.table.user": {
+    "en": "User",
+    "fr": "Utilisateur",
+    "ar": ""
+  },
+  "admin.staffSearches.table.query": {
+    "en": "Query",
+    "fr": "Recherche",
+    "ar": ""
+  },
+  "admin.staffSearches.table.product": {
+    "en": "Matched product",
+    "fr": "Produit correspondant",
+    "ar": ""
+  },
+  "admin.staffSearches.filters.user": {
+    "en": "User",
+    "fr": "Utilisateur",
+    "ar": ""
+  },
+  "admin.staffSearches.filters.dateRange": {
+    "en": "Date range",
+    "fr": "Plage de dates",
+    "ar": ""
+  },
+  "admin.staffSearches.filters.query": {
+    "en": "Search query",
+    "fr": "Terme de recherche",
+    "ar": ""
   }
 }
