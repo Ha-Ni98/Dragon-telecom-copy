@@ -1,392 +1,241 @@
-/**
- * Admin Suppliers Table Component
- * Displays suppliers in a data table with search, filtering, and pagination
- */
+import { memo, useMemo, useCallback } from "react";
+import { Link } from "react-router-dom";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SimplePagination } from "@/components/shared/SimplePagination";
+import { DataTable } from "@/components/shared/DataTable";
+import { TableSkeleton } from "@/components/shared/TableSkeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { EnabledBadge } from "@/components/shared/StatusBadge";
+import { Truck, AlertTriangle, Edit, Plus, Ban, Phone, Mail, MapPin, Search } from "lucide-react";
+import type { PaginatedResult, SupplierDto } from "@dragon-telecom/contract";
+import { useTranslation } from "@/hooks/useTranslation";
 
-import { memo, useMemo } from 'react';
-import type { ColumnDef } from '@tanstack/react-table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { SimplePagination } from '@/components/shared/SimplePagination';
-import { DataTable } from '@/components/shared/DataTable';
-import { TableSkeleton } from '@/components/shared/TableSkeleton';
-import { EmptyState } from '@/components/shared/EmptyState';
-import {
-  Truck,
-  RefreshCw,
-  AlertTriangle,
-  Edit,
-  Plus,
-  Trash2,
-  Phone,
-  Mail,
-  MapPin,
-  Package,
-  FileText,
-  Search
-} from 'lucide-react';
-import {
-  AdminSuppliersPaginatedResponse,
-  SupplierWithDetails
-} from '@/types/draft-types';
-import { useTranslation } from '@/hooks/useTranslation';
-
-/**
- * Props for AdminSuppliersTable component
- */
 interface AdminSuppliersTableProps {
-  /** Paginated suppliers data */
-  data?: AdminSuppliersPaginatedResponse;
-  /** Loading state */
+  data?: PaginatedResult<SupplierDto>;
   loading?: boolean;
-  /** Error state */
   error?: string | null;
-  /** Retry function for error handling */
   onRetry?: () => void;
-  /** Refresh function */
-  onRefresh?: () => void;
-  /** Whether to show refresh button */
-  showRefresh?: boolean;
-  /** Callback when edit button is clicked */
-  onEdit: (supplierId: number) => void;
-  /** Callback when add invoice button is clicked */
-  onAddInvoice: (supplierId: number) => void;
-  /** Callback when delete button is clicked */
-  onDelete: (supplierId: number) => void;
-  /** Callback when page changes */
+  onEdit: (supplierId: string) => void;
+  onDisable: (supplierId: string) => void;
   onPageChange: (page: number) => void;
-  /** Search query */
   searchQuery?: string;
-  /** Callback when search changes */
   onSearchChange?: (query: string) => void;
-  /** Custom className for styling */
   className?: string;
 }
 
-type FormattedSupplier = SupplierWithDetails & {
-  formattedCredit: string;
-  formattedTotalDue: string;
-  formattedTotalPaid: string;
-  formattedTotalCredit: string;
-};
-
-/**
- * Format currency value for display
- */
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'DZD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "DZD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
 }
 
-/**
- * Format number with thousand separators
- */
-function formatNumber(num: number): string {
-  return new Intl.NumberFormat('en-US').format(num);
-}
-
-/**
- * Error state component
- */
-function TableErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {
-  const { t } = useTranslation();
-
-  return (
-    <Alert variant="destructive">
-      <AlertTriangle className="h-4 w-4" />
-      <AlertDescription className="flex items-center justify-center space-x-4">
-        <span>{error}</span>
-        {onRetry && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRetry}
-          >
-            {t('common.retry')}
-          </Button>
-        )}
-      </AlertDescription>
-    </Alert>
-  );
-}
-
-/**
- * Main AdminSuppliersTable component
- */
+// ADM-07 — retyped off SupplierDto (purchasing.dtos.ts): `id` is a uuid string (was
+// `idSupplier: number`), `name`/`contactName`/`phone`/`email`/`location` (was
+// `supplierName`/`supplierPersonName`/...), `credit`/`totalPaid`/`totalInvoiced`/
+// `invoiceCount` (was `supplierCredit`/`totalDue`/`totalCredit`/`productsSuppliedCount`/
+// `invoicesCount` — none of which the DTO carries). "Add invoice" is a `<Link>` to ADM-08
+// with the supplier preselected (plan §Page 2), not a dialog; delete becomes disable
+// (`isEnabled: false` — suppliers are never hard-deleted, per the universal isEnabled
+// convention).
 export const AdminSuppliersTable = memo(function AdminSuppliersTable({
   data,
   loading = false,
   error = null,
   onRetry,
-  onRefresh,
-  showRefresh = true,
   onEdit,
-  onAddInvoice,
-  onDelete,
+  onDisable,
   onPageChange,
-  searchQuery = '',
+  searchQuery = "",
   onSearchChange,
-  className = '',
+  className = "",
 }: AdminSuppliersTableProps) {
   const { t } = useTranslation();
+  const suppliers = data?.items ?? [];
+  const pagination = data?.meta;
 
-  // Extract suppliers and pagination from data
-  const suppliers = data?.suppliers || [];
-  const pagination = data?.pagination;
-
-  // Memoize formatted suppliers to avoid recalculation on every render
-  const formattedSuppliers = useMemo(() => {
-    return suppliers.map(supplier => ({
-      ...supplier,
-      formattedCredit: formatCurrency(supplier.supplierCredit),
-      formattedTotalDue: formatCurrency(supplier.totalDue),
-      formattedTotalPaid: formatCurrency(supplier.totalPaid),
-      formattedTotalCredit: formatCurrency(supplier.totalCredit),
-    }));
-  }, [suppliers]);
-
-  const columns = useMemo<ColumnDef<FormattedSupplier>[]>(() => [
-    {
-      accessorKey: 'supplierName',
-      header: t('admin.suppliers.table.supplier'),
-      cell: ({ row }) => <div className="break-words max-w-[150px] font-medium">{row.original.supplierName}</div>,
-    },
-    {
-      accessorKey: 'supplierPersonName',
-      header: t('admin.suppliers.table.person'),
-      cell: ({ row }) => <div className="break-words max-w-[120px]">{row.original.supplierPersonName || '-'}</div>,
-    },
-    {
-      id: 'contact',
-      header: t('admin.suppliers.table.contact'),
-      cell: ({ row }) => (
-        <div className="space-y-1 max-w-[200px]">
-          {row.original.supplierPhone && (
-            <div className="flex items-center gap-1 text-sm">
-              <Phone className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate">{row.original.supplierPhone}</span>
-            </div>
-          )}
-          {row.original.supplierEmail && (
-            <div className="flex items-center gap-1 text-sm">
-              <Mail className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate">{row.original.supplierEmail}</span>
-            </div>
-          )}
-          {!row.original.supplierPhone && !row.original.supplierEmail && (
-            <span className="text-muted-foreground">-</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'supplierLocation',
-      header: t('admin.suppliers.table.location'),
-      cell: ({ row }) => (
-        row.original.supplierLocation ? (
-          <div className="flex items-center gap-1 text-sm break-words max-w-[100px]">
-            <MapPin className="h-3 w-3 flex-shrink-0" />
-            <span className="break-words">{row.original.supplierLocation}</span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        )
-      ),
-    },
-    {
-      accessorKey: 'formattedCredit',
-      header: t('admin.suppliers.table.credit'),
-      cell: ({ row }) => (
-        <div className="space-y-1">
-          <div className="font-medium">{row.original.formattedCredit}</div>
-          <div className="text-xs text-muted-foreground">
-            {t('admin.suppliers.table.due')}: {row.original.formattedTotalDue}
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'productsSuppliedCount',
-      header: t('admin.suppliers.table.products'),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Package className="h-3 w-3" />
-          <span>{formatNumber(row.original.productsSuppliedCount)}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'invoicesCount',
-      header: t('admin.suppliers.table.invoices'),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <FileText className="h-3 w-3" />
-          <span>{formatNumber(row.original.invoicesCount)}</span>
-        </div>
-      ),
-    },
-    {
-      id: 'actions',
-      header: t('admin.suppliers.table.actions'),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onEdit(row.original.idSupplier)}
-            className="h-8 w-8 p-0"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onAddInvoice(row.original.idSupplier)}
-            className="h-8 w-8 p-0"
-          >
+  const renderActions = useCallback(
+    (supplier: SupplierDto) => (
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onEdit(supplier.id)}
+          className="h-8 w-8 p-0"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
+          <Link to={`/admin/supplier-invoices/new?supplierId=${supplier.id}`}>
             <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(row.original.idSupplier)}
-            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [t, onEdit, onAddInvoice, onDelete]);
+          </Link>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onDisable(supplier.id)}
+          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+          disabled={!supplier.isEnabled}
+        >
+          <Ban className="h-4 w-4" />
+        </Button>
+      </div>
+    ),
+    [onEdit, onDisable],
+  );
 
-  const renderMobileRow = (supplier: FormattedSupplier) => (
-    <div className="p-4 space-y-2">
+  const columns = useMemo<ColumnDef<SupplierDto>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: t("admin.suppliers.table.supplier"),
+        cell: ({ row }) => (
+          <div className="max-w-[150px] break-words font-medium">{row.original.name}</div>
+        ),
+      },
+      {
+        accessorKey: "contactName",
+        header: t("admin.suppliers.table.person"),
+        cell: ({ row }) => (
+          <div className="max-w-[120px] break-words">{row.original.contactName ?? "-"}</div>
+        ),
+      },
+      {
+        id: "contact",
+        header: t("admin.suppliers.table.contact"),
+        cell: ({ row }) => (
+          <div className="max-w-[200px] space-y-1">
+            {row.original.phone && (
+              <div className="flex items-center gap-1 text-sm">
+                <Phone className="h-3 w-3 shrink-0" />
+                <span className="truncate">{row.original.phone}</span>
+              </div>
+            )}
+            {row.original.email && (
+              <div className="flex items-center gap-1 text-sm">
+                <Mail className="h-3 w-3 shrink-0" />
+                <span className="truncate">{row.original.email}</span>
+              </div>
+            )}
+            {!row.original.phone && !row.original.email && (
+              <span className="text-muted-foreground">-</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "location",
+        header: t("admin.suppliers.table.location"),
+        cell: ({ row }) =>
+          row.original.location ? (
+            <div className="flex max-w-[100px] items-center gap-1 break-words text-sm">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="break-words">{row.original.location}</span>
+            </div>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          ),
+      },
+      {
+        accessorKey: "credit",
+        header: t("admin.suppliers.table.credit"),
+        cell: ({ row }) => <div className="font-medium">{formatCurrency(row.original.credit)}</div>,
+      },
+      {
+        accessorKey: "invoiceCount",
+        header: t("admin.suppliers.table.invoices"),
+        cell: ({ row }) => row.original.invoiceCount,
+      },
+      {
+        accessorKey: "isEnabled",
+        header: t("common.labels.status"),
+        cell: ({ row }) => <EnabledBadge isEnabled={row.original.isEnabled} />,
+      },
+      {
+        id: "actions",
+        header: t("admin.suppliers.table.actions"),
+        cell: ({ row }) => renderActions(row.original),
+      },
+    ],
+    [t, renderActions],
+  );
+
+  const renderMobileRow = (supplier: SupplierDto) => (
+    <div className="space-y-2 p-4">
       <div className="flex items-start justify-between">
         <div>
-          <div className="font-medium">{supplier.supplierName}</div>
-          <div className="text-sm text-muted-foreground">{supplier.supplierPersonName || '-'}</div>
+          <div className="font-medium">{supplier.name}</div>
+          <div className="text-sm text-muted-foreground">{supplier.contactName ?? "-"}</div>
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => onEdit(supplier.idSupplier)} className="h-8 w-8 p-0">
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onAddInvoice(supplier.idSupplier)} className="h-8 w-8 p-0">
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onDelete(supplier.idSupplier)} className="h-8 w-8 p-0 text-destructive hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        {renderActions(supplier)}
       </div>
-      <div className="space-y-1">
-        {supplier.supplierPhone && (
-          <div className="flex items-center gap-1 text-sm">
-            <Phone className="h-3 w-3 flex-shrink-0" />
-            <span>{supplier.supplierPhone}</span>
-          </div>
-        )}
-        {supplier.supplierEmail && (
-          <div className="flex items-center gap-1 text-sm">
-            <Mail className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{supplier.supplierEmail}</span>
-          </div>
-        )}
-        {supplier.supplierLocation && (
-          <div className="flex items-center gap-1 text-sm">
-            <MapPin className="h-3 w-3 flex-shrink-0" />
-            <span>{supplier.supplierLocation}</span>
-          </div>
-        )}
-      </div>
-      <div className="grid grid-cols-3 gap-2 pt-2 border-t text-sm">
+      <div className="grid grid-cols-2 gap-2 border-t pt-2 text-sm">
+        <div className="font-medium">{formatCurrency(supplier.credit)}</div>
         <div>
-          <div className="font-medium">{supplier.formattedCredit}</div>
-          <div className="text-xs text-muted-foreground">{t('admin.suppliers.table.due')}: {supplier.formattedTotalDue}</div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Package className="h-3 w-3" />
-          <span>{formatNumber(supplier.productsSuppliedCount)}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <FileText className="h-3 w-3" />
-          <span>{formatNumber(supplier.invoicesCount)}</span>
+          {supplier.invoiceCount} {t("admin.suppliers.table.invoices")}
         </div>
       </div>
     </div>
   );
 
   return (
-    <Card className={`${className} `}>
+    <Card className={className}>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg">{t('admin.suppliers.table.title')}</CardTitle>
-            <CardDescription className="text-sm">{t('admin.suppliers.table.description')}</CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            {showRefresh && onRefresh && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRefresh}
-                className="flex items-center space-x-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                <span>{t('common.refresh')}</span>
-              </Button>
-            )}
-          </div>
-        </div>
+        <CardTitle className="text-lg">{t("admin.suppliers.table.title")}</CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        {/* Search Bar */}
         {onSearchChange && (
-          <div className="mb-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t('admin.suppliers.table.searchPlaceholder')}
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={t("admin.suppliers.table.searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-10"
+            />
           </div>
         )}
 
-        {/* Table */}
         {loading ? (
           <TableSkeleton rows={5} columns={8} />
         ) : error ? (
-          <TableErrorState error={error} onRetry={onRetry} />
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-center gap-4">
+              <span>{error}</span>
+              {onRetry && (
+                <Button variant="outline" size="sm" onClick={onRetry}>
+                  {t("common.retry")}
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
         ) : (
           <DataTable
             columns={columns}
-            data={formattedSuppliers}
-            getRowKey={(supplier) => String(supplier.idSupplier)}
+            data={suppliers}
+            getRowKey={(supplier) => supplier.id}
             renderMobileRow={renderMobileRow}
             emptyState={
               <EmptyState
                 icon={<Truck className="h-6 w-6" />}
-                title={t('admin.suppliers.table.noSuppliers')}
-                body={t('admin.suppliers.table.noSuppliersDescription')}
+                title={t("admin.suppliers.table.noSuppliers")}
+                body={t("admin.suppliers.table.noSuppliersDescription")}
               />
             }
           />
         )}
 
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
+        {pagination && (
           <div className="mt-3">
             <SimplePagination
-              page={pagination.currentPage}
+              page={pagination.page}
               totalPages={pagination.totalPages}
               onPageChange={onPageChange}
             />

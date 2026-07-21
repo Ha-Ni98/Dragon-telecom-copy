@@ -1,42 +1,24 @@
-import { z } from 'zod';
+import { z } from "zod";
+import type { AdminUpdateClientCommand } from "@dragon-telecom/contract";
+import type { useTranslation } from "@/hooks/useTranslation";
 
-/**
- * Form validation schema
- */
-export const clientModificationSchema = z.object({
-  status: z.number().min(0).max(3, 'Invalid status'),
-  credit: z.number().min(-999999).max(999999, 'Credit must be between -999,999 and 999,999'),
-  username: z.string().optional(),
-  password: z.string().optional(),
-  confirmPassword: z.string().optional(),
-  categoryId: z.number().optional(),
-}).refine((data) => {
-  // If status is active (0), username is required
-  if (data.status === 0 && !data.username) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Username is required when status is Active',
-  path: ['username'],
-}).refine((data) => {
-  // If status is active (0), category is required
-  if (data.status === 0 && !data.categoryId) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Category is required when status is Active',
-  path: ['categoryId'],
-}).refine((data) => {
-  // If password is provided, confirmPassword must match
-  if (data.password && data.password !== data.confirmPassword) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-});
+// Aligned to AdminUpdateClientCommand (clients.command.ts — "ADMIN_UPDATE route note: contact,
+// isEnabled"). Replaces the stub `clientModificationSchema`, which conflated registration-
+// approval fields (status/username/password/category) that now belong to `ApproveClientCommand`/
+// `RejectClientCommand` (Sprint 1's `approve-client.schema.ts`, wired in Sprint 7's dedicated
+// approval-dialog) — this dialog is contact-info + enable/disable only.
+export function updateClientSchema(t: ReturnType<typeof useTranslation>["t"]) {
+  return z.object({
+    email: z.email(t("common.validation.invalidEmail")).optional(),
+    storeName: z.string().optional(),
+    address: z.string().optional(),
+    isEnabled: z.boolean().optional(),
+  });
+}
 
-export type ClientModificationFormData = z.infer<typeof clientModificationSchema>;
+export type UpdateClientFormValues = z.infer<ReturnType<typeof updateClientSchema>>;
+
+type AssertAssignable<T extends true> = T;
+type _AdminUpdateClientCommandCheck = AssertAssignable<
+  UpdateClientFormValues extends AdminUpdateClientCommand ? true : false
+>;

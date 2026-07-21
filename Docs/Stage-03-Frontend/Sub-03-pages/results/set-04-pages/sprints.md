@@ -60,15 +60,15 @@ document.**
 
 ---
 
-### Sprint 3: Shared & DTO-typed primitives; rewire-shell retyping (Primitives & States) — Status: ⬜ Pending
+### Sprint 3: Shared & DTO-typed primitives; rewire-shell retyping (Primitives & States) — Status: ✅ Done
 
 **Goals**
 - Reused shared composites confirmed sufficient; the five rewire shells' props retyped to contract DTOs (still on stub data, compiling).
 
 **Tasks**
-- [ ] **(#ui)** Confirm/extend shared primitives (no new lib): `DataTable`, `StatCard`, `StatCardSkeleton`, `TableSkeleton`, `MoneyStatusCard`, `StatusBadge`, `SimplePagination`, `EmptyState`, `NotFoundState`, `AgeFlag`, `CreditMovementPreview`, `ResolvedVsChargedPrice`, `autocomplete-input`, `admin-search-input`, `excel-file-uploader`, `image-management`, `drag-drop-area`.
-- [ ] **(#ui)** Retype the rewire shells' component props from `draft-types` view-models to the contract DTOs (`SupplierDto`/`SupplierDetailDto`, `AdminClientDto`/`ClientStatsDto`, statistics DTOs, `SettingsDto`/taxonomy DTOs, `AuditLogDto`/`LogStatsDto`) — **presentational only**, hooks swapped in the wiring sprints. Keep them compiling against mock props.
-- [ ] **(#testing)** Component-level render tests for any newly retyped shared primitive that changed shape.
+- [x] **(#ui)** Confirm/extend shared primitives (no new lib): `DataTable`, `StatCard`, `StatCardSkeleton`, `TableSkeleton`, `MoneyStatusCard`, `StatusBadge`, `SimplePagination`, `EmptyState`, `NotFoundState`, `AgeFlag`, `CreditMovementPreview`, `ResolvedVsChargedPrice`, `autocomplete-input`, `admin-search-input`, `excel-file-uploader`, `image-management`, `drag-drop-area`.
+- [x] **(#ui)** Retype the rewire shells' component props from `draft-types` view-models to the contract DTOs (`SupplierDto`/`SupplierDetailDto`, `AdminClientDto`/`ClientStatsDto`, statistics DTOs, `SettingsDto`/taxonomy DTOs, `AuditLogDto`/`LogStatsDto`) — **presentational only**, hooks swapped in the wiring sprints. Keep them compiling against mock props.
+- [x] **(#testing)** Component-level render tests for any newly retyped shared primitive that changed shape.
 
 **Validation** — standard checklist. Additionally: retyped shells compile with contract-DTO props; no `draft-types` import newly added.
 

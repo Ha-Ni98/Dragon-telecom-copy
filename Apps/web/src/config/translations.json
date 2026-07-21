@@ -13368,5 +13368,35 @@
     "en": "Staff searches",
     "fr": "Recherches du personnel",
     "ar": ""
+  },
+  "admin.suppliers.stats.totalInvoiced": {
+    "en": "Total Invoiced",
+    "fr": "Total facturé",
+    "ar": ""
+  },
+  "admin.clients.modifyDialog.storeName": {
+    "en": "Store Name",
+    "fr": "Nom du magasin",
+    "ar": ""
+  },
+  "admin.clients.modifyDialog.address": {
+    "en": "Address",
+    "fr": "Adresse",
+    "ar": ""
+  },
+  "admin.settings.categories.memberCount": {
+    "en": "Members",
+    "fr": "Membres",
+    "ar": ""
+  },
+  "admin.settings.categories.pricedProductCount": {
+    "en": "Priced Products",
+    "fr": "Produits tarifés",
+    "ar": ""
+  },
+  "admin.logs.entity": {
+    "en": "Entity",
+    "fr": "Entité",
+    "ar": ""
   }
 }

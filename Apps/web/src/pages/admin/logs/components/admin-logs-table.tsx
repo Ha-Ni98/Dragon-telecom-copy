@@ -1,18 +1,14 @@
-/**
- * Admin Logs Table Component
- * Displays system logs in a data table with all required columns and states
- */
-
-import { memo, useMemo } from 'react';
-import type { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { SimplePagination } from '@/components/shared/SimplePagination';
-import { DataTable } from '@/components/shared/DataTable';
-import { TableSkeleton } from '@/components/shared/TableSkeleton';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { memo, useMemo } from "react";
+import { Link } from "react-router-dom";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { SimplePagination } from "@/components/shared/SimplePagination";
+import { DataTable } from "@/components/shared/DataTable";
+import { TableSkeleton } from "@/components/shared/TableSkeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import {
   FileText,
   RefreshCw,
@@ -20,71 +16,40 @@ import {
   User,
   Calendar,
   Activity,
-  MessageSquare
-} from 'lucide-react';
-import { AdminLogWithDetails, AdminLogsPaginatedResponse } from '@/types/draft-types/logs.types';
-import { useTranslation } from '@/hooks/useTranslation';
+  MessageSquare,
+} from "lucide-react";
+import type { AuditLogDto, PaginatedResult } from "@dragon-telecom/contract";
+import { useTranslation } from "@/hooks/useTranslation";
 
-/**
- * Props for AdminLogsTable component
- */
 interface AdminLogsTableProps {
-  /** Paginated logs data */
-  data?: AdminLogsPaginatedResponse;
-  /** Loading state */
+  data?: PaginatedResult<AuditLogDto>;
   loading?: boolean;
-  /** Error state */
   error?: string | null;
-  /** Retry function for error handling */
   onRetry?: () => void;
-  /** Refresh function */
   onRefresh?: () => void;
-  /** Whether to show refresh button */
   showRefresh?: boolean;
-  /** Callback when page changes */
   onPageChange: (page: number) => void;
-  /** Custom className for styling */
   className?: string;
 }
 
-/**
- * Get action type badge variant and color
- */
-const getActionTypeBadgeVariant = (actionType: string) => {
-  switch (actionType.toLowerCase()) {
-    case 'modify client status':
-      return 'default';
-    case 'modify order status':
-      return 'secondary';
-    case 'add product':
-      return 'outline';
-    case 'add supplier product':
-      return 'outline';
-    case 'add invoice':
-      return 'destructive';
-    default:
-      return 'secondary';
-  }
+// Known entity types this admin app has a route for — everything else renders as plain text
+// (scope confinement, no destination page built here for entities without an admin route).
+const ENTITY_ROUTES: Record<string, (id: string) => string> = {
+  PRODUCT: (id) => `/admin/products/${id}`,
+  SUPPLIER: (id) => `/admin/suppliers/${id}`,
+  CLIENT: (id) => `/admin/clients/${id}`,
 };
 
-/**
- * Error state component
- */
 function LogsErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {
   const { t } = useTranslation();
-
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center space-x-2">
-              <FileText className="h-5 w-5" />
-              <span>{t('admin.logs.title')}</span>
-            </CardTitle>
-            <CardDescription>{t('admin.logs.description')}</CardDescription>
-          </div>
-        </div>
+        <CardTitle className="flex items-center space-x-2">
+          <FileText className="h-5 w-5" />
+          <span>{t("admin.logs.title")}</span>
+        </CardTitle>
+        <CardDescription>{t("admin.logs.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Alert variant="destructive">
@@ -92,13 +57,8 @@ function LogsErrorState({ error, onRetry }: { error: string; onRetry?: () => voi
           <AlertDescription className="flex items-center justify-between">
             <span>{error}</span>
             {onRetry && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRetry}
-                className="ml-2"
-              >
-                {t('common.retry')}
+              <Button variant="outline" size="sm" onClick={onRetry} className="ml-2">
+                {t("common.retry")}
               </Button>
             )}
           </AlertDescription>
@@ -108,9 +68,11 @@ function LogsErrorState({ error, onRetry }: { error: string; onRetry?: () => voi
   );
 }
 
-/**
- * Main Admin Logs Table Component
- */
+// ADM-18 — retyped off AuditLogDto (observability.dtos.ts): `id` (uuid, was `idLog: number`),
+// `user?.username` (was `user.userName`/`user.idUser`, and the user is now optional — a
+// system-initiated action has no acting user), `actionType`/`description` (was
+// `actionTypeLabel`/`actionDetails`), `entityType`/`entityId` (new — the plan's "entity links
+// where a route exists"). Strictly read-only — no mutation UI (append-only log).
 export const AdminLogsTable = memo(function AdminLogsTable({
   data,
   loading = false,
@@ -119,110 +81,106 @@ export const AdminLogsTable = memo(function AdminLogsTable({
   onRefresh,
   showRefresh = true,
   onPageChange,
-  className = '',
+  className = "",
 }: AdminLogsTableProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const logs = data?.items ?? [];
+  const pagination = data?.meta;
 
-  // Extract logs and pagination from data
-  const logs = data?.logs || [];
-  const pagination = data;
+  const entityCell = (log: AuditLogDto) => {
+    const buildRoute = ENTITY_ROUTES[log.entityType];
+    return buildRoute ? (
+      <Link to={buildRoute(log.entityId)} className="text-primary hover:underline">
+        {log.entityType} #{log.entityId}
+      </Link>
+    ) : (
+      <span>
+        {log.entityType} #{log.entityId}
+      </span>
+    );
+  };
 
-  const columns = useMemo<ColumnDef<AdminLogWithDetails>[]>(() => [
-    {
-      id: 'user',
-      header: () => (
-        <div className="flex items-center space-x-2">
-          <User className="h-4 w-4" aria-hidden="true" />
-          <span>{t('admin.logs.user')}</span>
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center" aria-hidden="true">
-            <User className="h-4 w-4 text-primary" />
+  const columns = useMemo<ColumnDef<AuditLogDto>[]>(
+    () => [
+      {
+        id: "user",
+        header: () => (
+          <div className="flex items-center space-x-2">
+            <User className="h-4 w-4" />
+            <span>{t("admin.logs.user")}</span>
           </div>
-          <div>
-            <div className="font-medium text-sm">{row.original.user.userName}</div>
-            <div className="text-xs text-muted-foreground">ID: {row.original.user.idUser}</div>
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center space-x-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-sm font-medium">
+              {row.original.user?.username ?? t("common.labels.notAssigned")}
+            </div>
           </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'actionTypeLabel',
-      header: () => (
-        <div className="flex items-center space-x-2">
-          <Activity className="h-4 w-4" aria-hidden="true" />
-          <span>{t('admin.logs.actionType')}</span>
-        </div>
-      ),
-      cell: ({ row }) => (
-        <Badge
-          variant={getActionTypeBadgeVariant(row.original.actionTypeLabel)}
-          aria-label={t('admin.logs.actionTypeAria', { type: row.original.actionTypeLabel })}
-        >
-          {row.original.actionTypeLabel}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: 'actionDetails',
-      header: () => (
-        <div className="flex items-center space-x-2">
-          <MessageSquare className="h-4 w-4" aria-hidden="true" />
-          <span>{t('admin.logs.actionDescription')}</span>
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className="max-w-[400px]">
-          <p
-            className="text-sm text-foreground line-clamp-2"
-            aria-label={t('admin.logs.actionDescriptionAria', { description: row.original.actionDetails })}
-          >
-            {row.original.actionDetails}
+        ),
+      },
+      {
+        accessorKey: "actionType",
+        header: () => (
+          <div className="flex items-center space-x-2">
+            <Activity className="h-4 w-4" />
+            <span>{t("admin.logs.actionType")}</span>
+          </div>
+        ),
+        cell: ({ row }) => <Badge variant="secondary">{row.original.actionType}</Badge>,
+      },
+      {
+        id: "entity",
+        header: t("admin.logs.entity"),
+        cell: ({ row }) => entityCell(row.original),
+      },
+      {
+        accessorKey: "description",
+        header: () => (
+          <div className="flex items-center space-x-2">
+            <MessageSquare className="h-4 w-4" />
+            <span>{t("admin.logs.actionDescription")}</span>
+          </div>
+        ),
+        cell: ({ row }) => (
+          <p className="line-clamp-2 max-w-[400px] text-sm text-foreground">
+            {row.original.description}
           </p>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'formattedDate',
-      header: () => (
-        <div className="flex items-center space-x-2">
-          <Calendar className="h-4 w-4" aria-hidden="true" />
-          <span>{t('admin.logs.dateTime')}</span>
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className="text-sm text-muted-foreground">
-          <time
-            dateTime={row.original.logCreatedDate}
-            aria-label={t('admin.logs.dateTimeAria', { date: row.original.formattedDate })}
-          >
-            {row.original.formattedDate}
+        ),
+      },
+      {
+        accessorKey: "createdAt",
+        header: () => (
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4" />
+            <span>{t("admin.logs.dateTime")}</span>
+          </div>
+        ),
+        cell: ({ row }) => (
+          <time dateTime={row.original.createdAt} className="text-sm text-muted-foreground">
+            {new Date(row.original.createdAt).toLocaleString(language)}
           </time>
-        </div>
-      ),
-    },
-  ], [t]);
+        ),
+      },
+    ],
+    [t, language],
+  );
 
-  const renderMobileRow = (log: AdminLogWithDetails) => (
-    <div className="p-4 space-y-2">
+  const renderMobileRow = (log: AuditLogDto) => (
+    <div className="space-y-2 p-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-            <User className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <div className="font-medium text-sm">{log.user.userName}</div>
-            <div className="text-xs text-muted-foreground">ID: {log.user.idUser}</div>
-          </div>
+        <div className="text-sm font-medium">
+          {log.user?.username ?? t("common.labels.notAssigned")}
         </div>
-        <Badge variant={getActionTypeBadgeVariant(log.actionTypeLabel)}>{log.actionTypeLabel}</Badge>
+        <Badge variant="secondary">{log.actionType}</Badge>
       </div>
-      <p className="text-sm text-foreground line-clamp-2">{log.actionDetails}</p>
-      <time dateTime={log.logCreatedDate} className="text-xs text-muted-foreground">
-        {log.formattedDate}
-      </time>
+      <p className="line-clamp-2 text-sm text-foreground">{log.description}</p>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        {entityCell(log)}
+        <time dateTime={log.createdAt}>{new Date(log.createdAt).toLocaleString(language)}</time>
+      </div>
     </div>
   );
 
@@ -231,10 +189,12 @@ export const AdminLogsTable = memo(function AdminLogsTable({
       <div>
         <CardTitle className="flex items-center space-x-2">
           <FileText className="h-5 w-5" />
-          <span>{t('admin.logs.title')}</span>
+          <span>{t("admin.logs.title")}</span>
         </CardTitle>
         <CardDescription>
-          {pagination ? `${t('admin.logs.description')} • ${pagination.total || 0} ${t('admin.logs.totalLogs')}` : t('admin.logs.description')}
+          {pagination
+            ? `${t("admin.logs.description")} • ${pagination.total} ${t("admin.logs.totalLogs")}`
+            : t("admin.logs.description")}
         </CardDescription>
       </div>
       {showRefresh && onRefresh && (
@@ -246,25 +206,23 @@ export const AdminLogsTable = memo(function AdminLogsTable({
           className="flex items-center space-x-2"
         >
           <RefreshCw className="h-4 w-4" />
-          <span>{t('common.refresh')}</span>
+          <span>{t("common.refresh")}</span>
         </Button>
       )}
     </div>
   );
 
-  // Loading state
   if (loading) {
     return (
       <Card className={className}>
         <CardHeader>{header}</CardHeader>
         <CardContent>
-          <TableSkeleton rows={5} columns={4} />
+          <TableSkeleton rows={5} columns={5} />
         </CardContent>
       </Card>
     );
   }
 
-  // Error state
   if (error) {
     return <LogsErrorState error={error} onRetry={onRetry} />;
   }
@@ -276,22 +234,21 @@ export const AdminLogsTable = memo(function AdminLogsTable({
         <DataTable
           columns={columns}
           data={logs}
-          getRowKey={(log) => String(log.idLog)}
+          getRowKey={(log) => log.id}
           renderMobileRow={renderMobileRow}
           emptyState={
             <EmptyState
               icon={<FileText className="h-6 w-6" />}
-              title={t('admin.logs.empty.title')}
-              body={t('admin.logs.empty.description')}
+              title={t("admin.logs.empty.title")}
+              body={t("admin.logs.empty.description")}
             />
           }
         />
 
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
+        {pagination && (
           <div className="mt-6">
             <SimplePagination
-              page={pagination.currentPage}
+              page={pagination.page}
               totalPages={pagination.totalPages}
               onPageChange={onPageChange}
             />
@@ -301,3 +258,5 @@ export const AdminLogsTable = memo(function AdminLogsTable({
     </Card>
   );
 });
+
+export default AdminLogsTable;
