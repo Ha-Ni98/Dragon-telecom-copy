@@ -229,6 +229,13 @@ export default function StaffOrders({ scope = "staff" }: Props) {
       />
 
       <OrderConfirmDialog
+        // `key` forces a fresh mount per order — OrderConfirmDialog's useForm captures
+        // `order`-derived defaultValues once at mount, and this component never actually
+        // unmounts on its own (it just renders null via `if (!order) return null` while
+        // staying in the same tree position), so without a key the fields would stay blank/
+        // stale for the entire session after the very first open (real bug, found writing
+        // this sprint's tests — same fix applied to every dialog below with this shape).
+        key={confirmOrder?.id ?? "none"}
         open={!!confirmOrder}
         onOpenChange={(open) => !open && setConfirmOrder(null)}
         order={confirmOrder}
@@ -255,6 +262,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
             isSubmitting={cancelMutation.isPending}
           />
           <ReturnOrderDialog
+            key={returnOrderTarget?.id ?? "none"}
             open={!!returnOrderTarget}
             onOpenChange={(open) => !open && setReturnOrderTarget(null)}
             order={returnOrderTarget}

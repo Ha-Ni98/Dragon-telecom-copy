@@ -171,6 +171,9 @@ export default function StaffSales({ scope = "staff" }: Props) {
 
       {scope === "admin" && (
         <ReturnDialog
+          // Forces a fresh mount per sale — same defaultValues-frozen-at-first-render bug as
+          // OrderConfirmDialog (StaffOrders.tsx), found while writing set-03 Sprint 9's tests.
+          key={selectedSale?.id ?? "none"}
           open={returnDialogOpen}
           onOpenChange={setReturnDialogOpen}
           sale={selectedSale ?? null}

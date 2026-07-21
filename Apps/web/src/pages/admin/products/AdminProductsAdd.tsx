@@ -39,6 +39,15 @@ interface StagedImage {
   preview: string;
 }
 
+// `register(field, { valueAsNumber: true })` coerces an *empty* input via `Number("")`-style
+// parsing, which yields `NaN` — not `undefined`. For a required field that's merely confusing;
+// for an `.optional()` one (initialUnitCost/guestPrice/defaultSalePrice/reorderThreshold here)
+// it's a real bug: `z.number().optional()` rejects `NaN` outright with a generic "expected
+// number, received NaN" message, so the schema's own translated `.refine()` messages
+// (initialUnitCostRequired, pricingRequiresStock) never get a chance to render — found while
+// writing this sprint's tests. `setValueAs` fixes it by mapping blank to `undefined` first.
+const optionalNumber = (raw: string) => (raw === "" ? undefined : Number(raw));
+
 // ADM-03 — set-03 Sprint 5 rewire. The Sub-01 version had no real submit at all (a fake
 // setTimeout + toasts, no API call). Full rewrite: RHF + zodResolver against
 // products-add.schema.ts (which already carries every contract refine — family/brand XOR,
@@ -326,7 +335,7 @@ export default function AdminProductsAdd() {
                   id="add-unit-cost"
                   type="number"
                   step="0.01"
-                  {...register("initialUnitCost", { valueAsNumber: true })}
+                  {...register("initialUnitCost", { setValueAs: optionalNumber })}
                 />
                 {errors.initialUnitCost && (
                   <p className="text-sm text-destructive">{errors.initialUnitCost.message}</p>
@@ -351,7 +360,7 @@ export default function AdminProductsAdd() {
                   id="add-guest-price"
                   type="number"
                   step="0.01"
-                  {...register("guestPrice", { valueAsNumber: true })}
+                  {...register("guestPrice", { setValueAs: optionalNumber })}
                 />
                 <p className="text-xs text-muted-foreground">
                   {t("admin.productsAdd.guestPriceHelper")}
@@ -366,7 +375,7 @@ export default function AdminProductsAdd() {
                   id="add-default-price"
                   type="number"
                   step="0.01"
-                  {...register("defaultSalePrice", { valueAsNumber: true })}
+                  {...register("defaultSalePrice", { setValueAs: optionalNumber })}
                 />
                 {marginPercent(watch("defaultSalePrice")) != null && (
                   <p className="text-xs text-muted-foreground">
@@ -405,7 +414,7 @@ export default function AdminProductsAdd() {
                   id="add-reorder-threshold"
                   type="number"
                   min={0}
-                  {...register("reorderThreshold", { valueAsNumber: true })}
+                  {...register("reorderThreshold", { setValueAs: optionalNumber })}
                 />
               </div>
             </CardContent>

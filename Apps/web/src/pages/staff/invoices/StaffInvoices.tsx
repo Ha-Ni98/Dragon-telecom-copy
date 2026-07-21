@@ -229,6 +229,10 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
 
       {scope === "admin" && (
         <SupplierPaymentDialog
+          // Forces a fresh mount per target invoice — same defaultValues-frozen-at-first-
+          // render bug as OrderConfirmDialog (StaffOrders.tsx), found while writing set-03
+          // Sprint 9's tests.
+          key={supplierPaymentTarget?.id ?? "none"}
           open={!!supplierPaymentTarget}
           onOpenChange={(open) => !open && setSupplierPaymentTarget(null)}
           supplierId={supplierPaymentTarget?.supplierId ?? ""}

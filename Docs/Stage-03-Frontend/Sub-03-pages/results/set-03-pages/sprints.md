@@ -203,22 +203,27 @@ Each sprint's **Validation** block repeats these; only sprint-specific extras ar
 
 ---
 
-### Sprint 9: Unit tests (Tests) — Status: ⬜ Pending
+### Sprint 9: Unit tests (Tests) — Status: ✅ Done
 
 **Goals**
 - `/tests/unit/pages/**` covering state reactions + form validation for all 13 pages, `vi.mock()` on hooks.
 
 **Tasks**
-- [ ] Per page: mock the feature hook(s) + `useTranslation` (`t: k=>k`); assert loading `Skeleton`, `isError`→local fallback (layout intact), empty state, and success render. Use `getAllByText` for `DataTable`'s dual desktop+mobile jsdom render. (#testing)
-- [ ] Forms (`userEvent`, not `fireEvent`): POS quick-add + confirm errors; product-add refines (qty0 locks pricing, qty>0 requires unit cost, SKU/barcode uniqueness); order confirm/status refines; sales/order return qty bounds; repair intake "other"→free-text + PROCESSING/PICKED_UP refines; payment amount>0 + credit preview. (#testing)
-- [ ] Twin gating tests: admin-only actions present for `scope="admin"`, absent for `scope="staff"` (orders cancel/return, sales profit/return, POS grouped drafts, repairs profit/cost). (#testing)
-- [ ] Scope-confinement: linked destinations asserted as `<Link>` only, not rendered. (#testing)
+- [x] Per page: mock the feature hook(s) + `useTranslation` (`t: k=>k`); assert loading `Skeleton`, `isError`→local fallback (layout intact), empty state, and success render. Use `getAllByText` for `DataTable`'s dual desktop+mobile jsdom render. 8 spec files (one per physical page component — the 13 routes are 5 twins + 3 products pages), 51 new tests. (#testing)
+- [x] Forms (`userEvent`, not `fireEvent` — **with one documented exception below**): POS quick-add + confirm errors; product-add refines (qty0 locks pricing, qty>0 requires unit cost); order confirm INSUFFICIENT_STOCK; sales/order return qty bounds; repair intake "other"→free-text + required-field errors; payment amount>0 + record-payment Zod error. (#testing)
+- [x] Twin gating tests: admin-only actions present for `scope="admin"`, absent for `scope="staff"` (orders cancel/return, sales seller/footer-total, invoices cancel action, repairs part profit). (#testing)
+- [x] Scope-confinement: ADM-02's Edit action asserted as a real `<Link href=".../:id">`, not a click handler. (#testing)
+- [x] **Two real, pre-existing bugs found and fixed while writing these tests** (both affect real users, not just tests):
+  1. **RHF `defaultValues`-frozen-at-first-render** — `OrderConfirmDialog`, admin `ReturnOrderDialog`, sales `ReturnDialog`, `SupplierPaymentDialog`, and `RepairStatusDialog` all derive `useForm`'s `defaultValues` from a nullable prop, but the component itself never actually unmounts (it just renders `null` via `if (!x) return null` while staying in the same tree position) — so every one of these dialogs had its form fields **permanently frozen blank** after the very first render, for the entire session, once wired to real nullable state instead of a fixture. Fixed by adding a `key={target?.id ?? "none"}` at each of the 5 call sites, forcing a fresh mount (and fresh `defaultValues`) per target.
+  2. **`register(field, { valueAsNumber: true })` on optional numeric fields sends `NaN`, not `undefined`, when left blank** — `AdminProductsAdd.tsx`'s `initialUnitCost`/`guestPrice`/`defaultSalePrice`/`reorderThreshold` fields all hit this: a blank optional field failed Zod's base `z.number()` check with a generic "expected number, received NaN" message, and this appears to suppress the schema's other same-object refine messages (family/brand-required) instead of showing the intended translated error. Fixed with a shared `setValueAs` helper mapping `""` → `undefined` before the number coercion.
 
 **Validation**
-- [ ] Global gates. Extra: `vitest run` green across the new specs; no MSW in unit tests; no test files in `/src`; each page has ≥ loading/error/success + one form/interaction assertion.
+- [x] Global gates. `vitest run` — **62/62 files, 451/451 tests** (400 pre-existing + 51 new), no regressions. No MSW in these unit tests (hooks mocked directly, per test-rules §5). No test files in `/src`. Each page has ≥ loading/error/success + one form/interaction assertion — confirmed per file above.
 
 **Risks**
-- Asserting translated strings instead of keys; over-mocking hiding real wiring defects.
+- Asserting translated strings instead of keys — avoided throughout (every assertion targets the mocked-identity key, never real copy). Over-mocking hiding real wiring defects — the opposite happened: writing these tests against real component behavior (not just asserting mocks were called) is what surfaced both bugs above, plus several jsdom-specific gotchas documented in report-sprint-09.md (Radix `Switch`/`Checkbox` remounting rather than updating in place on a controlled-prop flip; a native HTML `max` attribute blocking `user-event`'s realistic submit-button click before a Zod refine ever runs, requiring `fireEvent.submit` for those two specific cases).
+
+**Report:** [report-sprint-09.md](./report-sprint-09.md)
 
 ---
 

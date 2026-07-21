@@ -192,6 +192,9 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
       />
 
       <RepairStatusDialog
+        // Forces a fresh mount per ticket — same defaultValues-frozen-at-first-render bug as
+        // OrderConfirmDialog (StaffOrders.tsx), found while writing set-03 Sprint 9's tests.
+        key={selectedRepair?.id ?? "none"}
         open={statusDialogOpen}
         onOpenChange={setStatusDialogOpen}
         repair={selectedRepair ?? null}
