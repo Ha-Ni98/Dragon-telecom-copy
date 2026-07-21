@@ -4,6 +4,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { NotFoundState } from "@/components/shared/NotFoundState";
+import { Button } from "@/components/ui/button";
 import { SimplePagination } from "@/components/shared/SimplePagination";
 import { SupplierInvoiceStatusBadge } from "@/components/shared/StatusBadge";
 import { FileText } from "lucide-react";
@@ -13,6 +15,8 @@ import { useTranslation } from "@/hooks/useTranslation";
 interface SupplierInvoicesTableProps {
   data?: PaginatedResult<SupplierInvoiceDto>;
   isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   onPageChange: (page: number) => void;
 }
 
@@ -24,6 +28,8 @@ function formatCurrency(amount: number): string {
 export function SupplierInvoicesTable({
   data,
   isLoading = false,
+  isError = false,
+  onRetry,
   onPageChange,
 }: SupplierInvoicesTableProps) {
   const { t } = useTranslation();
@@ -78,6 +84,22 @@ export function SupplierInvoicesTable({
   );
 
   if (isLoading) return <TableSkeleton rows={6} columns={5} />;
+
+  if (isError) {
+    return (
+      <NotFoundState
+        title={t("admin.supplierInvoices.error")}
+        body=""
+        action={
+          onRetry && (
+            <Button variant="outline" onClick={onRetry}>
+              {t("common.actions.tryAgain")}
+            </Button>
+          )
+        }
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { useTranslation } from "@/hooks/useTranslation";
 import { SupplierInformationHeader } from "@/pages/admin/suppliers/components/supplier-information-header";
 import { SupplierDetailsSection } from "@/pages/admin/suppliers/components/supplier-details-section";
@@ -9,25 +9,28 @@ import { SupplierProductHistoryTable } from "@/pages/admin/suppliers/components/
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { UpdateSupplierFormValues } from "@/pages/admin/suppliers/components/supplier.schema";
-import type { SupplierDetailDto } from "@dragon-telecom/contract";
+import {
+  usePurchasingSupplierDetail,
+  useUpdatePurchasingSupplier,
+} from "@/hooks/usePurchasingSuppliers";
 
-// ADM-07 detail — retyped off SupplierDetailDto (Sprint 3, presentational only). `data` is a
-// local placeholder instead of the incompatible stub hook `use-supplier-information`
-// (numeric-id view-model) — Sprint 6 swaps this for `usePurchasingSupplierDetail(id)`, at which
-// point the shell below needs no further prop-shape changes.
+// ADM-07 detail — Sprint 6 rewire onto `usePurchasingSupplierDetail`/`useUpdatePurchasingSupplier`.
 export default function AdminSupplierInformation() {
   const { idSupplier: id } = useParams<{ idSupplier: string }>();
   const { t } = useTranslation();
 
-  // useState (not a literal `const`) so the placeholder value doesn't collapse the branches
-  // below to unreachable/`never` under TS control-flow narrowing — Sprint 6 replaces these
-  // three lines with `usePurchasingSupplierDetail(id)`'s real return.
-  const [data] = useState<SupplierDetailDto | undefined>(undefined);
-  const [isLoading] = useState(false);
-  const [isError] = useState(false);
+  const { data, isLoading, isError, refetch } = usePurchasingSupplierDetail(id ?? "");
+  const updateSupplier = useUpdatePurchasingSupplier();
 
-  const handleSave = async (_data: UpdateSupplierFormValues) => {};
-  const handleRefresh = () => {};
+  const handleSave = async (values: UpdateSupplierFormValues) => {
+    if (!id) return;
+    try {
+      await updateSupplier.mutateAsync({ id, command: values });
+      toast.success(t("admin.suppliers.updateSuccess"));
+    } catch {
+      // Global mutationCache toast (query-client.ts) already surfaces the failure.
+    }
+  };
 
   if (isLoading) {
     return (
@@ -50,8 +53,12 @@ export default function AdminSupplierInformation() {
 
   return (
     <main className="space-y-6">
-      <SupplierInformationHeader supplier={data.supplier} onRefresh={handleRefresh} />
-      <SupplierDetailsSection supplier={data.supplier} onSave={handleSave} />
+      <SupplierInformationHeader supplier={data.supplier} onRefresh={() => refetch()} />
+      <SupplierDetailsSection
+        supplier={data.supplier}
+        onSave={handleSave}
+        saving={updateSupplier.isPending}
+      />
       <SupplierFinancialSummary supplier={data.supplier} />
       <SupplierInvoicesTable invoices={data.invoices} />
       <SupplierProductHistoryTable productHistory={data.productHistory} />

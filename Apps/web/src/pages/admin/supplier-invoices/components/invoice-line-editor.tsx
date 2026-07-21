@@ -14,6 +14,7 @@ interface InvoiceLineEditorProps {
   unitCost: number;
   onRemove: () => void;
   onCreateNewProduct?: (name: string) => void;
+  disabled?: boolean;
 }
 
 // ADM-08 editor — one invoice line row: product/qty/unit cost/serials, with a live landed-
@@ -27,6 +28,7 @@ export function InvoiceLineEditor({
   unitCost,
   onRemove,
   onCreateNewProduct,
+  disabled = false,
 }: InvoiceLineEditorProps) {
   const { t } = useTranslation();
   const lineTotal = quantity * unitCost;
@@ -44,6 +46,7 @@ export function InvoiceLineEditor({
             placeholder={t("admin.supplierInvoices.editor.product")}
             onCreateNew={onCreateNewProduct}
             showCreateNew={!!onCreateNewProduct}
+            disabled={disabled}
           />
         )}
       />
@@ -57,6 +60,7 @@ export function InvoiceLineEditor({
             value={field.value ?? 1}
             onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
             placeholder={t("admin.supplierInvoices.editor.quantity")}
+            disabled={disabled}
           />
         )}
       />
@@ -71,6 +75,7 @@ export function InvoiceLineEditor({
             value={field.value ?? 0}
             onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
             placeholder={t("admin.supplierInvoices.editor.unitCost")}
+            disabled={disabled}
           />
         )}
       />
@@ -78,7 +83,11 @@ export function InvoiceLineEditor({
         control={control}
         name={`lines.${index}.serialNumbers`}
         render={({ field }) => (
-          <Input {...field} placeholder={t("admin.supplierInvoices.editor.serialNumbers")} />
+          <Input
+            {...field}
+            placeholder={t("admin.supplierInvoices.editor.serialNumbers")}
+            disabled={disabled}
+          />
         )}
       />
       <div>
@@ -87,9 +96,11 @@ export function InvoiceLineEditor({
         </span>
         <div>{lineTotal.toLocaleString()}</div>
       </div>
-      <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {!disabled && (
+        <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

@@ -117,20 +117,22 @@ document.**
 
 ---
 
-### Sprint 6: Wiring — Suppliers (rewire) & Supplier invoices (new) (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 6: Wiring — Suppliers (rewire) & Supplier invoices (new) (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - Purchasing cluster fully on `usePurchasing*`; the DRAFT→confirm→reprice flow works.
 
 **Tasks**
-- [ ] **(#wiring)** Suppliers list: swap to `usePurchasingSuppliers` + `usePurchasingSupplierStats`; detail: `usePurchasingSupplierDetail` (invoices/payments/productHistory); `useCreate/UpdatePurchasingSupplier` (incl. `initialCredit`, disable). "Add invoice" → `<Link>` to the editor with `?supplierId=`.
-- [ ] **(#wiring)** Supplier invoices list: `usePurchasingInvoices` + filters. Editor: `usePurchasingInvoiceDetail`, `useCreate/UpdatePurchasingInvoice`, `useConfirmPurchasingInvoice` (invalidates purchasing + inventory + admin products), `useCancelPurchasingInvoice`; `useCreatePurchasingPayment` w/ `CreditMovementPreview`; inline create-product `useCreateProduct`; reprice `useUpdatePricing` per product.
-- [ ] **(#wiring)** Wire the amountOnly-XOR-lines form, live footer math (landed unit cost / projected new avg cost), 409-after-confirm inline surface.
-- [ ] **(#testing)** Mocked-hook wiring smoke for both pages incl. confirm→reprice reveal.
+- [x] **(#wiring)** Suppliers list: swap to `usePurchasingSuppliers` + `usePurchasingSupplierStats`; detail: `usePurchasingSupplierDetail` (invoices/payments/productHistory); `useCreate/UpdatePurchasingSupplier` (incl. `initialCredit`, disable). "Add invoice" → `<Link>` to the editor with `?supplierId=`.
+- [x] **(#wiring)** Supplier invoices list: `usePurchasingInvoices` + filters. Editor: `usePurchasingInvoiceDetail`, `useCreate/UpdatePurchasingInvoice`, `useConfirmPurchasingInvoice` (invalidates purchasing + inventory + admin products), `useCancelPurchasingInvoice`; `useCreatePurchasingPayment` w/ `CreditMovementPreview`; inline create-product `useCreateProduct`; reprice `useUpdatePricing` per product.
+- [x] **(#wiring)** Wire the amountOnly-XOR-lines form, live footer math (subtotal+shipping+total — see report's scope note on landed-unit-cost/projected-avg-cost), 409-after-confirm inline surface.
+- [x] **(#testing)** Mocked-hook wiring smoke for both pages incl. confirm→reprice reveal.
 
 **Validation** — standard checklist.
 
 **Risks** — `/admin/supplier-invoices/:id` vs `?supplierId=new` route clash (Sprint 2 decision); confirm mutation invalidation set must exactly match the plan to avoid stale inventory.
+
+**Outcome** — see `report-sprint-06.md`. Both pages wired; two real pre-existing bugs found+fixed while exercising the live mutations for the first time: `AdminSuppliers.tsx` called `useDebouncedValue` but never captured its return value (search never actually debounced into the query), and `supplier.schema.ts`'s `email` field failed validation on every submit where email was left blank (`z.email().optional()` only skips `undefined`, but both the add-dialog and details-section default the controlled input to `""`) — fixed with a `z.union([z.literal("""), z.email()])` (not `z.preprocess`, which breaks `zodResolver`'s generic inference against `useForm<T>`). No filter primitive exists yet for the supplier-invoices list (none built in Sprint 4) — left unbuilt rather than inventing new UI in a wiring sprint. `tsc`/`eslint`/`vitest run` all green (588 tests, 21 new).
 
 ---
 

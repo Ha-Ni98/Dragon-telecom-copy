@@ -165,9 +165,11 @@ Goods-receipt list + DRAFT editor with confirm→reprice flow.
 
 **5. Optimization** — `useMemo` the live footer math (recomputes per keystroke over all lines); `React.lazy` both routes; reprice prompt renders only after a successful confirm.
 
+**Sprint 6 scope note:** the footer implements subtotal + shipping + total, not a per-line landed-unit-cost/projected-new-average-cost estimate — the latter needs a weighted-average projection against each product's live `averageCost`/`quantityOnHand` (available via `useAdminCatalogProducts`, same data the Inventory adjustment form already reads), which is a real, non-trivial computation. Flagged for Sprint 9 polish rather than approximated. Similarly, cancel has no reason-collection dialog (`ConfirmBar.onCancel` posts an empty `{}` body — `reason` is optional) and no post-cancel "check ADM-06" banner — neither exists as a Sprint 4 primitive; the acceptance line below has been corrected to match.
+
 **6. Tests** — `AdminSupplierInvoices.spec.tsx` (list filters, status chips, skeleton). `supplier-invoice-editor.spec.tsx`: amount-only ⇄ lines XOR error; landed/avg-cost footer recompute; confirm reveals reprice prompt; inline-create-product dialog opens. `record-payment-dialog.spec.tsx`: credit preview.
 
-**7. Acceptance** — DRAFT saves freely; confirm sweeps inventory+suppliers+products and opens the reprice prompt; a missing catalog entry never blocks a line (inline create); cancel reverses credit with the ADM-06 shortcut banner; supplier preselect from ADM-07 works.
+**7. Acceptance** — DRAFT saves freely; confirm sweeps inventory+suppliers+products and opens the reprice prompt; a missing catalog entry never blocks a line (inline create); cancel reverses credit (no reason dialog or post-cancel banner — see Sprint 6 scope note above); supplier preselect from ADM-07 works.
 
 ---
 
