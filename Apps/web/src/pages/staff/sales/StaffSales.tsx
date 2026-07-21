@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -12,7 +12,7 @@ import { useUsers } from "@/hooks/useIdentity";
 import { usePosClientSearch } from "@/hooks/usePosClients";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
-import { SaleStatus, type SaleListQuery } from "@dragon-telecom/contract";
+import { SaleStatus, type SaleDto, type SaleListQuery } from "@dragon-telecom/contract";
 import type { CreateReturnFormValues } from "@/pages/admin/sales/components/create-return.schema";
 
 interface Props {
@@ -82,6 +82,7 @@ export default function StaffSales({ scope = "staff" }: Props) {
 
   const [selectedReference, setSelectedReference] = useState<string | null>(null);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const handleRowClick = useCallback((sale: SaleDto) => setSelectedReference(sale.reference), []);
 
   const {
     data: selectedSale,
@@ -143,7 +144,7 @@ export default function StaffSales({ scope = "staff" }: Props) {
         isLoading={salesLoading}
         isError={salesIsError}
         onRetry={() => refetchSales()}
-        onRowClick={(sale) => setSelectedReference(sale.reference)}
+        onRowClick={handleRowClick}
         scope={scope}
       />
 

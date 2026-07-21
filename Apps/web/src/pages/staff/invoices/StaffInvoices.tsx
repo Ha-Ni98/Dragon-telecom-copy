@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -26,7 +26,7 @@ import { usePurchasingInvoices } from "@/hooks/usePurchasingInvoices";
 import { usePurchasingPayments, useCreatePurchasingPayment } from "@/hooks/usePurchasingPayments";
 import { useTranslation } from "@/hooks/useTranslation";
 import { downloadBlob } from "@/lib/utils";
-import type { InvoiceListQuery, SupplierInvoiceDto } from "@dragon-telecom/contract";
+import type { InvoiceDto, InvoiceListQuery, SupplierInvoiceDto } from "@dragon-telecom/contract";
 import type { RecordClientPaymentFormValues } from "@/pages/staff/invoices/record-client-payment.schema";
 import type { RecordSupplierPaymentFormValues } from "@/pages/admin/invoices/components/record-supplier-payment.schema";
 import type { CancelInvoiceFormValues } from "@/pages/admin/invoices/components/cancel-invoice.schema";
@@ -57,6 +57,10 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
   const outgoing = scope === "admin" ? adminInvoices : myInvoices;
 
   const [selectedNumber, setSelectedNumber] = useState<string | null>(null);
+  const handleRowClick = useCallback(
+    (invoice: InvoiceDto) => setSelectedNumber(invoice.number),
+    [],
+  );
   const myInvoiceDetail = useMyInvoice(scope === "staff" ? (selectedNumber ?? "") : "");
   const adminInvoiceDetail = useInvoice("admin", scope === "admin" ? (selectedNumber ?? "") : "");
   const selectedInvoice = scope === "admin" ? adminInvoiceDetail.data : myInvoiceDetail.data;
@@ -131,7 +135,7 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
         isLoading={outgoing.isLoading}
         isError={outgoing.isError}
         onRetry={() => outgoing.refetch()}
-        onRowClick={(invoice) => setSelectedNumber(invoice.number)}
+        onRowClick={handleRowClick}
       />
       {outgoing.data && outgoing.data.meta.totalPages > 1 && (
         <SimplePagination

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SimplePagination } from "@/components/shared/SimplePagination";
@@ -19,6 +19,7 @@ import {
   useReturnOrder,
 } from "@/hooks/useOrdersDirectory";
 import { useAdminCatalogProduct } from "@/hooks/useCatalogProducts";
+import { useSendStaffSearch } from "@/hooks/useObservability";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
 import { apiErrorMessage } from "@/lib/query-client";
@@ -47,6 +48,13 @@ export default function StaffOrders({ scope = "staff" }: Props) {
   const [to, setTo] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
+
+  // ADM-02's precedent (Sprint 5) — admin searches are audited too (Sprint 8 #polish).
+  const sendStaffSearch = useSendStaffSearch();
+  useEffect(() => {
+    if (debouncedSearch.trim()) sendStaffSearch.mutate({ query: debouncedSearch.trim() });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
   const query: BackofficeOrdersQuery = useMemo(
     () => ({ status, search: debouncedSearch || undefined, from, to, page, limit: 20 }),

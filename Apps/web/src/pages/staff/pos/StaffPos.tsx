@@ -15,6 +15,7 @@ import { useStaffProducts } from "@/hooks/useCatalogProducts";
 import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
 import { usePosClientSearch, useQuickCreatePosClient } from "@/hooks/usePosClients";
 import { useSales, useCreateDraft, useUpdateDraft, useConfirmSale } from "@/hooks/useSales";
+import { useSendStaffSearch } from "@/hooks/useObservability";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-navigation";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -89,6 +90,16 @@ export default function StaffPos({ scope = "staff" }: Props) {
     limit: 20,
   });
   const { data: families } = useCatalogFamilies({});
+
+  // Sprint 8 #polish — same beacon StaffProducts.tsx/AdminProducts.tsx already fire on their
+  // own debounced search.
+  const sendStaffSearch = useSendStaffSearch();
+  useEffect(() => {
+    if (debouncedProductQuery.trim()) {
+      sendStaffSearch.mutate({ query: debouncedProductQuery.trim() });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedProductQuery]);
 
   // --- Ticket state (client-side draft, PATCHed on change) ---
   const [lines, setLines] = useState<TicketLineState[]>([]);

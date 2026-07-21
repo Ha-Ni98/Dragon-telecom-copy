@@ -97,8 +97,14 @@ export function SalesTable({
     </div>
   );
 
-  const footerTotal =
-    scope === "admin" && sales ? sales.reduce((sum, sale) => sum + sale.totalAmount, 0) : undefined;
+  // Sprint 8 polish — memoized so the filtered-set sum isn't recomputed on every render.
+  const footerTotal = useMemo(
+    () =>
+      scope === "admin" && sales
+        ? sales.reduce((sum, sale) => sum + sale.totalAmount, 0)
+        : undefined,
+    [scope, sales],
+  );
 
   if (isLoading) return <TableSkeleton rows={8} columns={scope === "admin" ? 7 : 6} />;
 

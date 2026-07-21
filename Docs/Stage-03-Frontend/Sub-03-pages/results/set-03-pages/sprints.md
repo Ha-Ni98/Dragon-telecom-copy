@@ -182,22 +182,24 @@ Each sprint's **Validation** block repeats these; only sprint-specific extras ar
 
 ---
 
-### Sprint 8: Polish (Polish) — Status: ⬜ Pending
+### Sprint 8: Polish (Polish) — Status: ✅ Done
 
 **Goals**
 - Desktop-first responsive, targeted memoization, beacons, and an i18n sweep.
 
 **Tasks**
-- [ ] Desktop-first layouts; horizontal table scroll on narrow admin viewports; POS two-pane collapses gracefully. (#polish)
-- [ ] `useMemo` only where the plan calls for it: POS ticket totals, admin sales footer totals, per-lane repair grouping, `DataTable` column defs; `useCallback` on row/action handlers passed to `DataTable`. (#polish)
-- [ ] Fire the staff-search beacon on product/order searches (reuse existing beacon util). (#polish)
-- [ ] i18n sweep: grep for stray literals across all set-03 files; confirm every string routes through `useTranslation`. (#i18n)
+- [x] Desktop-first layouts; horizontal table scroll on narrow admin viewports; POS two-pane collapses gracefully. **Already satisfied, verified not re-built:** `DataTable` (shared) already wraps its desktop table in `overflow-x-auto` unconditionally, so every table in the set (Orders/Sales/Invoices/Incoming/Payments/Products) already scrolls horizontally on narrow admin viewports with zero changes needed; POS's `grid-cols-1 lg:grid-cols-[2fr_3fr]` already collapses to a single stacked column below `lg`, carried over unchanged from the Sprint-2 placeholder shell. (#polish)
+- [x] `useMemo` only where the plan calls for it: POS ticket totals (already memoized Sprint 7), admin sales footer totals (`SalesTable.tsx` — was a plain per-render `.reduce()`, now memoized), per-lane repair grouping (`RepairBoard.tsx` — was re-filtering the full list once per lane per render, now grouped once via a `Map`), `DataTable` column defs (already memoized everywhere, verified via a grep for `ColumnDef` usage without `useMemo` — zero hits); `useCallback` on row/action handlers passed to `DataTable` (`StaffSales.tsx`/`StaffInvoices.tsx` row-click handlers were inline arrows, now stable references — `StaffOrders.tsx`/`AdminProducts.tsx` already had this from Sprints 5/6). (#polish)
+- [x] Fired the staff-search beacon (`useSendStaffSearch`, same util `StaffProducts.tsx`/`AdminProducts.tsx` already use) on `StaffOrders.tsx`'s debounced order search and `StaffPos.tsx`'s debounced product search — both scopes, unscoped by role (mirrors `StaffProducts.tsx`'s own staff-scope precedent, not just the admin one). Sales/Invoices searches and the repairs parts-editor product picker were deliberately left unbeaconed — the task names "product/order searches" specifically, and extending audit-beacon coverage to every incidental picker wasn't scoped here (noted as a scope decision, not an oversight). (#polish)
+- [x] i18n sweep: grep-scanned every `.tsx` file across all of set-03 (pages + components, all 6 clusters, ~60 files) for literal JSX text nodes, hardcoded `placeholder`/`aria-label`/`title` attributes — **zero stray literals found**, set-03 was already clean going into this sprint (each prior sprint's own per-file audit had already caught everything). (#i18n)
 
 **Validation**
-- [ ] Global gates. Extra: **explicit `useTranslation` audit** — zero inline JSX strings in any set-03 file; no unnecessary memoization added beyond the listed hot spots.
+- [x] Global gates. Extra: **explicit `useTranslation` audit** — zero inline JSX strings anywhere in set-03 (confirmed via the sweep above); no unnecessary memoization added beyond the four listed hot spots (RepairBoard grouping, SalesTable footer total, plus the two useCallback row-handler fixes) — deliberately did not touch `RepairBoard`'s `onCardClick`/`onDropOnLane` (not passed to `DataTable`, out of this task's literal scope) to avoid the "premature memoization" risk the plan itself flagged.
 
 **Risks**
-- Premature memoization hurting clarity; missed literals in success-path branches (known set-02 gap).
+- Premature memoization hurting clarity — avoided by scoping strictly to the plan's named hot spots. Missed literals in success-path branches (known set-02 gap) — the full-set grep sweep this sprint specifically targets that failure mode across every branch, not just the ones exercised by manual testing.
+
+**Report:** [report-sprint-08.md](./report-sprint-08.md)
 
 ---
 

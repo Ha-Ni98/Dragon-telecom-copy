@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Wrench } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -58,6 +58,14 @@ export function RepairBoard({
   const [dragOverLane, setDragOverLane] = useState<RepairStatus | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
+  // Sprint 8 polish — group once instead of re-filtering the full list per lane on every render.
+  const repairsByLane = useMemo(() => {
+    const grouped = new Map<RepairStatus, RepairDto[]>();
+    for (const lane of LANES) grouped.set(lane, []);
+    for (const repair of repairs ?? []) grouped.get(repair.status)?.push(repair);
+    return grouped;
+  }, [repairs]);
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -116,7 +124,7 @@ export function RepairBoard({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {LANES.map((lane) => {
-          const laneRepairs = (repairs ?? []).filter((r) => r.status === lane);
+          const laneRepairs = repairsByLane.get(lane) ?? [];
           return (
             <div
               key={lane}
