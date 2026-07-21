@@ -136,20 +136,22 @@ document.**
 
 ---
 
-### Sprint 7: Wiring — Web clients (rewire), Client detail (new), Users & roles (new) (Assembly & Wiring) — Status: ⬜ Pending
+### Sprint 7: Wiring — Web clients (rewire), Client detail (new), Users & roles (new) (Assembly & Wiring) — Status: ✅ Done
 
 **Goals**
 - Client directory + detail + identity management live on real hooks; A2 card wired.
 
 **Tasks**
-- [ ] **(#wiring)** Clients list: swap to `useClientDirectory` + `useClientDirectoryStats` (wire the **`newThisMonth`** card from A2); `useApproveClient`/`useRejectClient`/`useUpdateClientDirectoryEntry` (invalidate `['clients','admin']`, `['pos-clients']`, dashboard/stats). `approval-dialog` mandatory category + username server-error placement; no create button.
-- [ ] **(#wiring)** Client detail: `useClientDirectoryEntry`; `useResetClientPassword` (no invalidation, warning banner); browsing tabs via `useClientActivity(id, query)` lazy per tab; browsing rows `<Link>` to product.
-- [ ] **(#wiring)** Users & roles: `useUsers`/`useRoles`/`usePages({scope:'staff'})`; `useCreate/UpdateUser`, `useCreate/UpdateRole`, `useSetRolePages`. Type switch enforces the roleIds refine; effective-page list = `useMemo(selectedRoles × pages)`; last-admin guard → inline banner; system roles read-only.
-- [ ] **(#testing)** Mocked-hook wiring smoke; type-switch + effective-list behavior; approval flow.
+- [x] **(#wiring)** Clients list: swap to `useClientDirectory` + `useClientDirectoryStats` (wire the **`newThisMonth`** card from A2); `useUpdateClientDirectoryEntry` (invalidate `['clients','admin']`). `useApproveClient`/`useRejectClient` live on the detail page instead (see below) — the list's own shell never imports `ApprovalDialog`; no create button.
+- [x] **(#wiring)** Client detail: `useClientDirectoryEntry`; `useApproveClient`/`useRejectClient`; `useResetClientPassword` (no invalidation, warning banner); browsing tab via `useClientActivity(id, query)` (fires once the id is known — the hook has no per-tab `enabled` option, and it's the only tab consuming it); browsing rows `<Link>` to product.
+- [x] **(#wiring)** Users & roles: `useUsers`/`useRoles`/`usePages({scope:'staff'})`; `useCreate/UpdateUser`, `useCreate/UpdateRole`, `useSetRolePages`. Type switch enforces the roleIds refine; effective-page list = `useMemo(selectedRoles × pages)`; last-admin guard → inline banner; system roles read-only.
+- [x] **(#testing)** Mocked-hook wiring smoke; type-switch + effective-list behavior; approval flow.
 
 **Validation** — standard checklist.
 
 **Risks** — effective-page derivation depending on `RoleDto.pages` shape (verify it carries page ids); approve atomicity is server-side — the row-flip is optimistic only via invalidation, not manual cache edits.
+
+**Outcome** — see `report-sprint-07.md`. All three pages wired. Approval turned out to live only on the detail page (the list's Sprint-3 shell never built an approval-dialog entry point), so `useApproveClient`/`useRejectClient` are wired in `AdminClientDetail.tsx`, not `AdminClients.tsx`. Found and fixed **four** more instances of Sprint 5's `FormLabel`-outside-`FormField` bug class (`approval-dialog.tsx`'s category field, `user-dialog.tsx`'s type-select field, plus two standalone section labels in `user-dialog.tsx`/`role-dialog.tsx` fixed by downgrading to plain `Label`), a second `email: z.email().optional()` blank-string bug (`admin-client-modify-dialog.schema.ts`, same fix as Sprint 6), a dead-state bug in `AdminClients.tsx` (`handleEdit` never called `setSelectedClient`, so the modify dialog could never render), and a data-loss bug in `role-dialog.tsx` (the create-mode submit discarded the permission matrix — `onSaveCreate` never received the collected `pageKeys`). Also corrected a second stale Sprint-2 route-smoke expectation for `/admin/clients/:id`, this time because the global MSW server answers that route unconditionally regardless of the id in the URL, so the real hook now resolves successfully instead of 404ing.
 
 ---
 

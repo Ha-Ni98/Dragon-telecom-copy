@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import axios from "axios";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -9,20 +11,93 @@ import { ClientDetailHeader } from "@/pages/admin/clients/components/client-deta
 import { ApprovalDialog } from "@/pages/admin/clients/components/approval-dialog";
 import { ResetPasswordDialog } from "@/pages/admin/clients/components/reset-password-dialog";
 import { BrowsingActivityTable } from "@/pages/admin/clients/components/browsing-activity-table";
-import type { AdminClientDto } from "@dragon-telecom/contract";
+import type { ApproveClientFormValues } from "@/pages/admin/clients/components/approve-client.schema";
+import type { ResetClientPasswordFormValues } from "@/pages/admin/clients/components/reset-client-password.schema";
+import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
+import {
+  useClientDirectoryEntry,
+  useApproveClient,
+  useRejectClient,
+  useResetClientPassword,
+} from "@/hooks/useClientDirectory";
+import { useClientActivity } from "@/hooks/useObservability";
+import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { useTranslation } from "@/hooks/useTranslation";
 
-// ADM-12b — page-local primitives assembled (Sprint 4, no data yet). Sprint 7 wires
-// `useClientDirectoryEntry` + `useClientActivity` (lazy per tab) +
-// `useApproveClient`/`useRejectClient`/`useResetClientPassword`.
+// ADM-12b — Sprint 7 wiring. `useClientActivity` has no per-tab `enabled` option (unlike
+// `useSales`/`useInvoices`), so it fires once the client id is known rather than strictly on
+// Browsing-tab activation — harmless here since it's the only tab that consumes it (Overview/
+// Orders/Invoices/Payments stay EmptyState placeholders; no scoped hook exists for them per the
+// plan's resolve-first section).
 export default function AdminClientDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
 
-  const [client] = useState<AdminClientDto | undefined>(undefined);
-  const [isLoading] = useState(false);
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | undefined>();
+
+  const clientEntry = useClientDirectoryEntry(id ?? "");
+  const client = clientEntry.data;
+  const isLoading = clientEntry.isLoading;
+
+  const activityQuery = useMemo(() => ({}), []);
+  const activity = useClientActivity(id ?? "", activityQuery);
+
+  const categories = useCatalogClientCategories();
+  const categoryOptions: AutocompleteOption[] = useMemo(
+    () => (categories.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+    [categories.data],
+  );
+
+  const approveClient = useApproveClient();
+  const rejectClient = useRejectClient();
+  const resetPassword = useResetClientPassword();
+
+  const handleApprove = (values: ApproveClientFormValues) => {
+    if (!id) return;
+    setUsernameError(undefined);
+    approveClient.mutate(
+      { id, command: values },
+      {
+        onSuccess: () => {
+          toast.success(t("admin.clients.approval.success"));
+          setIsApprovalOpen(false);
+        },
+        onError: (err) => {
+          if (axios.isAxiosError(err) && err.response?.status === 409) {
+            setUsernameError(t("admin.clients.approval.usernameTaken"));
+          }
+        },
+      },
+    );
+  };
+
+  const handleReject = () => {
+    if (!id) return;
+    rejectClient.mutate(
+      { id, command: {} },
+      {
+        onSuccess: () => {
+          toast.success(t("admin.clients.approval.rejectSuccess"));
+          setIsApprovalOpen(false);
+        },
+      },
+    );
+  };
+
+  const handleResetPassword = (values: ResetClientPasswordFormValues) => {
+    if (!id) return;
+    resetPassword.mutate(
+      { id, command: { newPassword: values.newPassword } },
+      {
+        onSuccess: () => {
+          toast.success(t("admin.clients.resetPassword.success"));
+          setIsResetPasswordOpen(false);
+        },
+      },
+    );
+  };
 
   if (isLoading) {
     return (
@@ -103,23 +178,29 @@ export default function AdminClientDetail() {
           />
         </TabsContent>
         <TabsContent value="browsing">
-          <BrowsingActivityTable data={[]} isLoading={false} />
+          <BrowsingActivityTable data={activity.data ?? []} isLoading={activity.isLoading} />
         </TabsContent>
       </Tabs>
 
       <ApprovalDialog
         open={isApprovalOpen}
-        onOpenChange={setIsApprovalOpen}
+        onOpenChange={(open) => {
+          setIsApprovalOpen(open);
+          if (!open) setUsernameError(undefined);
+        }}
         client={client}
-        categoryOptions={[]}
-        onApprove={() => setIsApprovalOpen(false)}
-        onReject={() => setIsApprovalOpen(false)}
+        categoryOptions={categoryOptions}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        isSubmitting={approveClient.isPending || rejectClient.isPending}
+        usernameError={usernameError}
       />
 
       <ResetPasswordDialog
         open={isResetPasswordOpen}
         onOpenChange={setIsResetPasswordOpen}
-        onSave={() => setIsResetPasswordOpen(false)}
+        onSave={handleResetPassword}
+        isSaving={resetPassword.isPending}
       />
     </div>
   );

@@ -65,13 +65,16 @@ const ROUTES: {
     importer: () => import("@/pages/admin/pos-clients/AdminPosClients"),
   },
   {
-    // Sprint 4 (ADM-12b) assembled the real body: like ADM-07's AdminSupplierInformation
-    // precedent, a detail page with no data source yet (Sprint 7 wires
-    // `useClientDirectoryEntry`) renders NotFoundState rather than a bare title — the
-    // Sprint 2 placeholder titleKey no longer reflects real behavior.
+    // Sprint 7 correction: this route now calls the real `useClientDirectoryEntry`, and the
+    // global MSW server (started for every test, `tests/fixtures/wrappers/setup.ts`) answers
+    // `GET .../admin/clients/:id` unconditionally with `mockAdminClientPending`
+    // (`clients.handlers.ts`) regardless of the id in the URL — so this placeholder uuid
+    // resolves successfully rather than 404ing, and the page renders the real detail body, not
+    // `NotFoundState`. Asserting a tab-trigger key (present once any client loads) rather than
+    // the fixture's name keeps this case decoupled from the fixture's exact content.
     path: "/admin/clients/:id",
     initial: "/admin/clients/11111111-1111-4111-8111-111111111111",
-    titleKey: "admin.clients.detail.notFound",
+    titleKey: "admin.clients.detail.tabs.overview",
     importer: () => import("@/pages/admin/clients/AdminClientDetail"),
   },
   {

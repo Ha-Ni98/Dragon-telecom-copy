@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -29,7 +30,7 @@ interface RoleDialogProps {
   onOpenChange: (open: boolean) => void;
   role: RoleDto | null;
   pages: PageDto[];
-  onSaveCreate: (values: CreateRoleFormValues) => void;
+  onSaveCreate: (values: CreateRoleFormValues, pageKeys: string[]) => void;
   onSaveUpdate: (values: UpdateRoleFormValues, pageKeys: string[]) => void;
   isSaving?: boolean;
 }
@@ -72,7 +73,11 @@ function PermissionMatrix({ pages, pageKeys, onChange, disabled = false }: Permi
 
   return (
     <div className="space-y-3">
-      <FormLabel>{t("admin.users.roleForm.pages")}</FormLabel>
+      {/* Plain `Label`, not `FormLabel` — `pageKeys` is local component state (not an RHF
+          field on either the create or update schema), so there is no `<FormField>` context
+          for `FormLabel`'s `useFormField()` to read (Sprint 7 fix — this threw on every render
+          before the matrix's own live-state wiring was ever actually exercised). */}
+      <Label>{t("admin.users.roleForm.pages")}</Label>
       {Array.from(groups.entries()).map(([group, groupPages]) => {
         const allChecked = groupPages.every((p) => pageKeys.includes(p.key));
         return (
@@ -105,7 +110,9 @@ function PermissionMatrix({ pages, pageKeys, onChange, disabled = false }: Permi
 }
 
 // ADM-16 — dumb (owns only local form state); Sprint 7 wires
-// `useCreateRole`/`useUpdateRole`/`useSetRolePages`.
+// `useCreateRole`/`useUpdateRole`/`useSetRolePages`. `onSaveCreate` now also carries the locally
+// collected `pageKeys` (Sprint 7 fix — the create-mode submit used to call `onSaveCreate(values)`
+// only, silently discarding the permission matrix the admin had just checked).
 export function RoleDialog({
   open,
   onOpenChange,
@@ -215,7 +222,10 @@ export function RoleDialog({
           </Form>
         ) : (
           <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(onSaveCreate)} className="space-y-4">
+            <form
+              onSubmit={createForm.handleSubmit((values) => onSaveCreate(values, pageKeys))}
+              className="space-y-4"
+            >
               <FormField
                 control={createForm.control}
                 name="code"

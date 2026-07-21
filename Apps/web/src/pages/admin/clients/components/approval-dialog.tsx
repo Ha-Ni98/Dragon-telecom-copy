@@ -1,4 +1,4 @@
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -28,12 +28,19 @@ interface ApprovalDialogProps {
   onApprove: (values: ApproveClientFormValues) => void;
   onReject: (reason?: string) => void;
   isSubmitting?: boolean;
+  /** Server-side username-unique 409, surfaced inline (Sprint 7 wiring) — the mutation lives at
+   * the page level, so this can't go through RHF's own `setError`. */
+  usernameError?: string;
 }
 
 // ADM-12/12b — registration recap + username/password + mandatory category select +
 // Approve/Reject. Dumb (owns only local form state); Sprint 7 wires
-// `useApproveClient`/`useRejectClient` (the username-unique 409 lands on the username field via
-// `setError` at that call site, not here).
+// `useApproveClient`/`useRejectClient`. The username-unique 409 can't go through RHF's own
+// `setError` (the mutation lives at the page level, outside this form instance) — surfaced via
+// the `usernameError` prop instead, same pattern as `UserDialog`'s `lastAdminGuardError`.
+// Sprint 7 also fixed a real bug here: `categoryId` was a bare `<FormItem>`/`<FormLabel>` +
+// `<Controller>` instead of `<FormField>` — `FormLabel` calls `useFormField()`, which throws
+// outside a `<FormField>` context (same bug class as set-04 Sprint 5's POS-client dialogs).
 export function ApprovalDialog({
   open,
   onOpenChange,
@@ -42,6 +49,7 @@ export function ApprovalDialog({
   onApprove,
   onReject,
   isSubmitting = false,
+  usernameError,
 }: ApprovalDialogProps) {
   const { t } = useTranslation();
   const form = useForm<ApproveClientFormValues>({
@@ -76,6 +84,7 @@ export function ApprovalDialog({
                     <Input {...field} disabled={isSubmitting} />
                   </FormControl>
                   <FormMessage />
+                  {usernameError && <p className="text-sm text-destructive">{usernameError}</p>}
                 </FormItem>
               )}
             />
@@ -92,26 +101,24 @@ export function ApprovalDialog({
                 </FormItem>
               )}
             />
-            <FormItem>
-              <FormLabel>{t("admin.clients.approval.category")}</FormLabel>
-              <Controller
-                control={form.control}
-                name="categoryId"
-                render={({ field }) => (
-                  <AutocompleteInput
-                    value={field.value}
-                    onChange={field.onChange}
-                    suggestions={categoryOptions}
-                    disabled={isSubmitting}
-                  />
-                )}
-              />
-              {form.formState.errors.categoryId && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.categoryId.message}
-                </p>
+            <FormField
+              control={form.control}
+              name="categoryId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("admin.clients.approval.category")}</FormLabel>
+                  <FormControl>
+                    <AutocompleteInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      suggestions={categoryOptions}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </FormItem>
+            />
 
             <div className="flex justify-end gap-2 pt-2">
               <Button

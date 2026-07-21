@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
@@ -46,7 +47,10 @@ interface UserDialogProps {
 
 // ADM-16 — type switch (ADMIN hides the role matrix entirely; STAFF shows a role multi-select +
 // a live effective-page list, `useMemo`'d from selected roleIds × RoleDto.pageKeys). Dumb (owns
-// only local form state); Sprint 7 wires `useCreateUser`/`useUpdateUser`.
+// only local form state); Sprint 7 wires `useCreateUser`/`useUpdateUser`. Sprint 7 also fixed a
+// real bug: the create form's `type` Select was a bare `<FormItem>`/`<FormLabel>` + `<Controller>`
+// instead of `<FormField>` — `FormLabel` throws outside a `<FormField>` context (same bug class
+// found in `approval-dialog.tsx` and set-04 Sprint 5's POS-client dialogs).
 export function UserDialog({
   open,
   onOpenChange,
@@ -184,7 +188,10 @@ export function UserDialog({
 
               {isStaff && (
                 <div className="space-y-2">
-                  <FormLabel>{t("admin.users.form.roles")}</FormLabel>
+                  {/* Plain `Label`, not `FormLabel` — roleIds is set imperatively via
+                      `setValue`, so this section header sits outside any `<FormField>` render
+                      prop (Sprint 7 fix — `FormLabel` throws outside that context). */}
+                  <Label>{t("admin.users.form.roles")}</Label>
                   <div className="space-y-2 rounded-lg border p-3">
                     {roles.map((role) => (
                       <label key={role.id} className="flex items-center gap-2 text-sm">
@@ -260,28 +267,31 @@ export function UserDialog({
                   </FormItem>
                 )}
               />
-              <FormItem>
-                <FormLabel>{t("admin.users.form.type")}</FormLabel>
-                <Controller
-                  control={createForm.control}
-                  name="type"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={UserType.ADMIN}>
-                          {t("admin.users.table.type.admin")}
-                        </SelectItem>
-                        <SelectItem value={UserType.STAFF}>
-                          {t("admin.users.table.type.staff")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FormItem>
+              <FormField
+                control={createForm.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("admin.users.form.type")}</FormLabel>
+                    <FormControl>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={UserType.ADMIN}>
+                            {t("admin.users.table.type.admin")}
+                          </SelectItem>
+                          <SelectItem value={UserType.STAFF}>
+                            {t("admin.users.table.type.staff")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={createForm.control}
@@ -313,7 +323,10 @@ export function UserDialog({
 
               {isStaff && (
                 <div className="space-y-2">
-                  <FormLabel>{t("admin.users.form.roles")}</FormLabel>
+                  {/* Plain `Label`, not `FormLabel` — roleIds is set imperatively via
+                      `setValue`, so this section header sits outside any `<FormField>` render
+                      prop (Sprint 7 fix — `FormLabel` throws outside that context). */}
+                  <Label>{t("admin.users.form.roles")}</Label>
                   <div className="space-y-2 rounded-lg border p-3">
                     {roles.map((role) => (
                       <label key={role.id} className="flex items-center gap-2 text-sm">
