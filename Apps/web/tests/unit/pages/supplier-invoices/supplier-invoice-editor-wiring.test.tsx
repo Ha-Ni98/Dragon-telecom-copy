@@ -1,6 +1,6 @@
 import "../../../fixtures/wrappers/mockTranslation";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithRoutes } from "../../../fixtures/wrappers/renderWithRouter";
 import {
@@ -110,6 +110,49 @@ describe("AdminSupplierInvoiceEditor (ADM-08 editor) wiring", () => {
     expect(screen.getByDisplayValue(mockSupplierInvoiceDraft.invoiceDate)).toBeInTheDocument();
   });
 
+  it("recomputes the footer subtotal live as a line's quantity changes", async () => {
+    const user = userEvent.setup();
+    renderEditor(`/admin/supplier-invoices/${mockSupplierInvoiceDraft.id}`);
+
+    // Starting line: qty 10 * unitCost 3000 = 30,000 (subtotal and total both show it, since
+    // shippingCost is 0).
+    expect(screen.getAllByText(/30,000/).length).toBeGreaterThanOrEqual(1);
+
+    const quantityInput = screen.getByPlaceholderText("admin.supplierInvoices.editor.quantity");
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "20");
+
+    expect((await screen.findAllByText(/60,000/)).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("creates a new product inline from the line editor's product picker", async () => {
+    createProductMutate.mockImplementation((_values, opts) => opts?.onSuccess?.(mockAdminProduct));
+    const user = userEvent.setup();
+    renderEditor(`/admin/supplier-invoices/${mockSupplierInvoiceDraft.id}`);
+
+    const productInput = screen.getByPlaceholderText("admin.supplierInvoices.editor.product");
+    await user.type(productInput, "Brand New Widget");
+    const createNewOptions = screen.getAllByText(/common.createNew/);
+    await user.click(createNewOptions[createNewOptions.length - 1]);
+
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByLabelText("admin.suppliers.productName"),
+      "Brand New Widget",
+    );
+    await user.type(
+      within(dialog).getByLabelText("admin.settings.hierarchy.tabs.families"),
+      "Accessories",
+    );
+    await user.type(
+      within(dialog).getByLabelText("admin.settings.hierarchy.tabs.brands"),
+      "Generic",
+    );
+    await user.click(within(dialog).getByText("common.save"));
+
+    await waitFor(() => expect(createProductMutate).toHaveBeenCalled());
+  });
+
   it("creates a new DRAFT invoice via the live mutation and navigates to its editor", async () => {
     createInvoiceMutate.mockImplementation((_values, opts) => {
       opts?.onSuccess?.(mockSupplierInvoiceDraft);
@@ -178,6 +221,10 @@ describe("AdminSupplierInvoiceEditor (ADM-08 editor) wiring", () => {
     renderEditor(`/admin/supplier-invoices/${mockSupplierInvoiceConfirmed.id}`);
 
     await user.click(screen.getByText("admin.supplierInvoices.payment.title"));
+    // The dialog previews the credit movement (CreditMovementPreview) before submit.
+    expect(screen.getByText("invoices.detail.previousCredit")).toBeInTheDocument();
+    expect(screen.getByText("invoices.detail.newCredit")).toBeInTheDocument();
+
     const amountInput = screen.getByLabelText("admin.invoices.recordSupplierPayment.amountLabel");
     await user.clear(amountInput);
     await user.type(amountInput, "5000");

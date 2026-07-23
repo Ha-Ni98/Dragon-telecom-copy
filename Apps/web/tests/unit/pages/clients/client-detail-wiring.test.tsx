@@ -89,6 +89,12 @@ describe("AdminClientDetail (ADM-12b) wiring", () => {
     expect(screen.getAllByText(mockAdminClientPending.fullName).length).toBeGreaterThanOrEqual(1);
     await user.click(screen.getByText("admin.clients.detail.tabs.browsing"));
     expect(screen.getAllByText(mockClientActivity.product!.name).length).toBeGreaterThanOrEqual(1);
+
+    const productLinks = screen.getAllByRole("link", { name: mockClientActivity.product!.name });
+    expect(productLinks[0]).toHaveAttribute(
+      "href",
+      `/admin/products/${mockClientActivity.product!.id}`,
+    );
   });
 
   it("approves a PENDING client via the live mutation", async () => {
