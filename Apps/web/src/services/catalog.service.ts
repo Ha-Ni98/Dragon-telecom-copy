@@ -6,7 +6,7 @@
 // AdminProductInformation.tsx) was confirmed already fully wired onto the real hooks below
 // (useCatalogProducts.ts/useCatalogTaxonomy.ts) with zero remaining stub consumers — the
 // `use-brands.ts`/`use-models.ts` hooks a stale header comment once pointed to no longer exist.
-import { api } from "@/lib/axios";
+import { api, baseURL } from "@/lib/axios";
 import { apiPath, withParams } from "@/lib/api-path";
 import {
   CATALOG_ROUTES,
@@ -46,17 +46,32 @@ import {
 // (not `.coerce`) with no JSON.parse preprocessing in validate-request.middleware.ts, so a
 // multer-parsed body (all-string fields) will 400 against the live API regardless of encoding
 // — flagged for a contract/backend fix, out of scope for this frontend service.
-function commandToFormData(
+export function commandToFormData(
   command: Record<string, unknown>,
   files: File[],
   filesField: string,
 ): FormData {
   const formData = new FormData();
+
   for (const [key, value] of Object.entries(command)) {
     if (value === undefined) continue;
-    formData.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
+
+    if (value === null) {
+      formData.append(key, "null");
+    } else if (value instanceof Date) {
+      formData.append(key, value.toISOString());
+    } else if (Array.isArray(value) || typeof value === "object") {
+      formData.append(key, JSON.stringify(value));
+    } else {
+      // string | number | boolean | bigint
+      formData.append(key, String(value));
+    }
   }
-  files.forEach((file) => formData.append(filesField, file));
+
+  for (const file of files) {
+    formData.append(filesField, file);
+  }
+
   return formData;
 }
 
@@ -124,6 +139,10 @@ export async function getAdminProduct(id: string): Promise<AdminProductDto> {
     withParams(apiPath(CATALOG_ROUTES.ADMIN_PRODUCT_BY_ID), { id }),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  for (const image of res.data.data.images) {
+    // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
+    image.url = `${baseURL}${image.url}`;
+  }
   return res.data.data;
 }
 

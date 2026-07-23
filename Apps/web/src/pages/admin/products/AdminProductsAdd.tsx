@@ -163,7 +163,7 @@ export default function AdminProductsAdd() {
       {
         onSuccess: (product) => {
           setShowConfirm(false);
-          navigate(`/admin/products/${product.id}`);
+          navigate(`/admin/products/add`);
         },
         onError: () => setShowConfirm(false),
       },

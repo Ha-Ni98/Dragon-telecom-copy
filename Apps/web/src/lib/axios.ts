@@ -14,6 +14,8 @@ import * as tokenStore from "./token-store";
 // Exactly one axios instance (rules §3A). Bearer auth, not cookies — the API only reads
 // `Authorization: Bearer` (no cookie-parser, no `Set-Cookie`).
 // This file does no UI/toasts/domain transforms.
+export const baseURL = import.meta.env.VITE_API_URL;
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   timeout: 15_000,
