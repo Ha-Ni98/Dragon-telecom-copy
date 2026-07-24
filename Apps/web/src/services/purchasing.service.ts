@@ -8,6 +8,7 @@
 // files (useCreateSupplier/useUpdateSupplier/useSupplierById/useSupplierDetails/etc.).
 import { api } from "@/lib/axios";
 import { apiPath, withParams } from "@/lib/api-path";
+import { normalizeEmptyStrings } from "@/lib/validation/normlize-command";
 import {
   PURCHASING_ROUTES,
   type ApiResponse,
@@ -66,7 +67,7 @@ export async function getSupplier(id: string): Promise<SupplierDetailDto> {
 export async function createSupplier(command: CreateSupplierCommand): Promise<SupplierDto> {
   const res = await api.post<ApiResponse<SupplierDto>>(
     apiPath(PURCHASING_ROUTES.SUPPLIERS),
-    command,
+    normalizeEmptyStrings(command),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
