@@ -6,6 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { MovementType } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -18,18 +19,37 @@ export interface MovementFiltersValue {
 interface InventoryFiltersProps {
   value: MovementFiltersValue;
   onChange: (value: MovementFiltersValue) => void;
+  search: string;
+  onSearchChange: (value: string) => void;
   disabled?: boolean;
 }
 
-// ADM-06 Movement ledger tab filters — MovementsQuery (inventory.query.ts): `type`/`from`/`to`
-// (product/staff filters exist on the query too but have no obvious UI source list here yet —
-// left for Sprint 5 to add once the movements table's own data suggests a product/staff
-// picker; date range + type cover the query's simplest, always-available filters).
-export function InventoryFilters({ value, onChange, disabled = false }: InventoryFiltersProps) {
+// ADM-06 Movement ledger tab filters — MovementsQuery (inventory.query.ts): `search`/`type`/
+// `from`/`to`. `search` matches the movement's product by name or barcode (S4) and is *not* part
+// of MovementFiltersValue: the page debounces it separately, since MovementFiltersValue is applied
+// to the query immediately on every change. The `staffId` filter still has no UI (no staff picker
+// on this page); `productId` is now covered by the free-text search.
+export function InventoryFilters({
+  value,
+  onChange,
+  search,
+  onSearchChange,
+  disabled = false,
+}: InventoryFiltersProps) {
   const { t } = useTranslation();
 
   return (
     <div className="flex flex-wrap items-center gap-3">
+      <div className="relative w-full max-w-xs sm:w-64">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder={t("admin.inventory.movements.filters.search")}
+          disabled={disabled}
+          className="pl-9"
+        />
+      </div>
       <Select
         value={value.type ?? "all"}
         onValueChange={(v) =>

@@ -9,6 +9,7 @@ import {
   type ApiResponse,
   type PaginatedResult,
   type StockRowDto,
+  type StockQuery,
   type MovementsQuery,
   type MovementDto,
   type ReservationsQuery,
@@ -19,9 +20,10 @@ import {
 
 // Split from the dual-return backend method (StockRowDto[] | export-Blob) into two functions —
 // a query hook can only have one result type, and `export=csv` is a distinct caller intent.
-export async function getStock(lowStockOnly?: boolean): Promise<StockRowDto[]> {
+// The query is the contract's StockQuery minus `export` (which belongs to exportStockCsv below).
+export async function getStock(query: Omit<StockQuery, "export"> = {}): Promise<StockRowDto[]> {
   const res = await api.get<ApiResponse<StockRowDto[]>>(apiPath(INVENTORY_ROUTES.STOCK), {
-    params: { lowStockOnly },
+    params: { lowStockOnly: query.lowStockOnly, search: query.search },
   });
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
@@ -29,7 +31,8 @@ export async function getStock(lowStockOnly?: boolean): Promise<StockRowDto[]> {
 
 // Bypasses the envelope entirely (same pattern as platform.service.ts's exportFees — the
 // backend's getStock checks `'body' in result` and sends raw Content-Type/Content-Disposition
-// instead of calling sendSuccess when `export=csv` is set).
+// instead of calling sendSuccess when `export=csv` is set). Sends no filters: the export is
+// always the full stock list (S4 decision D-b).
 export async function exportStockCsv(): Promise<Blob> {
   const res = await api.get<Blob>(apiPath(INVENTORY_ROUTES.STOCK), {
     params: { export: "csv" },

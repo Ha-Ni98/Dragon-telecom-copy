@@ -12139,6 +12139,31 @@
     "fr": "Quantité",
     "ar": ""
   },
+  "admin.inventory.stock.table.reservedQuantity": {
+    "en": "Reserved qty",
+    "fr": "Qté réservée",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.availableQuantity": {
+    "en": "Available",
+    "fr": "Disponible",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.avgStockPrice": {
+    "en": "Avg. stock price",
+    "fr": "Prix de stock moyen",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.totalCost": {
+    "en": "Total cost",
+    "fr": "Coût total",
+    "ar": ""
+  },
+  "admin.inventory.stock.filters.search": {
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
+    "ar": ""
+  },
   "admin.inventory.stock.table.lowStock": {
     "en": "Low stock",
     "fr": "Stock faible",
@@ -12207,6 +12232,11 @@
   "admin.inventory.movements.filters.product": {
     "en": "Product",
     "fr": "Produit",
+    "ar": ""
+  },
+  "admin.inventory.movements.filters.search": {
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
     "ar": ""
   },
   "admin.inventory.movements.filters.type": {
@@ -12317,6 +12347,16 @@
   "admin.inventory.adjustment.unitCost": {
     "en": "Unit cost",
     "fr": "Coût unitaire",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.avgStockPriceHint": {
+    "en": "The average price is {price}",
+    "fr": "Le prix moyen est {price}",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.avgStockPriceUnknown": {
+    "en": "No average price yet — enter the unit cost",
+    "fr": "Aucun prix moyen — saisissez le coût unitaire",
     "ar": ""
   },
   "admin.inventory.adjustment.submit": {

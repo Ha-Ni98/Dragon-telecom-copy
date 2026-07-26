@@ -9,7 +9,9 @@ import type { useTranslation } from "@/hooks/useTranslation";
 // Adjustments tab already has loaded (`systemQuantityByProductId`, keyed by productId) and
 // enforces "unitCost required whenever countedQuantity > current system quantity" client-side
 // via `superRefine` (ADM-06 §4). `prices` (the optional reprice sub-form) is submitted as-is,
-// no local refine needed beyond the contract's own `UpdatePricingSchema`.
+// no local refine needed beyond the contract's own `UpdatePricingSchema`. The UI now pre-fills
+// `unitCost` from the product's `avgStockPrice` whenever one exists (S4, D10) — this refine still
+// fires for a never-stocked product (avgStockPrice 0, left blank) or a deliberately cleared field.
 export function adjustmentSchema(
   t: ReturnType<typeof useTranslation>["t"],
   systemQuantityByProductId: Record<string, number>,

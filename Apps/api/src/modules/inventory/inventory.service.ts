@@ -396,7 +396,18 @@ export class InventoryReadService implements IInventoryReadService {
   ) {}
 
   async getStock(query: StockQuery): Promise<StockRowDto[] | ExportResult> {
-    const products = await this.prisma.product.findMany({ orderBy: { name: 'asc' } });
+    // Name is a case-insensitive substring match; barcode is a prefix match so it can use the
+    // `Product.barcode @unique` btree index (S1 finding F1 — a `contains` predicate could not).
+    // A scanner emits a whole barcode, so `startsWith` also covers the exact-scan case.
+    const where: Prisma.ProductWhereInput = query.search
+      ? {
+          OR: [
+            { name: { contains: query.search, mode: 'insensitive' as const } },
+            { barcode: { startsWith: query.search } },
+          ],
+        }
+      : {};
+    const products = await this.prisma.product.findMany({ where, orderBy: { name: 'asc' } });
     const rows = products.map((product) => InventoryMapper.toStockRowDto(product));
     const filtered = query.lowStockOnly ? rows.filter((row) => row.isLow) : rows;
 
@@ -432,6 +443,18 @@ export class InventoryReadService implements IInventoryReadService {
       ...(query.staffId ? { staffId: query.staffId } : {}),
       ...(query.from || toExclusive
         ? { createdAt: { ...(query.from ? { gte: new Date(query.from) } : {}), ...(toExclusive ? { lt: toExclusive } : {}) } }
+        : {}),
+      // Product search — same name/barcode predicate as getStock, applied through the movement's
+      // product relation (StockMovement itself carries no product name or barcode).
+      ...(query.search
+        ? {
+            product: {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' as const } },
+                { barcode: { startsWith: query.search } },
+              ],
+            },
+          }
         : {}),
     };
 
