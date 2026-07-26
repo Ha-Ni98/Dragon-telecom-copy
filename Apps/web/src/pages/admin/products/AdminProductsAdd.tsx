@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Wand2, X, GripVertical, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,9 @@ const optionalNumber = (raw: string) => (raw === "" ? undefined : Number(raw));
 // since the id always resolves before submit; they exist on the command for API completeness.
 // Auto-name recompute is plain string concatenation (no fake "API delay" stub — the deleted
 // use-product-name-generation.ts simulated a network call for what's just string interpolation).
+// On a successful create, the form is fully reset (S3 F4) — a same-path navigate() does not
+// remount this route element, so without an explicit reset every field, staged image and the
+// manual-name flag would survive into the "next" product.
 export default function AdminProductsAdd() {
   const navigate = useNavigate();
   const { t, language } = useTranslation();
@@ -87,6 +91,7 @@ export default function AdminProductsAdd() {
     watch,
     setValue,
     getValues,
+    reset,
     formState: { errors },
   } = useForm<ProductsAddFormValues>({
     resolver: zodResolver(productsAddSchema(t)),
@@ -100,6 +105,7 @@ export default function AdminProductsAdd() {
     "initialQuantity",
     "initialUnitCost",
   ]);
+  const categoryPrices = watch("categoryPrices");
 
   const familyName = families?.find((f) => f.id === familyId)?.name ?? "";
   const brandName = brands?.find((b) => b.id === brandId)?.name ?? "";
@@ -142,7 +148,7 @@ export default function AdminProductsAdd() {
   };
 
   const categoryPriceValue = (categoryId: string) =>
-    getValues("categoryPrices")?.find((c) => c.categoryId === categoryId)?.price;
+    categoryPrices?.find((c) => c.categoryId === categoryId)?.price;
 
   const setCategoryPrice = (categoryId: string, price: number) => {
     const current = getValues("categoryPrices") ?? [];
@@ -157,9 +163,17 @@ export default function AdminProductsAdd() {
     createProduct.mutate(
       { command: values, images: images.map((img) => img.file) },
       {
-        onSuccess: (product) => {
+        onSuccess: () => {
           setShowConfirm(false);
-          navigate(`/admin/products/add`);
+          toast.success(t("admin.productsAdd.createSuccess"));
+          // A same-path navigate() does not remount this route element, so the old code left every
+          // field, every staged image and the manual-name flag in place. Reset the form state
+          // explicitly instead — and revoke the object URLs, or the staged previews leak.
+          images.forEach((img) => URL.revokeObjectURL(img.preview));
+          setImages([]);
+          setNameManuallyEdited(false);
+          setSelectedBrandId(undefined);
+          reset({ name: "", initialQuantity: 0 });
         },
         onError: () => setShowConfirm(false),
       },
@@ -183,26 +197,6 @@ export default function AdminProductsAdd() {
             <CardTitle>{t("admin.productsAdd.card.basicInfo")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="add-barcode">{t("admin.productsAdd.barcodeLabel")}</Label>
-              <div className="flex gap-2">
-                <Input id="add-barcode" {...register("barcode")} />
-                <Button type="button" variant="outline" onClick={generateBarcode}>
-                  <Wand2 className="mr-1 h-4 w-4" />
-                  {t("admin.productsAdd.autoGenerateBarcode")}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="add-name">{t("admin.productsAdd.nameLabel")}</Label>
-              <Input
-                id="add-name"
-                {...register("name", { onChange: () => setNameManuallyEdited(true) })}
-              />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-            </div>
-
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label>{t("admin.productsAdd.familyLabel")}</Label>
@@ -297,8 +291,28 @@ export default function AdminProductsAdd() {
             </div>
 
             <div className="space-y-1">
+              <Label htmlFor="add-name">{t("admin.productsAdd.nameLabel")}</Label>
+              <Input
+                id="add-name"
+                {...register("name", { onChange: () => setNameManuallyEdited(true) })}
+              />
+              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+            </div>
+
+            <div className="space-y-1">
               <Label htmlFor="add-description">{t("admin.productsAdd.descriptionLabel")}</Label>
               <Textarea id="add-description" rows={3} {...register("description")} />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="add-barcode">{t("admin.productsAdd.barcodeLabel")}</Label>
+              <div className="flex gap-2">
+                <Input id="add-barcode" {...register("barcode")} />
+                <Button type="button" variant="outline" onClick={generateBarcode}>
+                  <Wand2 className="mr-1 h-4 w-4" />
+                  {t("admin.productsAdd.autoGenerateBarcode")}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -4,9 +4,11 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SimplePagination } from "@/components/shared/SimplePagination";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminProductsStatsCards } from "@/pages/admin/products/components/admin-products-stats-cards";
 import { AdminProductsFilters } from "@/pages/admin/products/components/admin-products-filters";
 import { AdminProductsTable } from "@/pages/admin/products/components/admin-products-table";
+import { AdminProductPricesTable } from "@/pages/admin/products/components/admin-product-prices-table";
 import {
   useAdminCatalogProducts,
   useProductStats,
@@ -191,16 +193,36 @@ export default function AdminProducts() {
         onClearFilters={handleClearFilters}
       />
 
-      <AdminProductsTable
-        products={products}
-        isLoading={productsLoading}
-        isError={productsError}
-        onRetry={handleRetry}
-        onClearFilters={handleClearFilters}
-        optimisticOverrides={optimisticOverrides}
-        onTogglePublished={(product, isPublished) => applyToggle(product, { isPublished })}
-        onToggleEnabled={(product, isEnabled) => applyToggle(product, { isEnabled })}
-      />
+      {/* Filters/stats/pagination above stay outside the tabs (S3) — both tabs render the same
+          `products` array from the same query, so search/family/brand/model/stock-status
+          filtering and paging apply to both without duplicating the query or its state. */}
+      <Tabs defaultValue="stock">
+        <TabsList>
+          <TabsTrigger value="stock">{t("admin.productsList.tabs.stock")}</TabsTrigger>
+          <TabsTrigger value="prices">{t("admin.productsList.tabs.prices")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="stock">
+          <AdminProductsTable
+            products={products}
+            isLoading={productsLoading}
+            isError={productsError}
+            onRetry={handleRetry}
+            onClearFilters={handleClearFilters}
+            optimisticOverrides={optimisticOverrides}
+            onTogglePublished={(product, isPublished) => applyToggle(product, { isPublished })}
+            onToggleEnabled={(product, isEnabled) => applyToggle(product, { isEnabled })}
+          />
+        </TabsContent>
+        <TabsContent value="prices">
+          <AdminProductPricesTable
+            products={products}
+            isLoading={productsLoading}
+            isError={productsError}
+            onRetry={handleRetry}
+            onClearFilters={handleClearFilters}
+          />
+        </TabsContent>
+      </Tabs>
 
       {productsResult && productsResult.meta.totalPages > 1 && (
         <SimplePagination

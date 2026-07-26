@@ -15,6 +15,7 @@ import type {
   ModelIdParams,
   ModelsQuery,
   ProductIdParams,
+  ProductImageParams,
   ProductListQuery,
   SetModelFamiliesCommand,
   UpdateBrandCommand,
@@ -165,6 +166,15 @@ export class CatalogController {
       sendSuccess(res, await this.products.updateImages(id, req.validated.body as UpdateProductImagesCommand));
     } catch (error) {
       next(error);
+    }
+  };
+
+  deleteImage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id, imageId } = req.validated.params as ProductImageParams;
+      sendSuccess(res, await this.products.deleteImage(id, imageId));
+    } catch (err) {
+      next(err);
     }
   };
 

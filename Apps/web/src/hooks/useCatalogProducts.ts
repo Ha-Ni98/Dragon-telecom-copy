@@ -132,3 +132,18 @@ export function useUpdateProductImages() {
     },
   });
 }
+
+export function useDeleteProductImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, imageId }: { id: string; imageId: string }) =>
+      catalogService.deleteImage(id, imageId),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.detail(id) });
+      // The public/product lists render the primary image, and deleting one can promote a new
+      // primary — so both list caches are stale, not just this product's detail.
+      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.products.all() });
+    },
+  });
+}

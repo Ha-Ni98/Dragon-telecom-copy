@@ -3030,13 +3030,13 @@
     "ar": ""
   },
   "admin.productInfo.imageRemoveError": {
-    "en": "Failed to remove image",
+    "en": "Couldn't remove the image",
     "fr": "Échec de la suppression de l'image",
     "ar": ""
   },
   "admin.productInfo.imageRemoveSuccess": {
-    "en": "Image removed successfully",
-    "fr": "Image supprimée avec succès",
+    "en": "Image removed",
+    "fr": "Image supprimée",
     "ar": ""
   },
   "admin.productInfo.imageUploadError": {
@@ -3090,8 +3090,23 @@
     "ar": ""
   },
   "admin.productInfo.removeImage": {
-    "en": "Remove Image",
-    "fr": "Supprimer l'Image",
+    "en": "Remove image",
+    "fr": "Supprimer l'image",
+    "ar": ""
+  },
+  "admin.productInfo.images.confirmRemove": {
+    "en": "Remove this image?",
+    "fr": "Supprimer cette image ?",
+    "ar": ""
+  },
+  "admin.productInfo.saveSuccess": {
+    "en": "Product saved",
+    "fr": "Produit enregistré",
+    "ar": ""
+  },
+  "admin.productInfo.saveError": {
+    "en": "Couldn't save the product — check the highlighted fields",
+    "fr": "Échec de l'enregistrement — vérifiez les champs signalés",
     "ar": ""
   },
   "admin.productInfo.save": {
@@ -11575,8 +11590,8 @@
     "ar": ""
   },
   "admin.productsList.filters.search": {
-    "en": "Search products",
-    "fr": "Rechercher des produits",
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
     "ar": ""
   },
   "admin.productsList.filters.family": {
@@ -11635,8 +11650,28 @@
     "ar": ""
   },
   "admin.productsList.table.avgCost": {
-    "en": "Avg. cost",
-    "fr": "Coût moyen",
+    "en": "Avg. stock price",
+    "fr": "Prix de stock moyen",
+    "ar": ""
+  },
+  "admin.productsList.table.guestPrice": {
+    "en": "Guest price",
+    "fr": "Prix invité",
+    "ar": ""
+  },
+  "admin.productsList.table.defaultPrice": {
+    "en": "Default price",
+    "fr": "Prix par défaut",
+    "ar": ""
+  },
+  "admin.productsList.tabs.stock": {
+    "en": "Stock",
+    "fr": "Stock",
+    "ar": ""
+  },
+  "admin.productsList.tabs.prices": {
+    "en": "Prices",
+    "fr": "Prix",
     "ar": ""
   },
   "admin.productsList.table.stockBadge": {
@@ -11667,6 +11702,11 @@
   "admin.productsList.table.error": {
     "en": "Couldn't load products — retry",
     "fr": "Échec du chargement des produits — réessayer",
+    "ar": ""
+  },
+  "admin.productsAdd.createSuccess": {
+    "en": "Product created",
+    "fr": "Produit créé",
     "ar": ""
   },
   "admin.productsAdd.pageTitle": {
@@ -11894,9 +11934,14 @@
     "fr": "Disponible",
     "ar": ""
   },
-  "admin.productInfo.stock.avgCost": {
-    "en": "Avg. cost",
-    "fr": "Coût moyen",
+  "admin.productInfo.stock.avgStockPrice": {
+    "en": "Avg. stock price",
+    "fr": "Prix de stock moyen",
+    "ar": ""
+  },
+  "admin.productInfo.stock.avgPrice": {
+    "en": "Avg. purchase price",
+    "fr": "Prix d'achat moyen",
     "ar": ""
   },
   "admin.productInfo.stock.stockValue": {

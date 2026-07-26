@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import { unlink } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import type { ClientCategory, PrismaClient, Product } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import {
   AdminProductResponseSchema,
   MovementType,
+  PRODUCT_UPLOAD_DIR,
   ProductSort,
   ProductWithPricingResponseSchema,
   StaffProductResponseSchema,
@@ -696,6 +699,42 @@ export class CatalogProductService implements ICatalogProductService {
     return this.getAdminProduct(id);
   }
 
+  // Deletes the row *and* the file on disk (S3). The DB row is the source of truth: if the file
+  // is already gone (manual cleanup, a failed earlier delete) the unlink error is swallowed and
+  // the row still goes — an orphaned row would keep rendering a broken <img>, which is worse than
+  // an orphaned file. `basename()` is a path-traversal guard: `url` is written by this service as
+  // `/uploads/<generated-uuid><ext>`, but it is still a stored string, so the filesystem path is
+  // rebuilt from its last segment only and never from the stored value directly.
+  async deleteImage(id: string, imageId: string): Promise<AdminProductDto> {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    if (!product) throw new NotFoundError('Product');
+
+    const image = await this.prisma.productImage.findUnique({ where: { id: imageId } });
+    if (!image || image.productId !== id) throw new NotFoundError('ProductImage');
+
+    await this.prisma.productImage.delete({ where: { id: imageId } });
+
+    // Deleting the primary leaves the product with no primary at all, so the storefront card and
+    // every `images[0]`-style consumer would render nothing. Promote the lowest-position survivor.
+    if (image.isPrimary) {
+      const next = await this.prisma.productImage.findFirst({
+        where: { productId: id },
+        orderBy: [{ position: 'asc' }, { id: 'asc' }],
+      });
+      if (next) {
+        await this.prisma.productImage.update({ where: { id: next.id }, data: { isPrimary: true } });
+      }
+    }
+
+    try {
+      await unlink(join(process.cwd(), PRODUCT_UPLOAD_DIR, basename(image.url)));
+    } catch {
+      // File already absent — the row is gone, which is what the caller asked for.
+    }
+
+    return this.getAdminProduct(id);
+  }
+
   // Fetches minimal columns for every product and reduces in application code — no raw SQL for
   // the onHand-vs-reserved comparison; the catalog scale this app targets (a single store's
   // parts inventory) makes this trivially cheap.
@@ -855,7 +894,17 @@ export class CatalogProductService implements ICatalogProductService {
   private staffAdminWhere(query: ProductListQuery, extra: Prisma.ProductWhereInput = {}): Prisma.ProductWhereInput {
     return {
       ...extra,
-      ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+      // Name is a case-insensitive substring match; barcode is a prefix match so it can use the
+      // `Product.barcode @unique` btree index (S1 finding F1 — a `contains` predicate could not).
+      // A scanner emits a whole barcode, so `startsWith` also covers the exact-scan case.
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' as const } },
+              { barcode: { startsWith: query.search } },
+            ],
+          }
+        : {}),
       ...(query.familyId != null ? { familyId: query.familyId } : {}),
       ...(query.brandId != null ? { brandId: query.brandId } : {}),
       ...(query.modelId != null ? { deviceModelId: query.modelId } : {}),

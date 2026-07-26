@@ -1,10 +1,15 @@
 import { useState } from "react";
-import { Upload, Image as ImageIcon, GripVertical } from "lucide-react";
+import { Upload, Image as ImageIcon, GripVertical, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useAddProductImages, useUpdateProductImages } from "@/hooks/useCatalogProducts";
+import {
+  useAddProductImages,
+  useUpdateProductImages,
+  useDeleteProductImage,
+} from "@/hooks/useCatalogProducts";
 import type { AdminProductDto } from "@dragon-telecom/contract";
 
 interface ProductImagesSectionProps {
@@ -17,14 +22,27 @@ interface ProductImagesSectionProps {
 // (CATALOG_ROUTES.IMAGES PATCH sets isPrimary/position together, mirrors the backend's
 // createProduct convention of "first file = primary").
 //
-// Known gap: there is no DELETE /admin/products/:id/images endpoint (only POST add + PATCH
-// reorder/metadata) — this card can add and reorder images but cannot remove one already
-// uploaded. Out of this sprint's authorized scope to add a new endpoint for.
+// S3 added DELETE CATALOG_ROUTES.IMAGE_BY_ID — the backend removes the row, unlinks the file on
+// disk, and (if the removed image was primary) promotes the lowest-position survivor, so this
+// card no longer needs to do any of that itself; it just fires the mutation and lets the
+// invalidated query re-render.
 export function ProductImagesSection({ product }: ProductImagesSectionProps) {
   const { t } = useTranslation();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const addImages = useAddProductImages();
   const updateImages = useUpdateProductImages();
+  const deleteImage = useDeleteProductImage();
+
+  const handleRemove = (imageId: string) => {
+    if (!window.confirm(t("admin.productInfo.images.confirmRemove"))) return;
+    deleteImage.mutate(
+      { id: product.id, imageId },
+      {
+        onSuccess: () => toast.success(t("admin.productInfo.imageRemoveSuccess")),
+        onError: () => toast.error(t("admin.productInfo.imageRemoveError")),
+      },
+    );
+  };
 
   const handleFilesSelected = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -89,6 +107,17 @@ export function ProductImagesSection({ product }: ProductImagesSectionProps) {
                 </Badge>
               )}
               <GripVertical className="absolute right-1 top-1 h-4 w-4 cursor-move text-white drop-shadow" />
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="absolute bottom-1 right-1 h-6 w-6"
+                aria-label={t("admin.productInfo.removeImage")}
+                disabled={deleteImage.isPending}
+                onClick={() => handleRemove(image.id)}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
             </div>
           ))}
           {product.images.length < 3 && (

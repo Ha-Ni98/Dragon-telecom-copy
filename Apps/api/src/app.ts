@@ -8,6 +8,7 @@ import { sendSuccess } from './common/http/response';
 import { globalErrorHandler } from './common/middlewares/error.middleware';
 import { registerModules } from './modules';
 import path from 'path';
+import { PRODUCT_UPLOAD_DIR } from '@dragon-telecom/contract';
 
 export const app = express();
 
@@ -29,7 +30,7 @@ registerModules(apiRouter);
 app.use(env.API_PREFIX, apiRouter);
 app.use(
   `${env.API_PREFIX}/uploads`,
-  express.static(path.join(process.cwd(), "uploads"))
+  express.static(path.join(process.cwd(), PRODUCT_UPLOAD_DIR))
 );
 
 app.use(globalErrorHandler);

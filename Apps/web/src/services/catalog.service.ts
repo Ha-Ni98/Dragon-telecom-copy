@@ -205,6 +205,14 @@ export async function updateImages(
   return res.data.data;
 }
 
+export async function deleteImage(id: string, imageId: string): Promise<AdminProductDto> {
+  const res = await api.delete<ApiResponse<AdminProductDto>>(
+    withParams(apiPath(CATALOG_ROUTES.IMAGE_BY_ID), { id, imageId }),
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
 export async function productStats(): Promise<ProductStatsDto> {
   const res = await api.get<ApiResponse<ProductStatsDto>>(apiPath(CATALOG_ROUTES.PRODUCT_STATS));
   if (!res.data.success) throw new Error(res.data.error.message); // defensive

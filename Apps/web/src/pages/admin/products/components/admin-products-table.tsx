@@ -42,6 +42,9 @@ interface AdminProductsTableProps {
 // Set-03 Sprint 5 rewire — was numeric-id AdminProductWithDetails w/ delete + "add stock"
 // actions that don't exist in ADM-02's spec ("No stock entry here — stock arrives only via
 // supplier invoices or adjustments"). Dropped both; row action is Edit only (→ ADM-04).
+// S3: dropped the "image" column — it rendered a static placeholder icon on every row and
+// carried no real data, and removing it gives the other columns (notably the stock-status
+// pill) back the width they needed.
 export function AdminProductsTable({
   products,
   isLoading,
@@ -61,15 +64,6 @@ export function AdminProductsTable({
 
   const columns = useMemo<ColumnDef<AdminProductDto>[]>(
     () => [
-      {
-        id: "image",
-        header: t("admin.productsList.table.image"),
-        cell: () => (
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </div>
-        ),
-      },
       {
         accessorKey: "name",
         header: t("admin.productsList.table.product"),
@@ -167,7 +161,7 @@ export function AdminProductsTable({
     </div>
   );
 
-  if (isLoading) return <TableSkeleton rows={8} columns={11} />;
+  if (isLoading) return <TableSkeleton rows={8} columns={10} />;
 
   if (isError) {
     return (

@@ -7,6 +7,12 @@ import { useTranslation } from "@/hooks/useTranslation";
 import type { AdminProductDto } from "@dragon-telecom/contract";
 import type { ProductDetailsFormValues } from "@/pages/admin/products/product-details.schema";
 
+// `valueAsNumber: true` maps an *empty* input to NaN, not undefined — and `z.number()` rejects
+// NaN, so the whole form failed validation and `handleSubmit` never fired: clearing the reorder
+// threshold silently saved nothing (S3 finding F1, second site). Same trap, same fix as
+// AdminProductsAdd.tsx / enhanced-pricing-section.tsx.
+const optionalNumber = (raw: string) => (raw === "" ? undefined : Number(raw));
+
 interface ProductDetailsSectionProps {
   product: AdminProductDto;
   isEditMode: boolean;
@@ -80,7 +86,7 @@ export function ProductDetailsSection({
               id="details-threshold"
               type="number"
               min={0}
-              {...register("reorderThreshold", { valueAsNumber: true })}
+              {...register("reorderThreshold", { setValueAs: optionalNumber })}
             />
           </div>
         )}

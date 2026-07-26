@@ -30,6 +30,10 @@ export type ModelsQuery = z.infer<typeof ModelsQuerySchema>;
 export const ProductIdParamsSchema = z.object({ id: z.uuid() });
 export type ProductIdParams = z.infer<typeof ProductIdParamsSchema>;
 
+// Two-param route (product + image) — mirrors repairs' RepairPartParamsSchema precedent.
+export const ProductImageParamsSchema = z.object({ id: z.uuid(), imageId: z.uuid() });
+export type ProductImageParams = z.infer<typeof ProductImageParamsSchema>;
+
 export const BrandIdParamsSchema = z.object({ id: z.uuid() });
 export type BrandIdParams = z.infer<typeof BrandIdParamsSchema>;
 

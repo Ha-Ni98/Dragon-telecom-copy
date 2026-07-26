@@ -9,6 +9,7 @@ export const CATALOG_ROUTES = {
   ADMIN_PRODUCT_BY_ID: '/admin/products/:id',
   PRICING: '/admin/products/:id/pricing',
   IMAGES: '/admin/products/:id/images',
+  IMAGE_BY_ID: '/admin/products/:id/images/:imageId',
   IMAGE: '/uploads/:id',
   PRODUCT_STATS: '/admin/products/stats',
   ADMIN_BRANDS: '/admin/brands',
@@ -22,3 +23,7 @@ export const CATALOG_ROUTES = {
   CATEGORIES_CUD: '/admin/client-categories',
   CATEGORY_BY_ID: '/admin/client-categories/:id',
 } as const;
+
+// The on-disk directory product images are written to and served from. Shared because three
+// places must agree on it: multer's destination, express.static's mount, and the delete path.
+export const PRODUCT_UPLOAD_DIR = 'uploads';
