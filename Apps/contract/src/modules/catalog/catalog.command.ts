@@ -2,8 +2,21 @@ import { z } from 'zod';
 
 const CategoryPriceInputSchema = z.object({
   categoryId: z.uuid(),
-  price: z.number().min(0),
+  price: z.coerce.number().min(0),
 });
+
+export const zJson = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }, schema);
 
 // XOR: familyId|newFamilyName, brandId|newBrandName; modelId/newModelName mutually exclusive
 // (both may be absent — a universal part has no model). initialUnitCost required iff
@@ -19,12 +32,12 @@ export const CreateProductSchema = z
     newBrandName: z.string().optional(),
     modelId: z.uuid().optional(),
     newModelName: z.string().optional(),
-    initialQuantity: z.number().int().min(0),
-    initialUnitCost: z.number().min(0).optional(),
-    guestPrice: z.number().min(0).optional(),
-    defaultSalePrice: z.number().min(0).optional(),
-    categoryPrices: z.array(CategoryPriceInputSchema).optional(),
-    reorderThreshold: z.number().int().min(0).optional(),
+    initialQuantity: z.coerce.number().int().min(0),
+    initialUnitCost: z.coerce.number().min(0).optional(),
+    guestPrice: z.coerce.number().min(0).optional(),
+    defaultSalePrice: z.coerce.number().min(0).optional(),
+    categoryPrices: zJson(z.array(CategoryPriceInputSchema)).optional(),
+    reorderThreshold: z.coerce.number().int().min(0).optional(),
   })
   .refine((d) => (d.familyId === undefined) !== (d.newFamilyName === undefined), {
     message: 'Exactly one of familyId or newFamilyName is required',
@@ -61,16 +74,16 @@ export const UpdateProductSchema = z.object({
   barcode: z.string().optional(),
   name: z.string().optional(),
   description: z.string().optional(),
-  reorderThreshold: z.number().int().min(0).optional(),
+  reorderThreshold: z.coerce.number().int().min(0).optional(),
   isPublished: z.boolean().optional(),
   isEnabled: z.boolean().optional(),
 });
 export type UpdateProductCommand = z.infer<typeof UpdateProductSchema>;
 
 export const UpdatePricingSchema = z.object({
-  guestPrice: z.number().min(0).nullable().optional(),
-  defaultSalePrice: z.number().min(0).optional(),
-  categoryPrices: z.array(CategoryPriceInputSchema).optional(),
+  guestPrice: z.coerce.number().min(0).nullable().optional(),
+  defaultSalePrice: z.coerce.number().min(0).optional(),
+  categoryPrices: zJson(z.array(CategoryPriceInputSchema)).optional(),
 });
 export type UpdatePricingCommand = z.infer<typeof UpdatePricingSchema>;
 
@@ -124,25 +137,25 @@ export type SetModelFamiliesCommand = z.infer<typeof SetModelFamiliesSchema>;
 // File bytes travel via multipart form-data outside this schema (like platform's Excel
 // import); these fields are the accompanying per-image metadata.
 export const AddProductImagesSchema = z.object({
-  images: z.array(
+  images: zJson(z.array(
     z.object({
       alt: z.string().optional(),
       position: z.number().int().min(0).optional(),
       isPrimary: z.boolean().optional(),
     }),
-  ),
+  )),
 });
 export type AddProductImagesCommand = z.infer<typeof AddProductImagesSchema>;
 
 export const UpdateProductImagesSchema = z.object({
-  images: z.array(
+  images: zJson(z.array(
     z.object({
       id: z.uuid(),
       alt: z.string().optional(),
       position: z.number().int().min(0).optional(),
       isPrimary: z.boolean().optional(),
     }),
-  ),
+  )),
 });
 export type UpdateProductImagesCommand = z.infer<typeof UpdateProductImagesSchema>;
 

@@ -539,11 +539,12 @@ export class CatalogProductService implements ICatalogProductService {
         const product = await tx.product.create({
           data: {
             sku: generateSku(),
-            ...(cmd.barcode != null ? { barcode: cmd.barcode } : {}),
+            ...(cmd.barcode != null && cmd.barcode.trim() !== '' ? { barcode: cmd.barcode } : {}),
             name: cmd.name,
             ...(cmd.description != null ? { description: cmd.description } : {}),
             familyId,
             brandId,
+            isPublished: true,
             ...(deviceModelId != null ? { deviceModelId } : {}),
             ...(cmd.guestPrice != null ? { guestPrice: cmd.guestPrice } : {}),
             ...(cmd.defaultSalePrice != null ? { defaultSalePrice: cmd.defaultSalePrice } : {}),

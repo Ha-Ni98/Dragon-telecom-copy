@@ -3,97 +3,73 @@
  * Displays general statistics in responsive cards with proper formatting
  */
 
-import React from 'react';
-import {
-  DollarSign,
-  TrendingUp,
-  Package,
-  Users,
-  Truck,
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatCard } from '@/components/shared/StatCard';
-import { StatCardSkeleton } from '@/components/shared/StatCardSkeleton';
-import { EmptyState } from '@/components/shared/EmptyState';
-import { AdminStatisticsOverviewCardsProps, AdminStatisticsOverview } from '@/types/draft-types/admin-statistics.types';
-import { useTranslation } from '@/hooks/useTranslation';
+import { DollarSign, TrendingUp, Package, Users, Truck } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard } from "@/components/shared/StatCard";
+import { StatCardSkeleton } from "@/components/shared/StatCardSkeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
+import type { OverviewDto } from "@dragon-telecom/contract";
+import { useTranslation } from "@/hooks/useTranslation";
 
-/**
- * Statistics card configuration
- */
+interface AdminStatisticsOverviewCardsProps {
+  stats?: OverviewDto;
+  loading?: boolean;
+  className?: string;
+}
+
+// ADM-15 — retyped off OverviewDto (statistics.dtos.ts): `stockValue` (was the view-model's
+// `totalProductValue` — reusing the same translation keys since the copy still describes
+// "value of products in stock").
 const statsConfig = [
   {
-    key: 'totalRevenue' as keyof AdminStatisticsOverview,
+    key: "totalRevenue" as keyof OverviewDto,
     icon: DollarSign,
-    labelKey: 'admin.statistics.overview.totalRevenue',
-    descriptionKey: 'admin.statistics.overview.descriptions.totalRevenue',
-    isCurrency: true,
+    labelKey: "admin.statistics.overview.totalRevenue",
+    descriptionKey: "admin.statistics.overview.descriptions.totalRevenue",
   },
   {
-    key: 'totalProfit' as keyof AdminStatisticsOverview,
+    key: "totalProfit" as keyof OverviewDto,
     icon: TrendingUp,
-    labelKey: 'admin.statistics.overview.totalProfit',
-    descriptionKey: 'admin.statistics.overview.descriptions.totalProfit',
-    isCurrency: true,
+    labelKey: "admin.statistics.overview.totalProfit",
+    descriptionKey: "admin.statistics.overview.descriptions.totalProfit",
   },
   {
-    key: 'totalProductValue' as keyof AdminStatisticsOverview,
+    key: "stockValue" as keyof OverviewDto,
     icon: Package,
-    labelKey: 'admin.statistics.overview.totalProductValue',
-    descriptionKey: 'admin.statistics.overview.descriptions.totalProductValue',
-    isCurrency: true,
+    labelKey: "admin.statistics.overview.totalProductValue",
+    descriptionKey: "admin.statistics.overview.descriptions.totalProductValue",
   },
   {
-    key: 'totalClientCredit' as keyof AdminStatisticsOverview,
+    key: "totalClientCredit" as keyof OverviewDto,
     icon: Users,
-    labelKey: 'admin.statistics.overview.totalClientCredit',
-    descriptionKey: 'admin.statistics.overview.descriptions.totalClientCredit',
-    isCurrency: true,
+    labelKey: "admin.statistics.overview.totalClientCredit",
+    descriptionKey: "admin.statistics.overview.descriptions.totalClientCredit",
   },
   {
-    key: 'totalSupplierCredit' as keyof AdminStatisticsOverview,
+    key: "totalSupplierCredit" as keyof OverviewDto,
     icon: Truck,
-    labelKey: 'admin.statistics.overview.totalSupplierCredit',
-    descriptionKey: 'admin.statistics.overview.descriptions.totalSupplierCredit',
-    isCurrency: true,
+    labelKey: "admin.statistics.overview.totalSupplierCredit",
+    descriptionKey: "admin.statistics.overview.descriptions.totalSupplierCredit",
   },
 ];
 
 /**
  * Format currency value with proper localization
  */
-function formatCurrency(value: number, locale: string = 'en-US'): string {
+function formatCurrency(value: number, locale: string = "en-US"): string {
   return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'DZD',
+    style: "currency",
+    currency: "DZD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value);
 }
 
-/**
- * Format large numbers with appropriate suffixes
- */
-function formatLargeNumber(value: number): string {
-  if (value >= 1000000000) {
-    return (value / 1000000000).toFixed(1) + 'B';
-  } else if (value >= 1000000) {
-    return (value / 1000000).toFixed(1) + 'M';
-  } else if (value >= 1000) {
-    return (value / 1000).toFixed(1) + 'K';
-  }
-  return value.toString();
-}
-
-/**
- * Admin Statistics Overview Cards Component
- * Displays general statistics in responsive cards with proper formatting
- */
-export const AdminStatisticsOverviewCards: React.FC<AdminStatisticsOverviewCardsProps> = ({
+export function AdminStatisticsOverviewCards({
   stats,
   loading = false,
-  className = '',
-}) => {
+  className = "",
+}: AdminStatisticsOverviewCardsProps) {
   const { t } = useTranslation();
 
   // Loading state
@@ -103,11 +79,9 @@ export const AdminStatisticsOverviewCards: React.FC<AdminStatisticsOverviewCards
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            {t('admin.statistics.overview')}
+            {t("admin.statistics.overview")}
           </CardTitle>
-          <CardDescription>
-            {t('admin.statistics.overview.subtitle')}
-          </CardDescription>
+          <CardDescription>{t("admin.statistics.overview.subtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -127,17 +101,15 @@ export const AdminStatisticsOverviewCards: React.FC<AdminStatisticsOverviewCards
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            {t('admin.statistics.overview')}
+            {t("admin.statistics.overview")}
           </CardTitle>
-          <CardDescription>
-            {t('admin.statistics.overview.subtitle')}
-          </CardDescription>
+          <CardDescription>{t("admin.statistics.overview.subtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <EmptyState
             icon={<Package className="h-6 w-6" />}
-            title={t('common.errorLoadingData')}
-            body={t('admin.statistics.error')}
+            title={t("common.errorLoadingData")}
+            body={t("admin.statistics.error")}
           />
         </CardContent>
       </Card>
@@ -149,25 +121,23 @@ export const AdminStatisticsOverviewCards: React.FC<AdminStatisticsOverviewCards
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Package className="h-5 w-5" />
-          {t('admin.statistics.overview')}
+          {t("admin.statistics.overview")}
         </CardTitle>
-        <CardDescription>
-          {t('admin.statistics.overview.subtitle')}
-        </CardDescription>
+        <CardDescription>{t("admin.statistics.overview.subtitle")}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {statsConfig.map((config) => {
             const Icon = config.icon;
-            const value = stats[config.key];
-            const formattedValue = config.isCurrency ? formatCurrency(value) : formatLargeNumber(value);
             return (
               <StatCard
                 key={config.key}
                 icon={<Icon className="h-5 w-5" />}
                 label={t(config.labelKey)}
-                value={formattedValue}
-                trend={<span className="text-xs text-muted-foreground">{t(config.descriptionKey)}</span>}
+                value={formatCurrency(stats[config.key])}
+                trend={
+                  <span className="text-xs text-muted-foreground">{t(config.descriptionKey)}</span>
+                }
               />
             );
           })}
@@ -175,4 +145,6 @@ export const AdminStatisticsOverviewCards: React.FC<AdminStatisticsOverviewCards
       </CardContent>
     </Card>
   );
-};
+}
+
+export default AdminStatisticsOverviewCards;

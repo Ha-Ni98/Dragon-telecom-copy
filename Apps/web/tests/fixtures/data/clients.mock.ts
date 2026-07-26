@@ -117,4 +117,5 @@ export const mockClientStats: ClientStatsDto = ClientStatsResponseSchema.parse({
   pending: 5,
   approved: 30,
   rejected: 5,
+  newThisMonth: 6,
 });

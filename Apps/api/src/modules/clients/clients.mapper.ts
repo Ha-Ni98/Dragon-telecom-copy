@@ -38,7 +38,13 @@ export type PosClientRow = PosClient & {
   linkedClient: Pick<Client, 'id'> | null;
 };
 
-export type ClientStatsCounts = { totalClients: number; pending: number; approved: number; rejected: number };
+export type ClientStatsCounts = {
+  totalClients: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  newThisMonth: number;
+};
 
 export class ClientsMapper {
   // The phone-shape/registration lookup that produces isValid/status is business logic (the

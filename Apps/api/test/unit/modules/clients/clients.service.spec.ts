@@ -215,6 +215,26 @@ describe('ClientsService', () => {
     });
   });
 
+  describe('clientStats', () => {
+    it('counts total/pending/approved/rejected + newThisMonth (createdAt >= start of this month)', async () => {
+      clientCountMock
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(6)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(2);
+
+      const dto = await service().clientStats();
+
+      expect(dto).toEqual({ totalClients: 10, pending: 3, approved: 6, rejected: 1, newThisMonth: 2 });
+      expect(clientCountMock).toHaveBeenCalledTimes(5);
+      const newThisMonthCall = clientCountMock.mock.calls[4]![0] as { where: { createdAt: { gte: Date } } };
+      const gte = newThisMonthCall.where.createdAt.gte;
+      const now = new Date();
+      expect(gte).toEqual(new Date(now.getFullYear(), now.getMonth(), 1));
+    });
+  });
+
   describe('register', () => {
     const cmd = {
       firstName: 'John',
