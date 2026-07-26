@@ -79,7 +79,7 @@ export async function updateSupplier(
 ): Promise<SupplierDto> {
   const res = await api.patch<ApiResponse<SupplierDto>>(
     withParams(apiPath(PURCHASING_ROUTES.SUPPLIER_BY_ID), { id }),
-    command,
+    normalizeEmptyStrings(command),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
@@ -113,7 +113,7 @@ export async function createSupplierInvoice(
 ): Promise<SupplierInvoiceDto> {
   const res = await api.post<ApiResponse<SupplierInvoiceDto>>(
     apiPath(PURCHASING_ROUTES.INVOICES),
-    command,
+    normalizeEmptyStrings(command),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
@@ -125,7 +125,7 @@ export async function updateSupplierInvoice(
 ): Promise<SupplierInvoiceDto> {
   const res = await api.patch<ApiResponse<SupplierInvoiceDto>>(
     withParams(apiPath(PURCHASING_ROUTES.INVOICE_BY_ID), { id }),
-    command,
+    normalizeEmptyStrings(command),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
@@ -147,7 +147,7 @@ export async function cancelSupplierInvoice(
 ): Promise<SupplierInvoiceDto> {
   const res = await api.post<ApiResponse<SupplierInvoiceDto>>(
     withParams(apiPath(PURCHASING_ROUTES.CANCEL), { id }),
-    command,
+    normalizeEmptyStrings(command),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;

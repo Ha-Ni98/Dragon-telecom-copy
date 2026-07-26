@@ -83,8 +83,14 @@ export async function listProducts(
     {
       params: query,
     },
+
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  
+  for (const image of res.data.data.items.flatMap((p) => p.images)) {
+    // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
+    image.url = `${baseURL}${image.url}`;
+  }
   return res.data.data;
 }
 
@@ -93,6 +99,10 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
     withParams(apiPath(CATALOG_ROUTES.PRODUCT_DETAIL), { id }),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  for (const image of res.data.data.images) {
+    // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
+    image.url = `${baseURL}${image.url}`;
+  }
   return res.data.data;
 }
 
