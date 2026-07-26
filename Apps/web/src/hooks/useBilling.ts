@@ -21,10 +21,37 @@ export function useMyInvoices(query: InvoiceListQuery) {
   });
 }
 
-export function useInvoices(scope: BillingScope, query: InvoiceListQuery) {
+// set-02 D3 (engine gap) — billingService.getMyInvoice/getMyInvoicePdf already existed
+// (Sub-02 built the service layer ahead of any consuming UI, same Tier-5 pattern as the rest
+// of this file) but were never wrapped in a hook. No `scope` param: BillingScope is only
+// "staff"|"admin", so this is genuinely a separate client-only surface, not a 3rd scope value.
+export function useMyInvoice(number: string) {
+  return useQuery({
+    queryKey: qk.billing.mineDetail(number),
+    queryFn: () => billingService.getMyInvoice(number),
+    enabled: !!number,
+  });
+}
+
+// Imperative (Blob download), same shape as useInvoicePdf below and useExportReportCsv
+// (useStatistics.ts) — not cacheable domain data.
+export function useMyInvoicePdf() {
+  return useMutation({
+    mutationFn: (number: string) => billingService.getMyInvoicePdf(number),
+  });
+}
+
+// `options.enabled` (set-03 Sprint 6) — ADM-14's Outgoing tab is one of three lazy-per-tab
+// queries (plan.md §5: "Incoming & Payments queries don't fire until their tab opens").
+export function useInvoices(
+  scope: BillingScope,
+  query: InvoiceListQuery,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: qk.billing.list(scope, query),
     queryFn: () => billingService.listInvoices(scope, query),
+    enabled: options?.enabled,
   });
 }
 
@@ -77,9 +104,10 @@ export function useCreateClientPayment() {
   });
 }
 
-export function useClientPayments(query: ClientPaymentListQuery) {
+export function useClientPayments(query: ClientPaymentListQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.billing.payments.list(query),
     queryFn: () => billingService.listClientPayments(query),
+    enabled: options?.enabled,
   });
 }

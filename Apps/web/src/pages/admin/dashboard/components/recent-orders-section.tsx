@@ -1,58 +1,43 @@
 /**
  * Recent Orders Section Component
- * Integrates the recent orders table with the recent orders hook
+ * Thin presentational adapter between AdminDashboard's single useAdminDashboard() query
+ * (Sprint 6, plan.md D10) and RecentOrdersTable.
  */
 
 import { RecentOrdersTable } from "./recent-orders-table";
-import { useRecentOrders } from "@/hooks/use-recent-orders";
+import type { AdminDashboardDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
+// set-02 Sprint 3: no longer calls useRecentOrders() (the stub hook) itself — see
+// dashboard-stats-section.tsx's identical note (D10: one aggregate query, not N).
 interface RecentOrdersSectionProps {
-  /** Whether to show the refresh button */
+  orders?: AdminDashboardDto["recentOrders"];
+  isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
+  onRefresh?: () => void;
   showRefresh?: boolean;
-  /** Custom error message */
-  customError?: string | null;
-  /** Maximum number of orders to display */
   limit?: number;
 }
 
-/**
- * Recent Orders Section Component
- * Wraps the recent orders table with data fetching logic
- */
 export function RecentOrdersSection({
+  orders,
+  isLoading = false,
+  isError = false,
+  onRetry,
+  onRefresh,
   showRefresh = false,
-  customError = null,
   limit = 8,
 }: RecentOrdersSectionProps) {
   const { t } = useTranslation();
-  const {
-    data: orders,
-    isLoading,
-    error,
-    refetch,
-  } = useRecentOrders(limit);
-
-  // Handle retry functionality
-  const handleRetry = () => {
-    refetch();
-  };
-
-  // Handle refresh functionality
-  const handleRefresh = () => {
-    refetch();
-  };
-
-  // Determine error message
-  const errorMessage = customError || (error ? t('admin.dashboard.error') : null);
 
   return (
     <RecentOrdersTable
       orders={orders}
       loading={isLoading}
-      error={errorMessage}
-      onRetry={handleRetry}
-      onRefresh={handleRefresh}
+      error={isError ? t("admin.dashboard.error") : null}
+      onRetry={onRetry}
+      onRefresh={onRefresh}
       showRefresh={showRefresh}
       limit={limit}
     />

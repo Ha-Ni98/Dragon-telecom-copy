@@ -3,60 +3,44 @@
  * Provides search and filter controls for the clients table
  */
 
-import React, { memo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Filter, 
-  X, 
-  RefreshCw, 
-  Users, 
-  UserCheck, 
-  Clock, 
-  UserX, 
-  AlertTriangle 
-} from 'lucide-react';
-import { useTranslation } from '@/hooks/useTranslation';
+import { memo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Search, Filter, X, RefreshCw, Users, UserCheck, Clock, AlertTriangle } from "lucide-react";
+import { ClientStatus } from "@dragon-telecom/contract";
+import { useTranslation } from "@/hooks/useTranslation";
 
-/**
- * Props for AdminClientsFilters component
- */
+type StatusFilterValue = ClientStatus | "all";
+
 interface AdminClientsFiltersProps {
-  /** Current search query */
   searchQuery: string;
-  /** Callback when search query changes */
   onSearchChange: (query: string) => void;
-  /** Currently selected status */
-  selectedStatus: string;
-  /** Callback when status selection changes */
-  onStatusChange: (status: string) => void;
-  /** Callback when clear filters is clicked */
+  selectedStatus: StatusFilterValue;
+  onStatusChange: (status: StatusFilterValue) => void;
   onClearFilters?: () => void;
-  /** Whether the component is in loading state */
   loading?: boolean;
-  /** Custom className for styling */
   className?: string;
-  /** Whether to show the clear filters button */
   showClearFilters?: boolean;
-  /** Filter summary for display */
-  filterSummary?: string;
-  /** Whether any filters are active */
   hasActiveFilters?: boolean;
 }
 
-/**
- * Status options for the filter dropdown
- */
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Status', icon: Users },
-  { value: 'active', label: 'Active', icon: UserCheck },
-  { value: 'pending', label: 'Pending', icon: Clock },
-  { value: 'disabled', label: 'Disabled', icon: UserX },
-  { value: 'refused', label: 'Refused', icon: AlertTriangle },
+// ADM-12 — retyped: filter values are now ClientStatus (PENDING/APPROVED/REJECTED, the real
+// AdminClientListQuery.status enum), not the old view-model's invented "active"/"disabled"/
+// "refused" strings.
+const STATUS_OPTIONS: { value: StatusFilterValue; labelKey: string; icon: typeof Users }[] = [
+  { value: "all", labelKey: "admin.clients.allStatus", icon: Users },
+  { value: ClientStatus.PENDING, labelKey: "admin.clients.pending", icon: Clock },
+  { value: ClientStatus.APPROVED, labelKey: "admin.clients.activeClients", icon: UserCheck },
+  { value: ClientStatus.REJECTED, labelKey: "admin.clients.refused", icon: AlertTriangle },
 ];
 
 /**
@@ -69,9 +53,8 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
   onStatusChange,
   onClearFilters,
   loading = false,
-  className = '',
+  className = "",
   showClearFilters = true,
-  filterSummary,
   hasActiveFilters = false,
 }: AdminClientsFiltersProps) {
   const { t } = useTranslation();
@@ -87,20 +70,20 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
               <Input
                 id="search-input"
                 type="text"
-                placeholder={t('admin.clients.filters.searchPlaceholder')}
+                placeholder={t("admin.clients.filters.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 disabled={loading}
                 className="pl-10"
-                aria-label={t('admin.clients.filters.searchAria')}
+                aria-label={t("admin.clients.filters.searchAria")}
               />
               {searchQuery && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => onSearchChange('')}
+                  onClick={() => onSearchChange("")}
                   className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
-                  aria-label={t('common.actions.clearSearch')}
+                  aria-label={t("common.actions.clearSearch")}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -112,11 +95,11 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
           <div className="w-full sm:w-48">
             <Select
               value={selectedStatus}
-              onValueChange={onStatusChange}
+              onValueChange={(value) => onStatusChange(value as StatusFilterValue)}
               disabled={loading}
             >
               <SelectTrigger id="status-filter" className="w-full">
-                <SelectValue placeholder={t('admin.clients.filters.allStatus')} />
+                <SelectValue placeholder={t("admin.clients.filters.allStatus")} />
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((option) => {
@@ -125,7 +108,7 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
                     <SelectItem key={option.value} value={option.value}>
                       <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4" />
-                        <span>{option.label}</span>
+                        <span>{t(option.labelKey)}</span>
                       </div>
                     </SelectItem>
                   );
@@ -145,7 +128,7 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
                 className="flex items-center gap-2"
               >
                 <X className="h-4 w-4" />
-                {t('common.actions.clear')}
+                {t("common.actions.clear")}
               </Button>
             </div>
           )}
@@ -154,7 +137,7 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
           {loading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>{t('common.loading')}</span>
+              <span>{t("common.loading")}</span>
             </div>
           )}
         </div>
@@ -166,28 +149,32 @@ export const AdminClientsFilters = memo(function AdminClientsFilters({
               {searchQuery && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Search className="h-3 w-3" />
-                  {t('common.labels.search')}: "{searchQuery}"
+                  {t("common.labels.search")}: "{searchQuery}"
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => onSearchChange('')}
+                    onClick={() => onSearchChange("")}
                     className="h-4 w-4 p-0 ml-1"
-                    aria-label={t('products.filters.removeSearch')}
+                    aria-label={t("products.filters.removeSearch")}
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 </Badge>
               )}
-              {selectedStatus !== 'all' && (
+              {selectedStatus !== "all" && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Filter className="h-3 w-3" />
-                  {t('common.labels.status')}: {selectedStatus}
+                  {t("common.labels.status")}:{" "}
+                  {t(
+                    STATUS_OPTIONS.find((o) => o.value === selectedStatus)?.labelKey ??
+                      "admin.clients.allStatus",
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => onStatusChange('all')}
+                    onClick={() => onStatusChange("all")}
                     className="h-4 w-4 p-0 ml-1"
-                    aria-label={t('admin.clients.filters.removeStatus')}
+                    aria-label={t("admin.clients.filters.removeStatus")}
                   >
                     <X className="h-3 w-3" />
                   </Button>

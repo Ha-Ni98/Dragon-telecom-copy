@@ -1,103 +1,99 @@
-import { Smartphone, Headphones, Watch, Battery, Cable, Shield } from "lucide-react";
+import { Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { NotFoundState } from "@/components/shared/NotFoundState";
 import { useTranslation } from "@/hooks/useTranslation";
-
-const getCategoryData = (t: (key: string) => string) => [
-  {
-    id: 1,
-    name: t('categories.smartphones'),
-    icon: Smartphone,
-    count: "150+ products",
-    gradient: "from-primary to-primary-glow",
-  },
-  {
-    id: 2,
-    name: t('categories.accessories'),
-    icon: Headphones,
-    count: "80+ products",
-    gradient: "from-accent to-primary",
-  },
-  {
-    id: 3,
-    name: t('categories.watches'),
-    icon: Watch,
-    count: "25+ products",
-    gradient: "from-primary to-accent",
-  },
-  {
-    id: 4,
-    name: t('categories.batteries'),
-    icon: Battery,
-    count: "40+ products",
-    gradient: "from-success to-accent",
-  },
-  {
-    id: 5,
-    name: t('categories.cables'),
-    icon: Cable,
-    count: "60+ products",
-    gradient: "from-warning to-primary",
-  },
-  {
-    id: 6,
-    name: t('categories.protection'),
-    icon: Shield,
-    count: "35+ products",
-    gradient: "from-accent to-success",
-  },
-];
+import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
 
 export function CategoriesSection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { data: families, isLoading, isError, refetch } = useCatalogFamilies({
+    featured: true,
+    limit: 6,
+    withCount: true,
+  });
+
+  if (isLoading) {
+    return (
+      <section className="py-8">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Skeleton className="h-8 w-64 mx-auto mb-4" />
+            <Skeleton className="h-4 w-96 mx-auto" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Local error — a failed families fetch never takes the rest of the home page down with it
+  // (each landing section fails independently, PUB-01).
+  if (isError) {
+    return (
+      <section className="py-8">
+        <div className="container mx-auto px-4">
+          <NotFoundState
+            title={t("categories.errorLoading")}
+            body={t("categories.errorLoadingBody")}
+            action={
+              <Button variant="outline" onClick={() => refetch()}>
+                {t("common.actions.tryAgain")}
+              </Button>
+            }
+          />
+        </div>
+      </section>
+    );
+  }
+
+  const items = families ?? [];
+  // Empty section hides itself (PUB-01).
+  if (items.length === 0) return null;
+
   return (
     <section className="py-8">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            {t('categories.title')}
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">{t("categories.title")}</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {t('categories.description')}
+            {t("categories.description")}
           </p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {getCategoryData(t).map((category) => {
-            const IconComponent = category.icon;
-            return (
-              <Card 
-                key={category.id} 
-                className="group cursor-pointer product-card border-0 shadow-card hover:shadow-elegant"
-                onClick={() => {
-                  // Navigate to products page with category filter
-                  const categoryMap: { [key: string]: string } = {
-                    [t('categories.smartphones')]: 'Smartphones',
-                    [t('categories.accessories')]: 'Accessories',
-                    [t('categories.watches')]: 'Smartwatches',
-                    [t('categories.batteries')]: 'Batteries',
-                    [t('categories.cables')]: 'Cables',
-                    [t('categories.protection')]: 'Protection'
-                  };
-                  const categoryName = categoryMap[category.name] || category.name;
-                  navigate(`/products?category=${encodeURIComponent(1)}`);
-                }}
-              >
-                <CardContent className="p-6 text-center">
-                  <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${category.gradient} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                    <IconComponent className="h-8 w-8 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-sm md:text-base mb-2 group-hover:text-primary transition-colors">
-                    {category.name}
-                  </h3>
+          {items.map((family) => (
+            <Card
+              key={family.id}
+              className="group cursor-pointer product-card border-0 shadow-card hover:shadow-elegant"
+              onClick={() => navigate(`/products?familyId=${family.id}`)}
+            >
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden">
+                  {family.iconUrl ? (
+                    <img src={family.iconUrl} alt={family.name} className="h-8 w-8 object-contain" />
+                  ) : (
+                    <Package className="h-8 w-8 text-white" />
+                  )}
+                </div>
+                <h3 className="font-semibold text-sm md:text-base mb-2 group-hover:text-primary transition-colors">
+                  {family.name}
+                </h3>
+                {family.productCount !== undefined && (
                   <p className="text-xs text-muted-foreground">
-                    {category.count}
+                    {t("categories.productCount", { count: family.productCount })}
                   </p>
-                </CardContent>
-              </Card>
-            );
-          })}
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </section>

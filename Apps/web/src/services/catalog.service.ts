@@ -1,188 +1,12 @@
-// Catalog domain (products/brands/families/models) — Sub-01 scaffolding.
-//
-// Every function returns a typed empty default (`[]`/`null`). Real HTTP wiring against
-// `@dragon-telecom/contract`'s CATALOG_ROUTES lands in Sub-02; per Sub-01 scope decision,
-// the return types stay on the existing frontend view models (numeric ids) rather than the
-// contract's UUID-based DTOs — that retype happens together with the real wiring.
-import type { Brand, Family, Model, ProductDetails } from "@/types/draft-types/product.types";
-import type { ProductWithDetails } from "@/types/draft-types/main-page.types";
-import type {
-  AdminProductWithDetails,
-  AdminProductsStats,
-  AdminProductsFilters,
-  AdminProductsPaginatedResponse,
-} from "@/types/draft-types/admin.types";
-import type {
-  AdminProductWithFullDetails,
-  PricingUpdates,
-  ProductInformationFormData,
-  ProductSupplierWithDetails,
-  ImageUploadResponse,
-  SupplierUpdateResponse,
-  SupplierDeletionResponse,
-  SupplierUpdates,
-} from "@/types/draft-types/admin-product-information.types";
-import type { SupplyFormData } from "@/types/draft-types/admin-supply.types";
-
-// Stub write-paths that would otherwise need to fabricate a full entity throw this instead
-// of faking success — real persistence lands in Sub-02, wired against a real product.
-const NOT_WIRED = 'This action is not available yet.';
-
-export async function getProducts(): Promise<ProductWithDetails[]> {
-  return [];
-}
-
-export async function getFeaturedProducts(_limit: number = 4): Promise<ProductWithDetails[]> {
-  return [];
-}
-
-export async function getProductByName(_name: string): Promise<ProductDetails | null> {
-  return null;
-}
-
-export async function getProductById(_id: number): Promise<ProductDetails | null> {
-  return null;
-}
-
-export async function getRelatedProducts(_productId: number, _limit: number = 4): Promise<ProductDetails[]> {
-  return [];
-}
-
-export async function searchProducts(_query: string): Promise<ProductDetails[]> {
-  return [];
-}
-
-export async function getBrands(): Promise<Brand[]> {
-  return [];
-}
-
-export async function getBrandById(_id: number): Promise<Brand | null> {
-  return null;
-}
-
-export async function getFamilies(): Promise<Family[]> {
-  return [];
-}
-
-export async function getFamilyById(_id: number): Promise<Family | null> {
-  return null;
-}
-
-export async function getModels(): Promise<Model[]> {
-  return [];
-}
-
-export async function getModelById(_id: number): Promise<Model | null> {
-  return null;
-}
-
-// --- Admin catalog management ---
-
-export async function getAdminProducts(filters?: AdminProductsFilters): Promise<AdminProductsPaginatedResponse> {
-  return {
-    products: [],
-    pagination: {
-      currentPage: filters?.page || 1,
-      totalPages: 0,
-      totalItems: 0,
-      itemsPerPage: filters?.limit || 20,
-      hasNextPage: false,
-      hasPreviousPage: false,
-    },
-  };
-}
-
-export async function getAdminProductsStats(): Promise<AdminProductsStats> {
-  return { totalProducts: 0, inStock: 0, lowStock: 0, outOfStock: 0 };
-}
-
-export async function getAdminProductById(_productId: number): Promise<AdminProductWithDetails | null> {
-  return null;
-}
-
-export async function deleteAdminProduct(_productId: number): Promise<void> {}
-
-export async function updateAdminProductStock(_productId: number, _newQuantity: number): Promise<void> {}
-
-export async function addAdminProductSupply(_productId: number, _supply: SupplyFormData): Promise<void> {
-  throw new Error(NOT_WIRED);
-}
-
-export async function getAdminProductsByStockStatus(
-  _status: 'in_stock' | 'low_stock' | 'out_of_stock',
-): Promise<AdminProductWithDetails[]> {
-  return [];
-}
-
-export async function searchAdminProducts(
-  query: string,
-  filters?: Omit<AdminProductsFilters, 'searchQuery'>,
-): Promise<AdminProductsPaginatedResponse> {
-  return getAdminProducts({ searchQuery: query, ...filters });
-}
-
-export async function getAdminProductFullDetails(_productId: number): Promise<AdminProductWithFullDetails | null> {
-  return null;
-}
-
-export async function updateAdminProductInformation(
-  _productId: number,
-  _updates: ProductInformationFormData,
-): Promise<AdminProductWithFullDetails> {
-  throw new Error(NOT_WIRED);
-}
-
-export async function updateAdminProductPricing(
-  _productId: number,
-  _updates: PricingUpdates,
-): Promise<AdminProductWithFullDetails> {
-  throw new Error(NOT_WIRED);
-}
-
-export async function getAdminProductSuppliers(_productId: number): Promise<ProductSupplierWithDetails[]> {
-  return [];
-}
-
-export async function uploadAdminProductImage(_productId: number, _file: File): Promise<ImageUploadResponse> {
-  return { success: true };
-}
-
-export async function removeAdminProductImage(
-  _productId: number,
-  _imageId: string,
-): Promise<{ success: boolean; message?: string }> {
-  return { success: true };
-}
-
-export async function setAdminProductPrimaryImage(
-  _productId: number,
-  _imageId: string,
-): Promise<{ success: boolean; message?: string }> {
-  return { success: true };
-}
-
-export async function updateAdminProductSupplier(
-  _supplierId: number,
-  _updates: SupplierUpdates,
-): Promise<SupplierUpdateResponse> {
-  return { success: true };
-}
-
-export async function deleteAdminProductSupplier(_supplierId: number): Promise<SupplierDeletionResponse> {
-  return { success: true };
-}
-
-// ============================================================================
-// Sub-02 real catalog service — contract-typed, HTTP-wired (integration
-// plan.md §2.2). Consumed by the new hooks (useCatalogProducts.ts,
-// useCatalogTaxonomy.ts, useClientCategories.ts), NOT by the Sub-01 stub
-// hooks above — those still call the stub functions above and stay wired to
-// the pre-existing pages until Sub-03 rewires those pages onto these real
-// hooks (integration sprints.md Sprint 3 handoff note). No name collisions
-// with the stub functions above by design (contract verbs: listX/getX vs.
-// the stubs' getXs/getXById).
-// ============================================================================
-import { api } from "@/lib/axios";
+// Catalog domain (products/brands/families/models) — contract-typed, HTTP-wired (integration
+// plan.md §2.2). The Sub-01 stub functions this file used to also carry (getRelatedProducts/
+// searchProducts/getBrands/getBrandById/getFamilies/getFamilyById/getModels/getModelById plus
+// the getAdminProduct*/updateAdminProduct*/deleteAdminProduct* admin-catalog block) were removed
+// set-04 Sprint 9: the products page (AdminProducts.tsx/AdminProductsAdd.tsx/
+// AdminProductInformation.tsx) was confirmed already fully wired onto the real hooks below
+// (useCatalogProducts.ts/useCatalogTaxonomy.ts) with zero remaining stub consumers — the
+// `use-brands.ts`/`use-models.ts` hooks a stale header comment once pointed to no longer exist.
+import { api, baseURL } from "@/lib/axios";
 import { apiPath, withParams } from "@/lib/api-path";
 import {
   CATALOG_ROUTES,
@@ -222,17 +46,32 @@ import {
 // (not `.coerce`) with no JSON.parse preprocessing in validate-request.middleware.ts, so a
 // multer-parsed body (all-string fields) will 400 against the live API regardless of encoding
 // — flagged for a contract/backend fix, out of scope for this frontend service.
-function commandToFormData(
+export function commandToFormData(
   command: Record<string, unknown>,
   files: File[],
   filesField: string,
 ): FormData {
   const formData = new FormData();
+
   for (const [key, value] of Object.entries(command)) {
     if (value === undefined) continue;
-    formData.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
+
+    if (value === null) {
+      formData.append(key, "null");
+    } else if (value instanceof Date) {
+      formData.append(key, value.toISOString());
+    } else if (Array.isArray(value) || typeof value === "object") {
+      formData.append(key, JSON.stringify(value));
+    } else {
+      // string | number | boolean | bigint
+      formData.append(key, String(value));
+    }
   }
-  files.forEach((file) => formData.append(filesField, file));
+
+  for (const file of files) {
+    formData.append(filesField, file);
+  }
+
   return formData;
 }
 
@@ -244,8 +83,14 @@ export async function listProducts(
     {
       params: query,
     },
+
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  
+  for (const image of res.data.data.items.flatMap((p) => p.images)) {
+    // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
+    image.url = `${baseURL}${image.url}`;
+  }
   return res.data.data;
 }
 
@@ -254,6 +99,10 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
     withParams(apiPath(CATALOG_ROUTES.PRODUCT_DETAIL), { id }),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  for (const image of res.data.data.images) {
+    // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
+    image.url = `${baseURL}${image.url}`;
+  }
   return res.data.data;
 }
 
@@ -300,6 +149,10 @@ export async function getAdminProduct(id: string): Promise<AdminProductDto> {
     withParams(apiPath(CATALOG_ROUTES.ADMIN_PRODUCT_BY_ID), { id }),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  for (const image of res.data.data.images) {
+    // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
+    image.url = `${baseURL}${image.url}`;
+  }
   return res.data.data;
 }
 

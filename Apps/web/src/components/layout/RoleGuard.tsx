@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { UserType } from "@dragon-telecom/contract";
 import { useSession } from "@/hooks/useSession";
@@ -25,9 +25,13 @@ function SessionResolving() {
 // way (TanStack dedupes by queryKey), so this isn't a second network call.
 export function RoleGuard({ allow, fallbackPath = "/" }: { allow: UserType[]; fallbackPath?: string }) {
   const { data: session, isPending } = useSession();
+  const location = useLocation();
 
   if (isPending) return <SessionResolving />;
-  if (!session) return <Navigate to="/login" replace />;
+  // Carries the attempted path via router state (same as ProtectedRoute) so PublicOnlyRoute
+  // can send a client back here once they've signed in — used by the CLIENT-only /my-account
+  // guard (PUB-08).
+  if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   // A valid session with the wrong type — send them to a safe home rather than /login
   // (which would just bounce them back here via PublicOnlyRoute anyway).
   if (!allow.includes(session.type)) return <Navigate to={fallbackPath} replace />;

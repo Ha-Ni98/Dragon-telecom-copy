@@ -10,13 +10,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "@/hooks/useTranslation";
-import { Client } from "@/types/draft-types/client.types";
+import type { RegisterFormValues } from "@/pages/register/register.schema";
 
 interface RegistrationConfirmationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;  
-  userData: Partial<Client>;
+  onConfirm: () => void;
+  // wilayaId/communeId are uuids — not meaningful to show a user reviewing their details, so the
+  // caller supplies the resolved display names instead (it already has them, from whichever
+  // WilayaDto the ids were picked from).
+  userData: Omit<RegisterFormValues, "wilayaId" | "communeId"> & {
+    wilayaName: string;
+    communeName: string;
+  };
   isLoading?: boolean;
 }
 
@@ -65,30 +71,40 @@ export function RegistrationConfirmationDialog({
                   <label className="text-sm font-medium text-muted-foreground">
                     {t('register.firstName')}
                   </label>
-                  <p className="text-sm font-medium">{userData.clientFirstName}</p>
+                  <p className="text-sm font-medium">{userData.firstName}</p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground">
                     {t('register.lastName')}
                   </label>
-                  <p className="text-sm font-medium">{userData.clientLastName}</p>
+                  <p className="text-sm font-medium">{userData.lastName}</p>
                 </div>
               </div>
 
               {/* Contact Information */}
               <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    {t('register.email')}
-                  </label>
-                  <p className="text-sm font-medium">{userData.clientEmail}</p>
-                </div>
+                {userData.email && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      {t('register.email')}
+                    </label>
+                    <p className="text-sm font-medium">{userData.email}</p>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground">
                     {t('register.phone')}
                   </label>
-                  <p className="text-sm font-medium">{userData.clientPhoneNumber}</p>
+                  <p className="text-sm font-medium">{userData.phone}</p>
                 </div>
+                {userData.storeName && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      {t('register.storeName')}
+                    </label>
+                    <p className="text-sm font-medium">{userData.storeName}</p>
+                  </div>
+                )}
               </div>
 
               {/* Location Information */}
@@ -97,13 +113,13 @@ export function RegistrationConfirmationDialog({
                   <label className="text-sm font-medium text-muted-foreground">
                     {t('register.wilaya')}
                   </label>
-                  <p className="text-sm font-medium">{userData.clientWilaya}</p>
+                  <p className="text-sm font-medium">{userData.wilayaName}</p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground">
                     {t('register.commune')}
                   </label>
-                  <p className="text-sm font-medium">{userData.clientCommune}</p>
+                  <p className="text-sm font-medium">{userData.communeName}</p>
                 </div>
               </div>
             </CardContent>

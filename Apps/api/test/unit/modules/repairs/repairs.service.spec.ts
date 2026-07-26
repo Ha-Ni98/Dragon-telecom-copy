@@ -343,6 +343,38 @@ describe('RepairsService', () => {
     });
   });
 
+  describe('getRepair (set-03 B1)', () => {
+    it('404s when the repair does not exist', async () => {
+      repairFindUniqueMock.mockResolvedValueOnce(null);
+
+      const err = await expectRejection(service().getRepair(REPAIR_ID, staffActor));
+      expect(err.statusCode).toBe(404);
+    });
+
+    it('returns the ticket for staff, unrestricted by creator', async () => {
+      const repair = makeRepair({ id: REPAIR_ID });
+      repairFindUniqueMock.mockResolvedValueOnce(repair);
+      repairFindUniqueOrThrowMock.mockResolvedValueOnce(repair);
+
+      const dto = await service().getRepair(REPAIR_ID, staffActor);
+
+      expect(dto.id).toBe(REPAIR_ID);
+      expect(repairFindUniqueMock).toHaveBeenCalledWith({ where: { id: REPAIR_ID } });
+    });
+
+    it('includeMargins is true for admin, false for staff', async () => {
+      const repair = makeRepair({ id: REPAIR_ID, totalCost: new Prisma.Decimal(100) });
+      repairFindUniqueMock.mockResolvedValue(repair);
+      repairFindUniqueOrThrowMock.mockResolvedValue(repair);
+
+      const staffDto = await service().getRepair(REPAIR_ID, staffActor);
+      const adminDto = await service().getRepair(REPAIR_ID, adminActor);
+
+      expect(staffDto).not.toHaveProperty('totalCost');
+      expect(adminDto).toHaveProperty('totalCost');
+    });
+  });
+
   describe('listRepairs', () => {
     it('scopes staff to created-by-me via the intake history marker', async () => {
       repairFindManyMock.mockResolvedValueOnce([]);

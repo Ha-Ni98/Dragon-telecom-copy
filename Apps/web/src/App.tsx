@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, type ComponentType, type LazyExoticComponent } from "react";
 import { createBrowserRouter, Link, RouterProvider } from "react-router-dom";
-import { UserType } from "@dragon-telecom/contract";
+import { UserType, PageKey } from "@dragon-telecom/contract";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { StaffLayout } from "@/components/layout/StaffLayout";
 import { RoleGuard } from "@/components/layout/RoleGuard";
-import { ProtectedRoute, PublicOnlyRoute } from "@/components/layout/ProtectedRoute";
+import { PageGuard } from "@/components/layout/PageGuard";
+import { PublicOnlyRoute } from "@/components/layout/ProtectedRoute";
 import { PageLoader } from "@/components/shared/PageLoader";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { RouteErrorBoundary } from "@/components/shared/RouteErrorBoundary";
@@ -20,18 +22,53 @@ const Products = lazy(() => import("@/pages/Products"));
 const ProductDetails = lazy(() => import("@/pages/ProductDetails"));
 const OrdersPage = lazy(() => import("@/pages/Orders"));
 const MyAccount = lazy(() => import("@/pages/MyAccount"));
+const Cart = lazy(() => import("@/pages/cart/Cart"));
+const OrderConfirmation = lazy(() => import("@/pages/order-confirmation/OrderConfirmation"));
+const MyInvoices = lazy(() => import("@/pages/my-invoices/MyInvoices"));
+const InvoiceDetail = lazy(() => import("@/pages/my-invoices/InvoiceDetail"));
+const StaffDashboard = lazy(() => import("@/pages/staff/dashboard/StaffDashboard"));
+const StaffProducts = lazy(() => import("@/pages/staff/products/StaffProducts"));
+// set-03: the five staff/admin twins — each staff page takes a `scope` prop (default "staff");
+// the admin variant is a thin wrapper mounting the same tree with scope="admin" (plan.md's
+// twin pattern — one component tree, not a fork).
+const StaffPos = lazy(() => import("@/pages/staff/pos/StaffPos"));
+const StaffOrders = lazy(() => import("@/pages/staff/orders/StaffOrders"));
+const StaffSales = lazy(() => import("@/pages/staff/sales/StaffSales"));
+const StaffInvoices = lazy(() => import("@/pages/staff/invoices/StaffInvoices"));
+const StaffRepairs = lazy(() => import("@/pages/staff/repairs/StaffRepairs"));
 
 const AdminDashboard = lazy(() => import("@/pages/admin/dashboard/AdminDashboard"));
 const AdminClients = lazy(() => import("@/pages/admin/clients/AdminClients"));
 const AdminOrders = lazy(() => import("@/pages/admin/orders/AdminOrders"));
 const AdminProducts = lazy(() => import("@/pages/admin/products/AdminProducts"));
 const AdminProductsAdd = lazy(() => import("@/pages/admin/products/AdminProductsAdd"));
-const AdminProductInformation = lazy(() => import("@/pages/admin/products/AdminProductInformation"));
+const AdminProductInformation = lazy(
+  () => import("@/pages/admin/products/AdminProductInformation"),
+);
 const AdminSuppliers = lazy(() => import("@/pages/admin/suppliers/AdminSuppliers"));
-const AdminSupplierInformation = lazy(() => import("@/pages/admin/suppliers/AdminSupplierInformation"));
+const AdminSupplierInformation = lazy(
+  () => import("@/pages/admin/suppliers/AdminSupplierInformation"),
+);
 const AdminStatistics = lazy(() => import("@/pages/admin/statistics/AdminStatistics"));
 const AdminLogs = lazy(() => import("@/pages/admin/logs/AdminLogs"));
 const AdminSettings = lazy(() => import("@/pages/admin/settings/AdminSettings"));
+const AdminPos = lazy(() => import("@/pages/admin/pos/AdminPos"));
+const AdminSales = lazy(() => import("@/pages/admin/sales/AdminSales"));
+const AdminInvoices = lazy(() => import("@/pages/admin/invoices/AdminInvoices"));
+const AdminRepairs = lazy(() => import("@/pages/admin/repairs/AdminRepairs"));
+// set-04: the remaining admin back-office pages (plan.md's ten-page list) — Sprint 2 mounts
+// the routes; the pages themselves are placeholders until Sprints 4-8 build them out.
+const AdminInventory = lazy(() => import("@/pages/admin/inventory/AdminInventory"));
+const AdminSupplierInvoices = lazy(
+  () => import("@/pages/admin/supplier-invoices/AdminSupplierInvoices"),
+);
+const AdminSupplierInvoiceEditor = lazy(
+  () => import("@/pages/admin/supplier-invoices/AdminSupplierInvoiceEditor"),
+);
+const AdminPosClients = lazy(() => import("@/pages/admin/pos-clients/AdminPosClients"));
+const AdminClientDetail = lazy(() => import("@/pages/admin/clients/AdminClientDetail"));
+const AdminUsers = lazy(() => import("@/pages/admin/users/AdminUsers"));
+const AdminStaffSearches = lazy(() => import("@/pages/admin/staff-searches/AdminStaffSearches"));
 
 const withSuspense = (Component: LazyExoticComponent<ComponentType<Record<string, never>>>) => (
   <Suspense fallback={<PageLoader />}>
@@ -41,7 +78,8 @@ const withSuspense = (Component: LazyExoticComponent<ComponentType<Record<string
 
 // Not a matched child route, so it can't rely on <Outlet/> resolving to a page — it picks
 // the layout that matches the current session and passes 404 content in as children.
-function CatchAllRoute() {
+// Exported (PUB-11) so pub-pages Sprint 8's unit test can render it directly.
+export function CatchAllRoute() {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslation();
   const content = (
@@ -71,18 +109,51 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: withSuspense(Index), errorElement: <RouteErrorBoundary /> },
       { path: "/products", element: withSuspense(Products), errorElement: <RouteErrorBoundary /> },
-      // Decision #3: keep the MVP's public product URL slug as-is.
+      // PUB-03: "by id — never by name" (overrides the MVP's old by-name slug, source-of-truth
+      // ruling — the requirement wins over pre-existing Apps/web routing).
       {
-        path: "/products/:productName",
+        path: "/products/:id",
         element: withSuspense(ProductDetails),
         errorElement: <RouteErrorBoundary />,
       },
+      // set-02 D9/D12: public and state-guarded internally (Sprint 5), not route-guarded — a
+      // guest who just placed a delivery order needs to see this too (PUB-05: "guests keep the
+      // reference as their only handle").
       {
-        // Any-authenticated (client) pages — not role-restricted, just "must be signed in".
-        element: <ProtectedRoute />,
+        path: "/order-confirmation",
+        element: withSuspense(OrderConfirmation),
+        errorElement: <RouteErrorBoundary />,
+      },
+      {
+        // CLIENT-only (PUB-04/08/09/10). set-02 D12 moved /orders here from the any-
+        // authenticated ProtectedRoute block that used to wrap it — staff/admin must not reach
+        // the client order/cart/invoice surface — and added /cart, /invoices.
+        element: <RoleGuard allow={[UserType.CLIENT]} />,
         children: [
-          { path: "/orders", element: withSuspense(OrdersPage), errorElement: <RouteErrorBoundary /> },
-          { path: "/my-account", element: withSuspense(MyAccount), errorElement: <RouteErrorBoundary /> },
+          {
+            path: "/my-account",
+            element: withSuspense(MyAccount),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/orders",
+            element: withSuspense(OrdersPage),
+            errorElement: <RouteErrorBoundary />,
+          },
+          { path: "/cart", element: withSuspense(Cart), errorElement: <RouteErrorBoundary /> },
+          {
+            path: "/invoices",
+            element: withSuspense(MyInvoices),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            // set-02 Sprint 5: plan.md left "dialog or /invoices/:number" open for this sprint
+            // to decide — a route was chosen over a dialog (InvoiceView's lines table doesn't
+            // fit a modal well, and its own local-404 branch reads more naturally as a page).
+            path: "/invoices/:number",
+            element: withSuspense(InvoiceDetail),
+            errorElement: <RouteErrorBoundary />,
+          },
         ],
       },
     ],
@@ -124,10 +195,27 @@ const router = createBrowserRouter([
       {
         element: <AdminLayout />,
         children: [
-          { path: "/admin", element: withSuspense(AdminDashboard), errorElement: <RouteErrorBoundary /> },
+          {
+            path: "/admin",
+            element: withSuspense(AdminDashboard),
+            errorElement: <RouteErrorBoundary />,
+          },
           {
             path: "/admin/clients",
             element: withSuspense(AdminClients),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            // declared after the static /admin/clients route above so the two never collide
+            // (Sprint 2 §Risks — react-router v6 also ranks static segments first regardless
+            // of declaration order, this is belt-and-suspenders for readability).
+            path: "/admin/clients/:id",
+            element: withSuspense(AdminClientDetail),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/inventory",
+            element: withSuspense(AdminInventory),
             errorElement: <RouteErrorBoundary />,
           },
           {
@@ -161,6 +249,33 @@ const router = createBrowserRouter([
             errorElement: <RouteErrorBoundary />,
           },
           {
+            path: "/admin/supplier-invoices",
+            element: withSuspense(AdminSupplierInvoices),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            // `:id === "new"` is the create-flow sentinel (no separate `/new` route — Sprint 2
+            // §Risks); `?supplierId=` preselects the supplier when linked from ADM-07.
+            path: "/admin/supplier-invoices/:id",
+            element: withSuspense(AdminSupplierInvoiceEditor),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/pos-clients",
+            element: withSuspense(AdminPosClients),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/users",
+            element: withSuspense(AdminUsers),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/activity/staff-searches",
+            element: withSuspense(AdminStaffSearches),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
             path: "/admin/statistics",
             element: withSuspense(AdminStatistics),
             errorElement: <RouteErrorBoundary />,
@@ -174,6 +289,101 @@ const router = createBrowserRouter([
             path: "/admin/settings",
             element: withSuspense(AdminSettings),
             errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/pos",
+            element: withSuspense(AdminPos),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/sales",
+            element: withSuspense(AdminSales),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/invoices",
+            element: withSuspense(AdminInvoices),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/admin/repairs",
+            element: withSuspense(AdminRepairs),
+            errorElement: <RouteErrorBoundary />,
+          },
+        ],
+      },
+      {
+        // set-02 D1/D11: StaffDashboard replaces the old StaffLanding redirect — /staff is now
+        // a fixed page (mirrors /admin), not a first-permitted-page landing. /staff/products is
+        // additionally gated per-PageKey (PageGuard), layered inside the coarse role split
+        // above (identity-sprint1-decisions: admin's effectivePages() always includes every
+        // PageKey, so PageGuard never blocks an admin here).
+        element: <StaffLayout />,
+        children: [
+          {
+            path: "/staff",
+            element: withSuspense(StaffDashboard),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_PRODUCTS} />,
+            children: [
+              {
+                path: "/staff/products",
+                element: withSuspense(StaffProducts),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_POS} />,
+            children: [
+              {
+                path: "/staff/pos",
+                element: withSuspense(StaffPos),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_ORDERS} />,
+            children: [
+              {
+                path: "/staff/orders",
+                element: withSuspense(StaffOrders),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_SALES} />,
+            children: [
+              {
+                path: "/staff/sales",
+                element: withSuspense(StaffSales),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_INVOICES} />,
+            children: [
+              {
+                path: "/staff/invoices",
+                element: withSuspense(StaffInvoices),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            element: <PageGuard requires={PageKey.STAFF_REPAIRS} />,
+            children: [
+              {
+                path: "/staff/repairs",
+                element: withSuspense(StaffRepairs),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
           },
         ],
       },

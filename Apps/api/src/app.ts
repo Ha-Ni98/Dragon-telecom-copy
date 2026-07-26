@@ -7,11 +7,14 @@ import { logger } from './common/config/logger';
 import { sendSuccess } from './common/http/response';
 import { globalErrorHandler } from './common/middlewares/error.middleware';
 import { registerModules } from './modules';
+import path from 'path';
 
 export const app = express();
 
 app.use(pinoHttp({ logger }));
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 app.use(cors({ origin: env.CORS_ORIGIN }));
 app.use(express.json());
 
@@ -24,5 +27,9 @@ const apiRouter = express.Router();
 // Route paths come from @dragon-telecom/contract *_ROUTES constants only — no string literals.
 registerModules(apiRouter);
 app.use(env.API_PREFIX, apiRouter);
+app.use(
+  `${env.API_PREFIX}/uploads`,
+  express.static(path.join(process.cwd(), "uploads"))
+);
 
 app.use(globalErrorHandler);

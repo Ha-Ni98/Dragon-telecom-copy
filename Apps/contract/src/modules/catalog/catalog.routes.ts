@@ -9,6 +9,7 @@ export const CATALOG_ROUTES = {
   ADMIN_PRODUCT_BY_ID: '/admin/products/:id',
   PRICING: '/admin/products/:id/pricing',
   IMAGES: '/admin/products/:id/images',
+  IMAGE: '/uploads/:id',
   PRODUCT_STATS: '/admin/products/stats',
   ADMIN_BRANDS: '/admin/brands',
   ADMIN_BRAND_BY_ID: '/admin/brands/:id',

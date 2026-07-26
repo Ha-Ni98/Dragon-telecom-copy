@@ -1,85 +1,9 @@
-// Clients domain — Sub-01 scaffolding. Every read returns a typed empty default; real HTTP
-// wiring against @dragon-telecom/contract's CLIENTS_ROUTES lands in Sub-02 (see catalog.service.ts
-// header comment for the numeric-id/view-model scope decision this follows).
-import type {
-  AdminClientsFilters,
-  AdminClientsPaginatedResponse,
-  AdminClientWithDetails,
-  AdminClientsStats,
-  ClientModificationData,
-  Client,
-  UserAccountData,
-  PasswordResetData,
-} from "@/types/draft-types/client.types";
-
-// Stub write-paths that would otherwise need to fabricate a full entity throw this instead
-// of faking success — real persistence lands in Sub-02.
-const NOT_WIRED = 'This action is not available yet.';
-
-const ALGERIAN_PHONE_REGEX = /^(\+213[0-9]{9}|0[0-9]{9})$/;
-
-export function validatePhoneNumber(phone: string): boolean {
-  if (!phone) return false;
-  return ALGERIAN_PHONE_REGEX.test(phone.replace(/\s+/g, ''));
-}
-
-// No registered-client store exists yet (Sub-02) — every phone number looks available.
-export async function checkPhoneExists(_phone: string): Promise<boolean> {
-  return false;
-}
-
-export async function registerClient(_formData: Partial<Client>): Promise<void> {}
-
-export async function getAdminClients(filters: AdminClientsFilters): Promise<AdminClientsPaginatedResponse> {
-  return {
-    clients: [],
-    pagination: {
-      currentPage: filters.page || 1,
-      totalPages: 0,
-      totalItems: 0,
-      itemsPerPage: filters.limit || 10,
-      hasNextPage: false,
-      hasPreviousPage: false,
-    },
-  };
-}
-
-export async function getAdminClientById(_clientId: number): Promise<AdminClientWithDetails | null> {
-  return null;
-}
-
-export async function modifyAdminClient(_clientId: number, _updates: ClientModificationData): Promise<void> {}
-
-export async function deleteAdminClient(_clientId: number): Promise<void> {}
-
-export async function searchAdminClients(_query: string): Promise<AdminClientWithDetails[]> {
-  return [];
-}
-
-export async function getAdminClientsStats(): Promise<AdminClientsStats> {
-  return { totalClients: 0, activeClients: 0, newThisMonth: 0, averageOrdersPerClient: 0 };
-}
-
-// The signed-in client's own account — distinct from admin client management above.
-export async function getMyAccount(): Promise<UserAccountData | null> {
-  return null;
-}
-
-export async function updateMyAccount(_updates: Partial<UserAccountData>): Promise<void> {}
-
-export async function resetMyAccountPassword(_data: PasswordResetData): Promise<void> {
-  throw new Error(NOT_WIRED);
-}
-
-// ============================================================================
-// Sub-02 real clients service — contract-typed, HTTP-wired (integration
-// plan.md §2.3). Consumed by the new hooks (useClientPortal.ts, useAdminClients.ts,
-// usePosClients.ts), NOT by the Sub-01 stub hooks above — those still call the
-// stub functions above and stay wired to the pre-existing pages (MyAccount.tsx,
-// Register.tsx, AdminClients.tsx) until Sub-03 rewires them (integration
-// sprints.md Sprint 4 handoff note, same pattern as Sprint 3's catalog split).
-// No name collisions with the stub functions above by design.
-// ============================================================================
+// Clients domain — contract-typed, HTTP-wired (integration plan.md §2.3). The Sub-01 stub
+// functions this file used to also carry (getAdminClients/getAdminClientById/modifyAdminClient/
+// deleteAdminClient/searchAdminClients/getAdminClientsStats, consumed only by the
+// use-admin-clients*/use-modify-client.ts stub hooks) were removed set-04 Sprint 9 once
+// AdminClients.tsx/AdminClientDetail.tsx were confirmed fully rewired onto the real hooks below
+// (useClientDirectory.ts, usePosClients.ts) with zero remaining stub consumers.
 import { api } from "@/lib/axios";
 import { apiPath, withParams } from "@/lib/api-path";
 import {

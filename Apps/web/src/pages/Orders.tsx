@@ -1,61 +1,114 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useTranslation } from '@/hooks/useTranslation';
-import { OrdersListSection } from '@/components/sections/orders/orders-list-section';
-import { toast } from 'sonner';
+import { useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Package } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { NotFoundState } from "@/components/shared/NotFoundState";
+import { OrderCard } from "@/components/shared/OrderCard";
+import { OrderCardSkeleton } from "@/pages/my-orders/components/OrderCardSkeleton";
+import {
+  OrderStatusFilters,
+  type OrderFilterValue,
+} from "@/pages/my-orders/components/OrderStatusFilters";
+import { useMyOrders, useCancelMyOrder } from "@/hooks/useOrdersPortal";
+import { useTranslation } from "@/hooks/useTranslation";
+import { OrderStatus } from "@dragon-telecom/contract";
 
-// Route-level auth protection (ProtectedRoute/RoleGuard) is applied in App.tsx's router
-// config in Sub-01 Sprint 3 — this page assumes it's already behind that guard.
-const OrdersPage: React.FC = () => {
+// PUB-09 — rewired off the Sub-01 stub (OrdersListSection/use-orders.ts, numeric ids). Status
+// filter is URL-bound (?status=); counts come from a *separate* unfiltered useMyOrders({})
+// query — distinct query keys (qk.orders.mine({}) vs qk.orders.mine({status})) so the chips
+// always reflect every status, not just the active filter (plan.md D6, sprints.md Sprint 5 risk).
+// OrderCard owns its own confirm dialog (Sprint 3) — its `onCancel` prop only fires once the
+// user has already confirmed inside that dialog, so this page needs no cancel-target state of
+// its own, just the mutation to trigger.
+function isOrderStatus(value: string | null): value is OrderStatus {
+  return !!value && (Object.values(OrderStatus) as string[]).includes(value);
+}
+
+export default function OrdersPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Handle order cancellation
-  const handleOrderCancelled = (orderId: number) => {
-    toast.success(t('orders.orderCancelled'));
-  };
+  const statusParam = searchParams.get("status");
+  const activeFilter: OrderFilterValue = isOrderStatus(statusParam) ? statusParam : "all";
 
-  // Handle back navigation
-  const handleBack = () => {
-    navigate(-1);
-  };
+  const {
+    data: filteredOrders,
+    isLoading,
+    isError,
+    refetch,
+  } = useMyOrders(activeFilter === "all" ? {} : { status: activeFilter });
+  const { data: allOrders } = useMyOrders({});
+  const cancelMutation = useCancelMyOrder();
+
+  const counts = useMemo(() => {
+    const result: Partial<Record<OrderFilterValue, number>> = { all: allOrders?.length ?? 0 };
+    for (const status of Object.values(OrderStatus)) {
+      result[status] = allOrders?.filter((o) => o.status === status).length ?? 0;
+    }
+    return result;
+  }, [allOrders]);
+
+  const handleFilterChange = useCallback(
+    (value: OrderFilterValue) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value === "all") next.delete("status");
+          else next.set("status", value);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   return (
-    <div>
-      <main>
-        {/* Page Header */}
-        <section className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container mx-auto px-4 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleBack}
-                  className="flex items-center gap-2"
-                  aria-label={t('common.back')}
-                >
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  {t('common.back')}
-                </Button>
-                <div>
-                  <h1 className="text-2xl font-bold">{t('orders.title')}</h1>
-                  <p className="text-muted-foreground">{t('orders.description')}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+    <div className="container mx-auto max-w-4xl space-y-6 px-4 py-8">
+      <div>
+        <h1 className="text-2xl font-bold">{t("orders.title")}</h1>
+        <p className="text-muted-foreground">{t("orders.description")}</p>
+      </div>
 
-        {/* Main Content */}
-        <section className="container mx-auto px-4 py-8">
-          <OrdersListSection onOrderCancelled={handleOrderCancelled} />
-        </section>
-      </main>
+      <OrderStatusFilters value={activeFilter} onChange={handleFilterChange} counts={counts} />
+
+      {isLoading ? (
+        <div className="space-y-4">
+          {[0, 1, 2].map((i) => (
+            <OrderCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : isError ? (
+        <NotFoundState
+          title={t("orders.errorLoading")}
+          body={t("orders.errorLoadingBody")}
+          action={
+            <Button variant="outline" onClick={() => refetch()}>
+              {t("common.actions.tryAgain")}
+            </Button>
+          }
+        />
+      ) : !filteredOrders || filteredOrders.length === 0 ? (
+        <EmptyState
+          icon={<Package className="h-6 w-6" />}
+          title={t("orders.noOrders")}
+          body={
+            activeFilter === "all" ? t("orders.noOrdersDescription") : t("orders.emptyFiltered")
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          {filteredOrders.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              onCancel={() => cancelMutation.mutate(order.id)}
+              isCancelling={cancelMutation.isPending && cancelMutation.variables === order.id}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
-};
-
-export default OrdersPage;
+}

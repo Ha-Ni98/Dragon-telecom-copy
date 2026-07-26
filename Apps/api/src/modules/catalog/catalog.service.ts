@@ -495,7 +495,7 @@ export class CatalogProductService implements ICatalogProductService {
       this.prisma.product.count({ where }),
       this.prisma.product.findMany({
         where,
-        include: PRODUCT_INCLUDE,
+        include: { ...PRODUCT_INCLUDE, prices: { include: { category: true } } },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
         orderBy: this.resolveProductOrderBy(query.sort, { createdAt: 'desc' }),
@@ -504,7 +504,16 @@ export class CatalogProductService implements ICatalogProductService {
 
     this.emitProductSearched(query, viewer, products[0]?.id);
 
-    const items = products.map((product) => CatalogMapper.toAdminProductDto(product));
+    const items = products.map((product) =>
+      CatalogMapper.toAdminProductDto(
+        product,
+        product.prices.map((price) => ({
+          categoryId: price.clientCategoryId,
+          categoryName: price.category.name,
+          price: price.price.toNumber(),
+        })),
+      ),
+    );
 
     return paginated(AdminProductResponseSchema).parse({
       items,
@@ -530,11 +539,12 @@ export class CatalogProductService implements ICatalogProductService {
         const product = await tx.product.create({
           data: {
             sku: generateSku(),
-            ...(cmd.barcode != null ? { barcode: cmd.barcode } : {}),
+            ...(cmd.barcode != null && cmd.barcode.trim() !== '' ? { barcode: cmd.barcode } : {}),
             name: cmd.name,
             ...(cmd.description != null ? { description: cmd.description } : {}),
             familyId,
             brandId,
+            isPublished: true,
             ...(deviceModelId != null ? { deviceModelId } : {}),
             ...(cmd.guestPrice != null ? { guestPrice: cmd.guestPrice } : {}),
             ...(cmd.defaultSalePrice != null ? { defaultSalePrice: cmd.defaultSalePrice } : {}),
@@ -961,8 +971,18 @@ export class CatalogProductService implements ICatalogProductService {
 
   // Public: also serves ADMIN_PRODUCT_BY_ID's GET directly, not just the post-mutation reload.
   async getAdminProduct(id: string): Promise<AdminProductDto> {
-    const product = await this.prisma.product.findUnique({ where: { id }, include: PRODUCT_INCLUDE });
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      include: { ...PRODUCT_INCLUDE, prices: { include: { category: true } } },
+    });
     if (!product) throw new NotFoundError('Product');
-    return CatalogMapper.toAdminProductDto(product);
+    return CatalogMapper.toAdminProductDto(
+      product,
+      product.prices.map((price) => ({
+        categoryId: price.clientCategoryId,
+        categoryName: price.category.name,
+        price: price.price.toNumber(),
+      })),
+    );
   }
 }

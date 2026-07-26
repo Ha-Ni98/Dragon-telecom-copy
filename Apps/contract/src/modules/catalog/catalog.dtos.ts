@@ -51,7 +51,12 @@ export const StaffProductResponseSchema = z.object({
 });
 export type StaffProductDto = z.infer<typeof StaffProductResponseSchema>;
 
-// Admin — full visibility: exact quantities, averageCost, publish/enable flags.
+// Admin — full visibility: exact quantities, averageCost, publish/enable flags. `categoryPrices`
+// mirrors StaffProductResponseSchema's shape (set-03 A1) — ADM-04's pricing card needs the 3
+// category prices to render/prefill margins the same way the staff view already does.
+// `images` (set-03 Sprint 5 finding) — ADM-04's images card needs these too; only the public
+// ProductWithPricingResponseSchema carried them before, even though the backend's
+// PRODUCT_INCLUDE already fetches this relation for every admin query.
 export const AdminProductResponseSchema = z.object({
   id: z.uuid(),
   sku: z.string(),
@@ -63,6 +68,10 @@ export const AdminProductResponseSchema = z.object({
   model: z.object({ id: z.uuid(), name: z.string() }).optional(),
   guestPrice: z.number().optional(),
   defaultSalePrice: z.number().optional(),
+  categoryPrices: z.array(
+    z.object({ categoryId: z.uuid(), categoryName: z.string(), price: z.number() }),
+  ),
+  images: z.array(ProductImageResponseSchema),
   createdAt: z.iso.datetime(),
   quantityOnHand: z.number().int(),
   quantityReserved: z.number().int(),

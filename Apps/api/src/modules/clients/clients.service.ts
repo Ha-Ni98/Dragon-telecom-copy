@@ -223,13 +223,16 @@ export class ClientsService implements IClientsService {
   }
 
   async clientStats(): Promise<ClientStatsDto> {
-    const [totalClients, pending, approved, rejected] = await this.prisma.$transaction([
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [totalClients, pending, approved, rejected, newThisMonth] = await this.prisma.$transaction([
       this.prisma.client.count(),
       this.prisma.client.count({ where: { status: PrismaClientStatus.PENDING } }),
       this.prisma.client.count({ where: { status: PrismaClientStatus.APPROVED } }),
       this.prisma.client.count({ where: { status: PrismaClientStatus.REJECTED } }),
+      this.prisma.client.count({ where: { createdAt: { gte: startOfMonth } } }),
     ]);
-    return ClientsMapper.toClientStatsDto({ totalClients, pending, approved, rejected });
+    return ClientsMapper.toClientStatsDto({ totalClients, pending, approved, rejected, newThisMonth });
   }
 
   async getClient(id: string): Promise<AdminClientDto> {

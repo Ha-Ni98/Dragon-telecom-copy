@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,168 +7,97 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useWilaya } from "@/hooks/use-wilaya";
-import { useRegistration } from "@/hooks/use-registration";
-import { Link, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { useWilayas } from "@/hooks/usePlatform";
+import { useValidatePhone, useRegisterClient } from "@/hooks/useClientPortal";
+import { Link } from "react-router-dom";
 import { RegistrationConfirmationDialog } from "@/components/shared/RegistrationConfirmationDialog";
-import { useAuth } from "@/components/providers/AuthProvider";
-import { WilayaProvider } from "@/components/providers/wilaya-provider";
-import { Client } from "@/types/draft-types/client.types";
+import { registerSchema, type RegisterFormValues, type RegisterInput } from "@/pages/register/register.schema";
+import { PhoneAvailability } from "@dragon-telecom/contract";
 
-// WilayaProvider is mounted here rather than globally in main.tsx — it's the only consumer,
-// and its static Algeria geography data (~480KB JSON) should stay in this page's own lazy
-// chunk instead of bloating every route's initial bundle.
+// D8: the static WilayaProvider (~480KB JSON, name-keyed) is gone — useWilayas() (real server
+// hook, uuid ids + nested communes) replaces it, so this page no longer needs its own provider
+// wrapper or lazy chunk for that data.
 export default function Register() {
-  return (
-    <WilayaProvider>
-      <RegisterForm />
-    </WilayaProvider>
-  );
-}
-
-function RegisterForm() {
   const { t } = useTranslation();
-  const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-  const { wilayaOptions, getCommuneOptionsByName } = useWilaya();
-  const {
-    isSubmitting,
-    isValidatingPhone,
-    phoneError,
-    showSuccess,
-    validatePhone,
-    registerClient,
-    resetSuccess,
-    clearPhoneError
-  } = useRegistration();
-  
-  const [formData, setFormData] = useState<Partial<Client>>({
-    clientFirstName: "",
-    clientLastName: "",
-    clientEmail: "",
-    clientPhoneNumber: "",
-    clientWilaya: "",
-    clientCommune: ""
-  });
+  const { data: wilayasData, isLoading: wilayasLoading } = useWilayas();
+  const wilayas = wilayasData ?? [];
+  const validatePhoneMutation = useValidatePhone();
+  const registerMutation = useRegisterClient();
 
-  const [wilayaId, setWilayaId] = useState<string | null>(null);
-
-  // Dialog state
+  const [phoneConflict, setPhoneConflict] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pendingData, setPendingData] = useState<RegisterFormValues | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // Redirect authenticated users to My Account
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/my-account", { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
-
-  const schema = z.object({
-    clientFirstName: z.string().min(1, t('register.firstNameRequired')),
-    clientLastName: z.string().min(1, t('register.lastNameRequired')),
-    clientEmail: z.string().email(t('register.emailRequired')).optional().or(z.literal("")),
-    clientPhoneNumber: z.string().min(1, t('register.phoneRequired')),
-    clientWilaya: z.string().min(1, t('register.wilayaRequired')),
-    clientCommune: z.string().min(1, t('register.communeRequired')),
-  });
-  type FormValues = z.infer<typeof schema>;
-
-  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<RegisterInput, unknown, RegisterFormValues>({
+    resolver: zodResolver(registerSchema(t)),
     mode: "onSubmit",
-    defaultValues: formData,
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      phone: "",
+      email: "",
+      storeName: "",
+      wilayaId: "",
+      communeId: "",
+    },
   });
 
-  // Watch form values for select components
-  const watchedWilaya = watch("clientWilaya");
-  const watchedCommune = watch("clientCommune");
+  const watchedWilayaId = watch("wilayaId");
+  const selectedWilaya = wilayas.find((w) => w.id === watchedWilayaId);
+  const communeOptions = selectedWilaya?.communes ?? [];
+  const phoneField = register('phone');
 
-  // Get commune options based on selected wilaya
-  const communeOptions = watchedWilaya ? getCommuneOptionsByName(watchedWilaya) : [];
-
-  const onSubmit = async (data: FormValues) => {
-    clearPhoneError();
-
+  // PUB-07: "phone* (async-validated on blur via POST /api/auth/validate-phone)" — a plain
+  // onBlur handler, no debounce needed (blur is already a discrete, rate-limited event, unlike
+  // a keystroke stream).
+  const handlePhoneBlur = async () => {
+    const phone = watch("phone");
+    if (!phone) return;
+    setPhoneConflict(null);
     try {
-      // Validate phone number format and check for duplicates
-      const phoneValidation = await validatePhone(data.clientPhoneNumber);
-      
-      if (!phoneValidation.isValid || phoneValidation.exists) {
-        return;
+      const result = await validatePhoneMutation.mutateAsync({ phone });
+      if (result.status === PhoneAvailability.REGISTERED) {
+        setPhoneConflict(t("register.phoneRegistered"));
+      } else if (result.status === PhoneAvailability.PENDING) {
+        setPhoneConflict(t("register.phonePending"));
       }
-
-      // Phone validation passed, show confirmation dialog
-      setFormData(data);
-      setShowConfirmation(true);
-    } catch (error) {
-      console.error('Phone validation error:', error);
-      toast.error(t('register.phoneValidationError'));
+    } catch {
+      // Global mutationCache toast (query-client.ts) already surfaces unexpected failures.
     }
+  };
+
+  const onSubmit = (data: RegisterFormValues) => {
+    if (phoneConflict) return;
+    // The confirmation dialog is the real submit gate (PUB-07) — this only stages the data.
+    setPendingData(data);
+    setShowConfirmation(true);
   };
 
   const handleConfirmRegistration = async () => {
+    if (!pendingData) return;
     try {
-      const result = await registerClient(formData);
-      
-      if (result.success) {
-        // Close dialog first
-        setShowConfirmation(false);
-        
-        // Reset form data to initial state
-        const initialFormData: Partial<Client> = {
-          clientFirstName: "",
-          clientLastName: "",
-          clientEmail: "",
-          clientPhoneNumber: "",
-          clientWilaya: "",
-          clientCommune: ""
-        };
-        setFormData(initialFormData);
-        
-        // Reset form fields using React Hook Form's reset method
-        reset(initialFormData);
-        
-        toast.success(t('register.registrationSuccess'));
-      } else {
-        toast.error(result.error || t('register.registrationFailed'));
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      toast.error(t('register.registrationFailed'));
+      await registerMutation.mutateAsync(pendingData);
+      setShowConfirmation(false);
+      setShowSuccess(true);
+      reset();
+      setPendingData(null);
+    } catch {
+      // Keep the dialog open so the user can retry without re-filling the form; the global
+      // toast already reports the failure.
     }
   };
 
-  const handleCancelConfirmation = () => {
-    setShowConfirmation(false);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    // Update React Hook Form value
-    
-    setValue(name as keyof FormValues, value);
-    
-    
-    // Update local state
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-      // Reset commune when wilaya changes
-      ...(name === "clientWilaya" && { clientCommune: "" })
-    }));
-    
-    // Reset commune in React Hook Form when wilaya changes
-    if (name === "clientWilaya") {
-      setValue("clientCommune", "");
-    }
-  };
+  const pendingWilaya = wilayas.find((w) => w.id === pendingData?.wilayaId);
+  const pendingCommune = pendingWilaya?.communes.find((c) => c.id === pendingData?.communeId);
 
   return (
     <div>
@@ -181,9 +109,8 @@ function RegisterForm() {
               <CardDescription>{t('register.description')}</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Success Message */}
-              {showSuccess && (
-                <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              {showSuccess ? (
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
                       <svg className="h-5 w-5 text-green-500 dark:text-green-400" viewBox="0 0 20 20" fill="currentColor">
@@ -197,102 +124,132 @@ function RegisterForm() {
                     </div>
                   </div>
                 </div>
+              ) : (
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">{t('register.firstName')}</Label>
+                      <Input
+                        id="firstName"
+                        {...register('firstName')}
+                        placeholder={t('register.firstNamePlaceholder')}
+                      />
+                      {errors.firstName && <p className="text-sm text-destructive">{errors.firstName.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">{t('register.lastName')}</Label>
+                      <Input
+                        id="lastName"
+                        {...register('lastName')}
+                        placeholder={t('register.lastNamePlaceholder')}
+                      />
+                      {errors.lastName && <p className="text-sm text-destructive">{errors.lastName.message}</p>}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">{t('register.email')} <span className="text-muted-foreground">({t('register.optional')})</span></Label>
+                    <Input
+                      id="email"
+                      {...register('email')}
+                      type="email"
+                      placeholder={t('register.emailPlaceholder')}
+                    />
+                    {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="storeName">{t('register.storeName')} <span className="text-muted-foreground">({t('register.optional')})</span></Label>
+                    <Input
+                      id="storeName"
+                      {...register('storeName')}
+                      placeholder={t('register.storeNamePlaceholder')}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">{t('register.phone')}</Label>
+                    <Input
+                      id="phone"
+                      {...phoneField}
+                      onBlur={(e) => {
+                        // Chain explicitly: RHF's own registered onBlur still runs
+                        // (validation-mode triggering), then the async phone-conflict check.
+                        void phoneField.onBlur(e);
+                        void handlePhoneBlur();
+                      }}
+                      type="tel"
+                      placeholder={t('register.phonePlaceholder')}
+                    />
+                    {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+                    {!errors.phone && phoneConflict && <p className="text-sm text-destructive">{phoneConflict}</p>}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="wilayaId">{t('register.wilaya')}</Label>
+                      <Controller
+                        control={control}
+                        name="wilayaId"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              setValue("communeId", "");
+                            }}
+                            disabled={wilayasLoading}
+                          >
+                            <SelectTrigger id="wilayaId">
+                              <SelectValue placeholder={t('register.selectWilaya')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {wilayas.map((wilaya) => (
+                                <SelectItem key={wilaya.id} value={wilaya.id}>
+                                  {wilaya.wilayaCode} - {wilaya.frName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      {errors.wilayaId && <p className="text-sm text-destructive">{errors.wilayaId.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="communeId">{t('register.commune')}</Label>
+                      <Controller
+                        control={control}
+                        name="communeId"
+                        render={({ field }) => (
+                          <Select value={field.value} onValueChange={field.onChange} disabled={!watchedWilayaId}>
+                            <SelectTrigger id="communeId">
+                              <SelectValue placeholder={t('register.selectCommune')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {communeOptions.map((commune) => (
+                                <SelectItem key={commune.id} value={commune.id}>
+                                  {commune.frName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      {errors.communeId && <p className="text-sm text-destructive">{errors.communeId.message}</p>}
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={validatePhoneMutation.isPending}
+                  >
+                    {validatePhoneMutation.isPending ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        {t('register.validating')}
+                      </>
+                    ) : (
+                      t('register.submit')
+                    )}
+                  </Button>
+                </form>
               )}
-
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="clientFirstName">{t('register.firstName')}</Label>
-                    <Input
-                      id="clientFirstName"
-                      {...register('clientFirstName')}
-                      placeholder={t('register.firstNamePlaceholder')}
-                      required
-                    />
-                    {errors.clientFirstName && <p className="text-sm text-destructive">{errors.clientFirstName.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="clientLastName">{t('register.lastName')}</Label>
-                    <Input
-                      id="clientLastName"
-                      {...register('clientLastName')}
-                      placeholder={t('register.lastNamePlaceholder')}
-                      required
-                    />
-                    {errors.clientLastName && <p className="text-sm text-destructive">{errors.clientLastName.message}</p>}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="clientEmail">{t('register.email')} <span className="text-muted-foreground">({t('register.optional')})</span></Label>
-                  <Input
-                    id="clientEmail"
-                    {...register('clientEmail')}
-                    type="email"
-                    placeholder={t('register.emailPlaceholder')}
-                  />
-                  {errors.clientEmail && <p className="text-sm text-destructive">{errors.clientEmail.message}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="clientPhoneNumber">{t('register.phone')}</Label>
-                  <Input
-                    id="clientPhoneNumber"
-                    {...register('clientPhoneNumber')}
-                    type="tel"
-                    placeholder={t('register.phonePlaceholder')}
-                    required
-                  />
-                  {errors.clientPhoneNumber && <p className="text-sm text-destructive">{errors.clientPhoneNumber.message}</p>}
-                  {phoneError && <p className="text-sm text-destructive">{phoneError}</p>}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="clientWilaya">{t('register.wilaya')}</Label>
-                    <Select value={watchedWilaya} onValueChange={(value) => handleSelectChange("clientWilaya", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('register.selectWilaya')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {wilayaOptions.map((wilaya) => (
-                          <SelectItem key={wilaya.value} value={wilaya.label}>
-                            {wilaya.value + " - " + wilaya.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.clientWilaya && <p className="text-sm text-destructive">{errors.clientWilaya.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="clientCommune">{t('register.commune')}</Label>
-                    <Select value={watchedCommune} onValueChange={(value) => handleSelectChange("clientCommune", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('register.selectCommune')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {communeOptions.map((commune) => (
-                          <SelectItem key={commune.value} value={commune.value}>
-                            {commune.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.clientCommune && <p className="text-sm text-destructive">{errors.clientCommune.message}</p>}
-                  </div>
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={isValidatingPhone || isSubmitting}
-                >
-                  {isValidatingPhone ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      {t('register.validating')}
-                    </>
-                  ) : (
-                    t('register.submit')
-                  )}
-                </Button>
-              </form>
               <div className="mt-4 text-center">
                 <p className="text-sm text-muted-foreground">
                   {t('register.hasAccount')}{" "}
@@ -305,14 +262,22 @@ function RegisterForm() {
           </Card>
         </div>
       </main>
-      
+
       {/* Confirmation Dialog */}
       <RegistrationConfirmationDialog
         isOpen={showConfirmation}
-        onClose={handleCancelConfirmation}
+        onClose={() => setShowConfirmation(false)}
         onConfirm={handleConfirmRegistration}
-        userData={formData}
-        isLoading={isSubmitting}
+        userData={{
+          firstName: pendingData?.firstName ?? "",
+          lastName: pendingData?.lastName ?? "",
+          phone: pendingData?.phone ?? "",
+          email: pendingData?.email,
+          storeName: pendingData?.storeName,
+          wilayaName: pendingWilaya?.frName ?? "",
+          communeName: pendingCommune?.frName ?? "",
+        }}
+        isLoading={registerMutation.isPending}
       />
     </div>
   );

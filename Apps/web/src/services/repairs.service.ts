@@ -30,6 +30,15 @@ export async function listRepairs(
   return res.data.data;
 }
 
+// set-03 B1 — single-ticket read (ticket detail drawer); backend route added alongside it
+// (REPAIR_ROUTES.STAFF_BY_ID/ADMIN_BY_ID, same `:id` path as update, mounted on GET).
+export async function getRepair(scope: RepairsScope, id: string): Promise<RepairDto> {
+  const route = scope === "admin" ? REPAIR_ROUTES.ADMIN_BY_ID : REPAIR_ROUTES.STAFF_BY_ID;
+  const res = await api.get<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }));
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
 export async function createRepair(
   scope: RepairsScope,
   command: CreateRepairCommand,

@@ -83,10 +83,13 @@ export function useUpdateCatalogFamily() {
 
 // --- Models ---
 
-export function useCatalogModels(query: ModelsQuery = {}, admin = false) {
+// `enabled` lets a caller gate the fetch on a precondition (PUB-02: models list "enabled only
+// with a brand") without duplicating the query-key/queryFn wiring at the call site.
+export function useCatalogModels(query: ModelsQuery = {}, admin = false, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.catalog.models.list(query),
     queryFn: () => catalogService.listModels(query, admin),
+    enabled: options?.enabled,
   });
 }
 

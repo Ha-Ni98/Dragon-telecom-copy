@@ -13,10 +13,15 @@ import { qk } from "@/lib/query-keys";
 // Genuinely new territory (Tier 5, no MVP UI) — no pre-existing stub hooks anywhere reference
 // sale-shaped names; checked (incl. use-admin-settings.ts per the standing rule), zero hits.
 
-export function useSales(scope: SalesScope, query: SaleListQuery) {
+// `options.enabled` (set-04 Sprint 5) — ADM-11's detail drawer only wants this to fire once a
+// POS client row is clicked, unlike StaffPos.tsx's always-on ticket search; omitting `options`
+// keeps every existing caller's always-on behavior (same precedent as useStaffProducts/
+// useInvoices — react-query treats `enabled: undefined` as enabled).
+export function useSales(scope: SalesScope, query: SaleListQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.sales.list(scope, query),
     queryFn: () => salesService.listSales(scope, query),
+    enabled: options?.enabled,
   });
 }
 

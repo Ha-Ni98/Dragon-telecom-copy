@@ -37,6 +37,10 @@ const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
 router.get(REPAIR_ROUTES.STAFF_LIST, staffRepairsOrAdmin, validateRequest({ query: RepairListQuerySchema }), controller.listRepairs);
 router.get(REPAIR_ROUTES.ADMIN_LIST, adminOnly, validateRequest({ query: RepairListQuerySchema }), controller.listRepairs);
 
+// set-03 B1 — single-ticket read (ticket detail drawer).
+router.get(REPAIR_ROUTES.STAFF_BY_ID, staffRepairsOrAdmin, validateRequest({ params: RepairIdParamsSchema }), controller.getRepair);
+router.get(REPAIR_ROUTES.ADMIN_BY_ID, adminOnly, validateRequest({ params: RepairIdParamsSchema }), controller.getRepair);
+
 router.post(REPAIR_ROUTES.STAFF_CREATE, staffRepairsOrAdmin, validateRequest({ body: CreateRepairSchema }), controller.createRepair);
 router.post(REPAIR_ROUTES.ADMIN_CREATE, adminOnly, validateRequest({ body: CreateRepairSchema }), controller.createRepair);
 

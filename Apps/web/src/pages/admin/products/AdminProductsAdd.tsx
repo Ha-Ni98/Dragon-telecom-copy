@@ -1,172 +1,176 @@
-import { useState, useEffect } from "react";
-import { ArrowLeft, Upload, X, Calculator, Wand2 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft, Wand2, X, GripVertical, Upload } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
-import { useTranslation } from '@/hooks/useTranslation';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
-import { useBrands, useCategories } from "@/hooks/use-brands";
-import { useModels } from "@/hooks/use-models";
-import { useAdminSuppliers } from "@/hooks/use-admin-suppliers";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { AutocompleteInput } from "@/components/shared/autocomplete-input";
+import { useTranslation } from "@/hooks/useTranslation";
+import { formatDZD } from "@/lib/utils";
 import {
-  ProductAddFormData, 
-  ProductAddValidationErrors, 
-  BarcodeGenerationResult 
-} from "@/types/draft-types";
+  useCatalogFamilies,
+  useCatalogBrands,
+  useCatalogModels,
+  useCreateCatalogFamily,
+  useCreateCatalogBrand,
+  useCreateCatalogModel,
+} from "@/hooks/useCatalogTaxonomy";
+import { useCatalogClientCategories } from "@/hooks/useClientCategories";
+import { useCreateProduct } from "@/hooks/useCatalogProducts";
+import {
+  productsAddSchema,
+  type ProductsAddFormValues,
+} from "@/pages/admin/products/products-add.schema";
 
+interface StagedImage {
+  id: string;
+  file: File;
+  preview: string;
+}
+
+// `register(field, { valueAsNumber: true })` coerces an *empty* input via `Number("")`-style
+// parsing, which yields `NaN` — not `undefined`. For a required field that's merely confusing;
+// for an `.optional()` one (initialUnitCost/guestPrice/defaultSalePrice/reorderThreshold here)
+// it's a real bug: `z.number().optional()` rejects `NaN` outright with a generic "expected
+// number, received NaN" message, so the schema's own translated `.refine()` messages
+// (initialUnitCostRequired, pricingRequiresStock) never get a chance to render — found while
+// writing this sprint's tests. `setValueAs` fixes it by mapping blank to `undefined` first.
+const optionalNumber = (raw: string) => (raw === "" ? undefined : Number(raw));
+
+// ADM-03 — set-03 Sprint 5 rewire. The Sub-01 version had no real submit at all (a fake
+// setTimeout + toasts, no API call). Full rewrite: RHF + zodResolver against
+// products-add.schema.ts (which already carries every contract refine — family/brand XOR,
+// initialUnitCost required iff qty>0, pricing forbidden iff qty=0). Inline taxonomy "create
+// new" commits immediately via a real mutation and selects the new entity (ADM-03
+// §Interactions) — newFamilyName/newBrandName/newModelName are never actually sent by this UI,
+// since the id always resolves before submit; they exist on the command for API completeness.
+// Auto-name recompute is plain string concatenation (no fake "API delay" stub — the deleted
+// use-product-name-generation.ts simulated a network call for what's just string interpolation).
 export default function AdminProductsAdd() {
   const navigate = useNavigate();
+  const { t, language } = useTranslation();
 
-  const { data: familiesData } = useCategories();
-  const { data: brandsData } = useBrands();
-  const { data: modelsData } = useModels();
-  const { data: suppliersData } = useAdminSuppliers({ page: 1, limit: 100 });
-  const families = familiesData ?? [];
-  const brands = brandsData ?? [];
-  const models = modelsData ?? [];
-  const suppliers = suppliersData?.suppliers ?? [];
-
-  const [images, setImages] = useState<string[]>([]);
-  const [formData, setFormData] = useState<Partial<ProductAddFormData>>({
-    barcode: "",
-    family: "",
-    brand: "",
-    model: "",
-    productName: "",
-    description: "",
-    quantity: 0,
-    supplierId: undefined,
-    unitPrice: 0,
-    noUserPrice: undefined,
-    categoryPrices: {},
-    images: []
+  const { data: families } = useCatalogFamilies({}, true);
+  const { data: brands } = useCatalogBrands(true);
+  const [selectedBrandId, setSelectedBrandId] = useState<string>();
+  const { data: models } = useCatalogModels({ brandId: selectedBrandId }, true, {
+    enabled: !!selectedBrandId,
   });
-  const { t } = useTranslation();
-  // Form validation state
-  const [errors, setErrors] = useState<ProductAddValidationErrors>({});
-  
-  // Dropdown states
-  const [familyOpen, setFamilyOpen] = useState(false);
-  const [brandOpen, setBrandOpen] = useState(false);
-  const [modelOpen, setModelOpen] = useState(false);
-  const [supplierOpen, setSupplierOpen] = useState(false);
-  
-  // Search states
-  const [familySearch, setFamilySearch] = useState("");
-  const [brandSearch, setBrandSearch] = useState("");
-  const [modelSearch, setModelSearch] = useState("");
-  const [supplierSearch, setSupplierSearch] = useState("");
+  const { data: categories } = useCatalogClientCategories();
 
-  // Additional form fields for UI
-  const [selectedSupplier, setSelectedSupplier] = useState<string>("");
-  const [categoryPrices, setCategoryPrices] = useState<Record<number, number>>({});
-  
-  // Confirmation dialog state
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const createFamily = useCreateCatalogFamily();
+  const createBrand = useCreateCatalogBrand();
+  const createModel = useCreateCatalogModel();
+  const createProduct = useCreateProduct();
 
-  // Generate automatic barcode
-  const generateBarcode = (): BarcodeGenerationResult => {
-    try {
-      const timestamp = Date.now().toString();
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      const barcode = `BC${timestamp.slice(-8)}${random}`;
-      setFormData(prev => ({ ...prev, barcode }));
-      return { barcode, success: true };
-    } catch (error) {
-      return { barcode: "", success: false, error: "Failed to generate barcode" };
-    }
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
+  const [images, setImages] = useState<StagedImage[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useForm<ProductsAddFormValues>({
+    resolver: zodResolver(productsAddSchema(t)),
+    defaultValues: { name: "", initialQuantity: 0 },
+  });
+
+  const [familyId, brandId, modelId, initialQuantity, initialUnitCost] = watch([
+    "familyId",
+    "brandId",
+    "modelId",
+    "initialQuantity",
+    "initialUnitCost",
+  ]);
+
+  const familyName = families?.find((f) => f.id === familyId)?.name ?? "";
+  const brandName = brands?.find((b) => b.id === brandId)?.name ?? "";
+  const modelName = models?.find((m) => m.id === modelId)?.name ?? "";
+
+  const recomputeName = (nextFamily: string, nextBrand: string, nextModel: string) => {
+    if (nameManuallyEdited) return;
+    const parts = [nextFamily, nextBrand, nextModel].filter(Boolean);
+    if (parts.length) setValue("name", parts.join(" "));
   };
 
-  // Auto-generate product name when family, brand, and model are selected
-  useEffect(() => {
-    if (formData.family && formData.brand && formData.model) {
-      const autoName = `${formData.family} ${formData.brand} ${formData.model}`;
-      setFormData(prev => ({ ...prev, productName: autoName }));
-    }
-  }, [formData.family, formData.brand, formData.model]);
-
-  // Form validation
-  const validateForm = (): boolean => {
-    const newErrors: ProductAddValidationErrors = {};
-    
-    if (!formData.barcode || formData.barcode.trim() === "") newErrors.barcode = t("admin.productAdd.validation.barcodeRequired");
-    if (!formData.productName || formData.productName.trim() === "") newErrors.productName = t("admin.productAdd.validation.productNameRequired");
-    if (!formData.family || formData.family.trim() === "") newErrors.family = t("admin.productAdd.validation.familyRequired");
-    if (!formData.brand || formData.brand.trim() === "") newErrors.brand = t("admin.productAdd.validation.brandRequired");
-    if (!formData.model || formData.model.trim() === "") newErrors.model = t("admin.productAdd.validation.modelRequired");
-    if (!formData.quantity || formData.quantity <= 0) newErrors.quantity = t("admin.productAdd.validation.quantityRequired");
-    if (!formData.unitPrice || formData.unitPrice <= 0) newErrors.unitPrice = t("admin.productAdd.validation.unitPriceRequired");
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const generateBarcode = () => {
+    const timestamp = Date.now().toString().slice(-8);
+    const random = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0");
+    setValue("barcode", `BC${timestamp}${random}`);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && images.length < 3) {
-      const newImages = Array.from(files).slice(0, 3 - images.length).map(file => URL.createObjectURL(file));
-      setImages(prev => [...prev, ...newImages]);
-    }
+  const pricingUnlocked = (initialQuantity ?? 0) > 0;
+
+  const marginPercent = (price?: number) => {
+    if (!price || !initialUnitCost) return undefined;
+    return ((price - initialUnitCost) / initialUnitCost) * 100;
   };
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+  const handleFilesSelected = (files: FileList | null) => {
+    if (!files) return;
+    const remaining = 3 - images.length;
+    const next = Array.from(files)
+      .slice(0, remaining)
+      .map((file) => ({ id: crypto.randomUUID(), file, preview: URL.createObjectURL(file) }));
+    setImages((prev) => [...prev, ...next]);
   };
 
-  const handleInputChange = (field: keyof ProductAddFormData, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing and field has a value
-    if (errors[field as keyof ProductAddValidationErrors] && value) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
-    }
+  const removeImage = (id: string) => setImages((prev) => prev.filter((img) => img.id !== id));
+
+  const reorderImages = (fromIndex: number, toIndex: number) => {
+    setImages((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
   };
 
-  const calculateRevenue = (purchasePrice: number, sellingPrice: number): string => {
-    if (purchasePrice === 0) return "0%";
-    const revenue = ((sellingPrice - purchasePrice) / purchasePrice) * 100;
-    return `${revenue.toFixed(1)}`;
+  const categoryPriceValue = (categoryId: string) =>
+    getValues("categoryPrices")?.find((c) => c.categoryId === categoryId)?.price;
+
+  const setCategoryPrice = (categoryId: string, price: number) => {
+    const current = getValues("categoryPrices") ?? [];
+    const filtered = current.filter((c) => c.categoryId !== categoryId);
+    setValue("categoryPrices", price > 0 ? [...filtered, { categoryId, price }] : filtered);
   };
 
-  const handleSubmit = () => {
-    if (!validateForm()) {
-      toast.error(t("admin.productAdd.validation.requiredFields"));
-      return;
-    }
-    
-    // Show confirmation dialog
-    setShowConfirmDialog(true);
+  const onSubmit = () => setShowConfirm(true);
+
+  const confirmSubmit = () => {
+    const values = getValues();
+    createProduct.mutate(
+      { command: values, images: images.map((img) => img.file) },
+      {
+        onSuccess: (product) => {
+          setShowConfirm(false);
+          navigate(`/admin/products/add`);
+        },
+        onError: () => setShowConfirm(false),
+      },
+    );
   };
 
-  const confirmSave = () => {
-    // Show success messages
-    toast.success(t("admin.productAdd.success"));
-    toast.info(t("admin.productAdd.confirmationMessage"));
-    
-    // Close dialog
-    setShowConfirmDialog(false);
-    
-    // Navigate after a short delay to show the messages
-    setTimeout(() => {
-      navigate("/admin/products");
-    }, 2000);
-  };
+  const values = getValues();
 
   return (
     <div className="space-y-6">
@@ -174,546 +178,340 @@ export default function AdminProductsAdd() {
         <Button variant="ghost" onClick={() => navigate("/admin/products")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">{t("admin.productAdd.title")}</h1>
-          <p className="text-muted-foreground">{t("admin.productAdd.description")}</p>
-        </div>
+        <h1 className="text-2xl font-bold">{t("admin.productsAdd.pageTitle")}</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Product Info */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("admin.productAdd.basicInfo")}</CardTitle>
-              <CardDescription>{t("admin.productAdd.basicInfoDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="barcode">{t("admin.productAdd.barcode")} *</Label>
-                  <div className="flex gap-2">
-                  <Input
-                    id="barcode"
-                    value={formData.barcode || ""}
-                    onChange={(e) => handleInputChange("barcode", e.target.value)}
-                    placeholder={t("admin.productAdd.barcodePlaceholder")}
-                      className={errors.barcode ? "border-red-500" : ""}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={generateBarcode}
-                      className="px-3"
-                      title={t("admin.productAdd.generateBarcode")}
-                    >
-                      <Wand2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {errors.barcode && <p className="text-sm text-red-500">{errors.barcode}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="productName">{t("admin.productAdd.productName")} *</Label>
-                  <Input
-                    id="productName"
-                    value={formData.productName || ""}
-                    onChange={(e) => handleInputChange("productName", e.target.value)}
-                    placeholder={t("admin.productAdd.productNamePlaceholder")}
-                    className={errors.productName ? "border-red-500" : ""}
-                  />
-                  {errors.productName && <p className="text-sm text-red-500">{errors.productName}</p>}
-                </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-2xl space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("admin.productsAdd.card.basicInfo")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="add-barcode">{t("admin.productsAdd.barcodeLabel")}</Label>
+              <div className="flex gap-2">
+                <Input id="add-barcode" {...register("barcode")} />
+                <Button type="button" variant="outline" onClick={generateBarcode}>
+                  <Wand2 className="mr-1 h-4 w-4" />
+                  {t("admin.productsAdd.autoGenerateBarcode")}
+                </Button>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="family">{t("admin.productAdd.family")} *</Label>
-                  <Popover open={familyOpen} onOpenChange={setFamilyOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={familyOpen}
-                        className={cn(
-                          "w-full justify-between",
-                          errors.family && "border-red-500"
-                        )}
-                      >
-                        {formData.family || t("admin.productAdd.selectFamily")}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput
-                          placeholder={t("admin.productAdd.searchFamily")}
-                          value={familySearch}
-                          onValueChange={setFamilySearch}
-                        />
-                        <CommandList>
-                          <CommandEmpty>
-                            <div className="flex items-center justify-center p-2">
-                              <span className="text-sm text-muted-foreground">{t("admin.productAdd.noFamiliesFound")}</span>
-                            </div>
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {/* Always show create new option */}
-                            <CommandItem
-                              onSelect={() => {
-                                handleInputChange("family", familySearch);
-                                setFamilyOpen(false);
-                              }}
-                              className="text-blue-600"
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              {t("admin.productAdd.createNew")} "{familySearch}"
-                            </CommandItem>
-                            {families
-                              .filter(family => 
-                                family.familyName.toLowerCase().includes(familySearch.toLowerCase())
-                              )
-                              .map((family) => (
-                                <CommandItem
-                                  key={family.idFamily}
-                                  value={family.familyName}
-                                  onSelect={() => {
-                                    handleInputChange("family", family.familyName);
-                                    setFamilyOpen(false);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      formData.family === family.familyName ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {family.familyName}
-                                </CommandItem>
-                              ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {errors.family && <p className="text-sm text-red-500">{errors.family}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="brand">{t("admin.productAdd.brand")} *</Label>
-                  <Popover open={brandOpen} onOpenChange={setBrandOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={brandOpen}
-                        className={cn(
-                          "w-full justify-between",
-                          errors.brand && "border-red-500"
-                        )}
-                      >
-                        {formData.brand || t("admin.productAdd.selectBrand")}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput
-                          placeholder={t("admin.productAdd.searchBrand")}
-                          value={brandSearch}
-                          onValueChange={setBrandSearch}
-                        />
-                        <CommandList>
-                          <CommandEmpty>
-                            <div className="flex items-center justify-center p-2">
-                              <span className="text-sm text-muted-foreground">{t("admin.productAdd.noBrandsFound")}</span>
-                            </div>
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {/* Always show create new option */}
-                            <CommandItem
-                              onSelect={() => {
-                                handleInputChange("brand", brandSearch);
-                                setBrandOpen(false);
-                              }}
-                              className="text-blue-600"
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              {t("admin.productAdd.createNew")} "{brandSearch}"
-                            </CommandItem>
-                            {brands
-                              .filter(brand => 
-                                brand.brandName.toLowerCase().includes(brandSearch.toLowerCase())
-                              )
-                              .map((brand) => (
-                                <CommandItem
-                                  key={brand.idBrand}
-                                  value={brand.brandName}
-                                  onSelect={() => {
-                                    handleInputChange("brand", brand.brandName);
-                                    setBrandOpen(false);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      formData.brand === brand.brandName ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {brand.brandName}
-                                </CommandItem>
-                              ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {errors.brand && <p className="text-sm text-red-500">{errors.brand}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="model">{t("admin.productAdd.model")} *</Label>
-                  <Popover open={modelOpen} onOpenChange={setModelOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={modelOpen}
-                        disabled={!formData.family || !formData.brand}
-                        className={cn(
-                          "w-full justify-between",
-                          errors.model && "border-red-500"
-                        )}
-                      >
-                        {formData.model || t("admin.productAdd.selectModel")}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput
-                          placeholder={t("admin.productAdd.searchModel")}
-                          value={modelSearch}
-                          onValueChange={setModelSearch}
-                        />
-                        <CommandList>
-                          <CommandEmpty>
-                            <div className="flex items-center justify-center p-2">
-                              <span className="text-sm text-muted-foreground">{t("admin.productAdd.noModelsFound")}</span>
-                            </div>
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {/* Always show create new option */}
-                            <CommandItem
-                              onSelect={() => {
-                                handleInputChange("model", modelSearch);
-                                setModelOpen(false);
-                              }}
-                              className="text-blue-600"
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              {t("admin.productAdd.createNew")} "{modelSearch}"
-                            </CommandItem>
-                            {models
-                              .filter(model => 
-                                model.modelName.toLowerCase().includes(modelSearch.toLowerCase())
-                              )
-                              .map((model) => (
-                                <CommandItem
-                                  key={model.idModel}
-                                  value={model.modelName}
-                                  onSelect={() => {
-                                    handleInputChange("model", model.modelName);
-                                    setModelOpen(false);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      formData.model === model.modelName ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {model.modelName}
-                                </CommandItem>
-                              ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {errors.model && <p className="text-sm text-red-500">{errors.model}</p>}
-                </div>
-              </div>
+            <div className="space-y-1">
+              <Label htmlFor="add-name">{t("admin.productsAdd.nameLabel")}</Label>
+              <Input
+                id="add-name"
+                {...register("name", { onChange: () => setNameManuallyEdited(true) })}
+              />
+              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">{t("admin.productAdd.description")}</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description || ""}
-                  onChange={(e) => handleInputChange("description", e.target.value)}
-                  placeholder={t("admin.productAdd.descriptionPlaceholder")}
-                  rows={3}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label>{t("admin.productsAdd.familyLabel")}</Label>
+                <AutocompleteInput
+                  value={familyName}
+                  onChange={(value) => {
+                    const family = families?.find((f) => f.id === value);
+                    if (family) {
+                      setValue("familyId", family.id);
+                      recomputeName(family.name, brandName, modelName);
+                    }
+                  }}
+                  suggestions={(families ?? []).map((f) => ({ value: f.id, label: f.name }))}
+                  onSearch={() => {}}
+                  onCreateNew={(name) =>
+                    createFamily.mutate(
+                      { name },
+                      {
+                        onSuccess: (family) => {
+                          setValue("familyId", family.id);
+                          recomputeName(family.name, brandName, modelName);
+                        },
+                      },
+                    )
+                  }
+                  emptyMessage={t("admin.productsAdd.familyLabel")}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">{t("admin.productAdd.quantity")} *</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={formData.quantity || ""}
-                    onChange={(e) => handleInputChange("quantity", parseInt(e.target.value) || 0)}
-                    placeholder={t("admin.productAdd.quantityPlaceholder")}
-                    className={errors.quantity ? "border-red-500" : ""}
-                  />
-                  {errors.quantity && <p className="text-sm text-red-500">{errors.quantity}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="supplier">{t("admin.productAdd.supplier")}</Label>
-                  <Popover open={supplierOpen} onOpenChange={setSupplierOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={supplierOpen}
-                        className="w-full justify-between"
-                      >
-                        {selectedSupplier || t("admin.productAdd.selectSupplier")}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput
-                          placeholder={t("admin.productAdd.searchSupplier")}
-                          value={supplierSearch}
-                          onValueChange={setSupplierSearch}
-                        />
-                        <CommandList>
-                          <CommandEmpty>
-                            <div className="flex items-center justify-center p-2">
-                              <span className="text-sm text-muted-foreground">{t("admin.productAdd.noSuppliersFound")}</span>
-                            </div>
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {/* Always show create new option */}
-                            <CommandItem
-                              onSelect={() => {
-                                setSelectedSupplier(supplierSearch);
-                                setSupplierOpen(false);
-                              }}
-                              className="text-blue-600"
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              {t("admin.productAdd.createNew")} "{supplierSearch}"
-                            </CommandItem>
-                            {suppliers
-                              .filter(supplier => 
-                                supplier.supplierName.toLowerCase().includes(supplierSearch.toLowerCase())
-                              )
-                              .map((supplier) => (
-                                <CommandItem
-                                  key={supplier.idSupplier}
-                                  value={supplier.supplierName}
-                                  onSelect={() => {
-                                    setSelectedSupplier(supplier.supplierName);
-                                    setSupplierOpen(false);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedSupplier === supplier.supplierName ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {supplier.supplierName}
-                                </CommandItem>
-                              ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pricing */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calculator className="h-5 w-5" />
-                {t("admin.productAdd.pricing")}
-              </CardTitle>
-              <CardDescription>{t("admin.productAdd.pricingDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="unitPrice">{t("admin.productAdd.unitPrice")} (DA) *</Label>
-                <Input
-                  id="unitPrice"
-                  type="number"
-                  value={formData.unitPrice || ""}
-                  onChange={(e) => handleInputChange("unitPrice", parseFloat(e.target.value) || 0)}
-                  placeholder={t("admin.productAdd.unitPricePlaceholder")}
-                  className={errors.unitPrice ? "border-red-500" : ""}
-                />
-                {errors.unitPrice && <p className="text-sm text-red-500">{errors.unitPrice}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="publicPrice">{t("product.publicPrice")} (DA)</Label>
-                <Input
-                  id="publicPrice"
-                  type="number"
-                  value={formData.noUserPrice || ""}
-                  onChange={(e) => handleInputChange("noUserPrice", parseFloat(e.target.value) || 0)}
-                  placeholder={t("admin.productAdd.publicPricePlaceholder")}
-                />
-                {formData.unitPrice && formData.noUserPrice ?  (
-                  <p className="text-sm text-muted-foreground">
-                    {t("admin.productAdd.revenueCalculation").replace("{percentage}", calculateRevenue(formData.unitPrice, formData.noUserPrice))}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium">{t("admin.productAdd.categoryPrices")}</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="premiumPrice">{t("admin.productAdd.premiumPrice")} (DA)</Label>
-                    <Input
-                      id="premiumPrice"
-                      type="number"
-                      value={categoryPrices[1] || ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        setCategoryPrices(prev => ({ ...prev, 1: value }));
-                      }}
-                      placeholder={t("admin.productAdd.premiumPricePlaceholder")}
-                    />
-                    {formData.unitPrice && categoryPrices[1] && (
-                      <p className="text-xs text-green-600">
-                        +{calculateRevenue(formData.unitPrice, categoryPrices[1])}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="standardPrice">{t("admin.productAdd.standardPrice")} (DA)</Label>
-                    <Input
-                      id="standardPrice"
-                      type="number"
-                      value={categoryPrices[2] || ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        setCategoryPrices(prev => ({ ...prev, 2: value }));
-                      }}
-                      placeholder={t("admin.productAdd.standardPricePlaceholder")}
-                    />
-                    {formData.unitPrice && categoryPrices[2] && (
-                      <p className="text-xs text-green-600">
-                        +{calculateRevenue(formData.unitPrice, categoryPrices[2])}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="basicPrice">{t("admin.productAdd.basicPrice")} (DA)</Label>
-                    <Input
-                      id="basicPrice"
-                      type="number"
-                      value={categoryPrices[3] || ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        setCategoryPrices(prev => ({ ...prev, 3: value }));
-                      }}
-                      placeholder={t("admin.productAdd.basicPricePlaceholder")}
-                    />
-                    {formData.unitPrice && categoryPrices[3] && (
-                      <p className="text-xs text-green-600">
-                        +{calculateRevenue(formData.unitPrice, categoryPrices[3])}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Image Upload */}
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("admin.productAdd.images")}</CardTitle>
-              <CardDescription>{t("admin.productAdd.uploadImages")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                {images.map((image, index) => (
-                  <div key={index} className="relative group">
-                    <img
-                      src={image}
-                      alt={`Product ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => removeImage(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                
-                {images.length < 3 && (
-                  <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 transition-colors">
-                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                    <span className="text-sm text-muted-foreground">{t("admin.productAdd.uploadImage")}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={handleImageUpload}
-                    />
-                  </label>
+                {errors.familyId && (
+                  <p className="text-sm text-destructive">{errors.familyId.message}</p>
                 )}
               </div>
 
-              <div className="flex gap-2 pt-4">
-                <Button onClick={handleSubmit} className="flex-1">
-                  {t("admin.productAdd.save")}
-                </Button>
-                <Button variant="outline" onClick={() => navigate("/admin/products")}>
-                  {t("admin.productAdd.cancel")}
-                </Button>
+              <div className="space-y-1">
+                <Label>{t("admin.productsAdd.brandLabel")}</Label>
+                <AutocompleteInput
+                  value={brandName}
+                  onChange={(value) => {
+                    const brand = brands?.find((b) => b.id === value);
+                    if (brand) {
+                      setValue("brandId", brand.id);
+                      setSelectedBrandId(brand.id);
+                      recomputeName(familyName, brand.name, modelName);
+                    }
+                  }}
+                  suggestions={(brands ?? []).map((b) => ({ value: b.id, label: b.name }))}
+                  onSearch={() => {}}
+                  onCreateNew={(name) =>
+                    createBrand.mutate(
+                      { name },
+                      {
+                        onSuccess: (brand) => {
+                          setValue("brandId", brand.id);
+                          setSelectedBrandId(brand.id);
+                          recomputeName(familyName, brand.name, modelName);
+                        },
+                      },
+                    )
+                  }
+                  emptyMessage={t("admin.productsAdd.brandLabel")}
+                />
+                {errors.brandId && (
+                  <p className="text-sm text-destructive">{errors.brandId.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <Label>{t("admin.productsAdd.modelLabel")}</Label>
+                <AutocompleteInput
+                  value={modelName}
+                  onChange={(value) => {
+                    const model = models?.find((m) => m.id === value);
+                    if (model) {
+                      setValue("modelId", model.id);
+                      recomputeName(familyName, brandName, model.name);
+                    }
+                  }}
+                  suggestions={(models ?? []).map((m) => ({ value: m.id, label: m.name }))}
+                  onSearch={() => {}}
+                  disabled={!brandId}
+                  onCreateNew={(name) => {
+                    if (!brandId) return;
+                    createModel.mutate(
+                      { brandId, name },
+                      {
+                        onSuccess: (model) => {
+                          setValue("modelId", model.id);
+                          recomputeName(familyName, brandName, model.name);
+                        },
+                      },
+                    );
+                  }}
+                  emptyMessage={t("admin.productsAdd.modelLabel")}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="add-description">{t("admin.productsAdd.descriptionLabel")}</Label>
+              <Textarea id="add-description" rows={3} {...register("description")} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("admin.productsAdd.card.initialStock")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="add-quantity">{t("admin.productsAdd.initialQuantityLabel")}</Label>
+              <Input
+                id="add-quantity"
+                type="number"
+                min={0}
+                {...register("initialQuantity", { valueAsNumber: true })}
+              />
+              {errors.initialQuantity && (
+                <p className="text-sm text-destructive">{errors.initialQuantity.message}</p>
+              )}
+            </div>
+
+            {pricingUnlocked && (
+              <div className="space-y-1">
+                <Label htmlFor="add-unit-cost">{t("admin.productsAdd.initialUnitCostLabel")}</Label>
+                <Input
+                  id="add-unit-cost"
+                  type="number"
+                  step="0.01"
+                  {...register("initialUnitCost", { setValueAs: optionalNumber })}
+                />
+                {errors.initialUnitCost && (
+                  <p className="text-sm text-destructive">{errors.initialUnitCost.message}</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("admin.productsAdd.card.pricing")}</CardTitle>
+            {!pricingUnlocked && (
+              <CardDescription>{t("admin.productsAdd.card.pricingLocked")}</CardDescription>
+            )}
+          </CardHeader>
+          {pricingUnlocked && (
+            <CardContent className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="add-guest-price">{t("admin.productsAdd.guestPriceLabel")}</Label>
+                <Input
+                  id="add-guest-price"
+                  type="number"
+                  step="0.01"
+                  {...register("guestPrice", { setValueAs: optionalNumber })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("admin.productsAdd.guestPriceHelper")}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="add-default-price">
+                  {t("admin.productsAdd.defaultSalePriceLabel")}
+                </Label>
+                <Input
+                  id="add-default-price"
+                  type="number"
+                  step="0.01"
+                  {...register("defaultSalePrice", { setValueAs: optionalNumber })}
+                />
+                {marginPercent(watch("defaultSalePrice")) != null && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("admin.productsAdd.marginLabel")}:{" "}
+                    {marginPercent(watch("defaultSalePrice"))?.toFixed(1)}%
+                  </p>
+                )}
+              </div>
+
+              {(categories ?? []).map((category) => (
+                <div key={category.id} className="space-y-1">
+                  <Label htmlFor={`add-category-price-${category.id}`}>
+                    {category.name} {t("admin.productsAdd.categoryPriceLabel")}
+                  </Label>
+                  <Input
+                    id={`add-category-price-${category.id}`}
+                    type="number"
+                    step="0.01"
+                    defaultValue={categoryPriceValue(category.id)}
+                    onChange={(e) => setCategoryPrice(category.id, Number(e.target.value))}
+                  />
+                  {marginPercent(categoryPriceValue(category.id)) != null && (
+                    <p className="text-xs text-muted-foreground">
+                      {t("admin.productsAdd.marginLabel")}:{" "}
+                      {marginPercent(categoryPriceValue(category.id))?.toFixed(1)}%
+                    </p>
+                  )}
+                </div>
+              ))}
+
+              <div className="space-y-1">
+                <Label htmlFor="add-reorder-threshold">
+                  {t("admin.productsAdd.reorderThresholdLabel")}
+                </Label>
+                <Input
+                  id="add-reorder-threshold"
+                  type="number"
+                  min={0}
+                  {...register("reorderThreshold", { setValueAs: optionalNumber })}
+                />
               </div>
             </CardContent>
-          </Card>
-        </div>
-      </div>
+          )}
+        </Card>
 
-      {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("admin.productAdd.confirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("admin.productAdd.confirmDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowConfirmDialog(false)}>
-              {t("admin.productAdd.cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmSave}>
-              {t("admin.productAdd.confirmSave")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("admin.productsAdd.card.images")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              {images.map((img, index) => (
+                <div
+                  key={img.id}
+                  draggable
+                  onDragStart={() => setDragIndex(index)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragIndex != null && dragIndex !== index) reorderImages(dragIndex, index);
+                    setDragIndex(null);
+                  }}
+                  className="relative"
+                >
+                  <img
+                    src={img.preview}
+                    alt=""
+                    className="h-24 w-full rounded-lg border object-cover"
+                  />
+                  {index === 0 && (
+                    <span className="absolute left-1 top-1 rounded bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
+                      {t("admin.productsList.table.published")}
+                    </span>
+                  )}
+                  <GripVertical className="absolute right-1 top-1 h-4 w-4 cursor-move text-white drop-shadow" />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute bottom-1 right-1 h-6 w-6"
+                    onClick={() => removeImage(img.id)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+              {images.length < 3 && (
+                <label className="flex h-24 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50">
+                  <Upload className="h-6 w-6 text-muted-foreground" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFilesSelected(e.target.files)}
+                  />
+                </label>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Button type="submit" className="w-full" disabled={createProduct.isPending}>
+          {t("common.actions.save")}
+        </Button>
+      </form>
+
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("admin.productsAdd.confirmDialog.title")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <div>
+              <strong>{values.name}</strong>
+            </div>
+            <div className="text-muted-foreground">
+              {familyName} / {brandName} {modelName ? `/ ${modelName}` : ""}
+            </div>
+            <div>
+              {t("admin.productsAdd.initialQuantityLabel")}: {values.initialQuantity}
+            </div>
+            {values.defaultSalePrice != null && (
+              <div>
+                {t("admin.productsAdd.defaultSalePriceLabel")}:{" "}
+                {formatDZD(values.defaultSalePrice, language)}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={confirmSubmit} disabled={createProduct.isPending}>
+              {t("admin.productsAdd.confirmDialog.submit")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

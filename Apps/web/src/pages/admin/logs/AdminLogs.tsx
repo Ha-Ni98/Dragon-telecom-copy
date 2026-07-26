@@ -1,258 +1,72 @@
-/**
- * Admin Logs Page
- * 
- * Main page for viewing system logs with comprehensive functionality:
- * - Logs table with search, filtering, and pagination
- * - Filter controls for User, Action Type, and Date Range
- * - Statistics cards showing log metrics
- * - Full error handling and loading states
- * - Responsive design for all screen sizes
- * - Internationalization support (EN/FR)
- * - Accessibility features (ARIA labels, keyboard navigation)
- * 
- * @component
- * @example
- * ```tsx
- * <AdminLogs />
- * ```
- */
+import { useCallback, useMemo, useState } from "react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { AdminLogsTable } from "@/pages/admin/logs/components/admin-logs-table";
+import {
+  AdminLogsFilters,
+  type LogsFilterValues,
+} from "@/pages/admin/logs/components/admin-logs-filters";
+import { AdminLogsStatsCards } from "@/pages/admin/logs/components/admin-logs-stats-cards";
+import { useLogs, useLogStats } from "@/hooks/useObservability";
+import { useUsers } from "@/hooks/useIdentity";
+import { useTranslation } from "@/hooks/useTranslation";
 
-import React, { useState, useCallback, useMemo, memo } from 'react';
-import { useTranslation } from '@/hooks/useTranslation';
-import { ErrorBoundary } from '@/components/error-boundary';
-import { AdminLogsTable } from '@/pages/admin/logs/components/admin-logs-table';
-import { AdminLogsFilters } from '@/pages/admin/logs/components/admin-logs-filters';
-import { AdminLogsStatsCards } from '@/pages/admin/logs/components/admin-logs-stats-cards';
-import { 
-  useAdminLogs, 
-  useAdminLogsStats, 
-  useRefreshAdminLogs 
-} from '@/hooks/use-admin-logs';
-import { AdminLogsFilters as AdminLogsFiltersType } from '@/types/draft-types/logs.types';
-
-/**
- * Error fallback components
- */
-const StatisticsErrorFallback = ({ retry }: { retry: () => void }) => {
+// ADM-18 — Sprint 8 wiring: `useLogs`/`useLogStats` (useObservability.ts), user-filter sourced
+// from `useUsers` (identity), not the stub `usePlatformUsers`. Strictly read-only — no mutation
+// UI. `LogsFilterValues` names its date fields `dateFrom`/`dateTo` (UI convention) while the
+// real `LogsQuery` names them `from`/`to` — mapped explicitly below rather than renamed, since
+// the filter component's names read better next to a date-range picker.
+export default function AdminLogs() {
   const { t } = useTranslation();
-  return (
-    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-      <h3 className="text-red-800 font-medium">{t('admin.logs.errors.statisticsTitle')}</h3>
-      <p className="text-red-600 text-sm mt-1">
-        {t('admin.logs.errors.statisticsBody')}
-      </p>
-      <button
-        onClick={retry}
-        className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
-      >
-        {t('common.actions.tryAgain')}
-      </button>
-    </div>
+  const [filters, setFilters] = useState<LogsFilterValues>({ search: "", page: 1, limit: 20 });
+
+  const logsQuery = useMemo(
+    () => ({
+      search: filters.search || undefined,
+      userId: filters.userId,
+      actionType: filters.actionType,
+      from: filters.dateFrom,
+      to: filters.dateTo,
+      page: filters.page,
+      limit: filters.limit,
+    }),
+    [filters],
   );
-};
+  const logs = useLogs(logsQuery);
+  const logStats = useLogStats();
+  const users = useUsers({ page: 1, limit: 100 });
 
-const TableErrorFallback = ({ retry }: { retry: () => void }) => {
-  const { t } = useTranslation();
-  return (
-    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-      <h3 className="text-red-800 font-medium">{t('admin.logs.errors.tableTitle')}</h3>
-      <p className="text-red-600 text-sm mt-1">
-        {t('admin.logs.errors.tableBody')}
-      </p>
-      <button
-        onClick={retry}
-        className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
-      >
-        {t('common.actions.tryAgain')}
-      </button>
-    </div>
-  );
-};
-
-const FiltersErrorFallback = ({ retry }: { retry: () => void }) => {
-  const { t } = useTranslation();
-  return (
-    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-      <h3 className="text-red-800 font-medium">{t('admin.logs.errors.filtersTitle')}</h3>
-      <p className="text-red-600 text-sm mt-1">
-        {t('admin.logs.errors.filtersBody')}
-      </p>
-      <button
-        onClick={retry}
-        className="mt-2 px-3 py-1 bg-red-100 text-red-800 rounded text-sm hover:bg-red-200"
-      >
-        {t('common.actions.tryAgain')}
-      </button>
-    </div>
-  );
-};
-
-/**
- * Main AdminLogs page component
- */
-const AdminLogs = memo(function AdminLogs() {
-  const { t } = useTranslation();
-  
-  // Filter state with comprehensive initialization
-  const [filters, setFilters] = useState<AdminLogsFiltersType>({
-    searchQuery: '',
-    page: 1,
-    limit: 20,
-    userId: undefined,
-    actionType: undefined,
-    dateFrom: undefined,
-    dateTo: undefined,
-  });
-
-  // Data fetching hooks
-  const { 
-    data: logsData, 
-    isLoading: logsLoading, 
-    error: logsError,
-    refetch: refetchLogs 
-  } = useAdminLogs(filters);
-  
-  const { 
-    data: statsData, 
-    isLoading: statsLoading, 
-    error: statsError,
-    refetch: refetchStats 
-  } = useAdminLogsStats();
-
-  // Refresh functionality
-  const { refreshAll } = useRefreshAdminLogs();
-
-  /**
-   * Handle filter changes with proper state coordination
-   */
-  const handleFiltersChange = useCallback((newFilters: AdminLogsFiltersType) => {
-    setFilters(prevFilters => ({
-      ...prevFilters,
-      ...newFilters,
-      page: 1 // Reset to first page when filters change
-    }));
+  const handleFiltersChange = useCallback((next: LogsFilterValues) => {
+    setFilters(next);
   }, []);
-
-  /**
-   * Handle page changes
-   */
   const handlePageChange = useCallback((page: number) => {
-    setFilters(prevFilters => ({
-      ...prevFilters,
-      page
-    }));
+    setFilters((current) => ({ ...current, page }));
   }, []);
 
-  /**
-   * Handle retry for error states
-   */
-  const handleRetry = useCallback(() => {
-    refetchLogs();
-    refetchStats();
-  }, [refetchLogs, refetchStats]);
-
-  /**
-   * Handle refresh for the entire page
-   */
-  const handleRefresh = useCallback(async () => {
-    try {
-      await refreshAll();
-    } catch (error) {
-      console.error('Error refreshing admin logs:', error);
-    }
-  }, [refreshAll]);
-
-  /**
-   * Memoized loading state
-   */
-  const isAnyLoading = useMemo(() => {
-    return logsLoading || statsLoading;
-  }, [logsLoading, statsLoading]);
-
-  /**
-   * Memoized error state
-   */
-  const hasError = useMemo(() => {
-    return logsError || statsError;
-  }, [logsError, statsError]);
-
-  /**
-   * Memoized props for components to prevent unnecessary re-renders
-   */
-  const statsCardsProps = useMemo(() => ({
-    stats: statsData,
-    loading: statsLoading,
-    error: statsError?.message || null,
-    onRetry: handleRetry,
-    onRefresh: handleRefresh,
-    showRefresh: true
-  }), [statsData, statsLoading, statsError, handleRetry, handleRefresh]);
-
-  const tableProps = useMemo(() => ({
-    data: logsData,
-    loading: logsLoading,
-    error: logsError?.message || null,
-    onRetry: handleRetry,
-    onRefresh: handleRefresh,
-    showRefresh: true,
-    onPageChange: handlePageChange
-  }), [logsData, logsLoading, logsError, handleRetry, handleRefresh, handlePageChange]);
-
-  const filtersProps = useMemo(() => ({
-    onFiltersChange: handleFiltersChange,
-    loading: isAnyLoading
-  }), [handleFiltersChange, isAnyLoading]);
-
   return (
-    <div className="w-full h-full">
-      {/* Error Boundary for the entire page */}
-      <ErrorBoundary>
-        <div
-          className="w-full h-full space-y-6"
-          role="main"
-          aria-label={t('admin.logs.title')}
-          aria-describedby="admin-logs-description"
-        >
-          {/* Page Header */}
-          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">{t('admin.logs.title')}</h1>
-              <p 
-                id="admin-logs-description"
-                className="text-muted-foreground"
-              >
-                {t('admin.logs.description')}
-              </p>
-            </div>
-          </header>
+    <div className="space-y-6">
+      <PageHeader title={t("admin.logs.title")} subtitle={t("admin.logs.description")} />
 
-          {/* Statistics Cards */}
-          <ErrorBoundary fallback={<StatisticsErrorFallback retry={handleRetry} />}>
-            <section aria-labelledby="stats-heading">
-              <h2 id="stats-heading" className="sr-only">{t('admin.logs.statisticsHeading')}</h2>
-              <AdminLogsStatsCards {...statsCardsProps} />
-            </section>
-          </ErrorBoundary>
+      <AdminLogsStatsCards
+        stats={logStats.data}
+        loading={logStats.isLoading}
+        error={logStats.isError ? t("admin.logs.stats.description") : null}
+        onRefresh={() => logStats.refetch()}
+      />
 
-          {/* Filters Section */}
-          <ErrorBoundary fallback={<FiltersErrorFallback retry={handleRetry} />}>
-            <section aria-labelledby="filters-heading">
-              <h2 id="filters-heading" className="sr-only">{t('admin.logs.filtersHeading')}</h2>
-              <AdminLogsFilters {...filtersProps} />
-            </section>
-          </ErrorBoundary>
+      <AdminLogsFilters
+        onFiltersChange={handleFiltersChange}
+        users={users.data?.items}
+        loading={logs.isLoading}
+      />
 
-          {/* Logs Table */}
-          <ErrorBoundary fallback={<TableErrorFallback retry={handleRetry} />}>
-            <section aria-labelledby="logs-heading">
-              <h2 id="logs-heading" className="sr-only">{t('admin.logs.tableHeading')}</h2>
-              <AdminLogsTable {...tableProps} />
-            </section>
-          </ErrorBoundary>
-              </div>
-      </ErrorBoundary>
+      <AdminLogsTable
+        data={logs.data}
+        loading={logs.isLoading}
+        error={logs.isError ? t("admin.logs.description") : null}
+        onRetry={() => logs.refetch()}
+        onRefresh={() => logs.refetch()}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
-});
-
-export default AdminLogs;
+}

@@ -106,10 +106,12 @@ export const qk = {
   orders: {
     all: () => ["orders"] as const,
     mine: (query?: unknown) => ["orders", "mine", query] as const,
-    admin: {
-      list: (query?: unknown) => ["orders", "admin", "list", query] as const,
-      detail: (id: string) => ["orders", "admin", "detail", id] as const,
-    },
+    // `scope` embedded (set-03 Sprint 6 fix) — the bare `admin`-labelled shape below collided
+    // staff/admin caches under one key once useOrdersList(scope, query) was actually called from
+    // both scopes of the same StaffOrders/AdminOrders twin tree with equivalent filter objects;
+    // same bug class as the qk.orders.mine()/qk.purchasing.payments.list() fixes noted elsewhere.
+    list: (scope: string, query?: unknown) => ["orders", "list", scope, query] as const,
+    detail: (scope: string, id: string) => ["orders", "detail", scope, id] as const,
     stats: (scope: string) => ["orders", "stats", scope] as const,
   },
   purchasing: {
@@ -146,6 +148,9 @@ export const qk = {
     // collide every filter variant onto one cache entry (the same class of gap Sprint 5 found
     // for `orders.mine`, caught here at registry-design time instead of via a failing test).
     mine: (query?: unknown) => ["billing", "mine", query] as const,
+    // Distinct from `detail(scope, number)` below — the client-scoped GET has no `scope` (no
+    // client member on BillingScope), so it needs its own key shape rather than a fake scope.
+    mineDetail: (number: string) => ["billing", "mine-detail", number] as const,
     list: (scope: string, query?: unknown) => ["billing", "list", scope, query] as const,
     detail: (scope: string, number: string) => ["billing", "detail", scope, number] as const,
     payments: {
@@ -188,9 +193,6 @@ export const qk = {
 // instead; this list only grows when retyping the real registry incidentally breaks an
 // old stub hook's key shape (as `brands`/`families`/`models` did in Sprint 3).
 export const qkLegacy = {
-  catalogProductsList: () => ["catalog", "products"] as const,
-  catalogFeaturedProducts: (limit: number) => ["catalog", "products", "featured", limit] as const,
-  catalogProductByName: (name: string) => ["catalog", "products", "by-name", name] as const,
   catalogBrandsList: () => ["catalog", "brands", false] as const,
   catalogFamiliesList: () => ["catalog", "families", undefined] as const,
   catalogModelsList: () => ["catalog", "models", undefined] as const,
@@ -200,7 +202,4 @@ export const qkLegacy = {
     ["catalog", "admin-products", "by-status", status] as const,
   catalogAdminProductsSearch: (query: string, filters?: unknown) =>
     ["catalog", "admin-products", "search", query, filters] as const,
-  ordersAdminList: (query?: unknown) => ["orders", "admin-list", query] as const,
-  ordersAdminStats: () => ["orders", "admin-stats"] as const,
-  clientsMyAccount: () => ["clients", "my-account"] as const,
 } as const;
