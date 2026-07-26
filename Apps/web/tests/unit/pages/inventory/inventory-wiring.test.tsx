@@ -4,8 +4,10 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithRoutes } from "../../../fixtures/wrappers/renderWithRouter";
 import {
+  mockStockRow,
   mockStockRows,
   mockMovementsPaginated,
+  mockMovementIn,
   mockReservationsPaginated,
   mockAdjustmentResult,
 } from "../../../fixtures/data/inventory.mock";
@@ -102,6 +104,60 @@ describe("AdminInventory (ADM-06) wiring", () => {
     expect(
       screen.getAllByText(mockReservationsPaginated.items[0].productName).length,
     ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("highlights a low-stock row's product name", () => {
+    vi.mocked(useInventoryHook.useStock).mockReturnValue({
+      data: [{ ...mockStockRow, isLow: true }],
+      isLoading: false,
+      isError: false,
+      refetch: refetchStock,
+    } as never);
+    renderWithRoutes({ "/admin/inventory": <AdminInventory /> }, "/admin/inventory");
+
+    const nameCells = screen.getAllByText(mockStockRow.name);
+    expect(nameCells.some((el) => el.className.includes("text-destructive"))).toBe(true);
+  });
+
+  it("shows a movement type chip on the movements tab", async () => {
+    const user = userEvent.setup();
+    renderWithRoutes({ "/admin/inventory": <AdminInventory /> }, "/admin/inventory");
+    await user.click(screen.getByText("admin.inventory.tabs.movements"));
+    // StatusPill renders "● {label}" in one span — match the type text within it.
+    expect(
+      screen.getAllByText(new RegExp(mockMovementIn.type)).length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows the movements tab's own skeleton and error state independently of the stock tab", async () => {
+    vi.mocked(useInventoryHook.useMovements).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: refetchMovements,
+    } as never);
+    const user = userEvent.setup();
+    renderWithRoutes({ "/admin/inventory": <AdminInventory /> }, "/admin/inventory");
+    await user.click(screen.getByText("admin.inventory.tabs.movements"));
+
+    expect(screen.getByText("common.actions.tryAgain")).toBeInTheDocument();
+  });
+
+  it("shows the reservations tab's own skeleton independently of the other tabs", async () => {
+    vi.mocked(useInventoryHook.useReservations).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      refetch: refetchReservations,
+    } as never);
+    const user = userEvent.setup();
+    const { container } = renderWithRoutes(
+      { "/admin/inventory": <AdminInventory /> },
+      "/admin/inventory",
+    );
+    await user.click(screen.getByText("admin.inventory.tabs.reservations"));
+
+    expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });
 
   it("submits a valid adjustment via the live mutation", async () => {

@@ -34,10 +34,15 @@ interface AdminLogsTableProps {
 
 // Known entity types this admin app has a route for — everything else renders as plain text
 // (scope confinement, no destination page built here for entities without an admin route).
+// Keyed by the Prisma model name (PascalCase — `schema.prisma`'s `model Product`/`Supplier`/
+// `Client`), matching how the backend's AuditLog.entityType is actually populated — set-04
+// Sprint 10 found this map keyed by SCREAMING_CASE instead, which meant the entity link never
+// rendered for any real log row (only the fixture's literal-uppercase test data would ever have
+// matched, and no fixture used that casing either).
 const ENTITY_ROUTES: Record<string, (id: string) => string> = {
-  PRODUCT: (id) => `/admin/products/${id}`,
-  SUPPLIER: (id) => `/admin/suppliers/${id}`,
-  CLIENT: (id) => `/admin/clients/${id}`,
+  Product: (id) => `/admin/products/${id}`,
+  Supplier: (id) => `/admin/suppliers/${id}`,
+  Client: (id) => `/admin/clients/${id}`,
 };
 
 function LogsErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {

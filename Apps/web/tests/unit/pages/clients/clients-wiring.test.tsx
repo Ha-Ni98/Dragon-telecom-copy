@@ -66,6 +66,12 @@ describe("AdminClients (ADM-12 list) wiring", () => {
     expect(screen.getAllByText(mockAdminClientPending.fullName).length).toBeGreaterThanOrEqual(1);
   });
 
+  it("surfaces PENDING clients as an approval queue via their status badge", () => {
+    renderWithRoutes({ "/admin/clients": <AdminClients /> }, "/admin/clients");
+    // DataTable renders desktop + mobile rows simultaneously in jsdom (set-02 note).
+    expect(screen.getAllByText("admin.clients.statusPending").length).toBeGreaterThanOrEqual(1);
+  });
+
   it("opens the modify dialog with the real client's data and saves via the live mutation", async () => {
     updateMutate.mockResolvedValue(mockAdminClientPending);
     const user = userEvent.setup();

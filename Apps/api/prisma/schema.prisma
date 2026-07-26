@@ -409,7 +409,7 @@ model DeviceModel {
   id        String   @id @default(uuid())
   brandId   String
   name      String
-  slug      String   @unique
+  slug      String   
   isEnabled Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -466,7 +466,7 @@ model Product {
   quantityOnHand   Int      @default(0) // owned by inventory module
   quantityReserved Int      @default(0) // owned by inventory module
   reorderThreshold Int      @default(0)
-  isPublished      Boolean  @default(false)
+  isPublished      Boolean  @default(true)
   isEnabled        Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

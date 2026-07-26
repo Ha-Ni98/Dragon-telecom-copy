@@ -42,11 +42,12 @@ interface AdminStatisticsFiltersProps {
   className?: string;
 }
 
+// Labels resolved via `t()` at render time, not stored here — real copy, not inline strings.
 const DATE_RANGE_PRESETS = [
-  { type: "weekly" as const, label: "This Week" },
-  { type: "monthly" as const, label: "This Month" },
-  { type: "yearly" as const, label: "This Year" },
-  { type: "custom" as const, label: "Custom Range" },
+  { type: "weekly" as const, labelKey: "admin.statistics.filters.weekly" },
+  { type: "monthly" as const, labelKey: "admin.statistics.filters.monthly" },
+  { type: "yearly" as const, labelKey: "admin.statistics.filters.yearly" },
+  { type: "custom" as const, labelKey: "admin.statistics.filters.custom" },
 ];
 
 export function AdminStatisticsFilters({
@@ -166,7 +167,7 @@ export function AdminStatisticsFilters({
             <CardTitle className="text-lg">{t("admin.statistics.filters")}</CardTitle>
             {hasActiveFilters && (
               <Badge variant="secondary" className="ml-2">
-                Active
+                {t("common.status.active")}
               </Badge>
             )}
           </div>
@@ -184,7 +185,7 @@ export function AdminStatisticsFilters({
             </Button>
           )}
         </div>
-        <CardDescription>Filter statistics data by date range and product family</CardDescription>
+        <CardDescription>{t("admin.statistics.filters.description")}</CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -205,7 +206,7 @@ export function AdminStatisticsFilters({
                   className="justify-start"
                 >
                   {preset.type === "custom" && <Calendar className="h-4 w-4 mr-2" />}
-                  {preset.label}
+                  {t(preset.labelKey)}
                 </Button>
               ))}
             </div>

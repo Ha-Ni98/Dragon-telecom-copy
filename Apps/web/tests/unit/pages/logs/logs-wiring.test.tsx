@@ -76,4 +76,17 @@ describe("AdminLogs (ADM-18) wiring", () => {
     renderWithRoutes({ "/admin/logs": <AdminLogs /> }, "/admin/logs");
     expect(useIdentityHook.useUsers).toHaveBeenCalled();
   });
+
+  it("links a Product entity row to its admin product page", () => {
+    renderWithRoutes({ "/admin/logs": <AdminLogs /> }, "/admin/logs");
+    // Regression: ENTITY_ROUTES used to be keyed SCREAMING_CASE (`PRODUCT`) while
+    // AuditLogDto.entityType is the Prisma model name (`Product`) — the link never rendered.
+    const entityLinks = screen.getAllByRole("link", {
+      name: new RegExp(`${mockAuditLog.entityType}.*${mockAuditLog.entityId}`),
+    });
+    expect(entityLinks[0]).toHaveAttribute(
+      "href",
+      `/admin/products/${mockAuditLog.entityId}`,
+    );
+  });
 });
