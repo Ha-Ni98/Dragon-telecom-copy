@@ -55,6 +55,17 @@ export function useUpdateDraft() {
   });
 }
 
+// Drafts don't touch stock/billing — invalidates only the sales domain, same as create/update.
+export function useDeleteDraft() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => salesService.deleteDraft(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.sales.all() });
+    },
+  });
+}
+
 // The money/stock ripple (plan §3 cross-domain invalidation matrix): confirm commits stock
 // movements, issues an invoice, and (for a POS client sale) applies credit.
 export function useConfirmSale() {

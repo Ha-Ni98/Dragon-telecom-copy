@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { CreditMovementPreview } from "@/components/shared/CreditMovementPreview";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
 
@@ -12,11 +13,18 @@ interface PosPaymentPanelProps {
   isConfirming?: boolean;
   /** INSUFFICIENT_STOCK, surfaced elsewhere on the named line — this only carries payment-panel-local errors (paidAmount validation). */
   paidAmountError?: string;
+  /** The attached POS client's credit before this sale — omitted for a walk-in, where no credit
+   *  exists to move (S5/D5). */
+  previousCredit?: number;
+  /** Credit after this sale: previousCredit + (total − paidAmount), computed by the caller with
+   *  S5's arithmetic. */
+  newCredit?: number;
 }
 
 // Dumb, props-only (Sprint 4) — Sprint 7 wires useConfirmSale() + the F4/Enter shortcuts
-// (STF-02 §UI) around this. changeDue/newCredit previews are the caller's job (depend on
-// whether a POS client is attached) so this only renders what's passed in.
+// (STF-02 §UI) around this. changeDue is computed here; the credit preview (S6/I3) now lives in
+// this panel too, above the paid-amount field, but the arithmetic itself is still the caller's
+// job (depends on whether a POS client is attached) — this only renders what's passed in.
 export function PosPaymentPanel({
   total,
   paidAmount,
@@ -24,6 +32,8 @@ export function PosPaymentPanel({
   onConfirm,
   isConfirming,
   paidAmountError,
+  previousCredit,
+  newCredit,
 }: PosPaymentPanelProps) {
   const { t, language } = useTranslation();
   const changeDue = Math.max(0, paidAmount - total);
@@ -31,6 +41,15 @@ export function PosPaymentPanel({
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
       <h3 className="font-semibold">{t("staff.pos.payment.title")}</h3>
+
+      {previousCredit !== undefined && newCredit !== undefined && (
+        <div className="space-y-1">
+          <span className="text-sm text-muted-foreground">
+            {t("staff.pos.payment.creditPreviewLabel")}
+          </span>
+          <CreditMovementPreview previousCredit={previousCredit} newCredit={newCredit} />
+        </div>
+      )}
 
       <div className="space-y-1">
         <Label htmlFor="pos-paid-amount">{t("staff.pos.payment.paidAmountLabel")}</Label>

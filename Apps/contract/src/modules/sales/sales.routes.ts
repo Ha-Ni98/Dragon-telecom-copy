@@ -4,6 +4,9 @@
 export const SALE_ROUTES = {
   CREATE_DRAFT: '/staff/sales',
   UPDATE_DRAFT: '/staff/sales/:id',
+  // Same path as UPDATE_DRAFT, distinguished only by HTTP verb (DELETE vs PATCH) — its own
+  // constant so no call site hardcodes the string (S6/I4).
+  DELETE_DRAFT: '/staff/sales/:id',
   CONFIRM: '/staff/sales/:id/confirm',
   STAFF_LIST: '/staff/sales',
   ADMIN_LIST: '/admin/sales',

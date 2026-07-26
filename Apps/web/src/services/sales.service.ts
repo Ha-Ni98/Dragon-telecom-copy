@@ -37,6 +37,11 @@ export async function updateDraft(id: string, command: UpdateSaleDraftCommand): 
   return res.data.data;
 }
 
+// 204, no body — the draft row is gone, there is nothing to map back.
+export async function deleteDraft(id: string): Promise<void> {
+  await api.delete(withParams(apiPath(SALE_ROUTES.DELETE_DRAFT), { id }));
+}
+
 // Returns a ReceiptDto (customer-facing, cost/profit-free) — a different shape from SaleDto,
 // which getSale/listSales return.
 export async function confirmSale(id: string, command: ConfirmSaleCommand): Promise<ReceiptDto> {

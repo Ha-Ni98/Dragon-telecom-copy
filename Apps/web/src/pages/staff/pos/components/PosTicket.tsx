@@ -23,25 +23,23 @@ export interface PosTicketLine {
 
 interface PosTicketProps {
   lines: PosTicketLine[];
-  discountAmount: number;
   total: number;
   onQuantityChange: (productId: string, quantity: number) => void;
   onUnitPriceChange: (productId: string, unitPrice: number) => void;
   onSerialNumbersChange: (productId: string, serialNumbers: string[]) => void;
   onRemoveLine: (productId: string) => void;
-  onDiscountChange: (discountAmount: number) => void;
 }
 
-// Dumb, props-only (Sprint 4) — Sprint 7 wires POS state management around this.
+// Dumb, props-only (Sprint 4) — Sprint 7 wires POS state management around this. The discount is
+// intentionally not editable from the POS (S6/I6) — Sale.discountAmount still exists as a column
+// and is always written as 0 from this ticket.
 export function PosTicket({
   lines,
-  discountAmount,
   total,
   onQuantityChange,
   onUnitPriceChange,
   onSerialNumbersChange,
   onRemoveLine,
-  onDiscountChange,
 }: PosTicketProps) {
   const { t, language } = useTranslation();
 
@@ -130,16 +128,6 @@ export function PosTicket({
       </div>
 
       <div className="space-y-2 border-t border-border p-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{t("staff.pos.ticket.discount")}</span>
-          <Input
-            type="number"
-            min={0}
-            value={discountAmount}
-            onChange={(e) => onDiscountChange(Number(e.target.value))}
-            className="w-28 text-right"
-          />
-        </div>
         <div className="flex items-center justify-between text-lg font-bold">
           <span>{t("staff.pos.ticket.total")}</span>
           <span>{formatDZD(total, language)}</span>

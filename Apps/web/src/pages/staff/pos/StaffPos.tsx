@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FileStack } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { CreditMovementPreview } from "@/components/shared/CreditMovementPreview";
 import { PosProductSearch } from "@/pages/staff/pos/components/PosProductSearch";
 import { FamilyQuickPickGrid } from "@/pages/staff/pos/components/FamilyQuickPickGrid";
 import { PosTicket, type PosTicketLine } from "@/pages/staff/pos/components/PosTicket";
@@ -13,13 +12,22 @@ import { PosReceiptView } from "@/pages/staff/pos/components/PosReceiptView";
 import { QuickAddPosClientDialog } from "@/pages/staff/pos/components/QuickAddPosClientDialog";
 import { useStaffProducts } from "@/hooks/useCatalogProducts";
 import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
+import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { usePosClientSearch, useQuickCreatePosClient } from "@/hooks/usePosClients";
-import { useSales, useCreateDraft, useUpdateDraft, useConfirmSale } from "@/hooks/useSales";
+import {
+  useSales,
+  useCreateDraft,
+  useUpdateDraft,
+  useDeleteDraft,
+  useConfirmSale,
+} from "@/hooks/useSales";
 import { useSendStaffSearch } from "@/hooks/useObservability";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 import { apiErrorMessage } from "@/lib/query-client";
+import { resolvePosPrice } from "@/pages/staff/pos/pos-pricing";
+import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
 import {
   SaleStatus,
   type PosClientDto,
@@ -47,18 +55,6 @@ interface TicketLineState {
   resolvedPrice: number;
   manualPrice: boolean;
   serialNumbers?: string[];
-}
-
-function resolveCategoryPrice(
-  categoryPrices: { categoryId: string; price: number }[],
-  defaultSalePrice: number,
-  client?: PosClientDto,
-): number {
-  if (client?.categoryId) {
-    const match = categoryPrices.find((cp) => cp.categoryId === client.categoryId);
-    if (match) return match.price;
-  }
-  return defaultSalePrice;
 }
 
 // STF-02 `/staff/pos` = ADM-05 `/admin/pos` (scope-driven, unscoped for admin — "everyone's
@@ -91,22 +87,25 @@ export default function StaffPos({ scope = "staff" }: Props) {
   });
   const { data: families } = useCatalogFamilies({});
 
-  // Sprint 8 #polish — same beacon StaffProducts.tsx/AdminProducts.tsx already fire on their
-  // own debounced search.
+  // The staff-search log records only the last thing typed, 2s after typing stops (S6/I7) — a much
+  // longer window than the 300ms that drives the result list above, so a cashier typing a product
+  // name logs one row, not one per keystroke. POS only: /admin/products and /staff/products keep
+  // their own 300ms beacon (R3) — this is a second, independent debounce off the same raw query.
   const sendStaffSearch = useSendStaffSearch();
+  const beaconQuery = useDebouncedValue(productQuery, 2000);
   useEffect(() => {
-    if (debouncedProductQuery.trim()) {
-      sendStaffSearch.mutate({ query: debouncedProductQuery.trim() });
-    }
+    if (beaconQuery.trim()) sendStaffSearch.mutate({ query: beaconQuery.trim() });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedProductQuery]);
+  }, [beaconQuery]);
 
   // --- Ticket state (client-side draft, PATCHed on change) ---
   const [lines, setLines] = useState<TicketLineState[]>([]);
-  const [discountAmount, setDiscountAmount] = useState(0);
   const [attachedClient, setAttachedClient] = useState<PosClientDto | undefined>();
   const [draftId, setDraftId] = useState<string | null>(null);
   const [paidAmount, setPaidAmount] = useState(0);
+  // S6/I5/R1 — paidAmount auto-tracks the ticket total until the cashier types their own figure;
+  // set true by the payment panel's onChange, reset on a fresh ticket or a resumed draft.
+  const [paidAmountTouched, setPaidAmountTouched] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptDto | null>(null);
   const [clientZoneError, setClientZoneError] = useState<string>();
   const [paymentError, setPaymentError] = useState<string>();
@@ -129,7 +128,16 @@ export default function StaffPos({ scope = "staff" }: Props) {
     () => ticketLines.reduce((sum, l) => sum + l.lineTotal, 0),
     [ticketLines],
   );
-  const total = Math.max(0, subtotal - discountAmount);
+  // The discount is no longer settable from the POS (S6/I6) — the total is simply the subtotal.
+  const total = subtotal;
+
+  // The paid amount defaults to the ticket total — the cashier's most common case is exact
+  // payment — and keeps following it until they type their own figure (S6/I5/R1). The client's
+  // outstanding credit is deliberately NOT added in: this field is what is being paid for THIS
+  // sale; settling an older balance is the separate record-payment flow.
+  useEffect(() => {
+    if (!paidAmountTouched) setPaidAmount(total);
+  }, [total, paidAmountTouched]);
 
   const handleSelectProduct = (product: StaffProductDto) => {
     setLines((prev) => {
@@ -141,10 +149,10 @@ export default function StaffPos({ scope = "staff" }: Props) {
             : l,
         );
       }
-      const resolvedPrice = resolveCategoryPrice(
+      const resolvedPrice = resolvePosPrice(
         product.categoryPrices,
         product.defaultSalePrice ?? 0,
-        attachedClient,
+        attachedClient?.categoryId,
       );
       return [
         ...prev,
@@ -184,7 +192,11 @@ export default function StaffPos({ scope = "staff" }: Props) {
     setLines((prev) =>
       prev.map((l) => {
         if (l.manualPrice) return l;
-        const resolvedPrice = resolveCategoryPrice(l.categoryPrices, l.defaultSalePrice, client);
+        const resolvedPrice = resolvePosPrice(
+          l.categoryPrices,
+          l.defaultSalePrice,
+          client?.categoryId,
+        );
         return { ...l, resolvedPrice, unitPrice: resolvedPrice };
       }),
     );
@@ -195,6 +207,11 @@ export default function StaffPos({ scope = "staff" }: Props) {
   const { data: clientResults, isLoading: clientSearching } = usePosClientSearch({
     q: debouncedClientSearch,
   });
+  const categories = useCatalogClientCategories();
+  const categoryOptions: AutocompleteOption[] = useMemo(
+    () => (categories.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+    [categories.data],
+  );
 
   const handleAttachClient = (client: PosClientDto) => {
     setAttachedClient(client);
@@ -221,10 +238,13 @@ export default function StaffPos({ scope = "staff" }: Props) {
   // --- Draft persistence (PATCH-on-change, STF-02 §Forms) ---
   const createDraft = useCreateDraft();
   const updateDraft = useUpdateDraft();
+  const deleteDraft = useDeleteDraft();
 
   const buildDraftCommand = (): SaleDraftCommand => ({
     posClientId: attachedClient?.id,
-    discountAmount,
+    // Always 0 — the discount is no longer settable from the POS (S6/I6); the column and the DTO
+    // field remain (rendered wherever a sale's own details are shown).
+    discountAmount: 0,
     lines: lines.map((l) => ({
       productId: l.productId,
       quantity: l.quantity,
@@ -238,7 +258,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
   const draftSnapshot = useMemo(
     () => JSON.stringify(buildDraftCommand()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lines, discountAmount, attachedClient],
+    [lines, attachedClient],
   );
   const debouncedDraftSnapshot = useDebouncedValue(draftSnapshot, 600);
   const lastSyncedSnapshotRef = useRef<string | null>(null);
@@ -255,20 +275,43 @@ export default function StaffPos({ scope = "staff" }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedDraftSnapshot]);
 
+  // Emptying the ticket deletes the draft rather than PATCHing it: UpdateSaleDraftSchema.lines is
+  // .min(1), so a zero-line draft is not expressible (S6/I4). Cannot fire on mount — draftId is
+  // null until the sync effect above has created a draft, which only happens with ≥1 line.
+  useEffect(() => {
+    if (lines.length !== 0 || draftId == null) return;
+    deleteDraft.mutate(draftId);
+    setDraftId(null);
+    lastSyncedSnapshotRef.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines.length, draftId]);
+
   // Flush the *current* (non-debounced) state before confirming — the debounced PATCH above
   // could otherwise still be pending when Confirm is clicked, letting the server confirm a
   // stale draft.
   const confirmSale = useConfirmSale();
-  const resetTicket = () => {
+  // Resets local ticket state only — does NOT touch the draft row. Used after a successful
+  // confirm (the draft has become the completed sale and must never be deleted) and by the
+  // receipt's "New sale" action. The Clear button uses handleClearTicket below instead, which
+  // also deletes the draft (S6/I4).
+  const resetTicketState = () => {
     setLines([]);
-    setDiscountAmount(0);
     setAttachedClient(undefined);
     setClientSearchQuery("");
     setPaidAmount(0);
+    setPaidAmountTouched(false);
     setDraftId(null);
     setClientZoneError(undefined);
     setPaymentError(undefined);
     lastSyncedSnapshotRef.current = null;
+  };
+
+  // The Clear button discards the whole ticket AND its persisted draft (S6/I4) — distinct from
+  // resetTicketState above, which must NOT delete anything: by then the draft row has become the
+  // COMPLETED sale.
+  const handleClearTicket = () => {
+    if (draftId) deleteDraft.mutate(draftId);
+    resetTicketState();
   };
 
   const handleConfirm = () => {
@@ -282,7 +325,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
         {
           onSuccess: (receiptResult) => {
             setReceipt(receiptResult);
-            resetTicket();
+            resetTicketState();
           },
           onError: (err) => {
             const serverMessage = apiErrorMessage(err);
@@ -324,8 +367,10 @@ export default function StaffPos({ scope = "staff" }: Props) {
   const handleOpenDraft = (draft: SaleDto) => {
     setReceipt(null);
     setDraftId(draft.id);
-    setDiscountAmount(draft.discountAmount);
+    // The stored discount is not re-editable from the POS (S6/I6) — the resumed ticket's total is
+    // simply its lines' subtotal.
     setPaidAmount(0);
+    setPaidAmountTouched(false);
     setAttachedClient(undefined);
     setClientSearchQuery(draft.posClientName ?? "");
     setClientZoneError(undefined);
@@ -380,7 +425,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
             groupByStaff={scope === "admin"}
           />
           {lines.length > 0 && (
-            <Button variant="outline" onClick={resetTicket}>
+            <Button variant="outline" onClick={handleClearTicket}>
               {t("common.actions.clear")}
             </Button>
           )}
@@ -395,6 +440,10 @@ export default function StaffPos({ scope = "staff" }: Props) {
           paid={receipt.totalPaid}
           newCredit={receipt.newCredit}
           onPrint={() => window.print()}
+          onNewSale={() => {
+            setReceipt(null);
+            resetTicketState();
+          }}
         />
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_3fr]">
@@ -408,6 +457,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
               isError={productsIsError}
               onRetry={() => refetchProducts()}
               onSelect={handleSelectProduct}
+              attachedCategoryId={attachedClient?.categoryId}
             />
             <FamilyQuickPickGrid
               families={families}
@@ -432,30 +482,32 @@ export default function StaffPos({ scope = "staff" }: Props) {
 
             <PosTicket
               lines={ticketLines}
-              discountAmount={discountAmount}
               total={total}
               onQuantityChange={handleQuantityChange}
               onUnitPriceChange={handleUnitPriceChange}
               onSerialNumbersChange={handleSerialNumbersChange}
               onRemoveLine={handleRemoveLine}
-              onDiscountChange={setDiscountAmount}
             />
 
             <PosPaymentPanel
               total={total}
               paidAmount={paidAmount}
-              onPaidAmountChange={setPaidAmount}
+              onPaidAmountChange={(value) => {
+                setPaidAmountTouched(true);
+                setPaidAmount(value);
+              }}
               onConfirm={handleConfirm}
               isConfirming={confirmSale.isPending || isSyncing}
               paidAmountError={paymentError}
+              {...(attachedClient
+                ? {
+                    previousCredit: attachedClient.credit,
+                    // S5: credit += (total − paid). The old inline preview here subtracted this,
+                    // showing a client who underpays as owing LESS — F4, fixed by S6.
+                    newCredit: attachedClient.credit + (total - paidAmount),
+                  }
+                : {})}
             />
-
-            {attachedClient && paidAmount < total && (
-              <CreditMovementPreview
-                previousCredit={attachedClient.credit}
-                newCredit={attachedClient.credit - (total - paidAmount)}
-              />
-            )}
           </div>
         </div>
       )}
@@ -463,6 +515,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
       <QuickAddPosClientDialog
         open={quickAddOpen}
         onOpenChange={setQuickAddOpen}
+        categoryOptions={categoryOptions}
         onSubmit={handleQuickAddSubmit}
         isSubmitting={quickCreateClient.isPending}
       />

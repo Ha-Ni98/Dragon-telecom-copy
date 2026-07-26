@@ -80,6 +80,24 @@ export class SalesService implements ISalesService {
     return SalesMapper.toSaleDto(updated as SaleRow, { includeMargins: isAdmin });
   }
 
+  // A DRAFT sale is a scratch document — the POS deletes it outright when the cashier clears the
+  // ticket or removes its last line (S6/I4). Guards mirror updateDraft: owner-or-admin, and DRAFT
+  // only — a COMPLETED sale is an accounting record and can never be deleted here (a return is the
+  // only way to reverse one). SaleLine has no cascade on its Sale relation (schema.prisma), so the
+  // lines are removed first, in the same transaction.
+  async deleteDraft(id: string, actor: JWTPayload): Promise<void> {
+    const existing = await this.prisma.sale.findUnique({ where: { id }, select: { staffId: true, status: true } });
+    if (!existing) throw new NotFoundError('Sale');
+    const isAdmin = actor.type === UserType.ADMIN;
+    if (!isAdmin && existing.staffId !== actor.staffId) throw new ForbiddenError();
+    if (existing.status !== PrismaSaleStatus.DRAFT) throw new ConflictError('Sale is not deletable (not DRAFT)');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.saleLine.deleteMany({ where: { saleId: id } });
+      await tx.sale.delete({ where: { id } });
+    });
+  }
+
   // The transaction (spec BL#2), one prisma.$transaction, idempotent (no second consumption/
   // event on an already-COMPLETED sale — that's surfaced as a 409 instead, per plan §D-5).
   // S5/R2: the sale, its invoice and its captured payment (when any) are one atomic unit — the

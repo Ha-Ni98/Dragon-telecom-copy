@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
@@ -7,7 +8,7 @@ import { NotFoundState } from "@/components/shared/NotFoundState";
 import { EnabledBadge } from "@/components/shared/StatusBadge";
 import { SimplePagination } from "@/components/shared/SimplePagination";
 import { Button } from "@/components/ui/button";
-import { Users, Pencil } from "lucide-react";
+import { Users, Pencil, ArrowUpRight } from "lucide-react";
 import type { PaginatedResult, PosClientDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -71,7 +72,19 @@ export function PosClientsTable({
       {
         accessorKey: "linkedClientId",
         header: t("admin.posClients.table.linkedAccount"),
-        cell: ({ row }) => row.original.linkedClientId ?? "—",
+        cell: ({ row }) =>
+          row.original.linkedClientId ? (
+            <Link
+              to={`/admin/clients/${row.original.linkedClientId}`}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={t("admin.posClients.table.viewLinkedAccount")}
+              className="inline-flex text-primary hover:underline"
+            >
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          ) : (
+            "—"
+          ),
       },
       {
         accessorKey: "isEnabled",

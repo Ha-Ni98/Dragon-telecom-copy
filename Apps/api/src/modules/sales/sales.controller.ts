@@ -35,6 +35,16 @@ export class SalesController {
     }
   };
 
+  deleteDraft = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as SaleIdParams;
+      await this.service.deleteDraft(id, req.user!);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
   confirm = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.validated.params as SaleIdParams;

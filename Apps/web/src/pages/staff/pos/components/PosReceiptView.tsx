@@ -1,4 +1,4 @@
-import { Printer } from "lucide-react";
+import { Printer, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -11,12 +11,15 @@ interface PosReceiptViewProps {
   paid: number;
   newCredit: number;
   onPrint: () => void;
+  /** Returns to a fresh, empty ticket (S6/I2) — the receipt view's own draft has already become
+   *  the completed sale, so this never deletes anything, unlike the ticket's Clear button. */
+  onNewSale: () => void;
 }
 
 // Dumb, props-only (Sprint 4) — Sprint 7 renders this from the useConfirmSale() result
 // (STF-02 §Interactions: "receipt view (total · previous credit · grand total · paid · new
 // credit) with print"). Not built on CreditMovementPreview — the receipt is a fixed 5-row
-// layout, not a 2-value prev→new preview.
+// layout, not a 2-value prev→new preview. S6/I2 adds a "New sale" action beside Print.
 export function PosReceiptView({
   total,
   previousCredit,
@@ -24,6 +27,7 @@ export function PosReceiptView({
   paid,
   newCredit,
   onPrint,
+  onNewSale,
 }: PosReceiptViewProps) {
   const { t, language } = useTranslation();
 
@@ -45,10 +49,16 @@ export function PosReceiptView({
       {row(t("staff.pos.receipt.grandTotal"), grandTotal, true)}
       {row(t("staff.pos.receipt.paid"), paid)}
       {row(t("staff.pos.receipt.newCredit"), newCredit)}
-      <Button variant="outline" className="w-full" onClick={onPrint}>
-        <Printer className="mr-2 h-4 w-4" />
-        {t("staff.pos.receipt.print")}
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="outline" className="flex-1" onClick={onPrint}>
+          <Printer className="mr-2 h-4 w-4" />
+          {t("staff.pos.receipt.print")}
+        </Button>
+        <Button className="flex-1" onClick={onNewSale}>
+          <Plus className="mr-2 h-4 w-4" />
+          {t("staff.pos.receipt.newSale")}
+        </Button>
+      </div>
     </div>
   );
 }

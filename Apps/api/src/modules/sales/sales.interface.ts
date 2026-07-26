@@ -15,6 +15,7 @@ import type { InvoiceIssueRequest } from '../billing/billing.interface';
 export interface ISalesService {
   createDraft(cmd: SaleDraftCommand, staffId: string): Promise<SaleDto>;
   updateDraft(id: string, cmd: UpdateSaleDraftCommand, actor: JWTPayload): Promise<SaleDto>;
+  deleteDraft(id: string, actor: JWTPayload): Promise<void>;
   // The transaction (spec BL#2) — returns the printed receipt, built from the committed
   // snapshot; `getSale` is the richer read-back afterward.
   confirm(id: string, cmd: ConfirmSaleCommand, actor: JWTPayload): Promise<ReceiptDto>;

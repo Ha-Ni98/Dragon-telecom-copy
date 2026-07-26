@@ -16,7 +16,7 @@ Start planing Set
 ## Hard rules
 1. **No magic strings.** A value shared between front and back belongs in the contract package; a single-side type belongs in that side's `types` folder.
 2. **All user-facing text goes through `t()`**, with keys added to `Apps/web/src/config/translation.json` — including toasts, dialogs, table headers, helper text and validation messages.
-3. **Do not modify any test file. Do not run any test suite.** Validation is limited to TypeScript compile (`tsc --noEmit`), lint, and correctness of imports and syntax. The owner verifies behavior manually in the browser.
+3. **Do not modify or read any test file. Do not run any test suite.** Validation is limited to TypeScript compile (`tsc --noEmit`), lint, and correctness of imports and syntax. The owner verifies behavior manually in the browser. Act like the test folder never existe.
 4. **Read the comments** in the code you touch and update any your change makes stale or wrong.
 5. Respect the layering: no component calling a service directly, no business logic in controllers, no cross-module Prisma write that bypasses the owning module's service or its injected port (the `IInventoryService` and clients credit-port pattern).
 6. **Money and stock caches** — `credit`, `totalPaid`, `totalSold`, `totalInvoiced`, `paidAmount`, `quantityOnHand`, `quantityReserved` — are written **inside the owning transaction with a row lock**, never from an un-awaited event listener. This was corrected once already (see `report-credit-serialization.md`); do not reintroduce the pattern.

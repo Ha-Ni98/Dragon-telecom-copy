@@ -10334,6 +10334,11 @@
     "fr": "Échec du chargement des produits — réessayer",
     "ar": ""
   },
+  "staff.pos.search.defaultPriceLabel": {
+    "en": "Default",
+    "fr": "Par défaut",
+    "ar": ""
+  },
   "staff.pos.familyQuickPick.title": {
     "en": "Quick pick",
     "fr": "Sélection rapide",
@@ -10444,9 +10449,24 @@
     "fr": "Créer",
     "ar": ""
   },
+  "staff.pos.quickAddClient.categoryLabel": {
+    "en": "Category",
+    "fr": "Catégorie",
+    "ar": ""
+  },
+  "staff.pos.quickAddClient.categoryPlaceholder": {
+    "en": "Select a category",
+    "fr": "Sélectionner une catégorie",
+    "ar": ""
+  },
   "staff.pos.payment.title": {
     "en": "Payment (F4)",
     "fr": "Paiement (F4)",
+    "ar": ""
+  },
+  "staff.pos.payment.creditPreviewLabel": {
+    "en": "Client credit",
+    "fr": "Crédit du client",
     "ar": ""
   },
   "staff.pos.payment.paidAmountLabel": {
@@ -10522,6 +10542,11 @@
   "staff.pos.receipt.print": {
     "en": "Print",
     "fr": "Imprimer",
+    "ar": ""
+  },
+  "staff.pos.receipt.newSale": {
+    "en": "New sale",
+    "fr": "Nouvelle vente",
     "ar": ""
   },
   "admin.pos.pageTitle": {
@@ -12692,6 +12717,11 @@
   "admin.posClients.table.linkedAccount": {
     "en": "Linked account",
     "fr": "Compte lié",
+    "ar": ""
+  },
+  "admin.posClients.table.viewLinkedAccount": {
+    "en": "View client account",
+    "fr": "Voir le compte client",
     "ar": ""
   },
   "admin.posClients.table.status": {

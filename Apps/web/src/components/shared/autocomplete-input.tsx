@@ -30,6 +30,10 @@ interface AutocompleteInputProps {
   error?: string;
   className?: string;
   maxSuggestions?: number;
+  /** Suppresses the "create new" row even when `onCreateNew` is passed. Passing no `onCreateNew`
+   *  already hides the row on its own (S6/I11 — a consumer with no handler used to still show a
+   *  row that did nothing on click); this prop exists only for a consumer that has a handler
+   *  available but wants the affordance hidden anyway. */
   showCreateNew?: boolean;
   createNewLabel?: string;
   emptyMessage?: string;
@@ -100,9 +104,12 @@ export function AutocompleteInput({
     )
     .slice(0, maxSuggestions);
 
-  // Check if we should show "create new" option
+  // "Create new" is only offered when the consumer actually supplied a handler for it — without
+  // one the row rendered but clicking it did nothing (handleCreateNew's own `if (onCreateNew)`
+  // guard swallowed it), which is exactly what the POS-client category field was showing (S6/I11).
   const shouldShowCreateNew =
     showCreateNew &&
+    onCreateNew != null &&
     inputText.trim().length > 0 &&
     !suggestions.some((s) => s.label.toLowerCase() === inputText.toLowerCase());
 

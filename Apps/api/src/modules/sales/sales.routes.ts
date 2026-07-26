@@ -53,6 +53,12 @@ router.patch(
   validateRequest({ params: SaleIdParamsSchema, body: UpdateSaleDraftSchema }),
   controller.updateDraft,
 );
+router.delete(
+  SALE_ROUTES.DELETE_DRAFT,
+  staffPosOrAdmin,
+  validateRequest({ params: SaleIdParamsSchema }),
+  controller.deleteDraft,
+);
 router.post(
   SALE_ROUTES.CONFIRM,
   staffPosOrAdmin,
