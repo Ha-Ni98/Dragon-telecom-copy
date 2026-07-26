@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AutocompleteInput } from "@/components/shared/autocomplete-input";
+import { MarginDisplay } from "@/components/shared/MarginDisplay";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
 import {
@@ -120,11 +121,6 @@ export default function AdminProductsAdd() {
 
   const pricingUnlocked = (initialQuantity ?? 0) > 0;
 
-  const marginPercent = (price?: number) => {
-    if (!price || !initialUnitCost) return undefined;
-    return ((price - initialUnitCost) / initialUnitCost) * 100;
-  };
-
   const handleFilesSelected = (files: FileList | null) => {
     if (!files) return;
     const remaining = 3 - images.length;
@@ -211,7 +207,7 @@ export default function AdminProductsAdd() {
               <div className="space-y-1">
                 <Label>{t("admin.productsAdd.familyLabel")}</Label>
                 <AutocompleteInput
-                  value={familyName}
+                  value={familyId ?? ""}
                   onChange={(value) => {
                     const family = families?.find((f) => f.id === value);
                     if (family) {
@@ -220,7 +216,6 @@ export default function AdminProductsAdd() {
                     }
                   }}
                   suggestions={(families ?? []).map((f) => ({ value: f.id, label: f.name }))}
-                  onSearch={() => {}}
                   onCreateNew={(name) =>
                     createFamily.mutate(
                       { name },
@@ -242,7 +237,7 @@ export default function AdminProductsAdd() {
               <div className="space-y-1">
                 <Label>{t("admin.productsAdd.brandLabel")}</Label>
                 <AutocompleteInput
-                  value={brandName}
+                  value={brandId ?? ""}
                   onChange={(value) => {
                     const brand = brands?.find((b) => b.id === value);
                     if (brand) {
@@ -252,7 +247,6 @@ export default function AdminProductsAdd() {
                     }
                   }}
                   suggestions={(brands ?? []).map((b) => ({ value: b.id, label: b.name }))}
-                  onSearch={() => {}}
                   onCreateNew={(name) =>
                     createBrand.mutate(
                       { name },
@@ -275,7 +269,7 @@ export default function AdminProductsAdd() {
               <div className="space-y-1">
                 <Label>{t("admin.productsAdd.modelLabel")}</Label>
                 <AutocompleteInput
-                  value={modelName}
+                  value={modelId ?? ""}
                   onChange={(value) => {
                     const model = models?.find((m) => m.id === value);
                     if (model) {
@@ -284,7 +278,6 @@ export default function AdminProductsAdd() {
                     }
                   }}
                   suggestions={(models ?? []).map((m) => ({ value: m.id, label: m.name }))}
-                  onSearch={() => {}}
                   disabled={!brandId}
                   onCreateNew={(name) => {
                     if (!brandId) return;
@@ -365,6 +358,7 @@ export default function AdminProductsAdd() {
                 <p className="text-xs text-muted-foreground">
                   {t("admin.productsAdd.guestPriceHelper")}
                 </p>
+                <MarginDisplay price={watch("guestPrice")} cost={initialUnitCost} />
               </div>
 
               <div className="space-y-1">
@@ -377,12 +371,7 @@ export default function AdminProductsAdd() {
                   step="0.01"
                   {...register("defaultSalePrice", { setValueAs: optionalNumber })}
                 />
-                {marginPercent(watch("defaultSalePrice")) != null && (
-                  <p className="text-xs text-muted-foreground">
-                    {t("admin.productsAdd.marginLabel")}:{" "}
-                    {marginPercent(watch("defaultSalePrice"))?.toFixed(1)}%
-                  </p>
-                )}
+                <MarginDisplay price={watch("defaultSalePrice")} cost={initialUnitCost} />
               </div>
 
               {(categories ?? []).map((category) => (
@@ -397,12 +386,7 @@ export default function AdminProductsAdd() {
                     defaultValue={categoryPriceValue(category.id)}
                     onChange={(e) => setCategoryPrice(category.id, Number(e.target.value))}
                   />
-                  {marginPercent(categoryPriceValue(category.id)) != null && (
-                    <p className="text-xs text-muted-foreground">
-                      {t("admin.productsAdd.marginLabel")}:{" "}
-                      {marginPercent(categoryPriceValue(category.id))?.toFixed(1)}%
-                    </p>
-                  )}
+                  <MarginDisplay price={categoryPriceValue(category.id)} cost={initialUnitCost} />
                 </div>
               ))}
 

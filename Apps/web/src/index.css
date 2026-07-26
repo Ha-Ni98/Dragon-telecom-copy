@@ -28,7 +28,11 @@
   --success: 0.623 0.169 149.2;
   --success-foreground: 1 0 89.9;
   --warning: 0.786 0.16 85.3;
-  --warning-foreground: 1 0 89.9;
+  /* Dark amber, not white (RC-3): the warning tint sits under text on a light card in this
+     theme, so a white foreground is invisible/illegible. The dark theme's own --warning-
+     foreground stays white below — there the same tint sits on a dark card, where white reads
+     correctly. Do not "harmonize" these back to the same value. */
+  --warning-foreground: 0.42 0.105 75;
   --border: 0.928 0.006 264.5;
   --input: 0.928 0.006 264.5;
   --ring: 0.552 0.228 260.9;

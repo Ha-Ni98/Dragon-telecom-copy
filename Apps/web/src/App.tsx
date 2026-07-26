@@ -11,7 +11,6 @@ import { PageLoader } from "@/components/shared/PageLoader";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { RouteErrorBoundary } from "@/components/shared/RouteErrorBoundary";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/components/providers/AuthProvider";
 import { useTranslation } from "@/hooks/useTranslation";
 import { setRedirect } from "@/lib/axios";
 
@@ -76,14 +75,15 @@ const withSuspense = (Component: LazyExoticComponent<ComponentType<Record<string
   </Suspense>
 );
 
-// Not a matched child route, so it can't rely on <Outlet/> resolving to a page — it picks
-// the layout that matches the current session and passes 404 content in as children.
+// Not a matched child route, so it can't rely on <Outlet/> resolving to a page. Deliberately
+// shell-less for every user (S2, G5) — it used to pick AdminLayout for any authenticated
+// session, which meant a signed-in CLIENT hitting a bad URL saw the admin sidebar. A 404 is one
+// screen and needs no navigation chrome regardless of who's looking at it.
 // Exported (PUB-11) so pub-pages Sprint 8's unit test can render it directly.
 export function CatchAllRoute() {
-  const { isAuthenticated } = useAuth();
   const { t } = useTranslation();
-  const content = (
-    <div className="flex min-h-[60vh] items-center justify-center px-4">
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4">
       <NotFoundState
         eyebrow="404"
         title={t("common.errors.notFoundTitle")}
@@ -95,11 +95,6 @@ export function CatchAllRoute() {
         }
       />
     </div>
-  );
-  return isAuthenticated ? (
-    <AdminLayout>{content}</AdminLayout>
-  ) : (
-    <PublicLayout>{content}</PublicLayout>
   );
 }
 

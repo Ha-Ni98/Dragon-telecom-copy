@@ -40,6 +40,7 @@ export function InvoiceLineEditor({
         name={`lines.${index}.productId`}
         render={({ field }) => (
           <AutocompleteInput
+            inputId={`invoice-line-${index}-product`}
             value={field.value ?? ""}
             onChange={field.onChange}
             suggestions={productOptions}

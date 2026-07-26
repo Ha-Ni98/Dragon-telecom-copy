@@ -40,9 +40,9 @@ export function StaffHeader() {
   const nav = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    nav("/login");
+  const handleLogout = async () => {
+    await logout();
+    nav("/login", { replace: true });
   };
 
   return (

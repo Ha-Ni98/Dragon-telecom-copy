@@ -2,7 +2,6 @@ import type { Prisma, PosClient, Sale, SaleLine, Staff } from '@prisma/client';
 import {
   ReceiptResponseSchema,
   SaleResponseSchema,
-  SaleOrigin,
   SaleStatus,
   type ReceiptDto,
   type SaleDraftCommand,
@@ -29,10 +28,10 @@ export class SalesMapper {
     const dto: SaleDto = {
       id: sale.id,
       reference: sale.reference,
-      // Prisma's generated $Enums.SaleOrigin/SaleStatus and the contract's enums are distinct
-      // nominal types with identical string values (schema.prisma's own invariant, same as
-      // purchasing.mapper.ts's SupplierInvoiceStatus cast).
-      origin: sale.origin as SaleOrigin,
+      // Prisma's generated $Enums.SaleStatus and the contract's SaleStatus are distinct nominal
+      // types with identical string values (schema.prisma's own invariant, same as
+      // purchasing.mapper.ts's SupplierInvoiceStatus cast). No `origin` (S1): repairs no longer
+      // produce a Sale row at all (D9), so every Sale is POS and the field was deleted.
       status: sale.status as SaleStatus,
       ...(sale.posClientId != null ? { posClientId: sale.posClientId } : {}),
       ...(sale.posClient?.name != null ? { posClientName: sale.posClient.name } : {}),
@@ -47,6 +46,7 @@ export class SalesMapper {
         ? { totalCost: SalesMapper.toMoney(sale.totalCost), totalProfit: SalesMapper.toMoney(sale.totalProfit) }
         : {}),
       ...(sale.soldAt != null ? { soldAt: sale.soldAt.toISOString() } : {}),
+      createdAt: sale.createdAt.toISOString(),
       staffId: sale.staffId,
       staffName: `${sale.staff.firstName} ${sale.staff.lastName}`,
       ...(sale.note != null ? { note: sale.note } : {}),
@@ -107,7 +107,6 @@ export class SalesMapper {
   static toPersistenceDraft(cmd: SaleDraftCommand, ctx: DraftMapContext): Prisma.SaleUncheckedCreateInput {
     return {
       reference: ctx.reference,
-      origin: SaleOrigin.POS,
       status: SaleStatus.DRAFT,
       ...(cmd.posClientId != null ? { posClientId: cmd.posClientId } : {}),
       ...(cmd.discountAmount != null ? { discountAmount: cmd.discountAmount } : {}),

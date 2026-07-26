@@ -523,8 +523,8 @@ export class CatalogProductService implements ICatalogProductService {
 
   // qty=0 -> priceless product, pricing fields already schema-rejected (PRICING_REQUIRES_STOCK);
   // qty>0 -> cost required (schema-enforced), first FIFO layer created in the same tx via the
-  // injected port, then pricing unlocked. Catalog never writes quantityOnHand/averageCost itself
-  // — inventory.addLayer owns those columns (spec BL#6).
+  // injected port, then pricing unlocked. Catalog never writes quantityOnHand/avgStockPrice/
+  // avgPrice itself — inventory.addLayer owns those columns (spec BL#6).
   async createProduct(
     cmd: CreateProductCommand,
     images: Express.Multer.File[],
@@ -594,7 +594,7 @@ export class CatalogProductService implements ICatalogProductService {
     }
   }
 
-  // Core fields only — quantity/averageCost/pricing all live on other routes (spec BL#6).
+  // Core fields only — quantity/avgStockPrice/avgPrice/pricing all live on other routes (spec BL#6).
   // No CatalogEvents member covers a plain product-detail update; nothing is emitted.
   async updateProduct(id: string, cmd: UpdateProductCommand): Promise<AdminProductDto> {
     try {
@@ -749,9 +749,10 @@ export class CatalogProductService implements ICatalogProductService {
   }
 
   // Read port for purchasing's confirm step (plan §C-3, §II.5) — runs inside the *caller's*
-  // transaction (`tx`) so it observes each line's `addLayer`-updated `averageCost` before the
+  // transaction (`tx`) so it observes each line's `addLayer`-updated `avgStockPrice` before the
   // caller's own commit, matching the spec's "post-addLayer average" requirement for
-  // ConfirmResultDto.repriceCandidates.
+  // ConfirmResultDto.repriceCandidates. `quantityOnHand` is S7's "qty in stock beside the avg
+  // stock qty" — pure plumbing added here rather than reopening the contract twice.
   async getRepriceCandidates(
     tx: Prisma.TransactionClient,
     productIds: string[],
@@ -759,7 +760,8 @@ export class CatalogProductService implements ICatalogProductService {
     {
       productId: string;
       name: string;
-      averageCost: number;
+      avgStockPrice: number;
+      quantityOnHand: number;
       current: {
         guestPrice?: number;
         defaultSalePrice?: number;
@@ -777,7 +779,8 @@ export class CatalogProductService implements ICatalogProductService {
     return products.map((product) => ({
       productId: product.id,
       name: product.name,
-      averageCost: product.averageCost.toNumber(),
+      avgStockPrice: product.avgStockPrice.toNumber(),
+      quantityOnHand: product.quantityOnHand,
       current: {
         ...(product.guestPrice != null ? { guestPrice: product.guestPrice.toNumber() } : {}),
         ...(product.defaultSalePrice != null ? { defaultSalePrice: product.defaultSalePrice.toNumber() } : {}),
@@ -791,21 +794,24 @@ export class CatalogProductService implements ICatalogProductService {
   }
 
   // Read port for purchasing's DRAFT-read projection (plan §C-3, §II.3 #2) — plain read (no
-  // tx), feeds projectedNewAverageCost + productNameSnapshot before any layer is added.
+  // tx), feeds projectedNewAvgStockPrice + productNameSnapshot before any layer is added.
+  // avgPrice (D10) is exposed here too — purchasing's Add-Invoice "avg price is …" helper
+  // (S7) reads the unweighted figure, distinct from the projection which uses avgStockPrice.
   async getCostBasis(
     productIds: string[],
-  ): Promise<{ productId: string; name: string; averageCost: number; quantityOnHand: number }[]> {
+  ): Promise<{ productId: string; name: string; avgStockPrice: number; avgPrice: number; quantityOnHand: number }[]> {
     if (productIds.length === 0) return [];
 
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, name: true, averageCost: true, quantityOnHand: true },
+      select: { id: true, name: true, avgStockPrice: true, avgPrice: true, quantityOnHand: true },
     });
 
     return products.map((product) => ({
       productId: product.id,
       name: product.name,
-      averageCost: product.averageCost.toNumber(),
+      avgStockPrice: product.avgStockPrice.toNumber(),
+      avgPrice: product.avgPrice.toNumber(),
       quantityOnHand: product.quantityOnHand,
     }));
   }

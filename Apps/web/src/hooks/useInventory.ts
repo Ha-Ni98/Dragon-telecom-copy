@@ -36,7 +36,7 @@ export function useReservations(query: ReservationsQuery) {
   });
 }
 
-// Cross-invalidates catalog admin products (quantities/averageCost change) and stats — plan.md §3.
+// Cross-invalidates catalog admin products (quantities/avgStockPrice/avgPrice change) and stats — plan.md §3.
 export function useCreateAdjustment() {
   const queryClient = useQueryClient();
   return useMutation({

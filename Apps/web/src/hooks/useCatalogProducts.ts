@@ -62,8 +62,8 @@ export function useProductStats() {
 }
 
 // --- Mutations ---
-// Create/update/pricing/images all cross-invalidate inventory (plan.md §3) — averageCost,
-// quantities, and low-stock status are inventory-owned but rendered on the admin product list.
+// Create/update/pricing/images all cross-invalidate inventory (plan.md §3) — avgStockPrice,
+// avgPrice, quantities, and low-stock status are inventory-owned but rendered on the admin product list.
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();

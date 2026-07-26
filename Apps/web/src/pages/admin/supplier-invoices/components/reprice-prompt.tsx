@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { z } from "zod";
 import type { ConfirmResultDto, UpdatePricingCommand } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MarginDisplay } from "@/components/shared/MarginDisplay";
 
 type RepriceCandidate = ConfirmResultDto["repriceCandidates"][number];
 
@@ -31,7 +32,7 @@ function RepriceCandidateRow({
 }: RepriceCandidateRowProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
-  const { register, handleSubmit } = useForm<z.infer<typeof repriceFieldsSchema>>({
+  const { register, handleSubmit, watch } = useForm<z.infer<typeof repriceFieldsSchema>>({
     resolver: zodResolver(repriceFieldsSchema),
     defaultValues: {
       guestPrice: candidate.current.guestPrice,
@@ -57,7 +58,7 @@ function RepriceCandidateRow({
           className="space-y-3"
         >
           <div className="text-sm text-muted-foreground">
-            {t("admin.suppliers.averageQuantity")}: {candidate.averageCost.toLocaleString()}
+            {t("admin.suppliers.averageQuantity")}: {candidate.avgStockPrice.toLocaleString()}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -67,6 +68,7 @@ function RepriceCandidateRow({
                 step="0.01"
                 {...register("guestPrice", { valueAsNumber: true })}
               />
+              <MarginDisplay price={watch("guestPrice")} cost={candidate.avgStockPrice} />
             </div>
             <div className="space-y-1">
               <Label>{t("admin.supplierInvoices.editor.reprice.title")}</Label>
@@ -75,6 +77,7 @@ function RepriceCandidateRow({
                 step="0.01"
                 {...register("defaultSalePrice", { valueAsNumber: true })}
               />
+              <MarginDisplay price={watch("defaultSalePrice")} cost={candidate.avgStockPrice} />
             </div>
           </div>
           <div className="flex justify-end gap-2">

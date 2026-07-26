@@ -22,7 +22,7 @@ interface StockLevelsTableProps {
 }
 
 // ADM-06 Stock levels tab — StockRowDto (inventory.dtos.ts): productId/name/quantityOnHand/
-// quantityReserved/availableQuantity/averageCost/stockValue/reorderThreshold/isLow.
+// quantityReserved/availableQuantity/avgStockPrice/stockValue/reorderThreshold/isLow.
 export function StockLevelsTable({
   data,
   isLoading = false,
@@ -49,9 +49,9 @@ export function StockLevelsTable({
       { accessorKey: "quantityReserved", header: t("admin.inventory.reservations.table.quantity") },
       { accessorKey: "availableQuantity", header: t("common.units.inStock") },
       {
-        accessorKey: "averageCost",
+        accessorKey: "avgStockPrice",
         header: t("admin.inventory.adjustment.unitCost"),
-        cell: ({ row }) => row.original.averageCost.toLocaleString(),
+        cell: ({ row }) => row.original.avgStockPrice.toLocaleString(),
       },
       {
         accessorKey: "isLow",

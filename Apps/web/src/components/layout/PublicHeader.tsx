@@ -50,9 +50,9 @@ export function PublicHeader() {
     closeSearch();
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
   };
 
   const navLinks = (onNavigate?: () => void) => (

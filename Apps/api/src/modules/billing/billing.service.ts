@@ -219,13 +219,11 @@ export class BillingService implements IBillingService {
 
   // --- Listener-invoked (never HTTP) ---
 
-  // Skips REPAIR origin entirely (spec: "billing skips REPAIR-origin sales"). Reads the
-  // persisted Sale/SaleLine rows for sourceReference + per-line cost/profit the event omits
-  // (plan §C-3) — the event is the trigger + credit-snapshot + idempotency key, not the source
-  // of truth for money detail.
+  // Reads the persisted Sale/SaleLine rows for sourceReference + per-line cost/profit the event
+  // omits (plan §C-3) — the event is the trigger + credit-snapshot + idempotency key, not the
+  // source of truth for money detail. No REPAIR-origin guard (S1): repairs no longer produce a
+  // Sale row at all (D9) — their invoice is issued directly by the repairs module at PICKED_UP.
   async issueFromSale(payload: SalesEvents['sale.confirmed']): Promise<void> {
-    if (payload.origin === 'REPAIR') return;
-
     const sale = await this.prisma.sale.findUniqueOrThrow({ where: { id: payload.saleId }, include: { lines: true } });
     const snapshot = payload.posClientId != null ? await this.resolvePosClientSnapshot(payload.posClientId) : {};
 
@@ -385,13 +383,13 @@ export class BillingService implements IBillingService {
 
   private async toInvoiceDtos(invoices: InvoiceRow[], audience: InvoiceMapContext['audience']): Promise<InvoiceDto[]> {
     const sourceReferenceById = await this.resolveSourceReferences(invoices);
-    const currentAverageCostByLineId = audience === 'admin' ? await this.resolveCurrentAverageCosts(invoices) : undefined;
+    const currentAvgStockPriceByLineId = audience === 'admin' ? await this.resolveCurrentAvgStockPrices(invoices) : undefined;
 
     return invoices.map((invoice) =>
       BillingMapper.toInvoiceDto(invoice, {
         audience,
         sourceReference: sourceReferenceById.get(invoice.sourceId) ?? '',
-        ...(currentAverageCostByLineId ? { currentAverageCostByLineId } : {}),
+        ...(currentAvgStockPriceByLineId ? { currentAvgStockPriceByLineId } : {}),
       }),
     );
   }
@@ -425,21 +423,26 @@ export class BillingService implements IBillingService {
   }
 
   // `Invoice` has no `sourceReference` column (only the opaque `sourceId`) — resolved live here
-  // by batch-joining sourceId against Sale.reference/Order.reference, grouped by sourceType.
-  // Safe to re-derive on every read: both Sale.reference and Order.reference are immutable by
-  // the time an invoice can exist for them (plan §II-related report, Sprint 5).
+  // by batch-joining sourceId against Sale.reference/Order.reference/Repair.reference, grouped by
+  // sourceType. Safe to re-derive on every read: Sale.reference/Order.reference/Repair.reference
+  // are all immutable by the time an invoice can exist for them (plan §II-related report,
+  // Sprint 5). No REPAIR invoice exists yet — S13 creates the first — but this resolver must be
+  // complete the moment one does.
   private async resolveSourceReferences(invoices: Pick<InvoiceRow, 'sourceType' | 'sourceId'>[]): Promise<Map<string, string>> {
     const saleIds = invoices.filter((invoice) => invoice.sourceType === PrismaInvoiceSource.SALE).map((invoice) => invoice.sourceId);
     const orderIds = invoices.filter((invoice) => invoice.sourceType === PrismaInvoiceSource.ORDER).map((invoice) => invoice.sourceId);
+    const repairIds = invoices.filter((invoice) => invoice.sourceType === PrismaInvoiceSource.REPAIR).map((invoice) => invoice.sourceId);
 
-    const [sales, orders] = await Promise.all([
+    const [sales, orders, repairs] = await Promise.all([
       saleIds.length ? this.prisma.sale.findMany({ where: { id: { in: saleIds } }, select: { id: true, reference: true } }) : [],
       orderIds.length ? this.prisma.order.findMany({ where: { id: { in: orderIds } }, select: { id: true, reference: true } }) : [],
+      repairIds.length ? this.prisma.repair.findMany({ where: { id: { in: repairIds } }, select: { id: true, reference: true } }) : [],
     ]);
 
     const map = new Map<string, string>();
     for (const sale of sales) map.set(sale.id, sale.reference);
     for (const order of orders) map.set(order.id, order.reference);
+    for (const repair of repairs) map.set(repair.id, repair.reference);
     return map;
   }
 
@@ -448,8 +451,10 @@ export class BillingService implements IBillingService {
   // best-effort (label, quantity, unitPrice) matching — not airtight for a sale with two
   // identical lines entered separately rather than one line at a higher quantity (documented
   // limitation, Sprint 5 report). ORDER-origin invoices have no such ambiguity: Order.productId
-  // is a direct FK and every ORDER invoice has exactly one line (audit fix A3).
-  private async resolveCurrentAverageCosts(invoices: InvoiceRow[]): Promise<Map<string, number>> {
+  // is a direct FK and every ORDER invoice has exactly one line (audit fix A3). REPAIR-origin
+  // invoices are not correlated at all yet — whether a repair invoice line even carries a
+  // productId is S13's decision, made when it builds pickup-time issuance.
+  private async resolveCurrentAvgStockPrices(invoices: InvoiceRow[]): Promise<Map<string, number>> {
     const result = new Map<string, number>();
     const saleSourced = invoices.filter((invoice) => invoice.sourceType === PrismaInvoiceSource.SALE);
     const orderSourced = invoices.filter((invoice) => invoice.sourceType === PrismaInvoiceSource.ORDER);
@@ -496,12 +501,12 @@ export class BillingService implements IBillingService {
     if (productIdByInvoiceLineId.size === 0) return result;
 
     const productIds = [...new Set(productIdByInvoiceLineId.values())];
-    const products = await this.prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, averageCost: true } });
-    const averageCostByProductId = new Map(products.map((product) => [product.id, product.averageCost.toNumber()]));
+    const products = await this.prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, avgStockPrice: true } });
+    const avgStockPriceByProductId = new Map(products.map((product) => [product.id, product.avgStockPrice.toNumber()]));
 
     for (const [invoiceLineId, productId] of productIdByInvoiceLineId) {
-      const averageCost = averageCostByProductId.get(productId);
-      if (averageCost != null) result.set(invoiceLineId, averageCost);
+      const avgStockPrice = avgStockPriceByProductId.get(productId);
+      if (avgStockPrice != null) result.set(invoiceLineId, avgStockPrice);
     }
     return result;
   }

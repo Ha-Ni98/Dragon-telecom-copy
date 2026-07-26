@@ -51,11 +51,13 @@ export const StaffProductResponseSchema = z.object({
 });
 export type StaffProductDto = z.infer<typeof StaffProductResponseSchema>;
 
-// Admin — full visibility: exact quantities, averageCost, publish/enable flags. `categoryPrices`
-// mirrors StaffProductResponseSchema's shape (set-03 A1) — ADM-04's pricing card needs the 3
-// category prices to render/prefill margins the same way the staff view already does.
-// `images` (set-03 Sprint 5 finding) — ADM-04's images card needs these too; only the public
-// ProductWithPricingResponseSchema carried them before, even though the backend's
+// Admin — full visibility: exact quantities, dual average costs (D10), publish/enable flags.
+// `avgStockPrice` is the quantity-weighted moving average (margins, adjustment defaults, stock
+// valuation); `avgPrice` is the unweighted mean of purchase unit costs (supplier-invoice context
+// only). `categoryPrices` mirrors StaffProductResponseSchema's shape (set-03 A1) — ADM-04's
+// pricing card needs the 3 category prices to render/prefill margins the same way the staff view
+// already does. `images` (set-03 Sprint 5 finding) — ADM-04's images card needs these too; only
+// the public ProductWithPricingResponseSchema carried them before, even though the backend's
 // PRODUCT_INCLUDE already fetches this relation for every admin query.
 export const AdminProductResponseSchema = z.object({
   id: z.uuid(),
@@ -76,7 +78,8 @@ export const AdminProductResponseSchema = z.object({
   quantityOnHand: z.number().int(),
   quantityReserved: z.number().int(),
   availableQuantity: z.number().int(),
-  averageCost: z.number(),
+  avgStockPrice: z.number(),
+  avgPrice: z.number(),
   reorderThreshold: z.number().int().min(0),
   stockStatus: z.enum(StockStatus),
   isPublished: z.boolean(),

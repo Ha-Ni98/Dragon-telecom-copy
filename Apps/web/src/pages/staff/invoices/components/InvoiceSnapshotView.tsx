@@ -56,8 +56,8 @@ export function InvoiceSnapshotView({
               {scope === "admin" && line.profit != null && (
                 <div className="text-xs text-muted-foreground">
                   {t("admin.invoices.outgoing.table.profit")}: {formatDZD(line.profit, language)}
-                  {line.currentAverageCost != null &&
-                    ` · ${t("admin.invoices.outgoing.table.averageCost")}: ${formatDZD(line.currentAverageCost, language)}`}
+                  {line.currentAvgStockPrice != null &&
+                    ` · ${t("admin.invoices.outgoing.table.averageCost")}: ${formatDZD(line.currentAvgStockPrice, language)}`}
                 </div>
               )}
             </div>

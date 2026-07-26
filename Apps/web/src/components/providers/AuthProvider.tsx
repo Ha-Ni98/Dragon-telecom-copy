@@ -15,7 +15,7 @@ interface AuthCtx {
   displayName: string | null;
   login: (command: LoginCommand) => Promise<void>;
   isLoggingIn: boolean;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -56,7 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await loginMutation.mutateAsync(command);
         },
         isLoggingIn: loginMutation.isPending,
-        logout: () => logoutMutation.mutate(),
+        // Awaitable so callers can navigate only *after* useLogout's onSettled has run
+        // queryClient.clear() — otherwise PublicOnlyRoute still sees the cached session at
+        // /login and bounces straight back to /admin (G4). The catch is deliberate:
+        // authService.logout() clears the local tokens in its own `finally` even when the API
+        // call throws, so a failed round-trip is still a completed logout and must still resolve.
+        logout: async () => {
+          try {
+            await logoutMutation.mutateAsync();
+          } catch {
+            /* tokens already cleared by the service's finally; the cache by onSettled */
+          }
+        },
       }}
     >
       {children}

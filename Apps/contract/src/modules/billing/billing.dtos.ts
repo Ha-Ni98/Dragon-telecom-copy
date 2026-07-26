@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { InvoiceSource, InvoiceStatus } from './billing.enums';
 
-// totalCost/totalProfit and line costSnapshot/profit/currentAverageCost are
+// totalCost/totalProfit and line costSnapshot/profit/currentAvgStockPrice are
 // mapping-gated (admin-only per Data Mapping section) — modelled .optional(); the
 // client mapper strips them and 404s on foreign invoice numbers.
 export const InvoiceResponseSchema = z.object({
@@ -30,7 +30,7 @@ export const InvoiceResponseSchema = z.object({
       profit: z.number().optional(),
       lineTotal: z.number(),
       serialNumbers: z.string().optional(),
-      currentAverageCost: z.number().optional(),
+      currentAvgStockPrice: z.number().optional(),
     }),
   ),
 });

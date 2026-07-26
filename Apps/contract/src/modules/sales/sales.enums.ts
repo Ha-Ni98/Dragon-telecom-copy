@@ -6,11 +6,6 @@ export enum SaleStatus {
   CANCELLED = 'CANCELLED',
 }
 
-export enum SaleOrigin {
-  POS = 'POS',
-  REPAIR = 'REPAIR',
-}
-
 export enum ReturnType {
   REFUND = 'REFUND',
   EXCHANGE = 'EXCHANGE',

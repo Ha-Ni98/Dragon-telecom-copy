@@ -44,6 +44,7 @@ export const AdminClientResponseSchema = z.object({
   totalSpent: z.number(),
   lastOrderDate: z.iso.datetime().optional(),
   posClientId: z.uuid().optional(),
+  createdAt: z.iso.datetime(),
 });
 export type AdminClientDto = z.infer<typeof AdminClientResponseSchema>;
 

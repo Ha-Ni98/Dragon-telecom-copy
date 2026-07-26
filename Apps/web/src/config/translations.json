@@ -5429,6 +5429,16 @@
     "fr": "Suivant",
     "ar": ""
   },
+  "common.margin.label": {
+    "en": "Margin",
+    "fr": "Marge",
+    "ar": ""
+  },
+  "common.margin.noCostBasis": {
+    "en": "No cost basis yet",
+    "fr": "Pas encore de coût de revient",
+    "ar": ""
+  },
   "common.noChanges": {
     "en": "No changes",
     "fr": "Aucun changement",
@@ -7714,6 +7724,11 @@
     "fr": "Effacer",
     "ar": ""
   },
+  "common.actions.clearSelection": {
+    "en": "Clear selection",
+    "fr": "Effacer la sélection",
+    "ar": ""
+  },
   "common.actions.refresh": {
     "en": "Refresh",
     "fr": "Actualiser",
@@ -9899,6 +9914,11 @@
     "fr": "Commande",
     "ar": ""
   },
+  "invoices.source.repair": {
+    "en": "Repair",
+    "fr": "Réparation",
+    "ar": ""
+  },
   "invoices.status.issued": {
     "en": "Issued",
     "fr": "Émise",
@@ -11792,11 +11812,6 @@
   "admin.productsAdd.categoryPriceLabel": {
     "en": "Category price",
     "fr": "Prix par catégorie",
-    "ar": ""
-  },
-  "admin.productsAdd.marginLabel": {
-    "en": "Margin",
-    "fr": "Marge",
     "ar": ""
   },
   "admin.productsAdd.pricingRequiresStock": {

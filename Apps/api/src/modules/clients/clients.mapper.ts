@@ -96,6 +96,7 @@ export class ClientsMapper {
       totalSpent: rollups.totalSpent,
       ...(rollups.lastOrderDate != null ? { lastOrderDate: rollups.lastOrderDate.toISOString() } : {}),
       ...(client.posClientId != null ? { posClientId: client.posClientId } : {}),
+      createdAt: client.createdAt.toISOString(),
     };
     return AdminClientResponseSchema.parse(dto);
   }

@@ -11,9 +11,12 @@ import { InvoiceSource, type InvoiceDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD, formatDateTime } from "@/lib/utils";
 
+// InvoiceSource.REPAIR (S1, D9) added for exhaustiveness — no repair invoice exists yet (S13
+// issues the first one), but the staff/admin invoice list must not break the moment one does.
 const SOURCE_LABEL_KEY: Record<InvoiceSource, string> = {
   [InvoiceSource.SALE]: "invoices.source.sale",
   [InvoiceSource.ORDER]: "invoices.source.order",
+  [InvoiceSource.REPAIR]: "invoices.source.repair",
 };
 
 interface InvoicesTableProps {

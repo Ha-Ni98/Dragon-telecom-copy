@@ -6,8 +6,8 @@ import type { IInventoryPort } from './catalog.interface';
 // would write a `StockMovement` row (FIFO layer, `staffId`-attributed); that's not possible here
 // since `addLayer`'s signature carries no acting-staff identity, and building real FIFO/staff
 // attribution is the inventory module's own job, not catalog's. This stub instead applies the
-// same net effect directly to the columns inventory owns (`quantityOnHand`/`averageCost`) so the
-// product created here is materially correct end-to-end. Swap this file's export for the
+// same net effect directly to the columns inventory owns (`quantityOnHand`/`avgStockPrice`) so
+// the product created here is materially correct end-to-end. Swap this file's export for the
 // inventory module's real composition-root singleton in one line once it exists.
 export class InventoryPortStub implements IInventoryPort {
   async addLayer(
@@ -18,7 +18,7 @@ export class InventoryPortStub implements IInventoryPort {
       where: { id: input.productId },
       data: {
         quantityOnHand: { increment: input.quantity },
-        averageCost: input.unitCost,
+        avgStockPrice: input.unitCost,
       },
     });
   }

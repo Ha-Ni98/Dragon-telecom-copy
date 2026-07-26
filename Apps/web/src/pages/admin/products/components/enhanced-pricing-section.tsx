@@ -1,10 +1,11 @@
 import { useFieldArray } from "react-hook-form";
-import type { UseFormRegister, FieldErrors, Control } from "react-hook-form";
+import type { UseFormRegister, UseFormWatch, FieldErrors, Control } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
+import { MarginDisplay } from "@/components/shared/MarginDisplay";
 import type { AdminProductDto } from "@dragon-telecom/contract";
 import type { ProductPricingFormValues } from "@/pages/admin/products/product-pricing.schema";
 
@@ -14,23 +15,23 @@ interface ProductPricingSectionProps {
   register: UseFormRegister<ProductPricingFormValues>;
   control: Control<ProductPricingFormValues>;
   errors: FieldErrors<ProductPricingFormValues>;
+  watch: UseFormWatch<ProductPricingFormValues>;
 }
-
-const marginPercent = (price: number | undefined, cost: number) => {
-  if (price == null || !cost) return undefined;
-  return ((price - cost) / cost) * 100;
-};
 
 // Set-03 Sprint 5 rewire — dumb, form-bound to the page's shared pricingForm (use-edit-mode.ts).
 // `categoryPrices` is a real field array (useFieldArray) seeded 1:1 from
 // AdminProductDto.categoryPrices (A1) — the whole point of that contract change was so this
-// card could read/prefill these instead of just guestPrice+defaultSalePrice.
+// card could read/prefill these instead of just guestPrice+defaultSalePrice. Margins (RC-2) are
+// rendered in both view and edit mode, always against `avgStockPrice` (D10); in edit mode they
+// read the live `watch()` value so they recompute on every keystroke instead of staying pinned
+// to the saved DTO.
 export function ProductPricingSection({
   product,
   isEditMode,
   register,
   control,
   errors,
+  watch,
 }: ProductPricingSectionProps) {
   const { t, language } = useTranslation();
   const { fields } = useFieldArray({ control, name: "categoryPrices" });
@@ -60,6 +61,10 @@ export function ProductPricingSection({
               {product.guestPrice != null ? formatDZD(product.guestPrice, language) : "—"}
             </p>
           )}
+          <MarginDisplay
+            price={isEditMode ? watch("guestPrice") : product.guestPrice}
+            cost={product.avgStockPrice}
+          />
         </div>
 
         <div className="space-y-1">
@@ -83,12 +88,10 @@ export function ProductPricingSection({
                 : "—"}
             </p>
           )}
-          {product.defaultSalePrice != null && (
-            <p className="text-xs text-muted-foreground">
-              {t("admin.productsAdd.marginLabel")}:{" "}
-              {marginPercent(product.defaultSalePrice, product.averageCost)?.toFixed(1)}%
-            </p>
-          )}
+          <MarginDisplay
+            price={isEditMode ? watch("defaultSalePrice") : product.defaultSalePrice}
+            cost={product.avgStockPrice}
+          />
         </div>
 
         {fields.map((field, index) => {
@@ -106,12 +109,10 @@ export function ProductPricingSection({
               ) : (
                 <p className="text-sm">{category ? formatDZD(category.price, language) : "—"}</p>
               )}
-              {category && (
-                <p className="text-xs text-muted-foreground">
-                  {t("admin.productsAdd.marginLabel")}:{" "}
-                  {marginPercent(category.price, product.averageCost)?.toFixed(1)}%
-                </p>
-              )}
+              <MarginDisplay
+                price={isEditMode ? watch(`categoryPrices.${index}.price`) : category?.price}
+                cost={product.avgStockPrice}
+              />
             </div>
           );
         })}

@@ -1,14 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, ReturnType as PrismaReturnType } from '@prisma/client';
-import {
-  MovementDirection as PrismaMovementDirection,
-  SaleOrigin as PrismaSaleOrigin,
-  SaleStatus as PrismaSaleStatus,
-} from '@prisma/client';
+import { MovementDirection as PrismaMovementDirection, SaleStatus as PrismaSaleStatus } from '@prisma/client';
 import {
   DocType,
   MovementType,
-  SaleOrigin,
   SaleResponseSchema,
   UserType,
   paginated,
@@ -17,7 +12,6 @@ import {
   type JWTPayload,
   type PaginatedResult,
   type ReceiptDto,
-  type RepairsEvents,
   type SaleDraftCommand,
   type SaleDto,
   type SaleListQuery,
@@ -177,7 +171,6 @@ export class SalesService implements ISalesService {
 
     eventBus.emit('sale.confirmed', {
       saleId: id,
-      origin: SaleOrigin.POS,
       ...(existing.posClientId != null ? { posClientId: existing.posClientId } : {}),
       totalAmount,
       paidAmount: cmd.paidAmount,
@@ -320,96 +313,6 @@ export class SalesService implements ISalesService {
 
     const updated = await this.prisma.sale.findUniqueOrThrow({ where: { id: sale.id }, include: SALE_INCLUDE });
     return SalesMapper.toSaleDto(updated as SaleRow, { includeMargins: true });
-  }
-
-  // Listener-only (never HTTP) — records a repair pickup as a COMPLETED REPAIR-origin sale, no
-  // FIFO re-consumption (the repair already consumed its own parts). Idempotent by repairId via
-  // the Repair.saleId @unique latch: a concurrent/replayed call either finds saleId already set
-  // (short-circuits before any write) or loses the updateMany race (0 rows updated -> throws,
-  // rolling back the just-created sale too).
-  async recordRepairSale(payload: RepairsEvents['repair.pickedUp']): Promise<void> {
-    const result = await this.prisma.$transaction(async (tx) => {
-      const repair = await tx.repair.findUnique({ where: { id: payload.repairId }, select: { saleId: true } });
-      if (!repair) throw new NotFoundError('Repair');
-      if (repair.saleId != null) return null;
-
-      // repair.pickedUp carries no staffId — the most recent status-history row (written by the
-      // repairs module in the same moment it emitted this event) is the acting staff signal.
-      const lastHistory = await tx.repairStatusHistory.findFirst({
-        where: { repairId: payload.repairId },
-        orderBy: { changedAt: 'desc' },
-      });
-      if (!lastHistory) throw new NotFoundError('RepairStatusHistory');
-
-      // Written here, inside this same locked transaction, via the injected credit port
-      // (credit-serialization fix, plan §C3) — no post-commit listener applies it.
-      let previousCredit = 0;
-      let newCredit = 0;
-      if (payload.posClientId != null) {
-        ({ previousCredit, newCredit } = await this.clientCredit.applySaleCharge(tx, payload.posClientId, {
-          totalAmount: payload.totalAmount,
-          paidAmount: payload.paidAmount,
-        }));
-      } else {
-        newCredit = previousCredit + (payload.totalAmount - payload.paidAmount);
-      }
-
-      const reference = await this.sequence.nextNumber(tx, DocType.SALE);
-
-      const sale = await tx.sale.create({
-        data: {
-          reference,
-          ...(payload.posClientId != null ? { posClientId: payload.posClientId } : {}),
-          origin: PrismaSaleOrigin.REPAIR,
-          status: PrismaSaleStatus.COMPLETED,
-          subtotal: payload.totalAmount,
-          totalAmount: payload.totalAmount,
-          paidAmount: payload.paidAmount,
-          previousCredit,
-          newCredit,
-          totalCost: payload.totalCost,
-          totalProfit: payload.totalProfit,
-          soldAt: new Date(),
-          staffId: lastHistory.staffId,
-          lines: {
-            create: payload.snapshotParts.map((part) => ({
-              productId: part.productId,
-              productNameSnapshot: part.productName,
-              quantity: part.quantity,
-              resolvedPrice: part.unitPrice,
-              unitPrice: part.unitPrice,
-              costOfGoods: part.costOfGoods,
-              profit: part.profit,
-              lineTotal: part.lineTotal,
-            })),
-          },
-        },
-      });
-
-      const latch = await tx.repair.updateMany({ where: { id: payload.repairId, saleId: null }, data: { saleId: sale.id } });
-      if (latch.count === 0) throw new ConflictError('Repair already recorded as a sale');
-
-      return { saleId: sale.id, previousCredit, newCredit };
-    });
-
-    if (!result) return;
-
-    eventBus.emit('sale.confirmed', {
-      saleId: result.saleId,
-      origin: SaleOrigin.REPAIR,
-      ...(payload.posClientId != null ? { posClientId: payload.posClientId } : {}),
-      totalAmount: payload.totalAmount,
-      paidAmount: payload.paidAmount,
-      previousCredit: result.previousCredit,
-      newCredit: result.newCredit,
-      snapshotLines: payload.snapshotParts.map((part) => ({
-        productId: part.productId,
-        productName: part.productName,
-        quantity: part.quantity,
-        unitPrice: part.unitPrice,
-        lineTotal: part.lineTotal,
-      })),
-    });
   }
 
   private async listSales(

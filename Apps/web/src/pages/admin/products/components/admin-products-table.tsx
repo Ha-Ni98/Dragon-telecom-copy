@@ -95,9 +95,9 @@ export function AdminProductsTable({
       { accessorKey: "quantityReserved", header: t("admin.productsList.table.reserved") },
       { accessorKey: "availableQuantity", header: t("admin.productsList.table.available") },
       {
-        accessorKey: "averageCost",
+        accessorKey: "avgStockPrice",
         header: t("admin.productsList.table.avgCost"),
-        cell: ({ row }) => formatDZD(row.original.averageCost, language),
+        cell: ({ row }) => formatDZD(row.original.avgStockPrice, language),
       },
       {
         accessorKey: "stockStatus",
@@ -159,7 +159,7 @@ export function AdminProductsTable({
         />
       </div>
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{formatDZD(product.averageCost, language)}</span>
+        <span>{formatDZD(product.avgStockPrice, language)}</span>
         <Link to={`/admin/products/${product.id}`} className="text-primary">
           {t("admin.productsList.table.edit")}
         </Link>

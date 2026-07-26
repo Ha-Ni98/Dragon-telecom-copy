@@ -5,9 +5,10 @@ export enum InvoiceStatus {
   CANCELLED = 'CANCELLED',
 }
 
-// Never REPAIR (spec) — repair pickups are recorded as a repair-origin sale with no
-// invoice, so this union has no third member.
+// A repair issues an invoice and no sale record (D9) — its invoice is issued at PICKED_UP,
+// carrying source REPAIR.
 export enum InvoiceSource {
   SALE = 'SALE',
   ORDER = 'ORDER',
+  REPAIR = 'REPAIR',
 }

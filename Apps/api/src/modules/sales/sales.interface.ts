@@ -5,7 +5,6 @@ import type {
   JWTPayload,
   PaginatedResult,
   ReceiptDto,
-  RepairsEvents,
   SaleDraftCommand,
   SaleDto,
   SaleListQuery,
@@ -22,9 +21,6 @@ export interface ISalesService {
   listAdminSales(query: SaleListQuery): Promise<PaginatedResult<SaleDto>>;
   getSale(reference: string, actor: JWTPayload): Promise<SaleDto>;
   createReturn(cmd: CreateReturnCommand, staffId: string): Promise<SaleDto>;
-
-  // Internal — invoked only by this module's own listener (post-commit), never by HTTP routes.
-  recordRepairSale(payload: RepairsEvents['repair.pickedUp']): Promise<void>;
 }
 
 // Injected port (dependency inversion, plan §C-2/§I.2) — real implementation lives in catalog

@@ -323,7 +323,7 @@ export class PurchasingService implements IPurchasingService {
     const productIds = existing.lines.map((line) => line.productId);
 
     // Double-confirm — no-op (spec: "double-confirm no-op"): adds no layers, emits nothing
-    // again, just recomputes repriceCandidates fresh off the *current* averageCost. This pre-
+    // again, just recomputes repriceCandidates fresh off the *current* avgStockPrice. This pre-
     // lock check handles the common case cheaply; the in-tx re-check below (after the Supplier
     // lock) closes the race where a concurrent confirm on the same supplier commits while this
     // call is still waiting for the lock — same locked-read pattern as the credit write
@@ -478,6 +478,9 @@ export class PurchasingService implements IPurchasingService {
 
     let previousCredit = 0;
     let newCredit = 0;
+    // Same effective date drives both the SupplierPayment row's own paidAt and the invoice's
+    // rollup paidDate (S1, R2) — computed once so the two can never disagree.
+    const effectivePaidAt = cmd.paidAt != null ? new Date(cmd.paidAt) : new Date();
 
     const created = await this.prisma.$transaction(async (tx) => {
       const lockedSupplier = await this.lockSupplier(tx, cmd.supplierId);
@@ -485,14 +488,17 @@ export class PurchasingService implements IPurchasingService {
       newCredit = previousCredit - cmd.amount; // overpayment permitted — negative = supplier owes
 
       // Written here, inside the same locked transaction (credit-serialization fix, plan §C1) —
-      // both the supplier cache and the targeted invoice's paidAmount are purchasing's own data,
-      // so both move with the snapshot computation rather than a post-commit listener.
+      // both the supplier cache and the targeted invoice's paidAmount/paidDate are purchasing's
+      // own data, so both move with the snapshot computation rather than a post-commit listener.
       await tx.supplier.update({
         where: { id: cmd.supplierId },
         data: { credit: newCredit, totalPaid: { increment: cmd.amount } },
       });
       if (invoiceId != null) {
-        await tx.supplierInvoice.update({ where: { id: invoiceId }, data: { paidAmount: { increment: cmd.amount } } });
+        await tx.supplierInvoice.update({
+          where: { id: invoiceId },
+          data: { paidAmount: { increment: cmd.amount }, paidDate: effectivePaidAt },
+        });
       }
 
       const reference = await this.sequence.nextNumber(tx, DocType.SUPPLIER_PAYMENT);
@@ -505,7 +511,7 @@ export class PurchasingService implements IPurchasingService {
           amount: cmd.amount,
           previousCredit,
           newCredit,
-          ...(cmd.paidAt != null ? { paidAt: new Date(cmd.paidAt) } : {}),
+          paidAt: effectivePaidAt,
           staffId,
         },
         include: PAYMENT_INCLUDE,
@@ -615,10 +621,11 @@ export class PurchasingService implements IPurchasingService {
     return Array.from(byProduct.entries()).map(([productId, value]) => ({ productId, ...value }));
   }
 
-  // DRAFT reads carry projectedNewAverageCost per line (spec BL#2); CONFIRMED/CANCELLED don't
-  // project (the average is already real, not projected).
+  // DRAFT reads carry projectedNewAvgStockPrice per line (spec BL#2); CONFIRMED/CANCELLED don't
+  // project (the average is already real, not projected). Projects avgStockPrice specifically —
+  // not avgPrice, which is unaffected by the quantity-weighted formula below (D10).
   private async toInvoiceDtoWithProjection(
-    invoice: SupplierInvoiceRow | (Omit<SupplierInvoiceRow, 'lines'> & { lines: Omit<SupplierInvoiceLineRow, 'projectedNewAverageCost'>[] }),
+    invoice: SupplierInvoiceRow | (Omit<SupplierInvoiceRow, 'lines'> & { lines: Omit<SupplierInvoiceLineRow, 'projectedNewAvgStockPrice'>[] }),
   ): Promise<SupplierInvoiceDto> {
     if (invoice.status !== SupplierInvoiceStatus.DRAFT || invoice.lines.length === 0) {
       return PurchasingMapper.toSupplierInvoiceDto(invoice as SupplierInvoiceRow);
@@ -630,10 +637,10 @@ export class PurchasingService implements IPurchasingService {
     const linesWithProjection: SupplierInvoiceLineRow[] = invoice.lines.map((line) => {
       const basis = basisByProduct.get(line.productId);
       if (!basis) return line;
-      const projectedNewAverageCost =
-        (basis.quantityOnHand * basis.averageCost + line.quantity * line.landedUnitCost.toNumber()) /
+      const projectedNewAvgStockPrice =
+        (basis.quantityOnHand * basis.avgStockPrice + line.quantity * line.landedUnitCost.toNumber()) /
         (basis.quantityOnHand + line.quantity);
-      return { ...line, projectedNewAverageCost };
+      return { ...line, projectedNewAvgStockPrice };
     });
 
     return PurchasingMapper.toSupplierInvoiceDto({ ...invoice, lines: linesWithProjection } as SupplierInvoiceRow);

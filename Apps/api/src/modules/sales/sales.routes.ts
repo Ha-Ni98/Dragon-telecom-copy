@@ -25,7 +25,6 @@ import { inventoryService } from '../inventory/inventory.routes';
 import { catalogProductService } from '../catalog/catalog.routes';
 import { clientsService } from '../clients/clients.routes';
 import { SalesService } from './sales.service';
-import { SalesListener } from './sales.listener';
 import { SalesController } from './sales.controller';
 
 const router = Router();
@@ -33,7 +32,6 @@ const router = Router();
 // 1. Manual DI
 const service = new SalesService(prisma, sequenceService, inventoryService, catalogProductService, clientsService);
 const controller = new SalesController(service);
-new SalesListener(service).setup();
 
 // Access per plan §I.2/§D-1 — `types` is always paired explicitly with `pages` (ADMIN bypasses
 // the page check inside requireAuth itself; STAFF must additionally hold the listed page),

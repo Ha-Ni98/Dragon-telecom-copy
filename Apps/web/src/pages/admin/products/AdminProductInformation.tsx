@@ -93,6 +93,7 @@ export default function AdminProductInformation() {
         register={editMode.pricingForm.register}
         control={editMode.pricingForm.control}
         errors={editMode.pricingForm.formState.errors}
+        watch={editMode.pricingForm.watch}
       />
 
       <div className="grid gap-4 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] sm:grid-cols-3 lg:grid-cols-6">
@@ -102,10 +103,14 @@ export default function AdminProductInformation() {
           label={t("admin.productInfo.stock.available")}
           value={product.availableQuantity}
         />
-        <StockStat label={t("admin.productInfo.stock.avgCost")} value={product.averageCost} money />
+        <StockStat
+          label={t("admin.productInfo.stock.avgCost")}
+          value={product.avgStockPrice}
+          money
+        />
         <StockStat
           label={t("admin.productInfo.stock.stockValue")}
-          value={product.quantityOnHand * product.averageCost}
+          value={product.quantityOnHand * product.avgStockPrice}
           money
         />
         <StockStat

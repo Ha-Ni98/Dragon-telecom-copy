@@ -31,6 +31,7 @@ export const SupplierInvoiceResponseSchema = z.object({
   amountOnly: z.number().optional(),
   totalAmount: z.number(),
   paidAmount: z.number(),
+  paidDate: z.iso.datetime().optional(),
   previousCredit: z.number().optional(),
   newCredit: z.number().optional(),
   note: z.string().optional(),
@@ -46,7 +47,7 @@ export const SupplierInvoiceResponseSchema = z.object({
       lineTotal: z.number(),
       serialNumbers: z.string().optional(),
       // Projection on DRAFT reads only (spec) — absent once CONFIRMED.
-      projectedNewAverageCost: z.number().optional(),
+      projectedNewAvgStockPrice: z.number().optional(),
     }),
   ),
 });
@@ -61,7 +62,8 @@ export const ConfirmResultResponseSchema = z.object({
     z.object({
       productId: z.uuid(),
       name: z.string(),
-      averageCost: z.number(),
+      avgStockPrice: z.number(),
+      quantityOnHand: z.number().int(),
       current: z.object({
         guestPrice: z.number().optional(),
         defaultSalePrice: z.number().optional(),

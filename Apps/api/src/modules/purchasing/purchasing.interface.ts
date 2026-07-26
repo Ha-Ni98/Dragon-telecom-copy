@@ -52,7 +52,8 @@ export interface ICatalogRepricePort {
     {
       productId: string;
       name: string;
-      averageCost: number;
+      avgStockPrice: number;
+      quantityOnHand: number;
       current: {
         guestPrice?: number;
         defaultSalePrice?: number;
@@ -62,5 +63,5 @@ export interface ICatalogRepricePort {
   >;
   getCostBasis(
     productIds: string[],
-  ): Promise<{ productId: string; name: string; averageCost: number; quantityOnHand: number }[]>;
+  ): Promise<{ productId: string; name: string; avgStockPrice: number; avgPrice: number; quantityOnHand: number }[]>;
 }

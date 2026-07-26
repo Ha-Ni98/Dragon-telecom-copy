@@ -36,14 +36,15 @@ export class StatisticsService implements IStatisticsService {
   async getOverview(): Promise<OverviewDto> {
     const [{ revenue, profit }, products, clientCreditAgg, supplierCreditAgg] = await Promise.all([
       this.computeRevenueProfit({}),
-      this.prisma.product.findMany({ select: { quantityOnHand: true, averageCost: true } }),
+      this.prisma.product.findMany({ select: { quantityOnHand: true, avgStockPrice: true } }),
       this.prisma.posClient.aggregate({ _sum: { credit: true } }),
       this.prisma.supplier.aggregate({ _sum: { credit: true } }),
     ]);
 
-    // Σ quantityOnHand × averageCost — no single-column Prisma aggregate multiplies two
-    // columns, so this reduces client-side (acceptable at this store's catalog scale).
-    const stockValue = products.reduce((sum, p) => sum + p.quantityOnHand * p.averageCost.toNumber(), 0);
+    // Σ quantityOnHand × avgStockPrice (D10: stock valuation reads avgStockPrice, never avgPrice)
+    // — no single-column Prisma aggregate multiplies two columns, so this reduces client-side
+    // (acceptable at this store's catalog scale).
+    const stockValue = products.reduce((sum, p) => sum + p.quantityOnHand * p.avgStockPrice.toNumber(), 0);
 
     return StatisticsMapper.toOverviewDto({
       totalRevenue: revenue,
@@ -297,11 +298,15 @@ export class StatisticsService implements IStatisticsService {
 
   // --- Shared aggregation core ---
 
-  // Revenue/profit = Σ COMPLETED Sale rows (both origins — a REPAIR-origin sale carries the
-  // repair's own revenue once, never the Repair row itself, §C-4) + Σ CONFIRMED-and-later
-  // Order rows (Order.profit/costOfGoods, stamped at confirm — the same figures the ORDER
-  // invoice now copies too, audit fix A3, but read directly here rather than via the invoice).
-  // Guarantees "repair sale counted once" and "no FIFO drift vs stored line profits".
+  // Revenue/profit = Σ COMPLETED Sale rows + Σ CONFIRMED-and-later Order rows (Order.profit/
+  // costOfGoods, stamped at confirm — the same figures the ORDER invoice now copies too, audit
+  // fix A3, but read directly here rather than via the invoice).
+  //
+  // No repair figures here (S1): with repairs no longer producing a Sale row at all (D9), repair
+  // revenue/cost/profit no longer arrive through this query — they're recognised together at
+  // PICKED_UP (D8) and must be read directly off Repair. Auditing that and folding it in here is
+  // S14's job; until then this query under-counts total revenue by however much came from
+  // repairs, which is the documented regression (plan S1 §0.5).
   private async computeRevenueProfit(range: { from?: Date; to?: Date }): Promise<{ revenue: number; profit: number }> {
     const soldAtFilter = this.dateRangeFilter(range);
     const confirmedAtFilter = this.dateRangeFilter(range);

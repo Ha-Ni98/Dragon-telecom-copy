@@ -1,12 +1,13 @@
 import { z } from 'zod';
-import { SaleOrigin, SaleStatus } from './sales.enums';
+import { SaleStatus } from './sales.enums';
 
 // costOfGoods/profit/totalCost/totalProfit are mapping-gated (spec Data Mapping): staff
 // mapper strips them, admin keeps them. Modelled .optional() here, not schema-stripped.
+// No `origin` field (S1): with repairs no longer producing a Sale row (D9), every Sale is POS —
+// the field carried no information and SaleOrigin was deleted.
 export const SaleResponseSchema = z.object({
   id: z.uuid(),
   reference: z.string(),
-  origin: z.enum(SaleOrigin),
   status: z.enum(SaleStatus),
   posClientId: z.uuid().optional(),
   posClientName: z.string().optional(),
@@ -19,6 +20,7 @@ export const SaleResponseSchema = z.object({
   totalCost: z.number().optional(),
   totalProfit: z.number().optional(),
   soldAt: z.iso.datetime().optional(),
+  createdAt: z.iso.datetime(),
   staffId: z.uuid(),
   staffName: z.string(),
   note: z.string().optional(),

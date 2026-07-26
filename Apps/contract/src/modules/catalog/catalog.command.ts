@@ -68,7 +68,7 @@ export const CreateProductSchema = z
   );
 export type CreateProductCommand = z.infer<typeof CreateProductSchema>;
 
-// Product-core fields only; pricing has its own route/command, and quantity/averageCost
+// Product-core fields only; pricing has its own route/command, and quantity/avgStockPrice/avgPrice
 // are owned by inventory — this module never writes them (spec Business Logic #6).
 export const UpdateProductSchema = z.object({
   barcode: z.string().optional(),
