@@ -10,6 +10,7 @@ import type {
   SaleListQuery,
   UpdateSaleDraftCommand,
 } from '@dragon-telecom/contract';
+import type { InvoiceIssueRequest } from '../billing/billing.interface';
 
 export interface ISalesService {
   createDraft(cmd: SaleDraftCommand, staffId: string): Promise<SaleDto>;
@@ -37,21 +38,38 @@ export interface ICatalogPosPricingPort {
   ): Promise<{ productId: string; productName: string; resolvedPrice?: number }[]>;
 }
 
-// Injected port (dependency inversion, credit-serialization fix, plan §C2/§C3) — real
-// implementation is clients' own composition-root singleton (`clientsService`, exported from
-// clients.routes.ts), assembled directly in `sales.routes.ts` (one-directional dependency, no
-// adapter — the same shape as ICatalogPosPricingPort above). PosClient belongs to the clients
-// module; sales must write it only through this port, always inside its own transaction (`tx`),
-// never via a post-commit listener.
+// Injected port (dependency inversion, credit-serialization fix, plan §C2/§C3; split into two
+// orthogonal primitives, plan S5) — real implementation is clients' own composition-root
+// singleton (`clientsService`, exported from clients.routes.ts), assembled directly in
+// `sales.routes.ts` (one-directional dependency, no adapter — the same shape as
+// ICatalogPosPricingPort above). PosClient belongs to the clients module; sales must write it
+// only through this port, always inside its own transaction (`tx`), never via a post-commit
+// listener.
 export interface IClientCreditPort {
-  applySaleCharge(
+  applyDocumentCharge(
     tx: Prisma.TransactionClient,
     posClientId: string,
-    payload: { totalAmount: number; paidAmount: number },
+    payload: { totalSoldDelta: number; creditDelta: number },
   ): Promise<{ previousCredit: number; newCredit: number }>;
-  applyReturnRefund(
+  applyLedgerPayment(
     tx: Prisma.TransactionClient,
     posClientId: string,
-    payload: { creditEffect: number },
+    payload: { amount: number },
   ): Promise<{ previousCredit: number; newCredit: number }>;
+}
+
+// Injected port (dependency inversion, S5/R2) — real implementation is billing's own
+// composition-root singleton (`billingService`, exported from billing.routes.ts), assembled
+// directly in sales.routes.ts. Invoice and ClientPayment belong to the billing module; sales must
+// create them only through this port, always inside its own transaction (`tx`), never by writing
+// tx.invoice/tx.clientPayment directly and never via a post-commit listener.
+export interface IBillingIssuePort {
+  issueInvoiceInTx(
+    tx: Prisma.TransactionClient,
+    input: InvoiceIssueRequest,
+  ): Promise<{ invoiceId: string; number: string }>;
+  captureClientPaymentInTx(
+    tx: Prisma.TransactionClient,
+    input: { posClientId: string; invoiceId?: string; amount: number; staffId: string },
+  ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }>;
 }

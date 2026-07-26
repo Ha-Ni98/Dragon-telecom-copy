@@ -51,8 +51,8 @@ new ClientsListener(service).setup();
 // Exported for sales/orders/billing to inject as their own locally-declared credit-port
 // interface (structural typing — the same one-directional shape catalogProductService already
 // establishes for purchasing/sales/orders). PosClient belongs to this module; other modules
-// must write it only through applySaleCharge/applyPayment/applyOrderSold/applyReturnRefund
-// (credit-serialization fix, plan §C2).
+// must write it only through applyDocumentCharge/applyLedgerPayment (credit-serialization fix,
+// plan §C2; split into these two orthogonal primitives, plan S5).
 export const clientsService = service;
 
 const clientOnly = requireAuth({ types: [UserType.CLIENT] });

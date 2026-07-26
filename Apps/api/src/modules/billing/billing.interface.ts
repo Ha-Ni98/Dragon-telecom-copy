@@ -8,13 +8,17 @@ import type {
   InvoiceListQuery,
   OrdersEvents,
   PaginatedResult,
-  SalesEvents,
   SettingsDto,
 } from '@dragon-telecom/contract';
+import type { InvoiceIssueInput } from './billing.mapper';
 
 // Mirrors platform/inventory's ExportResult — not a contract DTO; PDFs bypass the
 // ApiResponse<T> envelope (plan §D-6), streamed by the controller instead of sendSuccess.
 export type PdfResult = { filename: string; mime: 'application/pdf'; body: Buffer };
+
+// The caller-supplied half of an invoice issuance — billing itself owns the client-name/address
+// snapshot, so those fields are deliberately absent. Backend-internal (never crosses the wire).
+export type InvoiceIssueRequest = Omit<InvoiceIssueInput, 'number' | 'clientNameSnapshot' | 'clientAddressSnapshot'>;
 
 export interface IBillingService {
   // Client — `req.user` (JWTPayload) carries `clientId`, never a `posClientId` directly (that's
@@ -41,8 +45,16 @@ export interface IBillingService {
   createClientPayment(cmd: CreateClientPaymentCommand, staffId: string): Promise<ClientPaymentDto>;
   listClientPayments(query: ClientPaymentListQuery): Promise<PaginatedResult<ClientPaymentDto>>;
 
+  // Injected-port methods (S5) — invoked by sibling modules INSIDE THEIR OWN transaction, never
+  // by HTTP routes directly. issueFromOrder remains listener-invoked (post-commit) until S10
+  // moves order issuance the same way sales' confirm now does.
+  issueInvoiceInTx(tx: Prisma.TransactionClient, input: InvoiceIssueRequest): Promise<{ invoiceId: string; number: string }>;
+  captureClientPaymentInTx(
+    tx: Prisma.TransactionClient,
+    input: { posClientId: string; invoiceId?: string; amount: number; paidAt?: Date; staffId: string },
+  ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }>;
+
   // Internal — invoked only by this module's own listener (post-commit), never by HTTP routes.
-  issueFromSale(payload: SalesEvents['sale.confirmed']): Promise<void>;
   issueFromOrder(payload: OrdersEvents['order.confirmed']): Promise<void>;
 }
 
@@ -63,7 +75,7 @@ export interface IStoreSettingsPort {
 // module; billing must write it only through this port, always inside its own transaction
 // (`tx`), never via a post-commit listener.
 export interface IClientCreditPort {
-  applyPayment(
+  applyLedgerPayment(
     tx: Prisma.TransactionClient,
     posClientId: string,
     payload: { amount: number },

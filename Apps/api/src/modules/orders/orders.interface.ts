@@ -38,15 +38,21 @@ export interface ICatalogViewerPricingPort {
   getCartProducts(productIds: string[], viewer: Viewer): Promise<ProductWithPricingDto[]>;
 }
 
-// Injected port (dependency inversion, credit-serialization fix, plan §C2/§C4) — real
-// implementation is clients' own composition-root singleton (`clientsService`, exported from
-// clients.routes.ts), assembled directly in `orders.routes.ts` (one-directional dependency, no
-// adapter — the same shape as ICatalogViewerPricingPort above). PosClient belongs to the
-// clients module; orders must write it only through this port, always inside its own
-// transaction (`tx`), never via a post-commit listener. Orders never touch credit (spec:
-// "totalSold += totalAmount" only) — narrower than sales' own IClientCreditPort.
+// Injected port (dependency inversion, credit-serialization fix, plan §C2/§C4; the shared
+// applyDocumentCharge primitive, plan S5) — real implementation is clients' own
+// composition-root singleton (`clientsService`, exported from clients.routes.ts), assembled
+// directly in `orders.routes.ts` (one-directional dependency, no adapter — the same shape as
+// ICatalogViewerPricingPort above). PosClient belongs to the clients module; orders must write it
+// only through this port, always inside its own transaction (`tx`), never via a post-commit
+// listener. Orders never touch credit today (spec: "totalSold += totalAmount" only) —
+// `creditDelta: 0` at the call site makes that explicit. S10 moves this call from confirm to
+// COMPLETED and gives it a real credit delta.
 export interface IOrderCreditPort {
-  applyOrderSold(tx: Prisma.TransactionClient, posClientId: string, payload: { totalAmount: number }): Promise<void>;
+  applyDocumentCharge(
+    tx: Prisma.TransactionClient,
+    posClientId: string,
+    payload: { totalSoldDelta: number; creditDelta: number },
+  ): Promise<{ previousCredit: number; newCredit: number }>;
 }
 
 export interface IOrdersService {

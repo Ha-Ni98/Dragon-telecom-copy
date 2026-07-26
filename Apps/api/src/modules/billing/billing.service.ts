@@ -14,14 +14,13 @@ import {
   type InvoiceListQuery,
   type OrdersEvents,
   type PaginatedResult,
-  type SalesEvents,
 } from '@dragon-telecom/contract';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@common/errors';
 import { logger } from '@common/config/logger';
 import { eventBus } from '@common/events/event-bus';
 import { renderInvoicePdf } from '@common/utils/pdf.utils';
 import type { ISequenceService } from '../platform/platform.interface';
-import type { IBillingService, IClientCreditPort, IStoreSettingsPort, PdfResult } from './billing.interface';
+import type { IBillingService, IClientCreditPort, InvoiceIssueRequest, IStoreSettingsPort, PdfResult } from './billing.interface';
 import { BillingMapper, type InvoiceIssueInput, type InvoiceMapContext, type InvoiceRow } from './billing.mapper';
 
 const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaClientKnownRequestError =>
@@ -123,6 +122,72 @@ export class BillingService implements IBillingService {
 
   // --- Client-payments ledger ---
 
+  // The single ledger-capture primitive (D5/D6) — creates one ClientPayment row, applies it to the
+  // PosClient's totalPaid/credit through the injected clients port, and recomputes the targeted
+  // invoice's paidAmount/status from the ledger. Callers: this module's own createClientPayment
+  // (the admin/staff endpoint), sales' confirm and createReturn (S5), orders' completion (S10) and
+  // repairs' pickup (S13).
+  // `invoiceId` is optional on purpose: money can be captured before an invoice exists — a repair
+  // collects payments across several steps while its invoice only appears at PICKED_UP (D5) — and
+  // such rows are "on account" (ClientPayment.invoiceId null), still counted in totalPaid.
+  // `amount` is signed; a negative amount is a refund row (D6).
+  // Returns everything the caller needs to emit `payment.clientRecorded` after IT commits.
+  async captureClientPaymentInTx(
+    tx: Prisma.TransactionClient,
+    input: { posClientId: string; invoiceId?: string; amount: number; paidAt?: Date; staffId: string },
+  ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }> {
+    // Written here, inside the caller's own transaction, via the injected credit port
+    // (credit-serialization fix, plan §C5) — no post-commit listener applies it. Overpayment
+    // permitted — negative newCredit means the store owes the client, mirroring purchasing's
+    // own overpayment-allowed convention.
+    const { previousCredit, newCredit } = await this.clientCredit.applyLedgerPayment(tx, input.posClientId, {
+      amount: input.amount,
+    });
+
+    const reference = await this.sequence.nextNumber(tx, DocType.CLIENT_PAYMENT);
+    const payment = await tx.clientPayment.create({
+      data: {
+        reference,
+        posClientId: input.posClientId,
+        ...(input.invoiceId != null ? { invoiceId: input.invoiceId } : {}),
+        amount: input.amount,
+        previousCredit,
+        newCredit,
+        ...(input.paidAt != null ? { paidAt: input.paidAt } : {}),
+        staffId: input.staffId,
+      },
+    });
+
+    // Invoice.paidAmount/status recompute — also written in-tx now (billing's own data,
+    // credit-serialization fix plan §C5), a real ledger recompute (Σ ClientPayment.amount for
+    // this invoice, including the row just created above), so it's idempotent under replay by
+    // construction, same as before — just no longer racing a post-commit listener. A
+    // CANCELLED invoice is never revived (checked first, same guard order as the former
+    // listener, so a cancelled invoice's ledger is never even aggregated). This ladder also
+    // walks DOWNWARD for a negative (refund) amount — a fully-refunded invoice correctly falls
+    // PAID → PARTIALLY_PAID → ISSUED as its ledger sum drops (D6's intended consequence).
+    if (input.invoiceId != null) {
+      const invoice = await tx.invoice.findUniqueOrThrow({
+        where: { id: input.invoiceId },
+        select: { totalAmount: true, status: true },
+      });
+      if (invoice.status !== PrismaInvoiceStatus.CANCELLED) {
+        const aggregate = await tx.clientPayment.aggregate({ where: { invoiceId: input.invoiceId }, _sum: { amount: true } });
+        const paidAmount = aggregate._sum.amount?.toNumber() ?? 0;
+        const totalAmount = invoice.totalAmount.toNumber();
+        const status =
+          paidAmount <= 0
+            ? PrismaInvoiceStatus.ISSUED
+            : paidAmount >= totalAmount
+              ? PrismaInvoiceStatus.PAID
+              : PrismaInvoiceStatus.PARTIALLY_PAID;
+        await tx.invoice.update({ where: { id: input.invoiceId }, data: { paidAmount, status } });
+      }
+    }
+
+    return { paymentId: payment.id, reference, previousCredit, newCredit };
+  }
+
   async createClientPayment(cmd: CreateClientPaymentCommand, staffId: string): Promise<ClientPaymentDto> {
     let invoiceId: string | undefined;
     if (cmd.invoiceNumber != null) {
@@ -137,56 +202,25 @@ export class BillingService implements IBillingService {
 
     let previousCredit = 0;
     let newCredit = 0;
+    let paymentId = '';
 
     const created = await this.prisma.$transaction(async (tx) => {
-      // Written here, inside this same transaction, via the injected credit port
-      // (credit-serialization fix, plan §C5) — no post-commit listener applies it. Overpayment
-      // permitted — negative newCredit means the store owes the client, mirroring purchasing's
-      // own overpayment-allowed convention.
-      ({ previousCredit, newCredit } = await this.clientCredit.applyPayment(tx, cmd.posClientId, { amount: cmd.amount }));
-
-      const reference = await this.sequence.nextNumber(tx, DocType.CLIENT_PAYMENT);
-      const payment = await tx.clientPayment.create({
-        data: {
-          reference,
-          posClientId: cmd.posClientId,
-          ...(invoiceId != null ? { invoiceId } : {}),
-          amount: cmd.amount,
-          previousCredit,
-          newCredit,
-          ...(cmd.paidAt != null ? { paidAt: new Date(cmd.paidAt) } : {}),
-          staffId,
-        },
-        include: PAYMENT_INCLUDE,
+      const captured = await this.captureClientPaymentInTx(tx, {
+        posClientId: cmd.posClientId,
+        ...(invoiceId != null ? { invoiceId } : {}),
+        amount: cmd.amount,
+        ...(cmd.paidAt != null ? { paidAt: new Date(cmd.paidAt) } : {}),
+        staffId,
       });
+      previousCredit = captured.previousCredit;
+      newCredit = captured.newCredit;
+      paymentId = captured.paymentId;
 
-      // Invoice.paidAmount/status recompute — also written in-tx now (billing's own data,
-      // credit-serialization fix plan §C5), a real ledger recompute (Σ ClientPayment.amount for
-      // this invoice, including the row just created above), so it's idempotent under replay by
-      // construction, same as before — just no longer racing a post-commit listener. A
-      // CANCELLED invoice is never revived (checked first, same guard order as the former
-      // listener, so a cancelled invoice's ledger is never even aggregated).
-      if (invoiceId != null) {
-        const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { totalAmount: true, status: true } });
-        if (invoice.status !== PrismaInvoiceStatus.CANCELLED) {
-          const aggregate = await tx.clientPayment.aggregate({ where: { invoiceId }, _sum: { amount: true } });
-          const paidAmount = aggregate._sum.amount?.toNumber() ?? 0;
-          const totalAmount = invoice.totalAmount.toNumber();
-          const status =
-            paidAmount <= 0
-              ? PrismaInvoiceStatus.ISSUED
-              : paidAmount >= totalAmount
-                ? PrismaInvoiceStatus.PAID
-                : PrismaInvoiceStatus.PARTIALLY_PAID;
-          await tx.invoice.update({ where: { id: invoiceId }, data: { paidAmount, status } });
-        }
-      }
-
-      return payment;
+      return tx.clientPayment.findUniqueOrThrow({ where: { id: captured.paymentId }, include: PAYMENT_INCLUDE });
     });
 
     eventBus.emit('payment.clientRecorded', {
-      paymentId: created.id,
+      paymentId,
       posClientId: cmd.posClientId,
       ...(cmd.invoiceNumber != null ? { invoiceNumber: cmd.invoiceNumber } : {}),
       amount: cmd.amount,
@@ -217,42 +251,36 @@ export class BillingService implements IBillingService {
     });
   }
 
-  // --- Listener-invoked (never HTTP) ---
+  // --- In-transaction issuance (injected port, S5/R2) ---
 
-  // Reads the persisted Sale/SaleLine rows for sourceReference + per-line cost/profit the event
-  // omits (plan §C-3) — the event is the trigger + credit-snapshot + idempotency key, not the
-  // source of truth for money detail. No REPAIR-origin guard (S1): repairs no longer produce a
-  // Sale row at all (D9) — their invoice is issued directly by the repairs module at PICKED_UP.
-  async issueFromSale(payload: SalesEvents['sale.confirmed']): Promise<void> {
-    const sale = await this.prisma.sale.findUniqueOrThrow({ where: { id: payload.saleId }, include: { lines: true } });
-    const snapshot = payload.posClientId != null ? await this.resolvePosClientSnapshot(payload.posClientId) : {};
-
-    const input: Omit<InvoiceIssueInput, 'number'> = {
-      ...(payload.posClientId != null ? { posClientId: payload.posClientId } : {}),
-      sourceType: InvoiceSource.SALE,
-      sourceId: sale.id,
-      clientNameSnapshot: snapshot.name ?? 'Walk-in Customer',
-      ...(snapshot.address != null ? { clientAddressSnapshot: snapshot.address } : {}),
-      totalAmount: payload.totalAmount,
-      paidAmount: payload.paidAmount,
-      ...(payload.previousCredit != null ? { previousCredit: payload.previousCredit } : {}),
-      ...(payload.newCredit != null ? { newCredit: payload.newCredit } : {}),
-      totalCost: sale.lines.reduce((sum, line) => sum + line.costOfGoods.toNumber(), 0),
-      totalProfit: sale.lines.reduce((sum, line) => sum + line.profit.toNumber(), 0),
-      staffId: sale.staffId,
-      lines: sale.lines.map((line) => ({
-        label: line.productNameSnapshot,
-        quantity: line.quantity,
-        unitPrice: line.unitPrice.toNumber(),
-        costSnapshot: line.costOfGoods.toNumber(),
-        profit: line.profit.toNumber(),
-        lineTotal: line.lineTotal.toNumber(),
-        ...(line.serialNumbers != null ? { serialNumbers: line.serialNumbers } : {}),
-      })),
-    };
-
-    await this.issueInvoice(input, sale.reference);
+  // The caller's own transaction issues the invoice, so a ClientPayment row created in that same
+  // transaction can carry a real invoiceId. Returns the ids the caller needs to emit
+  // `invoice.issued` AFTER its transaction commits; this method must never emit itself (a listener
+  // reacting to an event whose transaction has not committed would read rows that do not exist
+  // yet). Callers: sales' confirm and createReturn (S5); from S10/S13, order completion and repair
+  // pickup.
+  // No P2002 swallow here, unlike the post-commit issueInvoice path below: every caller of this
+  // method is guarded against double-issuance by its own document status check, so a
+  // unique-violation on @@unique(sourceType, sourceId) is a genuine bug and must roll the
+  // caller's transaction back.
+  async issueInvoiceInTx(
+    tx: Prisma.TransactionClient,
+    input: InvoiceIssueRequest,
+  ): Promise<{ invoiceId: string; number: string }> {
+    const snapshot = input.posClientId != null ? await this.resolvePosClientSnapshot(input.posClientId) : {};
+    const number = await this.sequence.nextNumber(tx, DocType.INVOICE);
+    const invoice = await tx.invoice.create({
+      data: BillingMapper.toInvoicePersistence({
+        ...input,
+        number,
+        clientNameSnapshot: snapshot.name ?? 'Walk-in Customer',
+        ...(snapshot.address != null ? { clientAddressSnapshot: snapshot.address } : {}),
+      }),
+    });
+    return { invoiceId: invoice.id, number };
   }
+
+  // --- Listener-invoked (never HTTP) ---
 
   // The event payload itself carries no per-line cost/profit — Order.costOfGoods/profit (the
   // real FIFO figures, stamped at confirm) are the source of truth, read straight off the row

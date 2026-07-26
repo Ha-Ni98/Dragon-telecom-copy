@@ -252,8 +252,12 @@ export class OrdersService implements IOrdersService {
 
       if (posClientId != null) {
         // Written here, inside this same transaction, via the injected credit port
-        // (credit-serialization fix, plan §C4) — no post-commit listener applies it.
-        await this.clientCredit.applyOrderSold(tx, posClientId, { totalAmount: existing.totalAmount.toNumber() });
+        // (credit-serialization fix, plan §C4). `creditDelta: 0` — orders never touch credit at
+        // confirm today (S10 moves this call to COMPLETED with a real credit delta).
+        await this.clientCredit.applyDocumentCharge(tx, posClientId, {
+          totalSoldDelta: existing.totalAmount.toNumber(),
+          creditDelta: 0,
+        });
       }
 
       await tx.order.update({

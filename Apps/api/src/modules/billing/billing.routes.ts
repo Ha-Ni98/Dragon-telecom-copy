@@ -34,6 +34,12 @@ const service = new BillingService(prisma, sequenceService, settingsPort, client
 const controller = new BillingController(service);
 new BillingListener(service).setup();
 
+// Exported singleton for downstream in-transaction consumers (sales' confirm/createReturn, S5;
+// orders' completion, S10; repairs' pickup, S13) — they call issueInvoiceInTx /
+// captureClientPaymentInTx inside their own transaction. One-directional: billing imports
+// platform and clients, never sales/orders/repairs, so no cycle is possible.
+export const billingService = service;
+
 const clientOnly = requireAuth({ types: [UserType.CLIENT] });
 const staffInvoicesOrAdmin = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], pages: [PageKey.STAFF_INVOICES], checkDB: true });
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });

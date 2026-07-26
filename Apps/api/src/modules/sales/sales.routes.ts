@@ -15,22 +15,25 @@ import {
   UpdateSaleDraftSchema,
 } from '@dragon-telecom/contract';
 // Direct sibling-module imports — sales depends one-directionally on platform/inventory/catalog/
-// clients (no reverse dependency), the same shape purchasing.routes.ts established in Sprint 7
-// of set 05. catalogProductService satisfies ICatalogPosPricingPort structurally (its
+// clients/billing (no reverse dependency), the same shape purchasing.routes.ts established in
+// Sprint 7 of set 05. catalogProductService satisfies ICatalogPosPricingPort structurally (its
 // resolvePosPrices method, added in set-06 Sprint 1, matches the port's signature exactly);
-// clientsService satisfies IClientCreditPort structurally (credit-serialization fix, plan §C3)
-// — no adapter needed for either.
+// clientsService satisfies IClientCreditPort structurally (credit-serialization fix, plan §C3,
+// split into applyDocumentCharge/applyLedgerPayment in S5); billingService satisfies
+// IBillingIssuePort structurally (issueInvoiceInTx/captureClientPaymentInTx, S5/R2) — no adapter
+// needed for any of the three.
 import { sequenceService } from '../platform/platform.routes';
 import { inventoryService } from '../inventory/inventory.routes';
 import { catalogProductService } from '../catalog/catalog.routes';
 import { clientsService } from '../clients/clients.routes';
+import { billingService } from '../billing/billing.routes';
 import { SalesService } from './sales.service';
 import { SalesController } from './sales.controller';
 
 const router = Router();
 
 // 1. Manual DI
-const service = new SalesService(prisma, sequenceService, inventoryService, catalogProductService, clientsService);
+const service = new SalesService(prisma, sequenceService, inventoryService, catalogProductService, clientsService, billingService);
 const controller = new SalesController(service);
 
 // Access per plan §I.2/§D-1 — `types` is always paired explicitly with `pages` (ADMIN bypasses
