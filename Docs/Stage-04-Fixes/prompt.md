@@ -3,7 +3,7 @@
 You are planning fixes for **Dragon Telecom**, a phone spare-parts store management app (catalog, POS, inventory with FIFO costing, suppliers, online orders, repairs, invoicing, statistics). Your job is **not to fix anything** — it is to read the codebase and produce an **instruction-based execution plan** precise enough that a less powerful agent can execute it without re-deriving intent.
 
 **You plan one set per session.** Do not attempt several sets at once: quality degrades as context fills, and these plans must name exact files, schemas, hooks, query keys and translation keys. Take the set named in your prompt, read what it touches, plan it, stop. 
-Start planing Set 
+Start planing Set in @app-issues.md
 
 ## Codebase orientation
 - Backend `Apps/api` — flow is `route → controller → service` and back.
