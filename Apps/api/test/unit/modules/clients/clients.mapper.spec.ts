@@ -273,9 +273,15 @@ describe('ClientsMapper', () => {
   });
 
   describe('toClientStatsDto', () => {
-    it('assembles + parses the four counters', () => {
-      const dto = ClientsMapper.toClientStatsDto({ totalClients: 10, pending: 3, approved: 6, rejected: 1 });
-      expect(dto).toEqual({ totalClients: 10, pending: 3, approved: 6, rejected: 1 });
+    it('assembles + parses the five counters', () => {
+      const dto = ClientsMapper.toClientStatsDto({
+        totalClients: 10,
+        pending: 3,
+        approved: 6,
+        rejected: 1,
+        newThisMonth: 2,
+      });
+      expect(dto).toEqual({ totalClients: 10, pending: 3, approved: 6, rejected: 1, newThisMonth: 2 });
     });
   });
 });

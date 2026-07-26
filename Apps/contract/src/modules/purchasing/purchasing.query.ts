@@ -10,8 +10,11 @@ export const SupplierListQuerySchema = z.object({
 });
 export type SupplierListQuery = z.infer<typeof SupplierListQuerySchema>;
 
+// `productId` (set-03 A4) — ADM-04's "Supply history" tab: invoices that touched this product,
+// scoped by the existing `SupplierInvoiceLine.productId` relation, not a new document type.
 export const SupplierInvoiceListQuerySchema = z.object({
   supplierId: z.uuid().optional(),
+  productId: z.uuid().optional(),
   status: z.enum(SupplierInvoiceStatus).optional(),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),

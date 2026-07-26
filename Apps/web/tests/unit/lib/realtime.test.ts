@@ -4,7 +4,7 @@ import {
   onRealtimeStatusChange,
   connectRoleSocket,
 } from "@/lib/realtime";
-import { UserRole } from "@your-app/contract";
+import { UserType } from "@dragon-telecom/contract";
 
 // Realtime is opt-in and off by default (VITE_WS_ENABLED unset in tests), so connectRoleSocket
 // is a no-op and no socket is ever opened. These tests cover the always-present status store
@@ -22,7 +22,7 @@ describe("realtime status store", () => {
 
 describe("connectRoleSocket (disabled)", () => {
   it("is a no-op when VITE_WS_ENABLED is not 'true' and leaves status disconnected", () => {
-    connectRoleSocket(UserRole.ADMIN);
+    connectRoleSocket(UserType.ADMIN);
     expect(getRealtimeStatus()).toBe("disconnected");
   });
 });

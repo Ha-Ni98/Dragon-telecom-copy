@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, type ReactNode } from "react";
-import type { LoginCommand } from "@your-app/contract";
+import type { LoginCommand } from "@dragon-telecom/contract";
 import { useSession } from "@/hooks/useSession";
 import { useLogin } from "@/hooks/useLogin";
 import { useLogout } from "@/hooks/useLogout";
@@ -27,29 +27,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const session = sessionQuery.data ?? null;
   const isAuthenticated = !!session;
-  const role = session?.role;
+  const type = session?.type;
 
-  // Role socket lifecycle: connects once a session with a role is present, disconnects on
-  // logout (queryClient.clear() drops the cached session, so `role` goes undefined on the
-  // next render) or unmount. Keyed on the role value, not the session object, so an unrelated
-  // me() refetch with the same role never reconnects the socket.
+  // Role socket lifecycle: connects once a session with a type is present, disconnects on
+  // logout (queryClient.clear() drops the cached session, so `type` goes undefined on the
+  // next render) or unmount. Keyed on the type value, not the session object, so an unrelated
+  // session refetch with the same type never reconnects the socket.
   // Realtime is opt-in: connectRoleSocket() is a no-op unless VITE_WS_ENABLED === "true"
   // (see src/lib/realtime.ts), so this effect stays dormant when realtime is off.
   useEffect(() => {
-    if (!isAuthenticated || !role) {
+    if (!isAuthenticated || !type) {
       disconnectRoleSocket();
       return;
     }
-    connectRoleSocket(role);
+    connectRoleSocket(type);
     return () => disconnectRoleSocket();
-  }, [isAuthenticated, role]);
+  }, [isAuthenticated, type]);
+
+  const displayName = session?.profile ? `${session.profile.firstName} ${session.profile.lastName}` : null;
 
   return (
     <Ctx.Provider
       value={{
         isAuthenticated,
         isReady: !sessionQuery.isPending,
-        displayName: session?.fullName ?? null,
+        displayName,
         login: async (command) => {
           await loginMutation.mutateAsync(command);
         },

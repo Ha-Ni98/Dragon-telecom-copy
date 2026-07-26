@@ -5,6 +5,10 @@ export const REPAIR_ROUTES = {
   ADMIN_LIST: '/admin/repairs',
   STAFF_CREATE: '/staff/repairs',
   ADMIN_CREATE: '/admin/repairs',
+  // set-03 B1 — single-ticket read (ADM-13/STF-07 ticket detail); shares STAFF_UPDATE/
+  // ADMIN_UPDATE's `:id` path, mounted on GET instead of PATCH.
+  STAFF_BY_ID: '/staff/repairs/:id',
+  ADMIN_BY_ID: '/admin/repairs/:id',
   STAFF_UPDATE: '/staff/repairs/:id',
   ADMIN_UPDATE: '/admin/repairs/:id',
   STAFF_PARTS: '/staff/repairs/:id/parts',

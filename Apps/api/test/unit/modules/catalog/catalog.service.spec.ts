@@ -412,6 +412,8 @@ const buildProductRow = (overrides: Record<string, unknown> = {}) => ({
   },
   deviceModel: null,
   images: [],
+  // set-03 A1: getAdminProduct/listAdminProducts now include+map `prices` for categoryPrices.
+  prices: [],
   ...overrides,
 });
 

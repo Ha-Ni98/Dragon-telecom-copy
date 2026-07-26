@@ -17,6 +17,9 @@ interface Props<TData> {
   emptyState?: ReactNode;
   /** Extra classes for a single row (both desktop + mobile) — e.g. a new-arrival highlight. */
   getRowClassName?: (row: TData) => string | undefined;
+  /** set-02 PUB-10 addition — row → detail view (e.g. My Invoices). Applied to both the
+   * desktop <tr> and the mobile row wrapper; omit for a purely read-only table. */
+  onRowClick?: (row: TData) => void;
 }
 
 // Sorting in this app is a frontend concern applied to `data` before it reaches this
@@ -29,6 +32,7 @@ export function DataTable<TData>({
   renderMobileRow,
   emptyState,
   getRowClassName,
+  onRowClick,
 }: Props<TData>) {
   const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
@@ -54,7 +58,11 @@ export function DataTable<TData>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id} className={getRowClassName?.(row.original)}>
+              <TableRow
+                key={row.id}
+                className={getRowClassName?.(row.original)}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -67,7 +75,11 @@ export function DataTable<TData>({
       </div>
       <div className="divide-y divide-border md:hidden">
         {data.map((row) => (
-          <div key={getRowKey(row)} className={getRowClassName?.(row)}>
+          <div
+            key={getRowKey(row)}
+            className={getRowClassName?.(row)}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+          >
             {renderMobileRow(row)}
           </div>
         ))}

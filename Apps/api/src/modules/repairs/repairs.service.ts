@@ -72,6 +72,15 @@ export class RepairsService implements IRepairsService {
     return repairs.map((repair) => RepairsMapper.toRepairDto(repair, { includeMargins: isAdmin }));
   }
 
+  // set-03 B1 — single-ticket read, unrestricted by creator (same access shape as
+  // updateRepair/addPart/etc. below — §C-1's created-by-me rule only filters listRepairs).
+  async getRepair(id: string, actor: JWTPayload): Promise<RepairDto> {
+    const isAdmin = actor.type === UserType.ADMIN;
+    const existing = await this.prisma.repair.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError('Repair');
+    return this.getRepairDto(id, { includeMargins: isAdmin });
+  }
+
   // Intake: SequenceService(REPAIR); the intake RepairStatusHistory row (§C-1) both anchors
   // "created-by-me" scoping and is what sales' own listener later reads for repair.pickedUp's
   // missing staffId. Attaching a POS client prefills name/phone (BL#1) — resolved here (a pure

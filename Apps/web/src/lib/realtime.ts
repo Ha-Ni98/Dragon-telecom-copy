@@ -1,5 +1,5 @@
 import { io, type Socket } from "socket.io-client";
-import { UserRole } from "@your-app/contract";
+import { UserType } from "@dragon-telecom/contract";
 import * as tokenStore from "./token-store";
 import { refreshTokens } from "./axios";
 import { queryClient } from "./query-client";
@@ -96,7 +96,7 @@ function attachAuthErrorHandling(socket: AppSocket): void {
 // Every handler invalidates only — payloads are never written into the cache. REST stays
 // the single source of truth. Example:
 //   socket.on("resource:updated", () =>
-//     queryClient.invalidateQueries({ queryKey: qk.deliveryCompanies.all() }),
+//     queryClient.invalidateQueries({ queryKey: qk.someDomain.all() }),
 //   );
 function attachDomainListeners(_socket: AppSocket): void {
   void queryClient;
@@ -105,10 +105,10 @@ function attachDomainListeners(_socket: AppSocket): void {
 // ─── Role socket (authed — /users or /admin) ─────────────────────────────────
 let roleSocket: AppSocket | null = null;
 
-export function connectRoleSocket(role: UserRole): void {
+export function connectRoleSocket(type: UserType): void {
   if (!WS_ENABLED) return;
   disconnectRoleSocket();
-  const namespace = role === UserRole.ADMIN ? NS.ADMIN : NS.USERS;
+  const namespace = type === UserType.ADMIN ? NS.ADMIN : NS.USERS;
   const socket = io(wsUrl(namespace), { auth: authCallback }) as AppSocket;
 
   attachAuthErrorHandling(socket);

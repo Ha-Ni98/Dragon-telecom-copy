@@ -199,6 +199,8 @@ export class PurchasingService implements IPurchasingService {
   async listInvoices(query: SupplierInvoiceListQuery): Promise<PaginatedResult<SupplierInvoiceDto>> {
     const where: Prisma.SupplierInvoiceWhereInput = {
       ...(query.supplierId != null ? { supplierId: query.supplierId } : {}),
+      // set-03 A4 — ADM-04 Supply history: invoices whose lines touched this product.
+      ...(query.productId != null ? { lines: { some: { productId: query.productId } } } : {}),
       ...(query.status != null ? { status: query.status as PrismaSupplierInvoiceStatus } : {}),
       ...(query.from != null || query.to != null
         ? {

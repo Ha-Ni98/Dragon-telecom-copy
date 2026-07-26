@@ -1,16 +1,21 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import {
-  AUTH_ROUTES,
+  IDENTITY_ROUTES,
+  CATALOG_ROUTES,
+  PLATFORM_ROUTES,
+  CLIENT_ROUTES,
   type ApiResponse,
-  type AuthTokensDTO,
-  type RefreshTokenCommand,
-} from "@your-app/contract";
+  type RefreshResultDto,
+  type RefreshCommand,
+} from "@dragon-telecom/contract";
 import { apiPath } from "./api-path";
 import * as tokenStore from "./token-store";
 
 // Exactly one axios instance (rules §3A). Bearer auth, not cookies — the API only reads
 // `Authorization: Bearer` (no cookie-parser, no `Set-Cookie`).
 // This file does no UI/toasts/domain transforms.
+export const baseURL = import.meta.env.VITE_API_URL;
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   timeout: 15_000,
@@ -36,24 +41,29 @@ api.interceptors.request.use((config) => {
 // caller (a login form shows "invalid credentials"; a failed refresh call itself hits this
 // same exclusion, which is what makes refreshTokens() below recursion-safe).
 const TOKEN_ENDPOINTS = new Set(
-  [AUTH_ROUTES.LOGIN, AUTH_ROUTES.REFRESH, AUTH_ROUTES.LOGOUT].map((segment) =>
-    apiPath(AUTH_ROUTES.BASE, segment),
+  [IDENTITY_ROUTES.LOGIN, IDENTITY_ROUTES.REFRESH, IDENTITY_ROUTES.LOGOUT].map((segment) =>
+    apiPath(segment),
   ),
 );
 
-// EXTENSION POINT (auth): add public path prefixes here if some API surface is anonymous
-// (a 401 there is business logic — an invalid reference — not an expired-session signal).
-const PUBLIC_PATH_PREFIXES: string[] = [];
+// Anonymous API surfaces (no auth required, ever) — a 401 here is business logic (e.g. a
+// stale/invalid resource reference), never an expired session, so it must not trigger a
+// refresh+redirect. Prefix-matched against the request's built path, so a detail route like
+// CATALOG_ROUTES.PRODUCT_DETAIL ('/products/:id') is covered by its own list route's prefix
+// without needing every dynamic-segment variant spelled out (integration plan.md §1.1, §2.5).
+const PUBLIC_PATH_PREFIXES: string[] = [
+  apiPath(CATALOG_ROUTES.PRODUCTS),
+  apiPath(CATALOG_ROUTES.BRANDS),
+  apiPath(CATALOG_ROUTES.FAMILIES),
+  apiPath(CATALOG_ROUTES.MODELS),
+  apiPath(PLATFORM_ROUTES.WILAYAS),
+  apiPath(PLATFORM_ROUTES.FEE),
+  apiPath(PLATFORM_ROUTES.SETTINGS_PUBLIC),
+  apiPath(CLIENT_ROUTES.VALIDATE_PHONE),
+  apiPath(CLIENT_ROUTES.REGISTER),
+];
 const isPublicEndpoint = (url: string): boolean =>
   PUBLIC_PATH_PREFIXES.some((prefix) => url.startsWith(prefix));
-
-// AuthProvider's useSession() calls this on every page load, public routes included — a 401
-// here just means "no session," the normal case for an anonymous visitor, not a signal to
-// bounce them to /login. The refresh attempt below still runs (silently restores a session
-// from a stale access token + valid refresh token); only the *redirect* on ultimate failure
-// is skipped for this one endpoint. Actually-protected routes still redirect on their own,
-// via ProtectedRoute/RoleGuard reacting to isAuthenticated.
-const SESSION_ENDPOINT = apiPath(AUTH_ROUTES.BASE, AUTH_ROUTES.ME);
 
 type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 
@@ -61,17 +71,20 @@ type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 // instead of each firing its own. Lives here (not in auth.service.ts, built in Sprint 2)
 // because services depend on lib/axios.ts, never the other way — and the realtime layer
 // (Sprint 4) reuses this exact export so both transports share one refresh (plan.md §1.2).
-let refreshInFlight: Promise<AuthTokensDTO> | null = null;
+// Also the cold-start session bootstrap: there's no "who am I" endpoint, so
+// hooks/useSession.ts calls this directly to populate the in-memory access token from the
+// stored refresh token on page load (see token-store.ts's getSession()).
+let refreshInFlight: Promise<RefreshResultDto> | null = null;
 
-export function refreshTokens(): Promise<AuthTokensDTO> {
+export function refreshTokens(): Promise<RefreshResultDto> {
   if (!refreshInFlight) {
     const refreshToken = tokenStore.getRefreshToken();
     if (!refreshToken) {
       return Promise.reject(new Error("No refresh token available"));
     }
-    const command: RefreshTokenCommand = { refreshToken };
+    const command: RefreshCommand = { refreshToken };
     refreshInFlight = api
-      .post<ApiResponse<AuthTokensDTO>>(apiPath(AUTH_ROUTES.BASE, AUTH_ROUTES.REFRESH), command)
+      .post<ApiResponse<RefreshResultDto>>(apiPath(IDENTITY_ROUTES.REFRESH), command)
       .then((res) => {
         if (!res.data.success) throw new Error(res.data.error.message); // defensive
         tokenStore.setTokens(res.data.data);
@@ -109,13 +122,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const isSessionCheck = requestUrl === SESSION_ENDPOINT;
-
     // 4. No request to replay, or already retried once (refresh succeeded but the replay
     // still 401'd) — treat as failure, no second refresh attempt.
     if (!config || config._retried) {
       tokenStore.clear();
-      if (!isSessionCheck) redirectToLogin();
+      redirectToLogin();
       return Promise.reject(error);
     }
 
@@ -125,7 +136,7 @@ api.interceptors.response.use(
     } catch {
       // 4. Refresh failed / no refresh token.
       tokenStore.clear();
-      if (!isSessionCheck) redirectToLogin();
+      redirectToLogin();
       return Promise.reject(error);
     }
 

@@ -427,6 +427,10 @@ export class SalesService implements ISalesService {
             },
           }
         : {}),
+      // set-03 A3 — admin-only filters (ADM-10's seller/POS-client dropdowns); listMySales
+      // never forwards these, so they can't clash with its own extraWhere.staffId scoping.
+      ...(query.sellerId != null ? { staffId: query.sellerId } : {}),
+      ...(query.posClientId != null ? { posClientId: query.posClientId } : {}),
     };
 
     const [total, sales] = await this.prisma.$transaction([
