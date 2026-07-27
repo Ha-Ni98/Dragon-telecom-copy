@@ -8,6 +8,7 @@ import {
   PageKey,
   ConfirmSaleSchema,
   CreateReturnSchema,
+  ReturnListQuerySchema,
   SaleDraftSchema,
   SaleIdParamsSchema,
   SaleListQuerySchema,
@@ -69,6 +70,7 @@ router.get(SALE_ROUTES.STAFF_LIST, staffSalesOrAdmin, validateRequest({ query: S
 router.get(SALE_ROUTES.ADMIN_LIST, adminOnly, validateRequest({ query: SaleListQuerySchema }), controller.listAdminSales);
 router.get(SALE_ROUTES.STAFF_DETAIL, staffOrAdmin, validateRequest({ params: SaleReferenceParamsSchema }), controller.getSale);
 router.get(SALE_ROUTES.ADMIN_DETAIL, adminOnly, validateRequest({ params: SaleReferenceParamsSchema }), controller.getSale);
+router.get(SALE_ROUTES.RETURNS_LIST, adminOnly, validateRequest({ query: ReturnListQuerySchema }), controller.listReturns);
 router.post(SALE_ROUTES.RETURN, adminOnly, validateRequest({ body: CreateReturnSchema }), controller.createReturn);
 
 export { router };

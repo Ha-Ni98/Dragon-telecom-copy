@@ -13,4 +13,7 @@ export const SALE_ROUTES = {
   STAFF_DETAIL: '/staff/sales/:reference',
   ADMIN_DETAIL: '/admin/sales/:reference',
   RETURN: '/admin/returns',
+  // Same path as RETURN, distinguished only by HTTP verb (GET vs POST) — its own constant so no
+  // call site hardcodes the string (same convention as UPDATE_DRAFT/DELETE_DRAFT above).
+  RETURNS_LIST: '/admin/returns',
 } as const;

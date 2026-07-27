@@ -1,18 +1,27 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SimplePagination } from "@/components/shared/SimplePagination";
 import { SalesFilters } from "@/pages/staff/sales/components/SalesFilters";
 import { SalesTable } from "@/pages/staff/sales/components/SalesTable";
 import { SaleDetailDrawer } from "@/pages/staff/sales/components/SaleDetailDrawer";
 import { ReturnDialog } from "@/pages/admin/sales/components/ReturnDialog";
-import { useSales, useSale, useCreateReturn } from "@/hooks/useSales";
+import { ReturnsTable } from "@/pages/admin/sales/components/ReturnsTable";
+import { ReturnDetailDialog } from "@/pages/admin/sales/components/ReturnDetailDialog";
+import { useSales, useSale, useCreateReturn, useReturns } from "@/hooks/useSales";
 import { useUsers } from "@/hooks/useIdentity";
 import { usePosClientSearch } from "@/hooks/usePosClients";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
-import { SaleStatus, type SaleDto, type SaleListQuery } from "@dragon-telecom/contract";
+import {
+  SaleStatus,
+  type ReturnDto,
+  type ReturnListQuery,
+  type SaleDto,
+  type SaleListQuery,
+} from "@dragon-telecom/contract";
 import type { CreateReturnFormValues } from "@/pages/admin/sales/components/create-return.schema";
 
 interface Props {
@@ -95,21 +104,49 @@ export default function StaffSales({ scope = "staff" }: Props) {
 
   const returnMutation = useCreateReturn();
 
-  const handleReturnSubmit = (values: CreateReturnFormValues) => {
-    returnMutation.mutate(values, { onSuccess: () => setReturnDialogOpen(false) });
-  };
-
   const canReturn =
     scope === "admin" &&
     !!selectedSale &&
     [SaleStatus.COMPLETED, SaleStatus.PARTIALLY_RETURNED].includes(selectedSale.status);
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title={scope === "admin" ? t("admin.sales.pageTitle") : t("staff.sales.pageTitle")}
-      />
+  // S12/F1 — ReturnDialog has always accepted `alreadyReturnedByLine`; until this set nothing
+  // could produce it, so its per-line max was "sold" rather than "sold − already returned" and a
+  // second return on the same line was rejected only by the server. limit 100: a single sale's
+  // returns, not a page of the global list.
+  const { data: saleReturns } = useReturns(
+    { saleId: selectedSale?.id, page: 1, limit: 100 },
+    { enabled: canReturn && !!selectedSale },
+  );
+  const alreadyReturnedByLine = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of saleReturns?.items ?? []) {
+      for (const line of item.lines) {
+        map[line.saleLineId] = (map[line.saleLineId] ?? 0) + line.quantity;
+      }
+    }
+    return map;
+  }, [saleReturns]);
 
+  const handleReturnSubmit = (values: CreateReturnFormValues) => {
+    returnMutation.mutate(values, { onSuccess: () => setReturnDialogOpen(false) });
+  };
+
+  // S12 — the Returns tab, admin-only (returns are an admin-only route).
+  const [returnsPage, setReturnsPage] = useState(1);
+  const [selectedReturn, setSelectedReturn] = useState<ReturnDto | null>(null);
+  const returnsQuery: ReturnListQuery = useMemo(
+    () => ({ page: returnsPage, limit: 20 }),
+    [returnsPage],
+  );
+  const {
+    data: returnsResult,
+    isLoading: returnsLoading,
+    isError: returnsIsError,
+    refetch: refetchReturns,
+  } = useReturns(returnsQuery, { enabled: scope === "admin" });
+
+  const salesSection = (
+    <>
       <SalesFilters
         status={status}
         onStatusChange={(next) => {
@@ -155,6 +192,51 @@ export default function StaffSales({ scope = "staff" }: Props) {
           onPageChange={setPage}
         />
       )}
+    </>
+  );
+
+  const returnsSection = (
+    <>
+      <ReturnsTable
+        returns={returnsResult?.items}
+        isLoading={returnsLoading}
+        isError={returnsIsError}
+        onRetry={() => refetchReturns()}
+        onRowClick={setSelectedReturn}
+      />
+
+      {returnsResult && returnsResult.meta.totalPages > 1 && (
+        <SimplePagination
+          page={returnsResult.meta.page}
+          totalPages={returnsResult.meta.totalPages}
+          onPageChange={setReturnsPage}
+        />
+      )}
+    </>
+  );
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={scope === "admin" ? t("admin.sales.pageTitle") : t("staff.sales.pageTitle")}
+      />
+
+      {scope === "admin" ? (
+        <Tabs defaultValue="sales">
+          <TabsList>
+            <TabsTrigger value="sales">{t("admin.sales.tabs.sales")}</TabsTrigger>
+            <TabsTrigger value="returns">{t("admin.sales.tabs.returns")}</TabsTrigger>
+          </TabsList>
+          <TabsContent value="sales" className="space-y-6">
+            {salesSection}
+          </TabsContent>
+          <TabsContent value="returns" className="space-y-6">
+            {returnsSection}
+          </TabsContent>
+        </Tabs>
+      ) : (
+        salesSection
+      )}
 
       <SaleDetailDrawer
         open={!!selectedReference}
@@ -170,16 +252,26 @@ export default function StaffSales({ scope = "staff" }: Props) {
       />
 
       {scope === "admin" && (
-        <ReturnDialog
-          // Forces a fresh mount per sale — same defaultValues-frozen-at-first-render bug as
-          // OrderConfirmDialog (StaffOrders.tsx), found while writing set-03 Sprint 9's tests.
-          key={selectedSale?.id ?? "none"}
-          open={returnDialogOpen}
-          onOpenChange={setReturnDialogOpen}
-          sale={selectedSale ?? null}
-          onSubmit={handleReturnSubmit}
-          isSubmitting={returnMutation.isPending}
-        />
+        <>
+          <ReturnDialog
+            // Forces a fresh mount per sale — same defaultValues-frozen-at-first-render bug as
+            // OrderConfirmDialog (StaffOrders.tsx), found while writing set-03 Sprint 9's tests.
+            // S12 — also folds in the returns count so the bounds recompute after a return lands
+            // rather than staying frozen at the first render's values.
+            key={`${selectedSale?.id ?? "none"}-${saleReturns?.meta.total ?? 0}`}
+            open={returnDialogOpen}
+            onOpenChange={setReturnDialogOpen}
+            sale={selectedSale ?? null}
+            alreadyReturnedByLine={alreadyReturnedByLine}
+            onSubmit={handleReturnSubmit}
+            isSubmitting={returnMutation.isPending}
+          />
+          <ReturnDetailDialog
+            open={!!selectedReturn}
+            onOpenChange={(open) => !open && setSelectedReturn(null)}
+            item={selectedReturn}
+          />
+        </>
       )}
     </div>
   );

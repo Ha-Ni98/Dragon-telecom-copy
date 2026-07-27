@@ -9,6 +9,7 @@ import {
   DocType,
   InvoiceSource,
   MovementType,
+  ReturnResponseSchema,
   SaleResponseSchema,
   UserType,
   paginated,
@@ -17,6 +18,8 @@ import {
   type JWTPayload,
   type PaginatedResult,
   type ReceiptDto,
+  type ReturnDto,
+  type ReturnListQuery,
   type SaleDraftCommand,
   type SaleDto,
   type SaleListQuery,
@@ -27,13 +30,25 @@ import { eventBus } from '@common/events/event-bus';
 import type { ConsumptionLine, IInventoryService } from '../inventory/inventory.interface';
 import type { ISequenceService } from '../platform/platform.interface';
 import type { IBillingIssuePort, ICatalogPosPricingPort, IClientCreditPort, ISalesService } from './sales.interface';
-import { SalesMapper, type SaleRow } from './sales.mapper';
+import { SalesMapper, type ReturnRow, type SaleRow } from './sales.mapper';
 
 const SALE_INCLUDE = {
   posClient: { select: { name: true, categoryId: true } },
   staff: { select: { firstName: true, lastName: true } },
   lines: true,
 } satisfies Prisma.SaleInclude;
+
+// S12 — the admin Returns tab's read side. Stable order so a return's lines never reshuffle
+// between reads (same rule as orders' ORDER_INCLUDE); the SaleLine join supplies the product
+// identity a ReturnLine lacks.
+const RETURN_INCLUDE = {
+  sale: { select: { reference: true, posClientId: true, posClient: { select: { name: true } } } },
+  staff: { select: { firstName: true, lastName: true } },
+  lines: {
+    orderBy: { id: 'asc' },
+    include: { saleLine: { select: { productId: true, productNameSnapshot: true, unitPrice: true } } },
+  },
+} satisfies Prisma.ReturnInclude;
 
 export class SalesService implements ISalesService {
   constructor(
@@ -296,7 +311,44 @@ export class SalesService implements ISalesService {
     if (!sale) throw new NotFoundError('Sale');
     const isAdmin = actor.type === UserType.ADMIN;
     if (!isAdmin && sale.staffId !== actor.staffId) throw new ForbiddenError();
-    return SalesMapper.toSaleDto(sale as SaleRow, { includeMargins: isAdmin });
+    // S12/F2 — cash actually refunded so far, so the return dialog can show what is still
+    // refundable. Same source of truth createReturn's own cap reads (the negative-amount ledger
+    // rows on this sale's invoice) — kept as a separate helper rather than extracted out of
+    // createReturn, to avoid touching S5's money-path transaction while adding a read-only field.
+    const refundedAmount = await this.cashRefundedSoFar(sale.id);
+    return SalesMapper.toSaleDto(sale as SaleRow, { includeMargins: isAdmin, refundedAmount });
+  }
+
+  // Admin-only route (contract). Read-only: no transaction, no stock, no money — the return
+  // document was fully applied by createReturn (S5's D6/D7 arithmetic).
+  async listReturns(query: ReturnListQuery): Promise<PaginatedResult<ReturnDto>> {
+    const where: Prisma.ReturnWhereInput = {
+      ...(query.saleId != null ? { saleId: query.saleId } : {}),
+      ...(query.from != null || query.to != null
+        ? {
+            returnedAt: {
+              ...(query.from != null ? { gte: new Date(query.from) } : {}),
+              ...(query.to != null ? { lte: new Date(query.to) } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.return.count({ where }),
+      this.prisma.return.findMany({
+        where,
+        include: RETURN_INCLUDE,
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+        orderBy: { returnedAt: 'desc' },
+      }),
+    ]);
+
+    return paginated(ReturnResponseSchema).parse({
+      items: rows.map((row) => SalesMapper.toReturnDto(row as ReturnRow)),
+      meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) },
+    });
   }
 
   // Admin-only route (contract) — quantity ≤ sold − already-returned is checked before opening
@@ -507,6 +559,23 @@ export class SalesService implements ISalesService {
       throw new BadRequestError(`Unknown productId: ${missing}`);
     }
     return new Map(products.map((product) => [product.id, product.name]));
+  }
+
+  // S12 — cash actually refunded so far against a sale (Σ of the negative-amount ClientPayment
+  // rows on its invoice), read-only. Mirrors createReturn's own inline cap computation (R3/8a)
+  // rather than replacing it — the two must never drift, but this getter serves getSale alone and
+  // does not touch createReturn's transaction.
+  private async cashRefundedSoFar(saleId: string): Promise<number> {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { sourceType_sourceId: { sourceType: PrismaInvoiceSource.SALE, sourceId: saleId } },
+      select: { id: true },
+    });
+    if (!invoice) return 0;
+    const sum = await this.prisma.clientPayment.aggregate({
+      where: { invoiceId: invoice.id, amount: { lt: 0 } },
+      _sum: { amount: true },
+    });
+    return Math.abs(sum._sum.amount?.toNumber() ?? 0);
   }
 
   // Reconstructs the exact FIFO layers a sale line originally drained (StockMovement +

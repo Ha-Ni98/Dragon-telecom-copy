@@ -34,6 +34,12 @@ export const OrderResponseSchema = z.object({
   address: z.string().optional(),
   deliveryCompany: z.string().optional(),
   trackingNumber: z.string().optional(),
+  // S11 — the registered account behind the order and that client's POS category. Both absent for
+  // a guest placement (Order.clientId is null) and `clientCategoryName` is additionally absent for
+  // a registered-but-never-approved client (no PosClient row yet, so no category). The admin table
+  // renders "-" for either absence.
+  clientUsername: z.string().optional(),
+  clientCategoryName: z.string().optional(),
   lines: z.array(OrderLineResponseSchema),
   subtotal: z.number(),
   deliveryFee: z.number(),

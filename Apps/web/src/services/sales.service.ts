@@ -14,6 +14,8 @@ import {
   type ReceiptDto,
   type SaleListQuery,
   type CreateReturnCommand,
+  type ReturnDto,
+  type ReturnListQuery,
 } from "@dragon-telecom/contract";
 
 // CREATE_DRAFT/UPDATE_DRAFT/CONFIRM/RETURN are single (non-dual-mounted) routes — only
@@ -77,6 +79,16 @@ export async function getSale(scope: SalesScope, reference: string): Promise<Sal
 // `saleId`, confirmed against sales.routes.ts: RETURN is the bare `/admin/returns`).
 export async function createReturn(command: CreateReturnCommand): Promise<SaleDto> {
   const res = await api.post<ApiResponse<SaleDto>>(apiPath(SALE_ROUTES.RETURN), command);
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// Admin-only, read side of the same `/admin/returns` literal `createReturn` posts to (GET vs POST).
+export async function listReturns(query: ReturnListQuery): Promise<PaginatedResult<ReturnDto>> {
+  const res = await api.get<ApiResponse<PaginatedResult<ReturnDto>>>(
+    apiPath(SALE_ROUTES.RETURNS_LIST),
+    { params: query },
+  );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

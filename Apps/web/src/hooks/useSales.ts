@@ -5,6 +5,7 @@ import type {
   ConfirmSaleCommand,
   SaleListQuery,
   CreateReturnCommand,
+  ReturnListQuery,
 } from "@dragon-telecom/contract";
 import * as salesService from "@/services/sales.service";
 import type { SalesScope } from "@/services/sales.service";
@@ -81,6 +82,17 @@ export function useConfirmSale() {
       queryClient.invalidateQueries({ queryKey: qk.posClients.all() });
       queryClient.invalidateQueries({ queryKey: qk.stats.all() });
     },
+  });
+}
+
+// S12 — the admin Returns tab, and the return dialog's "already returned per line" lookup
+// (`{ saleId }`). `options.enabled` follows useSales' own precedent: the dialog's query must not
+// fire until a sale is actually selected.
+export function useReturns(query: ReturnListQuery, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: qk.sales.returns(query),
+    queryFn: () => salesService.listReturns(query),
+    enabled: options?.enabled,
   });
 }
 

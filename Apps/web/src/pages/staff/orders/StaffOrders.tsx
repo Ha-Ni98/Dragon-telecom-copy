@@ -86,6 +86,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
 
   const [showOrder, setShowOrder] = useState<OrderDto | null>(null);
   const [statusOrder, setStatusOrder] = useState<OrderDto | null>(null);
+  const [presetStatus, setPresetStatus] = useState<OrderStatus | undefined>();
   const [cancelOrderTarget, setCancelOrderTarget] = useState<OrderDto | null>(null);
   const [returnOrderTarget, setReturnOrderTarget] = useState<OrderDto | null>(null);
 
@@ -105,12 +106,31 @@ export default function StaffOrders({ scope = "staff" }: Props) {
     setShowOrder(order);
   }, []);
 
+  // S11/R2 — the action column never applies a transition directly; each target opens the dialog
+  // that owns it. CANCELLED goes to the admin cancel dialog (it needs a reason and hits the
+  // dedicated cancel endpoint); RETURNED on a COMPLETED order is the return *document*
+  // (S10/R1 — FIFO restock + refund), while RETURNED from IN_DELIVERY is a plain machine
+  // transition that only releases the reservation, so it goes through the status dialog.
+  const handleRowAction = useCallback((order: OrderDto, target: OrderStatus) => {
+    if (target === OrderStatus.CANCELLED) {
+      setCancelOrderTarget(order);
+    } else if (target === OrderStatus.RETURNED && order.status === OrderStatus.COMPLETED) {
+      setReturnOrderTarget(order);
+    } else {
+      setPresetStatus(target);
+      setStatusOrder(order);
+    }
+  }, []);
+
   const handleStatusSubmit = (values: OrderStatusFormValues) => {
     if (!statusOrder) return;
     statusMutation.mutate(
       { scope, id: statusOrder.id, command: values },
       {
-        onSuccess: () => setStatusOrder(null),
+        onSuccess: () => {
+          setStatusOrder(null);
+          setPresetStatus(undefined);
+        },
         onError: (err) => {
           const code = apiErrorMessage(err);
           if (code === "CREDIT_REQUIRES_CLIENT") {
@@ -164,6 +184,8 @@ export default function StaffOrders({ scope = "staff" }: Props) {
         isError={ordersIsError}
         onRetry={() => refetchOrders()}
         onRowClick={openShow}
+        scope={scope}
+        onAction={scope === "admin" ? handleRowAction : undefined}
       />
 
       {ordersResult && ordersResult.meta.totalPages > 1 && (
@@ -183,6 +205,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
         onUpdateStatus={
           showOrder
             ? () => {
+                setPresetStatus(undefined);
                 setStatusOrder(showOrder);
                 setShowOrder(null);
               }
@@ -213,12 +236,20 @@ export default function StaffOrders({ scope = "staff" }: Props) {
         // staying in the same tree position), so without a key the fields would stay blank/
         // stale for the entire session after the very first open (real bug, found writing
         // this sprint's tests — same fix applied to every dialog below with this shape).
-        key={statusOrder?.id ?? "none"}
+        // S11 — the key also folds in `presetStatus` so a second action-column click on the same
+        // order (a different target) still recomputes defaultValues instead of reusing the first.
+        key={statusOrder ? `${statusOrder.id}-${presetStatus ?? "any"}` : "none"}
         open={!!statusOrder}
-        onOpenChange={(open) => !open && setStatusOrder(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setStatusOrder(null);
+            setPresetStatus(undefined);
+          }
+        }}
         order={statusOrder}
         onSubmit={handleStatusSubmit}
         isSubmitting={statusMutation.isPending}
+        presetStatus={presetStatus}
       />
 
       {scope === "admin" && (

@@ -3,7 +3,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { OrderStatus } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
-import { ORDER_STATUS_LABEL_KEY } from "@/pages/staff/orders/order-status-labels";
+import { ORDER_STATUS_LABEL_KEY } from "@/lib/order-status-labels";
 
 const TAB_STATUSES = [
   undefined,
@@ -12,6 +12,12 @@ const TAB_STATUSES = [
   OrderStatus.PACKAGED,
   OrderStatus.IN_DELIVERY,
   OrderStatus.COMPLETED,
+  // S11 — the terminal statuses were unreachable from the tab bar, so the new cancelled-by-client
+  // stat card had nowhere to drill down to. The status filter already accepts all eight values
+  // (BackofficeOrdersQuerySchema.status is the full enum) — only this list was short.
+  OrderStatus.CANCELLED,
+  OrderStatus.CANCELLED_BY_CLIENT,
+  OrderStatus.RETURNED,
 ] as const;
 
 interface OrderStatusTabsProps {

@@ -1,5 +1,11 @@
 import { useTranslation } from "@/hooks/useTranslation";
-import { InvoiceStatus, SupplierInvoiceStatus, ClientStatus } from "@dragon-telecom/contract";
+import {
+  InvoiceStatus,
+  SupplierInvoiceStatus,
+  ClientStatus,
+  OrderStatus,
+} from "@dragon-telecom/contract";
+import { ORDER_STATUS_LABEL_KEY } from "@/lib/order-status-labels";
 
 export type BadgeTone = "success" | "warning" | "destructive" | "neutral";
 
@@ -109,4 +115,24 @@ export function ClientStatusBadge({ status }: { status: ClientStatus }) {
   return (
     <StatusPill tone={CLIENT_STATUS_TONE[status]} label={t(CLIENT_STATUS_LABEL_KEY[status])} />
   );
+}
+
+// S11 — orders (admin stat cards + the orders table's status column), same EXTENSION POINT
+// pattern. BadgeTone has four tones and S2 owns that palette (RC-3), so CONFIRMED and PACKAGED
+// both map to `neutral`: they are "in progress, nothing has moved yet" states and the table's own
+// status text already distinguishes them. Do not widen BadgeTone here.
+const ORDER_STATUS_TONE: Record<OrderStatus, BadgeTone> = {
+  [OrderStatus.PENDING]: "warning",
+  [OrderStatus.CONFIRMED]: "neutral",
+  [OrderStatus.PACKAGED]: "neutral",
+  [OrderStatus.IN_DELIVERY]: "warning",
+  [OrderStatus.COMPLETED]: "success",
+  [OrderStatus.CANCELLED]: "destructive",
+  [OrderStatus.CANCELLED_BY_CLIENT]: "destructive",
+  [OrderStatus.RETURNED]: "destructive",
+};
+
+export function OrderStatusBadge({ status }: { status: OrderStatus }) {
+  const { t } = useTranslation();
+  return <StatusPill tone={ORDER_STATUS_TONE[status]} label={t(ORDER_STATUS_LABEL_KEY[status])} />;
 }

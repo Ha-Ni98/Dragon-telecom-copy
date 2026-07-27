@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SaleStatus } from './sales.enums';
+import { SaleStatus, ReturnType } from './sales.enums';
 
 // costOfGoods/profit/totalCost/totalProfit are mapping-gated (spec Data Mapping): staff
 // mapper strips them, admin keeps them. Modelled .optional() here, not schema-stripped.
@@ -15,6 +15,12 @@ export const SaleResponseSchema = z.object({
   discountAmount: z.number(),
   totalAmount: z.number(),
   paidAmount: z.number(),
+  // S12 — cash actually refunded against this sale so far (Σ of the negative ClientPayment rows on
+  // its invoice), so the return dialog can show what is still refundable before the backend
+  // silently caps it (sales.service.ts's cashRefundable). Present on the **detail** read only:
+  // populating it on the list would cost a per-row ledger aggregate for a figure no list column
+  // shows.
+  refundedAmount: z.number().optional(),
   previousCredit: z.number().optional(),
   newCredit: z.number().optional(),
   totalCost: z.number().optional(),
@@ -61,3 +67,43 @@ export const ReceiptResponseSchema = z.object({
   newCredit: z.number(),
 });
 export type ReceiptDto = z.infer<typeof ReceiptResponseSchema>;
+
+// S12 — the return read model. `Return`/`ReturnLine` existed since set-06 but were write-only
+// (POST /admin/returns); the admin Returns tab is the first consumer that reads them back.
+// Product identity is denormalised off the linked SaleLine (a ReturnLine has no productId of its
+// own), and `unitPrice` is the price the line was *sold* at — "the returned products with their
+// returned prices" (§S12) means `refundAmount`, which is per-line and operator-entered, so both
+// are carried.
+export const ReturnLineResponseSchema = z.object({
+  id: z.uuid(),
+  saleLineId: z.uuid(),
+  productId: z.uuid(),
+  productName: z.string(),
+  quantity: z.number().int(),
+  unitPrice: z.number(),
+  restock: z.boolean(),
+  refundAmount: z.number(),
+});
+export type ReturnLineDto = z.infer<typeof ReturnLineResponseSchema>;
+
+// `totalQuantity` is Σ lines[].quantity, computed in the mapper rather than stored — the table
+// needs it as a column and every consumer would otherwise re-derive it. `posClientId`/
+// `posClientName` are the *sale's* client (a Return has no client of its own); both absent for a
+// walk-in sale, which the table renders as "Comptoir".
+export const ReturnResponseSchema = z.object({
+  id: z.uuid(),
+  reference: z.string(),
+  saleId: z.uuid(),
+  saleReference: z.string(),
+  type: z.enum(ReturnType),
+  reason: z.string().optional(),
+  refundAmount: z.number(),
+  totalQuantity: z.number().int(),
+  returnedAt: z.iso.datetime(),
+  posClientId: z.uuid().optional(),
+  posClientName: z.string().optional(),
+  staffId: z.uuid(),
+  staffName: z.string(),
+  lines: z.array(ReturnLineResponseSchema),
+});
+export type ReturnDto = z.infer<typeof ReturnResponseSchema>;

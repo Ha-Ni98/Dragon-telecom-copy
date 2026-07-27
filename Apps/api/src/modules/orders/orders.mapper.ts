@@ -20,6 +20,12 @@ export type OrderRow = Order & {
   wilaya: Pick<Wilaya, 'id' | 'frName' | 'arName'> | null;
   commune: Pick<Commune, 'id' | 'frName' | 'arName'> | null;
   lines: OrderLine[];
+  // S11 — see orders.service.ts's ORDER_INCLUDE. Every level is nullable: guest order (client),
+  // never-approved client (posClient), uncategorised POS client (category).
+  client?: {
+    user: { username: string } | null;
+    posClient: { category: { name: string } | null } | null;
+  } | null;
 };
 
 export type OrderDtoContext = { includeMargins: boolean; now?: Date };
@@ -56,6 +62,10 @@ export class OrdersMapper {
       ...(order.address != null ? { address: order.address } : {}),
       ...(order.deliveryCompany != null ? { deliveryCompany: order.deliveryCompany } : {}),
       ...(order.trackingNumber != null ? { trackingNumber: order.trackingNumber } : {}),
+      ...(order.client?.user?.username != null ? { clientUsername: order.client.user.username } : {}),
+      ...(order.client?.posClient?.category?.name != null
+        ? { clientCategoryName: order.client.posClient.category.name }
+        : {}),
       lines: order.lines.map((line) => OrdersMapper.toLineDto(line, ctx)),
       subtotal: OrdersMapper.toMoney(order.subtotal),
       deliveryFee: OrdersMapper.toMoney(order.deliveryFee),

@@ -3,6 +3,7 @@ import { sendSuccess } from '@common/http/response';
 import type {
   ConfirmSaleCommand,
   CreateReturnCommand,
+  ReturnListQuery,
   SaleDraftCommand,
   SaleIdParams,
   SaleListQuery,
@@ -87,6 +88,14 @@ export class SalesController {
     try {
       const result = await this.service.createReturn(req.validated.body as CreateReturnCommand, req.user!.staffId!);
       sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listReturns = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.service.listReturns(req.validated.query as ReturnListQuery), 200);
     } catch (error) {
       next(error);
     }

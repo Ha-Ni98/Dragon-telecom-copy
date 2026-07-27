@@ -136,6 +136,9 @@ export const qk = {
     all: () => ["sales"] as const,
     list: (scope: string, query?: unknown) => ["sales", "list", scope, query] as const,
     detail: (scope: string, reference: string) => ["sales", "detail", scope, reference] as const,
+    // S12 — nested under `sales` so useCreateReturn's existing qk.sales.all() invalidation
+    // reaches it for free; no change to that mutation's fan-out.
+    returns: (query?: unknown) => ["sales", "returns", query] as const,
   },
   repairs: {
     all: () => ["repairs"] as const,

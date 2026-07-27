@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { OrderStatus, type OrderDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD, formatDateTime } from "@/lib/utils";
-import { ORDER_STATUS_LABEL_KEY } from "@/pages/staff/orders/order-status-labels";
+import { ORDER_STATUS_LABEL_KEY } from "@/lib/order-status-labels";
+import { OrderStatusBadge } from "@/components/shared/StatusBadge";
+import { OrderActionsMenu } from "@/pages/staff/orders/components/OrderActionsMenu";
 
 interface OrdersTableProps {
   orders?: OrderDto[];
@@ -18,14 +20,26 @@ interface OrdersTableProps {
   isError?: boolean;
   onRetry?: () => void;
   onRowClick?: (order: OrderDto) => void;
+  /** ADM-09 §S11 — the user/category columns and the action column are admin-only; S18 carries
+   * staff parity. Mirrors SalesTable's own `scope` gate. */
+  scope?: "staff" | "admin";
+  onAction?: (order: OrderDto, target: OrderStatus) => void;
 }
 
 // Dumb, props-only (Sprint 4) — Sprint 6 wires useOrdersList(scope, query) around this.
-export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }: OrdersTableProps) {
+export function OrdersTable({
+  orders,
+  isLoading,
+  isError,
+  onRetry,
+  onRowClick,
+  scope = "staff",
+  onAction,
+}: OrdersTableProps) {
   const { t, language } = useTranslation();
 
-  const columns = useMemo<ColumnDef<OrderDto>[]>(
-    () => [
+  const columns = useMemo<ColumnDef<OrderDto>[]>(() => {
+    const base: ColumnDef<OrderDto>[] = [
       {
         accessorKey: "reference",
         header: t("staff.orders.table.reference"),
@@ -43,6 +57,24 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
           </div>
         ),
       },
+    ];
+
+    if (scope === "admin") {
+      base.push(
+        {
+          id: "user",
+          header: t("staff.orders.table.user"),
+          cell: ({ row }) => row.original.clientUsername ?? "-",
+        },
+        {
+          id: "clientCategory",
+          header: t("staff.orders.table.category"),
+          cell: ({ row }) => row.original.clientCategoryName ?? "-",
+        },
+      );
+    }
+
+    base.push(
       {
         id: "productName",
         header: t("staff.orders.table.product"),
@@ -69,7 +101,7 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
       {
         accessorKey: "status",
         header: t("staff.orders.table.status"),
-        cell: ({ row }) => t(ORDER_STATUS_LABEL_KEY[row.original.status]),
+        cell: ({ row }) => <OrderStatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "placedAt",
@@ -84,9 +116,18 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
             <AgeFlag since={row.original.placedAt} thresholdHours={24} />
           ) : null,
       },
-    ],
-    [t, language],
-  );
+    );
+
+    if (scope === "admin" && onAction) {
+      base.push({
+        id: "actions",
+        header: t("admin.orders.table.actions"),
+        cell: ({ row }) => <OrderActionsMenu order={row.original} onAction={onAction} />,
+      });
+    }
+
+    return base;
+  }, [t, language, scope, onAction]);
 
   const renderMobileRow = (order: OrderDto) => (
     <div className="space-y-2 p-4">
@@ -108,7 +149,7 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
     </div>
   );
 
-  if (isLoading) return <TableSkeleton rows={8} columns={9} />;
+  if (isLoading) return <TableSkeleton rows={8} columns={scope === "admin" ? 12 : 9} />;
 
   if (isError) {
     return (

@@ -1,9 +1,12 @@
-import type { Prisma, PosClient, Sale, SaleLine, Staff } from '@prisma/client';
+import type { Prisma, PosClient, Return, ReturnLine, Sale, SaleLine, Staff } from '@prisma/client';
 import {
   ReceiptResponseSchema,
+  ReturnResponseSchema,
   SaleResponseSchema,
   SaleStatus,
   type ReceiptDto,
+  type ReturnDto,
+  type ReturnType,
   type SaleDraftCommand,
   type SaleDto,
 } from '@dragon-telecom/contract';
@@ -16,6 +19,16 @@ export type SaleRow = Sale & {
   lines: SaleLine[];
 };
 
+// S12 — the shape RETURN_INCLUDE (sales.service.ts) produces. A ReturnLine carries no product
+// identity of its own, so the linked SaleLine is joined for productId/name/unitPrice.
+export type ReturnRow = Return & {
+  sale: Pick<Sale, 'reference' | 'posClientId'> & { posClient: Pick<PosClient, 'name'> | null };
+  staff: Pick<Staff, 'firstName' | 'lastName'>;
+  lines: (ReturnLine & {
+    saleLine: Pick<SaleLine, 'productId' | 'productNameSnapshot' | 'unitPrice'>;
+  })[];
+};
+
 // productNames is supplied pre-resolved by the service (a DB read) — the mapper never queries —
 // same "supplied pre-resolved, never rebuilt here" precedent as purchasing's toConfirmResultDto
 // and clients' toCartItemDto. `reference` is a placeholder (Sale.reference is @unique with no
@@ -24,7 +37,7 @@ export type SaleRow = Sale & {
 export type DraftMapContext = { staffId: string; reference: string; productNames: Map<string, string> };
 
 export class SalesMapper {
-  static toSaleDto(sale: SaleRow, ctx: { includeMargins: boolean }): SaleDto {
+  static toSaleDto(sale: SaleRow, ctx: { includeMargins: boolean; refundedAmount?: number }): SaleDto {
     const dto: SaleDto = {
       id: sale.id,
       reference: sale.reference,
@@ -39,6 +52,7 @@ export class SalesMapper {
       discountAmount: SalesMapper.toMoney(sale.discountAmount),
       totalAmount: SalesMapper.toMoney(sale.totalAmount),
       paidAmount: SalesMapper.toMoney(sale.paidAmount),
+      ...(ctx.refundedAmount != null ? { refundedAmount: ctx.refundedAmount } : {}),
       ...(sale.previousCredit != null ? { previousCredit: SalesMapper.toMoney(sale.previousCredit) } : {}),
       ...(sale.newCredit != null ? { newCredit: SalesMapper.toMoney(sale.newCredit) } : {}),
       // Margin-gated (spec Data Mapping): staff mapping strips these, admin keeps them.
@@ -98,6 +112,39 @@ export class SalesMapper {
       newCredit,
     };
     return ReceiptResponseSchema.parse(dto);
+  }
+
+  // No margin gate: a return exposes refund amounts and quantities, never cost or profit — and the
+  // route is admin-only anyway (sales.routes.ts).
+  static toReturnDto(row: ReturnRow): ReturnDto {
+    const dto: ReturnDto = {
+      id: row.id,
+      reference: row.reference,
+      saleId: row.saleId,
+      saleReference: row.sale.reference,
+      // Prisma's generated $Enums.ReturnType and the contract's ReturnType are distinct nominal
+      // types with identical string values (same cast as toSaleDto's SaleStatus).
+      type: row.type as ReturnType,
+      ...(row.reason != null ? { reason: row.reason } : {}),
+      refundAmount: SalesMapper.toMoney(row.refundAmount),
+      totalQuantity: row.lines.reduce((sum, line) => sum + line.quantity, 0),
+      returnedAt: row.returnedAt.toISOString(),
+      ...(row.sale.posClientId != null ? { posClientId: row.sale.posClientId } : {}),
+      ...(row.sale.posClient?.name != null ? { posClientName: row.sale.posClient.name } : {}),
+      staffId: row.staffId,
+      staffName: `${row.staff.firstName} ${row.staff.lastName}`,
+      lines: row.lines.map((line) => ({
+        id: line.id,
+        saleLineId: line.saleLineId,
+        productId: line.saleLine.productId,
+        productName: line.saleLine.productNameSnapshot,
+        quantity: line.quantity,
+        unitPrice: SalesMapper.toMoney(line.saleLine.unitPrice),
+        restock: line.restock,
+        refundAmount: SalesMapper.toMoney(line.refundAmount),
+      })),
+    };
+    return ReturnResponseSchema.parse(dto);
   }
 
   // DRAFT holds no stock, no money (spec BL#1) — resolvedPrice/costOfGoods/profit stay at their

@@ -30,7 +30,7 @@ import {
   type OrderStatusFormValues,
   type OrderStatusInput,
 } from "@/pages/staff/orders/order-status.schema";
-import { ORDER_STATUS_LABEL_KEY } from "@/pages/staff/orders/order-status-labels";
+import { ORDER_STATUS_LABEL_KEY } from "@/lib/order-status-labels";
 
 interface OrderStatusDialogProps {
   open: boolean;
@@ -38,6 +38,12 @@ interface OrderStatusDialogProps {
   order: OrderDto | null;
   onSubmit: (values: OrderStatusFormValues) => void;
   isSubmitting?: boolean;
+  /** S11 — when the admin launches a specific transition from the action column, that target is
+   * pre-selected and the select is locked: the menu already expressed the choice, and re-opening
+   * it inside the dialog would let the operator silently switch to a different transition than the
+   * one they clicked. Absent when the dialog is opened from OrderShowDialog's generic
+   * "Update status" button, where the select stays free. */
+  presetStatus?: OrderStatus;
 }
 
 // Dumb (owns only local form state). S10/R3 — the single place every order transition is driven
@@ -45,14 +51,16 @@ interface OrderStatusDialogProps {
 // (orders.constants.ts's orderTransitionsFrom), including CANCELLED (routed server-side to the
 // admin cancel path) and RETURNED (from IN_DELIVERY) alongside the forward moves. Confirm is
 // folded in here too — there is no separate confirm dialog/endpoint any more. The caller must
-// pass a fresh `key={order?.id ?? "none"}` per order (same convention as every other dialog in
-// this cluster) so defaultValues below are recomputed per order rather than staying stale.
+// pass a fresh `key` per order (same convention as every other dialog in this cluster) so
+// defaultValues below are recomputed rather than staying stale — S11 extends that key with
+// `presetStatus` too, since a second action-column click on the same order must also recompute.
 export function OrderStatusDialog({
   open,
   onOpenChange,
   order,
   onSubmit,
   isSubmitting,
+  presetStatus,
 }: OrderStatusDialogProps) {
   const { t } = useTranslation();
   const targets = order ? orderTransitionsFrom(order.orderType, order.status) : [];
@@ -65,7 +73,7 @@ export function OrderStatusDialog({
   } = useForm<OrderStatusInput, unknown, OrderStatusFormValues>({
     resolver: zodResolver(orderStatusSchema(t)),
     defaultValues: {
-      status: targets[0],
+      status: presetStatus ?? targets[0],
       lines: order?.lines.map((line) => ({ orderLineId: line.id, unitPrice: line.unitPrice })),
       paidAmount: order?.totalAmount,
     },
@@ -96,12 +104,16 @@ export function OrderStatusDialog({
                 control={control}
                 name="status"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={presetStatus != null}
+                  >
                     <SelectTrigger id="status-select">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {targets.map((s) => (
+                      {(presetStatus != null ? [presetStatus] : targets).map((s) => (
                         <SelectItem key={s} value={s}>
                           {t(ORDER_STATUS_LABEL_KEY[s])}
                         </SelectItem>

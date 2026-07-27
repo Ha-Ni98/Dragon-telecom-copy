@@ -41,6 +41,16 @@ const ORDER_INCLUDE = {
   commune: { select: { id: true, frName: true, arName: true } },
   // D1 (S9) — stable order so the DTO's lines never reshuffle between reads.
   lines: { orderBy: { id: 'asc' } },
+  // S11 — the admin orders table shows the account behind the order and that client's POS
+  // category. Null for a guest (clientId is null); category null until the client is approved
+  // (Client.posClientId is set at approval). Shared by every order read including listMyOrders,
+  // where it only ever exposes the caller's own username/category.
+  client: {
+    select: {
+      user: { select: { username: true } },
+      posClient: { select: { category: { select: { name: true } } } },
+    },
+  },
 } satisfies Prisma.OrderInclude;
 
 // A plain-number view of an OrderLine, computed with any command-supplied price override already

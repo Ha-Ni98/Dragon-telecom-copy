@@ -13823,5 +13823,175 @@
     "en": "Storefront",
     "fr": "Vitrine",
     "ar": ""
+  },
+  "staff.orders.stats.completed": {
+    "en": "Completed",
+    "fr": "Terminées",
+    "ar": ""
+  },
+  "staff.orders.stats.cancelledByClient": {
+    "en": "Cancelled by client",
+    "fr": "Annulées par le client",
+    "ar": ""
+  },
+  "staff.orders.table.user": {
+    "en": "User",
+    "fr": "Utilisateur",
+    "ar": ""
+  },
+  "staff.orders.table.category": {
+    "en": "Category",
+    "fr": "Catégorie",
+    "ar": ""
+  },
+  "admin.orders.table.actionsAria": {
+    "en": "Order actions",
+    "fr": "Actions de la commande",
+    "ar": ""
+  },
+  "staff.sales.table.createdAt": {
+    "en": "Created",
+    "fr": "Créée le",
+    "ar": ""
+  },
+  "admin.sales.tabs.sales": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "admin.sales.tabs.returns": {
+    "en": "Returns",
+    "fr": "Retours",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.reference": {
+    "en": "Return",
+    "fr": "Retour",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.saleReference": {
+    "en": "Sale",
+    "fr": "Vente",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.client": {
+    "en": "Client",
+    "fr": "Client",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.user": {
+    "en": "User",
+    "fr": "Utilisateur",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.quantity": {
+    "en": "Qty returned",
+    "fr": "Qté retournée",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.total": {
+    "en": "Total refunded",
+    "fr": "Total remboursé",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.type": {
+    "en": "Type",
+    "fr": "Type",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.empty": {
+    "en": "No returns yet",
+    "fr": "Aucun retour",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.error": {
+    "en": "Returns could not be loaded",
+    "fr": "Impossible de charger les retours",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.title": {
+    "en": "Return detail",
+    "fr": "Détail du retour",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.unitPrice": {
+    "en": "Sold at",
+    "fr": "Vendu à",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.refundAmount": {
+    "en": "Refunded",
+    "fr": "Remboursé",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.restock": {
+    "en": "Restocked",
+    "fr": "Remis en stock",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.restockYes": {
+    "en": "Yes",
+    "fr": "Oui",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.restockNo": {
+    "en": "No",
+    "fr": "Non",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.reason": {
+    "en": "Reason",
+    "fr": "Motif",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.total": {
+    "en": "Total refunded",
+    "fr": "Total remboursé",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.summaryTitle": {
+    "en": "Refund summary",
+    "fr": "Résumé du remboursement",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.summaryRefundTotal": {
+    "en": "Refund entered",
+    "fr": "Remboursement saisi",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.summaryCashRefundable": {
+    "en": "Cash refundable",
+    "fr": "Remboursable en espèces",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.summaryCashCapped": {
+    "en": "Only the refundable cash will be paid back; the remainder reduces what the client owes.",
+    "fr": "Seul le montant remboursable sera rendu en espèces ; le reste réduit ce que le client doit.",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.creditEffectPartial": {
+    "en": "Partial return — the client's credit is unchanged.",
+    "fr": "Retour partiel — le crédit du client reste inchangé.",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.creditEffectFull": {
+    "en": "Full return — this sale's credit is reversed.",
+    "fr": "Retour complet — le crédit de cette vente est annulé.",
+    "ar": ""
   }
 }

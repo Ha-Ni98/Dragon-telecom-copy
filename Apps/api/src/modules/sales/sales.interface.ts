@@ -5,6 +5,8 @@ import type {
   JWTPayload,
   PaginatedResult,
   ReceiptDto,
+  ReturnDto,
+  ReturnListQuery,
   SaleDraftCommand,
   SaleDto,
   SaleListQuery,
@@ -23,6 +25,8 @@ export interface ISalesService {
   listAdminSales(query: SaleListQuery): Promise<PaginatedResult<SaleDto>>;
   getSale(reference: string, actor: JWTPayload): Promise<SaleDto>;
   createReturn(cmd: CreateReturnCommand, staffId: string): Promise<SaleDto>;
+  // S12 — the admin Returns tab's read side (createReturn above is write-only).
+  listReturns(query: ReturnListQuery): Promise<PaginatedResult<ReturnDto>>;
 }
 
 // Injected port (dependency inversion, plan §C-2/§I.2) — real implementation lives in catalog
