@@ -77,6 +77,7 @@ export const qk = {
       list: (query?: unknown) => ["clients", "admin", "list", query] as const,
       stats: () => ["clients", "admin", "stats"] as const,
       detail: (id: string) => ["clients", "admin", "detail", id] as const,
+      overview: (id: string) => ["clients", "admin", "overview", id] as const,
     },
   },
   posClients: {

@@ -10,7 +10,18 @@ import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { EnabledBadge } from "@/components/shared/StatusBadge";
-import { Truck, AlertTriangle, Edit, Plus, Ban, Phone, Mail, MapPin, Search } from "lucide-react";
+import {
+  Truck,
+  AlertTriangle,
+  Edit,
+  Plus,
+  Ban,
+  RotateCcw,
+  Phone,
+  Mail,
+  MapPin,
+  Search,
+} from "lucide-react";
 import type { PaginatedResult, SupplierDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -20,7 +31,7 @@ interface AdminSuppliersTableProps {
   error?: string | null;
   onRetry?: () => void;
   onEdit: (supplierId: string) => void;
-  onDisable: (supplierId: string) => void;
+  onToggleEnabled: (supplierId: string, nextEnabled: boolean) => void;
   onPageChange: (page: number) => void;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
@@ -43,14 +54,16 @@ function formatCurrency(amount: number): string {
 // `invoicesCount` — none of which the DTO carries). "Add invoice" is a `<Link>` to ADM-08
 // with the supplier preselected (plan §Page 2), not a dialog; delete becomes disable
 // (`isEnabled: false` — suppliers are never hard-deleted, per the universal isEnabled
-// convention).
+// convention). S7 I12: the action is now a two-way toggle (`onToggleEnabled`) — a disabled
+// supplier's row shows a re-enable icon instead, and hides the "add invoice" link entirely
+// (S7 I13).
 export const AdminSuppliersTable = memo(function AdminSuppliersTable({
   data,
   loading = false,
   error = null,
   onRetry,
   onEdit,
-  onDisable,
+  onToggleEnabled,
   onPageChange,
   searchQuery = "",
   onSearchChange,
@@ -71,23 +84,33 @@ export const AdminSuppliersTable = memo(function AdminSuppliersTable({
         >
           <Edit className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
-          <Link to={`/admin/supplier-invoices/new?supplierId=${supplier.id}`}>
-            <Plus className="h-4 w-4" />
-          </Link>
-        </Button>
+        {supplier.isEnabled && (
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
+            <Link to={`/admin/supplier-invoices/new?supplierId=${supplier.id}`}>
+              <Plus className="h-4 w-4" />
+            </Link>
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onDisable(supplier.id)}
-          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-          disabled={!supplier.isEnabled}
+          onClick={() => onToggleEnabled(supplier.id, !supplier.isEnabled)}
+          className={
+            supplier.isEnabled
+              ? "h-8 w-8 p-0 text-destructive hover:text-destructive"
+              : "h-8 w-8 p-0"
+          }
+          aria-label={
+            supplier.isEnabled
+              ? t("admin.suppliers.table.disable")
+              : t("admin.suppliers.table.enable")
+          }
         >
-          <Ban className="h-4 w-4" />
+          {supplier.isEnabled ? <Ban className="h-4 w-4" /> : <RotateCcw className="h-4 w-4" />}
         </Button>
       </div>
     ),
-    [onEdit, onDisable],
+    [onEdit, onToggleEnabled, t],
   );
 
   const columns = useMemo<ColumnDef<SupplierDto>[]>(

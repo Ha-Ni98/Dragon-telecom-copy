@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { Prisma, ClientStatus as PrismaClientStatus } from '@prisma/client';
+import { Prisma, ClientStatus as PrismaClientStatus, InvoiceStatus as PrismaInvoiceStatus } from '@prisma/client';
 import {
   AdminClientResponseSchema,
   DocType,
@@ -10,6 +10,7 @@ import {
   type AddCartItemCommand,
   type AdminClientDto,
   type AdminClientListQuery,
+  type AdminClientOverviewDto,
   type AdminUpdateClientCommand,
   type ApproveClientCommand,
   type CartItemDto,
@@ -239,6 +240,43 @@ export class ClientsService implements IClientsService {
     const client = await this.prisma.client.findUnique({ where: { id }, include: ADMIN_CLIENT_INCLUDE });
     if (!client) throw new NotFoundError('Client');
     return this.toAdminClientDtoWithRollups(client as AdminClientRow);
+  }
+
+  // The Overview tab's five figures (S8 J4). Money is read straight off the linked PosClient —
+  // never recomputed here (D5: the ledger is the source of truth for totalPaid, and clients' own
+  // applyDocumentCharge/applyLedgerPayment are its only writers). totalProductQuantity is
+  // Σ InvoiceLine.quantity over non-cancelled invoices (S8 R1), which counts POS sales, orders
+  // and repairs alike and survives S9/S10/S13 unchanged.
+  async getClientOverview(id: string): Promise<AdminClientOverviewDto> {
+    const client = await this.prisma.client.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        posClientId: true,
+        posClient: { select: { credit: true, totalPaid: true, totalSold: true } },
+      },
+    });
+    if (!client) throw new NotFoundError('Client');
+
+    const [orderCount, lineAgg] = await Promise.all([
+      this.prisma.order.count({ where: { clientId: id } }),
+      client.posClientId != null
+        ? this.prisma.invoiceLine.aggregate({
+            where: { invoice: { posClientId: client.posClientId, status: { not: PrismaInvoiceStatus.CANCELLED } } },
+            _sum: { quantity: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    return ClientsMapper.toAdminClientOverviewDto({
+      clientId: client.id,
+      posClientId: client.posClientId,
+      credit: client.posClient?.credit ?? 0,
+      totalPaid: client.posClient?.totalPaid ?? 0,
+      totalSold: client.posClient?.totalSold ?? 0,
+      orderCount,
+      totalProductQuantity: lineAgg?._sum.quantity ?? 0,
+    });
   }
 
   async approveClient(id: string, cmd: ApproveClientCommand, staffId: string): Promise<AdminClientDto> {

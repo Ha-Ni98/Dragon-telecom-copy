@@ -127,6 +127,15 @@ export class ClientsController {
     }
   };
 
+  getClientOverview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as ClientIdParams;
+      sendSuccess(res, await this.service.getClientOverview(id), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   approveClient = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { id } = req.validated.params as ClientIdParams;

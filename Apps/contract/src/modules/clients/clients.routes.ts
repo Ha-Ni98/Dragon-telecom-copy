@@ -8,6 +8,7 @@ export const CLIENT_ROUTES = {
   ADMIN_LIST: '/admin/clients',
   ADMIN_STATS: '/admin/clients/stats',
   ADMIN_DETAIL: '/admin/clients/:id',
+  ADMIN_OVERVIEW: '/admin/clients/:id/overview',
   APPROVE: '/admin/clients/:id/approve',
   REJECT: '/admin/clients/:id/reject',
   RESET_PASSWORD: '/admin/clients/:id/reset-password',

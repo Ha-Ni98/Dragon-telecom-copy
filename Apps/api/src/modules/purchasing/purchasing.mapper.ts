@@ -25,7 +25,7 @@ export type SupplierExtras = { invoiceCount: number; lastDeliveryAt?: Date };
 
 export type SupplierInvoiceLineRow = SupplierInvoiceLine & { projectedNewAvgStockPrice?: number };
 export type SupplierInvoiceRow = SupplierInvoice & {
-  supplier: Pick<Supplier, 'name'>;
+  supplier: Pick<Supplier, 'name' | 'credit'>;
   staff: Pick<Staff, 'firstName' | 'lastName'>;
   lines: SupplierInvoiceLineRow[];
 };
@@ -91,6 +91,7 @@ export class PurchasingMapper {
       ...(invoice.paidDate != null ? { paidDate: invoice.paidDate.toISOString() } : {}),
       ...(invoice.previousCredit != null ? { previousCredit: PurchasingMapper.toMoney(invoice.previousCredit) } : {}),
       ...(invoice.newCredit != null ? { newCredit: PurchasingMapper.toMoney(invoice.newCredit) } : {}),
+      supplierCredit: PurchasingMapper.toMoney(invoice.supplier.credit),
       ...(invoice.note != null ? { note: invoice.note } : {}),
       staffName: `${invoice.staff.firstName} ${invoice.staff.lastName}`,
       lines: invoice.lines.map((line) => ({

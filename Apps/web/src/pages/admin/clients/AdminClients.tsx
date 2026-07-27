@@ -4,15 +4,19 @@ import { AdminClientsStatsCards } from "@/pages/admin/clients/components/admin-c
 import { AdminClientsFilters } from "@/pages/admin/clients/components/admin-clients-filters";
 import { AdminClientsTable } from "@/pages/admin/clients/components/admin-clients-table";
 import { AdminClientModifyDialog } from "@/pages/admin/clients/components/admin-client-modify-dialog";
+import { RecordPaymentDialog } from "@/pages/staff/invoices/components/RecordPaymentDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import type { UpdateClientFormValues } from "@/pages/admin/clients/components/admin-client-modify-dialog.schema";
+import type { RecordClientPaymentFormValues } from "@/pages/staff/invoices/record-client-payment.schema";
 import type { AdminClientDto } from "@dragon-telecom/contract";
 import { ClientStatus } from "@dragon-telecom/contract";
 import {
   useClientDirectory,
   useClientDirectoryStats,
+  useClientOverview,
   useUpdateClientDirectoryEntry,
 } from "@/hooks/useClientDirectory";
+import { useCreateClientPayment } from "@/hooks/useBilling";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -46,6 +50,26 @@ export default function AdminClients() {
   const clients = useClientDirectory(clientsQuery);
   const stats = useClientDirectoryStats();
   const updateClient = useUpdateClientDirectoryEntry();
+
+  // S8 J2 — record-payment action. On-account only (no invoiceNumber): captureClientPaymentInTx
+  // already accepts a null invoiceId (S5), same case a repair's mid-process payment uses.
+  const [paymentTarget, setPaymentTarget] = useState<AdminClientDto | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const overview = useClientOverview(paymentTarget?.id ?? "", { enabled: !!paymentTarget });
+  const createClientPayment = useCreateClientPayment();
+
+  const handleRecordPaymentSubmit = (values: RecordClientPaymentFormValues) => {
+    createClientPayment.mutate(
+      { scope: "admin", command: values },
+      {
+        onSuccess: () => {
+          toast.success(t("admin.clients.recordPayment.success"));
+          setPaymentTarget(null);
+          setPaymentAmount(0);
+        },
+      },
+    );
+  };
 
   const handleEdit = useCallback(
     (clientId: string) => {
@@ -114,6 +138,7 @@ export default function AdminClients() {
         error={clients.isError ? t("admin.clients.error") : null}
         onRetry={() => clients.refetch()}
         onEdit={handleEdit}
+        onRecordPayment={setPaymentTarget}
         onPageChange={setCurrentPage}
       />
 
@@ -124,6 +149,22 @@ export default function AdminClients() {
           onClose={handleCloseDialog}
           onSave={handleSaveClient}
           isSaving={updateClient.isPending}
+        />
+      )}
+
+      {paymentTarget?.posClientId && (
+        <RecordPaymentDialog
+          // Fresh mount per client — RHF freezes defaultValues at first render, the same bug
+          // StaffInvoices.tsx keys around for this exact dialog.
+          key={paymentTarget.id}
+          open={!!paymentTarget}
+          onOpenChange={(open) => !open && setPaymentTarget(null)}
+          posClientId={paymentTarget.posClientId}
+          previousCredit={overview.data?.credit ?? 0}
+          amount={paymentAmount}
+          onAmountChange={setPaymentAmount}
+          onSubmit={handleRecordPaymentSubmit}
+          isSubmitting={createClientPayment.isPending}
         />
       )}
     </div>

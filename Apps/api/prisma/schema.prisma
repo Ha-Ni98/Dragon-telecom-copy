@@ -84,6 +84,8 @@ enum OrderStatus {
   IN_DELIVERY
   COMPLETED
   CANCELLED
+  // D4 — client-initiated cancellation; terminal, releases the reservation exactly like CANCELLED.
+  CANCELLED_BY_CLIENT
   RETURNED
 }
 
@@ -481,7 +483,7 @@ model Product {
   adjustmentLines      StockAdjustmentLine[]
   supplierInvoiceLines SupplierInvoiceLine[]
   saleLines            SaleLine[]
-  orders               Order[]
+  orderLines           OrderLine[]
   repairParts          RepairPart[]
   activityLogs         ClientActivityLog[]
   searchLogs           StaffSearchLog[]

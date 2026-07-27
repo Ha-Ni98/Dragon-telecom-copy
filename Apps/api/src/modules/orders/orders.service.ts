@@ -189,6 +189,8 @@ export class OrdersService implements IOrdersService {
             },
           }
         : {}),
+      // S8 J4 — the admin client-detail Orders tab scopes the same list to one registered client.
+      ...(query.clientId != null ? { clientId: query.clientId } : {}),
     };
 
     const [total, orders] = await this.prisma.$transaction([

@@ -11,6 +11,7 @@ import { SupplierInvoiceStatusBadge } from "@/components/shared/StatusBadge";
 import { FileText } from "lucide-react";
 import type { PaginatedResult, SupplierInvoiceDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { formatDateTime } from "@/lib/utils";
 
 interface SupplierInvoicesTableProps {
   data?: PaginatedResult<SupplierInvoiceDto>;
@@ -32,7 +33,7 @@ export function SupplierInvoicesTable({
   onRetry,
   onPageChange,
 }: SupplierInvoicesTableProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const invoices = data?.items ?? [];
   const pagination = data?.meta;
 
@@ -51,6 +52,11 @@ export function SupplierInvoicesTable({
         ),
       },
       { accessorKey: "supplierName", header: t("admin.supplierInvoices.table.supplier") },
+      {
+        accessorKey: "supplierReference",
+        header: t("admin.supplierInvoices.table.supplierReference"),
+        cell: ({ row }) => row.original.supplierReference ?? "-",
+      },
       { accessorKey: "invoiceDate", header: t("admin.supplierInvoices.table.date") },
       {
         accessorKey: "status",
@@ -62,8 +68,19 @@ export function SupplierInvoicesTable({
         header: t("admin.supplierInvoices.table.amount"),
         cell: ({ row }) => formatCurrency(row.original.totalAmount),
       },
+      {
+        accessorKey: "paidAmount",
+        header: t("admin.supplierInvoices.table.paidAmount"),
+        cell: ({ row }) => formatCurrency(row.original.paidAmount),
+      },
+      {
+        accessorKey: "paidDate",
+        header: t("admin.supplierInvoices.table.paidDate"),
+        cell: ({ row }) =>
+          row.original.paidDate ? formatDateTime(row.original.paidDate, language) : "-",
+      },
     ],
-    [t],
+    [t, language],
   );
 
   const renderMobileRow = (invoice: SupplierInvoiceDto) => (
@@ -83,7 +100,7 @@ export function SupplierInvoicesTable({
     </div>
   );
 
-  if (isLoading) return <TableSkeleton rows={6} columns={5} />;
+  if (isLoading) return <TableSkeleton rows={6} columns={8} />;
 
   if (isError) {
     return (

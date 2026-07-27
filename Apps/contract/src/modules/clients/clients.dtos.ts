@@ -48,6 +48,23 @@ export const AdminClientResponseSchema = z.object({
 });
 export type AdminClientDto = z.infer<typeof AdminClientResponseSchema>;
 
+// The client-detail Overview tab, and the source of the "previous credit" preview on the
+// clients-list record-payment action. Money is proxied from the linked PosClient (0 when the
+// client has never been approved, so no PosClient exists yet — same convention as
+// ClientMeResponseSchema). totalProductQuantity is Σ InvoiceLine.quantity over the client's
+// non-cancelled invoices (S8 R1) — source-agnostic across SALE/ORDER/REPAIR, and stable across
+// S9's order-lines rework.
+export const AdminClientOverviewResponseSchema = z.object({
+  clientId: z.uuid(),
+  posClientId: z.uuid().optional(),
+  totalSold: z.number(),
+  totalPaid: z.number(),
+  credit: z.number(),
+  orderCount: z.number().int().min(0),
+  totalProductQuantity: z.number().int().min(0),
+});
+export type AdminClientOverviewDto = z.infer<typeof AdminClientOverviewResponseSchema>;
+
 export const PosClientResponseSchema = z.object({
   id: z.uuid(),
   code: z.string(),

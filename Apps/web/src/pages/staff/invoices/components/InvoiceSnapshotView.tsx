@@ -5,7 +5,7 @@ import { CreditMovementPreview } from "@/components/shared/CreditMovementPreview
 import { InvoiceStatusBadge } from "@/components/shared/StatusBadge";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
-import { InvoiceStatus, type InvoiceDto } from "@dragon-telecom/contract";
+import { InvoiceSource, InvoiceStatus, type InvoiceDto } from "@dragon-telecom/contract";
 
 interface InvoiceSnapshotViewProps {
   invoice: InvoiceDto;
@@ -15,11 +15,15 @@ interface InvoiceSnapshotViewProps {
    * row are admin-only; staff (STF-06) sees the plain snapshot. */
   scope?: "staff" | "admin";
   /** Admin-only "cancel" action (ADM-14 §UI) — Sprint 6 addition, mirrors the reprint/resume/
-   * issue-return action-footer pattern already used by OrderShowDialog/SaleDetailDrawer. */
+   * issue-return action-footer pattern already used by OrderShowDialog/SaleDetailDrawer.
+   * S8 J6: never rendered on a SALE invoice — a POS sale is settled at the register; reversing
+   * one goes through the Returns tab (S12), not a cancel. */
   onCancel?: () => void;
   /** "Record payment" (STF-06/ADM-14 §Forms) — Sprint 6 addition, same reasoning as onCancel;
    * only meaningful when the invoice has a posClientId (an ORDER-sourced invoice tied to a
-   * clients-module client, not a POS client, has none — CreateClientPaymentCommand requires it). */
+   * clients-module client, not a POS client, has none — CreateClientPaymentCommand requires it).
+   * S8 J6: never rendered on a SALE invoice either — its payment is captured at confirm (D5),
+   * not recorded after the fact. */
   onRecordPayment?: () => void;
 }
 
@@ -34,6 +38,10 @@ export function InvoiceSnapshotView({
   onRecordPayment,
 }: InvoiceSnapshotViewProps) {
   const { t, language } = useTranslation();
+
+  // S8 J6 — a sale invoice is settled at the POS: its cancel and record-payment paths still
+  // exist in the backend and the hooks, but must not be reachable from this dialog.
+  const isSaleInvoice = invoice.sourceType === InvoiceSource.SALE;
 
   return (
     <div className="space-y-4">
@@ -99,16 +107,20 @@ export function InvoiceSnapshotView({
         {invoice.posClientId &&
           invoice.status !== InvoiceStatus.CANCELLED &&
           invoice.status !== InvoiceStatus.PAID &&
+          !isSaleInvoice &&
           onRecordPayment && (
             <Button size="sm" onClick={onRecordPayment}>
               {t("staff.invoices.recordPayment.title")}
             </Button>
           )}
-        {scope === "admin" && invoice.status !== InvoiceStatus.CANCELLED && onCancel && (
-          <Button variant="destructive" size="sm" onClick={onCancel}>
-            {t("admin.invoices.outgoing.cancelDialog.title")}
-          </Button>
-        )}
+        {scope === "admin" &&
+          invoice.status !== InvoiceStatus.CANCELLED &&
+          !isSaleInvoice &&
+          onCancel && (
+            <Button variant="destructive" size="sm" onClick={onCancel}>
+              {t("admin.invoices.outgoing.cancelDialog.title")}
+            </Button>
+          )}
       </div>
     </div>
   );

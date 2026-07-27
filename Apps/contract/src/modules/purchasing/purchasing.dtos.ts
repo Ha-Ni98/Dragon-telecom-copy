@@ -34,6 +34,11 @@ export const SupplierInvoiceResponseSchema = z.object({
   paidDate: z.iso.datetime().optional(),
   previousCredit: z.number().optional(),
   newCredit: z.number().optional(),
+  // The supplier's credit *right now* — distinct from previousCredit/newCredit, which are the
+  // snapshot bracketing this invoice's own confirm. The record-payment dialog previews
+  // `supplierCredit - amount`; using newCredit there previewed a movement from a stale figure
+  // (S7 F3).
+  supplierCredit: z.number(),
   note: z.string().optional(),
   staffName: z.string(),
   lines: z.array(

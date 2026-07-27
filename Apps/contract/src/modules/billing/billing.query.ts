@@ -16,6 +16,9 @@ export type InvoiceListQuery = z.infer<typeof InvoiceListQuerySchema>;
 
 export const ClientPaymentListQuerySchema = z.object({
   posClientId: z.uuid().optional(),
+  // S8 J8 — the payments tab's date-range filter, on the same `paidAt` column the list sorts by.
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });

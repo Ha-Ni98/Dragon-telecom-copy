@@ -854,6 +854,21 @@
     "fr": "Les informations du client ont été mises à jour.",
     "ar": ""
   },
+  "admin.clients.recordPayment.action": {
+    "en": "Record a payment",
+    "fr": "Enregistrer un paiement",
+    "ar": ""
+  },
+  "admin.clients.recordPayment.needsApproval": {
+    "en": "Approve this client first",
+    "fr": "Approuvez d'abord ce client",
+    "ar": ""
+  },
+  "admin.clients.recordPayment.success": {
+    "en": "Payment recorded",
+    "fr": "Paiement enregistré",
+    "ar": ""
+  },
   "admin.clients.networkDescription": {
     "en": "Connecting to server...",
     "fr": "Connexion au serveur...",
@@ -4132,11 +4147,6 @@
   "admin.suppliers.autoCalculatedDescription": {
     "en": "These fields are calculated automatically based on your inputs",
     "fr": "Ces champs sont calculés automatiquement en fonction de vos saisies",
-    "ar": ""
-  },
-  "admin.suppliers.averageQuantity": {
-    "en": "Average Quantity",
-    "fr": "Quantité Moyenne",
     "ar": ""
   },
   "admin.suppliers.basicInformation": {
@@ -11149,6 +11159,26 @@
     "fr": "Paiements",
     "ar": ""
   },
+  "admin.invoices.filters.from": {
+    "en": "From",
+    "fr": "Du",
+    "ar": ""
+  },
+  "admin.invoices.filters.to": {
+    "en": "To",
+    "fr": "Au",
+    "ar": ""
+  },
+  "admin.invoices.filters.source": {
+    "en": "Source",
+    "fr": "Source",
+    "ar": ""
+  },
+  "admin.invoices.filters.allSources": {
+    "en": "All sources",
+    "fr": "Toutes les sources",
+    "ar": ""
+  },
   "admin.invoices.outgoing.table.averageCost": {
     "en": "Current avg. cost",
     "fr": "Coût moyen actuel",
@@ -12459,6 +12489,21 @@
     "fr": "Montant",
     "ar": ""
   },
+  "admin.supplierInvoices.table.supplierReference": {
+    "en": "Supplier ref.",
+    "fr": "Réf. fournisseur",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.paidAmount": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.paidDate": {
+    "en": "Paid on",
+    "fr": "Payé le",
+    "ar": ""
+  },
   "admin.supplierInvoices.status.draft": {
     "en": "Draft",
     "fr": "Brouillon",
@@ -12580,23 +12625,23 @@
     "ar": ""
   },
   "admin.supplierInvoices.editor.save": {
-    "en": "Save draft",
-    "fr": "Enregistrer le brouillon",
+    "en": "Save",
+    "fr": "Enregistrer",
     "ar": ""
   },
-  "admin.supplierInvoices.editor.confirm": {
-    "en": "Confirm",
-    "fr": "Confirmer",
+  "admin.supplierInvoices.editor.saveSuccess": {
+    "en": "Invoice saved and confirmed",
+    "fr": "Facture enregistrée et confirmée",
     "ar": ""
   },
-  "admin.supplierInvoices.editor.cancel": {
-    "en": "Cancel invoice",
-    "fr": "Annuler la facture",
+  "admin.supplierInvoices.editor.cancelEdit": {
+    "en": "Cancel",
+    "fr": "Annuler",
     "ar": ""
   },
-  "admin.supplierInvoices.editor.cancelReason": {
-    "en": "Cancellation reason",
-    "fr": "Motif d'annulation",
+  "admin.supplierInvoices.editor.emptyInvoice": {
+    "en": "An invoice must have at least one product, or an amount above 0",
+    "fr": "Une facture doit comporter au moins un produit, ou un montant supérieur à 0",
     "ar": ""
   },
   "admin.supplierInvoices.editor.alreadyConfirmed": {
@@ -12612,6 +12657,26 @@
   "admin.supplierInvoices.editor.createProduct": {
     "en": "Create product",
     "fr": "Créer un produit",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.quickAddProduct": {
+    "en": "Add a new product",
+    "fr": "Ajouter un nouveau produit",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.qtyInStock": {
+    "en": "Qty in stock is {qty}",
+    "fr": "La quantité en stock est {qty}",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.avgPriceHint": {
+    "en": "Avg price is {price}",
+    "fr": "Le prix moyen est {price}",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.unknownProduct": {
+    "en": "Unknown product",
+    "fr": "Produit inconnu",
     "ar": ""
   },
   "admin.supplierInvoices.editor.reprice.title": {
@@ -12632,6 +12697,36 @@
   "admin.supplierInvoices.editor.reprice.skipAll": {
     "en": "Skip all",
     "fr": "Tout ignorer",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.qtyInStock": {
+    "en": "Qty in stock",
+    "fr": "Quantité en stock",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.avgStockPrice": {
+    "en": "Avg. stock price",
+    "fr": "Prix moyen du stock",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.guestPrice": {
+    "en": "Guest price",
+    "fr": "Prix visiteur",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.defaultSalePrice": {
+    "en": "Default sale price",
+    "fr": "Prix de vente par défaut",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.previous": {
+    "en": "-previous {value}-",
+    "fr": "-précédent {value}-",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.previousEmpty": {
+    "en": "-previous empty-",
+    "fr": "-précédent vide-",
     "ar": ""
   },
   "admin.supplierInvoices.payment.title": {
@@ -12914,6 +13009,36 @@
     "fr": "Activité de navigation",
     "ar": ""
   },
+  "admin.clients.overview.totalSold": {
+    "en": "Total sold",
+    "fr": "Total vendu",
+    "ar": ""
+  },
+  "admin.clients.overview.totalPaid": {
+    "en": "Total paid",
+    "fr": "Total payé",
+    "ar": ""
+  },
+  "admin.clients.overview.credit": {
+    "en": "Credit",
+    "fr": "Crédit",
+    "ar": ""
+  },
+  "admin.clients.overview.orderCount": {
+    "en": "Orders",
+    "fr": "Commandes",
+    "ar": ""
+  },
+  "admin.clients.overview.productQuantity": {
+    "en": "Products bought",
+    "fr": "Produits achetés",
+    "ar": ""
+  },
+  "admin.clients.overview.notApproved": {
+    "en": "This client has not been approved yet, so no account figures exist.",
+    "fr": "Ce client n'a pas encore été approuvé, aucun chiffre de compte n'existe.",
+    "ar": ""
+  },
   "admin.clients.resetPassword.title": {
     "en": "Reset password",
     "fr": "Réinitialiser le mot de passe",
@@ -12992,6 +13117,26 @@
   "admin.suppliers.enableSuccess": {
     "en": "Supplier enabled successfully",
     "fr": "Fournisseur activé avec succès",
+    "ar": ""
+  },
+  "admin.suppliers.table.enable": {
+    "en": "Re-enable",
+    "fr": "Réactiver",
+    "ar": ""
+  },
+  "admin.suppliers.table.disable": {
+    "en": "Disable",
+    "fr": "Désactiver",
+    "ar": ""
+  },
+  "admin.suppliers.disabledBadge": {
+    "en": "Disabled",
+    "fr": "Désactivé",
+    "ar": ""
+  },
+  "admin.suppliers.disabledReadOnly": {
+    "en": "This supplier is disabled — its information is read-only. Re-enable it to make changes.",
+    "fr": "Ce fournisseur est désactivé — ses informations sont en lecture seule. Réactivez-le pour les modifier.",
     "ar": ""
   },
   "admin.suppliers.notFound": {

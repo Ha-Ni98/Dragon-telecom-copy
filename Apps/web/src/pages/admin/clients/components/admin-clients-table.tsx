@@ -4,6 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import type { AdminClientDto, PaginatedResult } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { formatDateTime } from "@/lib/utils";
 
 interface AdminClientsTableProps {
   data?: PaginatedResult<AdminClientDto>;
@@ -30,6 +32,7 @@ interface AdminClientsTableProps {
   onRefresh?: () => void;
   showRefresh?: boolean;
   onEdit: (clientId: string) => void;
+  onRecordPayment: (client: AdminClientDto) => void;
   onPageChange: (page: number) => void;
   className?: string;
 }
@@ -66,6 +69,8 @@ function ClientsTableError({ error, onRetry }: { error: string; onRetry?: () => 
 // `displayStatus` free string) rendered via the shared `ClientStatusBadge`. The DTO carries no
 // `credit` field (clients don't hold a running credit balance — only POS clients do, per
 // clients.dtos.ts) — the credit column is dropped rather than fabricated (Sprint 3 §Risks).
+// S8 J2: money for the record-payment preview is instead fetched separately, per client, via
+// `useClientOverview` — only where the payment dialog actually needs it, not on every row here.
 export const AdminClientsTable = memo(function AdminClientsTable({
   data,
   loading = false,
@@ -74,10 +79,11 @@ export const AdminClientsTable = memo(function AdminClientsTable({
   onRefresh,
   showRefresh = true,
   onEdit,
+  onRecordPayment,
   onPageChange,
   className = "",
 }: AdminClientsTableProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const clients = data?.items ?? [];
   const pagination = data?.meta;
 
@@ -136,12 +142,14 @@ export const AdminClientsTable = memo(function AdminClientsTable({
         cell: ({ row }) => <ClientStatusBadge status={row.original.status} />,
       },
       {
-        accessorKey: "lastOrderDate",
+        accessorKey: "createdAt",
         header: t("admin.clients.table.createdDate"),
         cell: ({ row }) => (
           <div className="flex items-start gap-1 text-muted-foreground">
             <Calendar className="mt-0.5 h-3 w-3 shrink-0" />
-            <span className="break-words text-xs">{row.original.lastOrderDate ?? "-"}</span>
+            <span className="break-words text-xs">
+              {formatDateTime(row.original.createdAt, language)}
+            </span>
           </div>
         ),
       },
@@ -163,11 +171,32 @@ export const AdminClientsTable = memo(function AdminClientsTable({
                 <Users className="h-4 w-4" />
               </Link>
             </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={!row.original.posClientId}
+                      onClick={() => onRecordPayment(row.original)}
+                      aria-label={t("admin.clients.recordPayment.action")}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!row.original.posClientId && (
+                  <TooltipContent>{t("admin.clients.recordPayment.needsApproval")}</TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
         ),
       },
     ],
-    [t, onEdit],
+    [t, language, onEdit, onRecordPayment],
   );
 
   const renderMobileRow = (client: AdminClientDto) => (

@@ -29,6 +29,17 @@ export function useClientDirectoryEntry(id: string) {
   });
 }
 
+// S8 J4/J2 — the client-detail Overview tab and the clients-list record-payment preview.
+// `enabled` defaults to true (unlike the other hooks here, this one is also opened from a
+// dialog that must not fetch before it opens).
+export function useClientOverview(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: qk.clients.admin.overview(id),
+    queryFn: () => clientsService.getAdminClientOverview(id),
+    enabled: !!id && options?.enabled !== false,
+  });
+}
+
 export function useClientDirectoryStats() {
   return useQuery({
     queryKey: qk.clients.admin.stats(),

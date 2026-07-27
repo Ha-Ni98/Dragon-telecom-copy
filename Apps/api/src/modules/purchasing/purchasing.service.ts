@@ -44,7 +44,7 @@ const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaCl
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
 
 const INVOICE_INCLUDE = {
-  supplier: { select: { name: true } },
+  supplier: { select: { name: true, credit: true } },
   staff: { select: { firstName: true, lastName: true } },
   lines: true,
 } satisfies Prisma.SupplierInvoiceInclude;
@@ -238,10 +238,19 @@ export class PurchasingService implements IPurchasingService {
   }
 
   async createInvoice(cmd: CreateSupplierInvoiceCommand, staffId: string): Promise<SupplierInvoiceDto> {
-    const supplier = await this.prisma.supplier.findUnique({ where: { id: cmd.supplierId }, select: { id: true } });
+    const supplier = await this.prisma.supplier.findUnique({
+      where: { id: cmd.supplierId },
+      select: { id: true, isEnabled: true },
+    });
     if (!supplier) throw new BadRequestError('Unknown supplierId');
+    // A disabled supplier is out of business with the store: no new purchase document may be
+    // opened against it (S7 I13). Existing invoices stay fully readable and payable.
+    if (!supplier.isEnabled) throw new BadRequestError('Supplier is disabled');
 
     const { linesData, totalAmount } = await this.buildInvoiceLines(cmd.lines, cmd.shippingCost ?? 0, cmd.amountOnly);
+    // Defence in depth behind the contract refine — a belt-and-braces check since this figure is
+    // also relied on by confirmInvoice's stock/credit arithmetic (S7 I2/F10).
+    if (totalAmount <= 0) throw new BadRequestError('An invoice must carry goods or an amount above 0');
 
     const created = await this.prisma.supplierInvoice.create({
       data: {
@@ -295,6 +304,11 @@ export class PurchasingService implements IPurchasingService {
       totalAmount = cmd.amountOnly ?? existing.amountOnly!.toNumber();
       lineWrites = existing.lines.length ? { deleteMany: {} } : undefined;
     }
+
+    // Defence in depth behind the contract refine — updateInvoice composes the patch with the
+    // stored row, so an empty result is reachable through a shape the schema alone can't see
+    // (S7 I2/F10).
+    if (totalAmount <= 0) throw new BadRequestError('An invoice must carry goods or an amount above 0');
 
     await this.prisma.supplierInvoice.update({
       where: { id },
@@ -442,7 +456,18 @@ export class PurchasingService implements IPurchasingService {
   // --- Payments ---
 
   async listPayments(query: SupplierPaymentListQuery): Promise<PaginatedResult<SupplierPaymentDto>> {
-    const where: Prisma.SupplierPaymentWhereInput = { ...(query.supplierId != null ? { supplierId: query.supplierId } : {}) };
+    const where: Prisma.SupplierPaymentWhereInput = {
+      ...(query.supplierId != null ? { supplierId: query.supplierId } : {}),
+      // S8 J8 — the payments tab's date-range filter.
+      ...(query.from != null || query.to != null
+        ? {
+            paidAt: {
+              ...(query.from != null ? { gte: new Date(query.from) } : {}),
+              ...(query.to != null ? { lte: new Date(query.to) } : {}),
+            },
+          }
+        : {}),
+    };
 
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.supplierPayment.count({ where }),

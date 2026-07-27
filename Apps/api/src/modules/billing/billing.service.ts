@@ -28,6 +28,7 @@ const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaCl
 
 const INVOICE_INCLUDE = {
   staff: { select: { firstName: true, lastName: true } },
+  posClient: { select: { credit: true } },
   lines: true,
 } satisfies Prisma.InvoiceInclude;
 
@@ -232,7 +233,18 @@ export class BillingService implements IBillingService {
   }
 
   async listClientPayments(query: ClientPaymentListQuery): Promise<PaginatedResult<ClientPaymentDto>> {
-    const where: Prisma.ClientPaymentWhereInput = { ...(query.posClientId != null ? { posClientId: query.posClientId } : {}) };
+    const where: Prisma.ClientPaymentWhereInput = {
+      ...(query.posClientId != null ? { posClientId: query.posClientId } : {}),
+      // S8 J8 — the payments tab's date-range filter.
+      ...(query.from != null || query.to != null
+        ? {
+            paidAt: {
+              ...(query.from != null ? { gte: new Date(query.from) } : {}),
+              ...(query.to != null ? { lte: new Date(query.to) } : {}),
+            },
+          }
+        : {}),
+    };
 
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.clientPayment.count({ where }),

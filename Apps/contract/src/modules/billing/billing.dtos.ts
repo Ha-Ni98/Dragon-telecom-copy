@@ -3,7 +3,8 @@ import { InvoiceSource, InvoiceStatus } from './billing.enums';
 
 // totalCost/totalProfit and line costSnapshot/profit/currentAvgStockPrice are
 // mapping-gated (admin-only per Data Mapping section) — modelled .optional(); the
-// client mapper strips them and 404s on foreign invoice numbers.
+// client mapper strips them and 404s on foreign invoice numbers. posClientCredit is
+// mapping-gated too (staff/admin only, stripped for the client audience) — see its own comment.
 export const InvoiceResponseSchema = z.object({
   number: z.string(),
   posClientId: z.uuid().optional(),
@@ -16,6 +17,11 @@ export const InvoiceResponseSchema = z.object({
   paidAmount: z.number(),
   previousCredit: z.number().optional(),
   newCredit: z.number().optional(),
+  // The linked POS client's credit *right now* — distinct from previousCredit/newCredit, which
+  // bracket this invoice's own issuance. The record-payment dialog previews
+  // `posClientCredit - amount`; using newCredit there previewed from a stale figure (S8 F7).
+  // Absent on a walk-in invoice (no posClientId) and stripped for the client audience.
+  posClientCredit: z.number().optional(),
   totalCost: z.number().optional(),
   totalProfit: z.number().optional(),
   issuedAt: z.iso.datetime(),

@@ -107,9 +107,17 @@ router.delete(
 );
 
 // Admin client pipeline — ADMIN_STATS registered before ADMIN_DETAIL so "stats" is never
-// captured as the `:id` param (plan §B.1 note).
+// captured as the `:id` param (plan §B.1 note). ADMIN_OVERVIEW (S8 J4) is likewise registered
+// before ADMIN_DETAIL for the same defensive convention, though it can't actually collide here
+// (different segment count).
 router.get(CLIENT_ROUTES.ADMIN_LIST, adminOnly, validateRequest({ query: AdminClientListQuerySchema }), controller.listClients);
 router.get(CLIENT_ROUTES.ADMIN_STATS, adminOnly, controller.clientStats);
+router.get(
+  CLIENT_ROUTES.ADMIN_OVERVIEW,
+  adminOnly,
+  validateRequest({ params: ClientIdParamsSchema }),
+  controller.getClientOverview,
+);
 router.get(CLIENT_ROUTES.ADMIN_DETAIL, adminOnly, validateRequest({ params: ClientIdParamsSchema }), controller.getClient);
 router.post(
   CLIENT_ROUTES.APPROVE,

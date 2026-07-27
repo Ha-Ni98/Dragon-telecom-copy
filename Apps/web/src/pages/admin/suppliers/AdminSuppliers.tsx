@@ -43,11 +43,18 @@ export default function AdminSuppliers() {
     [navigate],
   );
 
-  const handleDisable = useCallback(
-    (supplierId: string) => {
+  const handleToggleEnabled = useCallback(
+    (supplierId: string, nextEnabled: boolean) => {
       updateSupplier.mutate(
-        { id: supplierId, command: { isEnabled: false } },
-        { onSuccess: () => toast.success(t("admin.suppliers.disableSuccess")) },
+        { id: supplierId, command: { isEnabled: nextEnabled } },
+        {
+          onSuccess: () =>
+            toast.success(
+              nextEnabled
+                ? t("admin.suppliers.enableSuccess")
+                : t("admin.suppliers.disableSuccess"),
+            ),
+        },
       );
     },
     [updateSupplier, t],
@@ -98,7 +105,7 @@ export default function AdminSuppliers() {
         error={suppliers.isError ? t("admin.suppliers.error") : null}
         onRetry={() => suppliers.refetch()}
         onEdit={handleEdit}
-        onDisable={handleDisable}
+        onToggleEnabled={handleToggleEnabled}
         onPageChange={setCurrentPage}
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}

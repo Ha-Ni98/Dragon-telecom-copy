@@ -3,6 +3,7 @@ import type {
   AddCartItemCommand,
   AdminClientDto,
   AdminClientListQuery,
+  AdminClientOverviewDto,
   AdminUpdateClientCommand,
   ApproveClientCommand,
   CartItemDto,
@@ -46,6 +47,7 @@ export interface IClientsService {
   listClients(query: AdminClientListQuery): Promise<PaginatedResult<AdminClientDto>>;
   clientStats(): Promise<ClientStatsDto>;
   getClient(id: string): Promise<AdminClientDto>;
+  getClientOverview(id: string): Promise<AdminClientOverviewDto>;
   approveClient(id: string, cmd: ApproveClientCommand, staffId: string): Promise<AdminClientDto>;
   // No staffId param — `Client` has no rejectedBy column (schema.prisma stores only
   // `rejectionReason`, unlike `approvedByStaffId` for approve).

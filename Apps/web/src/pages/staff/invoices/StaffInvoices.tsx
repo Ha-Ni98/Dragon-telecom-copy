@@ -7,6 +7,7 @@ import { SimplePagination } from "@/components/shared/SimplePagination";
 import { InvoicesTable } from "@/pages/staff/invoices/components/InvoicesTable";
 import { InvoiceSnapshotView } from "@/pages/staff/invoices/components/InvoiceSnapshotView";
 import { RecordPaymentDialog } from "@/pages/staff/invoices/components/RecordPaymentDialog";
+import { InvoiceFiltersBar } from "@/pages/staff/invoices/components/InvoiceFiltersBar";
 import { IncomingInvoicesTable } from "@/pages/admin/invoices/components/IncomingInvoicesTable";
 import { PaymentsLedger } from "@/pages/admin/invoices/components/PaymentsLedger";
 import { SupplierPaymentDialog } from "@/pages/admin/invoices/components/SupplierPaymentDialog";
@@ -26,7 +27,12 @@ import { usePurchasingInvoices } from "@/hooks/usePurchasingInvoices";
 import { usePurchasingPayments, useCreatePurchasingPayment } from "@/hooks/usePurchasingPayments";
 import { useTranslation } from "@/hooks/useTranslation";
 import { downloadBlob } from "@/lib/utils";
-import type { InvoiceDto, InvoiceListQuery, SupplierInvoiceDto } from "@dragon-telecom/contract";
+import type {
+  InvoiceDto,
+  InvoiceListQuery,
+  InvoiceSource,
+  SupplierInvoiceDto,
+} from "@dragon-telecom/contract";
 import type { RecordClientPaymentFormValues } from "@/pages/staff/invoices/record-client-payment.schema";
 import type { RecordSupplierPaymentFormValues } from "@/pages/admin/invoices/components/record-supplier-payment.schema";
 import type { CancelInvoiceFormValues } from "@/pages/admin/invoices/components/cancel-invoice.schema";
@@ -42,13 +48,30 @@ type AdminTab = "outgoing" | "incoming" | "payments";
 // in report-sprint-06.md, same "small + acceptance-criteria-required" precedent as OrderShowDialog's
 // action footer): InvoiceSnapshotView had no cancel/record-payment buttons, and
 // IncomingInvoicesTable had no onRowClick — the only entry point for "record supplier payment"
-// once the table is kept read-only for invoice edits themselves.
+// once the table is kept read-only for invoice edits themselves. S8: both payment dialogs now
+// preview from the counterparty's *live* credit (SupplierInvoiceDto.supplierCredit /
+// InvoiceDto.posClientCredit) rather than the document's frozen issuance snapshot — do not
+// "restore" the old `newCredit` expressions. Each tab also gained its own date-range filter
+// (outgoing gains a source filter too), each with its own page state (J7/J8) — a filter change
+// resets that tab's page to 1, since applying a filter on page 3 would otherwise show an empty
+// table.
 export default function StaffInvoices({ scope = "staff" }: Props) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<AdminTab>("outgoing");
-  const [page, setPage] = useState(1);
 
-  const outgoingQuery: InvoiceListQuery = useMemo(() => ({ page, limit: 20 }), [page]);
+  const [outgoingFilters, setOutgoingFilters] = useState<{
+    source?: InvoiceSource;
+    from?: string;
+    to?: string;
+  }>({});
+  const [outgoingPage, setOutgoingPage] = useState(1);
+  const [incomingFilters, setIncomingFilters] = useState<{ from?: string; to?: string }>({});
+  const [paymentsFilters, setPaymentsFilters] = useState<{ from?: string; to?: string }>({});
+
+  const outgoingQuery: InvoiceListQuery = useMemo(
+    () => ({ ...outgoingFilters, page: outgoingPage, limit: 20 }),
+    [outgoingFilters, outgoingPage],
+  );
 
   const myInvoices = useMyInvoices(outgoingQuery);
   const adminInvoices = useInvoices("admin", outgoingQuery, {
@@ -106,12 +129,18 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
     );
   };
 
-  const incomingQuery = useMemo(() => ({ page: 1, limit: 20 }), []);
+  const incomingQuery = useMemo(
+    () => ({ ...incomingFilters, page: 1, limit: 20 }),
+    [incomingFilters],
+  );
   const incoming = usePurchasingInvoices(incomingQuery, {
     enabled: scope === "admin" && activeTab === "incoming",
   });
 
-  const paymentsQuery = useMemo(() => ({ page: 1, limit: 20 }), []);
+  const paymentsQuery = useMemo(
+    () => ({ ...paymentsFilters, page: 1, limit: 20 }),
+    [paymentsFilters],
+  );
   const clientPayments = useClientPayments(paymentsQuery, {
     enabled: scope === "admin" && activeTab === "payments",
   });
@@ -130,6 +159,16 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
 
   const outgoingTable = (
     <>
+      <InvoiceFiltersBar
+        from={outgoingFilters.from}
+        to={outgoingFilters.to}
+        source={outgoingFilters.source}
+        showSource={scope === "admin"}
+        onChange={(next) => {
+          setOutgoingFilters(next);
+          setOutgoingPage(1);
+        }}
+      />
       <InvoicesTable
         invoices={outgoing.data?.items}
         isLoading={outgoing.isLoading}
@@ -141,7 +180,7 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
         <SimplePagination
           page={outgoing.data.meta.page}
           totalPages={outgoing.data.meta.totalPages}
-          onPageChange={setPage}
+          onPageChange={setOutgoingPage}
         />
       )}
     </>
@@ -163,7 +202,12 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
           <TabsContent value="outgoing" className="space-y-4">
             {outgoingTable}
           </TabsContent>
-          <TabsContent value="incoming">
+          <TabsContent value="incoming" className="space-y-4">
+            <InvoiceFiltersBar
+              from={incomingFilters.from}
+              to={incomingFilters.to}
+              onChange={(next) => setIncomingFilters({ from: next.from, to: next.to })}
+            />
             <IncomingInvoicesTable
               invoices={incoming.data?.items}
               isLoading={incoming.isLoading}
@@ -172,7 +216,12 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
               onRowClick={setSupplierPaymentTarget}
             />
           </TabsContent>
-          <TabsContent value="payments">
+          <TabsContent value="payments" className="space-y-4">
+            <InvoiceFiltersBar
+              from={paymentsFilters.from}
+              to={paymentsFilters.to}
+              onChange={(next) => setPaymentsFilters({ from: next.from, to: next.to })}
+            />
             <PaymentsLedger
               clientPayments={clientPayments.data?.items}
               isClientLoading={clientPayments.isLoading}
@@ -209,7 +258,7 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
           onOpenChange={setPaymentDialogOpen}
           posClientId={selectedInvoice.posClientId}
           invoiceNumber={selectedInvoice.number}
-          previousCredit={selectedInvoice.newCredit ?? 0}
+          previousCredit={selectedInvoice.posClientCredit ?? 0}
           amount={paymentAmount}
           onAmountChange={setPaymentAmount}
           onSubmit={handleRecordPaymentSubmit}
@@ -237,7 +286,7 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
           onOpenChange={(open) => !open && setSupplierPaymentTarget(null)}
           supplierId={supplierPaymentTarget?.supplierId ?? ""}
           supplierInvoiceReference={supplierPaymentTarget?.reference}
-          previousCredit={supplierPaymentTarget?.newCredit ?? 0}
+          previousCredit={supplierPaymentTarget?.supplierCredit ?? 0}
           amount={supplierPaymentAmount}
           onAmountChange={setSupplierPaymentAmount}
           onSubmit={handleSupplierPaymentSubmit}

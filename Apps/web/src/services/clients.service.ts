@@ -21,6 +21,7 @@ import {
   type AddCartItemCommand,
   type AdminClientListQuery,
   type AdminClientDto,
+  type AdminClientOverviewDto,
   type ClientStatsDto,
   type ApproveClientCommand,
   type RejectClientCommand,
@@ -121,6 +122,14 @@ export async function adminClientStats(): Promise<ClientStatsDto> {
 export async function getAdminClient(id: string): Promise<AdminClientDto> {
   const res = await api.get<ApiResponse<AdminClientDto>>(
     withParams(apiPath(CLIENT_ROUTES.ADMIN_DETAIL), { id }),
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+export async function getAdminClientOverview(id: string): Promise<AdminClientOverviewDto> {
+  const res = await api.get<ApiResponse<AdminClientOverviewDto>>(
+    withParams(apiPath(CLIENT_ROUTES.ADMIN_OVERVIEW), { id }),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
