@@ -20,7 +20,6 @@ import { sequenceService } from '../platform/platform.routes';
 import { PlatformService } from '../platform/platform.service';
 import { clientsService } from '../clients/clients.routes';
 import { BillingService } from './billing.service';
-import { BillingListener } from './billing.listener';
 import { BillingController } from './billing.controller';
 
 const router = Router();
@@ -29,10 +28,12 @@ const router = Router();
 // only). platform.routes.ts exports no service singleton (only sequenceService/
 // deliveryFeeService); PlatformService is stateless beyond holding `prisma`, so a second
 // instance alongside platform's own is harmless — no owned state, no duplicated writes.
+// No listener here any more (S10) — billing subscribes to nothing: every invoice/payment in the
+// codebase is issued in-transaction by its owning module (sales since S5; orders' completion,
+// repairs' pickup in S13), never post-commit.
 const settingsPort = new PlatformService(prisma);
 const service = new BillingService(prisma, sequenceService, settingsPort, clientsService);
 const controller = new BillingController(service);
-new BillingListener(service).setup();
 
 // Exported singleton for downstream in-transaction consumers (sales' confirm/createReturn, S5;
 // orders' completion, S10; repairs' pickup, S13) — they call issueInvoiceInTx /

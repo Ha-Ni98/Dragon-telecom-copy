@@ -10,5 +10,6 @@ export const ORDER_STATUS_LABEL_KEY: Record<OrderStatus, string> = {
   [OrderStatus.IN_DELIVERY]: "staff.orders.stats.inDelivery",
   [OrderStatus.COMPLETED]: "orders.completed",
   [OrderStatus.CANCELLED]: "orders.cancelled",
+  [OrderStatus.CANCELLED_BY_CLIENT]: "orders.cancelledByClient",
   [OrderStatus.RETURNED]: "orders.returned",
 };

@@ -19,9 +19,10 @@ import type { ExportResult, IStatisticsService } from './statistics.interface';
 
 const DAY_MS = 24 * 3_600_000;
 
-// CONFIRMED-and-later — the "recognized revenue" population for orders (mirrors Sale's own
-// soldAt-gated COMPLETED population). PENDING orders are still just a reservation, not revenue.
-const ORDER_RECOGNIZED_STATUSES = ['CONFIRMED', 'PACKAGED', 'IN_DELIVERY', 'COMPLETED'] as const;
+// D2 (S10) — nothing accrues before completion any more: cost and profit are stamped at
+// COMPLETED only, so recognising a CONFIRMED/PACKAGED/IN_DELIVERY order here would report
+// revenue against a zero cost. Mirrors Sale's own soldAt-gated COMPLETED population.
+const ORDER_RECOGNIZED_STATUSES = ['COMPLETED'] as const;
 
 // Large-ADJUSTMENT_OUT shrinkage flag threshold (spec: "large ADJUSTMENT_OUT flagged") — no
 // concrete number given anywhere; a documented, defensible inference, not derived from any
@@ -298,9 +299,10 @@ export class StatisticsService implements IStatisticsService {
 
   // --- Shared aggregation core ---
 
-  // Revenue/profit = Σ COMPLETED Sale rows + Σ CONFIRMED-and-later Order rows (Order.profit/
-  // costOfGoods, stamped at confirm — the same figures the ORDER invoice now copies too, audit
-  // fix A3, but read directly here rather than via the invoice).
+  // Revenue/profit = Σ COMPLETED Sale rows + Σ COMPLETED Order rows (Order.totalProfit/totalCost,
+  // stamped at COMPLETED — D2/S10 — the same figures the ORDER invoice now copies too, audit fix
+  // A3, but read directly here rather than via the invoice). Dated on `deliveredAt` (the
+  // timestamp COMPLETED writes), not `confirmedAt` — nothing accrues before completion any more.
   //
   // No repair figures here (S1): with repairs no longer producing a Sale row at all (D9), repair
   // revenue/cost/profit no longer arrive through this query — they're recognised together at
@@ -309,7 +311,7 @@ export class StatisticsService implements IStatisticsService {
   // repairs, which is the documented regression (plan S1 §0.5).
   private async computeRevenueProfit(range: { from?: Date; to?: Date }): Promise<{ revenue: number; profit: number }> {
     const soldAtFilter = this.dateRangeFilter(range);
-    const confirmedAtFilter = this.dateRangeFilter(range);
+    const deliveredAtFilter = this.dateRangeFilter(range);
 
     const [saleAgg, orderAgg] = await Promise.all([
       this.prisma.sale.aggregate({
@@ -317,19 +319,19 @@ export class StatisticsService implements IStatisticsService {
         _sum: { totalAmount: true, totalProfit: true },
       }),
       this.prisma.order.aggregate({
-        where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, ...(confirmedAtFilter ? { confirmedAt: confirmedAtFilter } : {}) },
-        _sum: { totalAmount: true, profit: true },
+        where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, ...(deliveredAtFilter ? { deliveredAt: deliveredAtFilter } : {}) },
+        _sum: { totalAmount: true, totalProfit: true },
       }),
     ]);
 
     return {
       revenue: (saleAgg._sum.totalAmount?.toNumber() ?? 0) + (orderAgg._sum.totalAmount?.toNumber() ?? 0),
-      profit: (saleAgg._sum.totalProfit?.toNumber() ?? 0) + (orderAgg._sum.profit?.toNumber() ?? 0),
+      profit: (saleAgg._sum.totalProfit?.toNumber() ?? 0) + (orderAgg._sum.totalProfit?.toNumber() ?? 0),
     };
   }
 
   private async countRecognizedOrders(from: Date, to: Date): Promise<number> {
-    return this.prisma.order.count({ where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, confirmedAt: { gte: from, lte: to } } });
+    return this.prisma.order.count({ where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, deliveredAt: { gte: from, lte: to } } });
   }
 
   private pctChange(current: number, previous: number): number {
@@ -373,8 +375,8 @@ export class StatisticsService implements IStatisticsService {
     const [sales, orders] = await Promise.all([
       this.prisma.sale.findMany({ where: { status: 'COMPLETED', soldAt: { gte: from, lte: to } }, select: { soldAt: true, totalAmount: true } }),
       this.prisma.order.findMany({
-        where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, confirmedAt: { gte: from, lte: to } },
-        select: { confirmedAt: true, totalAmount: true },
+        where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, deliveredAt: { gte: from, lte: to } },
+        select: { deliveredAt: true, totalAmount: true },
       }),
     ]);
 
@@ -384,7 +386,7 @@ export class StatisticsService implements IStatisticsService {
       byDay.set(day, (byDay.get(day) ?? 0) + sale.totalAmount.toNumber());
     }
     for (const order of orders) {
-      const day = order.confirmedAt!.toISOString().slice(0, 10);
+      const day = order.deliveredAt!.toISOString().slice(0, 10);
       byDay.set(day, (byDay.get(day) ?? 0) + order.totalAmount.toNumber());
     }
 
@@ -393,12 +395,12 @@ export class StatisticsService implements IStatisticsService {
 
   private async chartDailyOrderCounts(from: Date, to: Date): Promise<ChartPoint[]> {
     const orders = await this.prisma.order.findMany({
-      where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, confirmedAt: { gte: from, lte: to } },
-      select: { confirmedAt: true },
+      where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, deliveredAt: { gte: from, lte: to } },
+      select: { deliveredAt: true },
     });
     const byDay = new Map<string, number>();
     for (const order of orders) {
-      const day = order.confirmedAt!.toISOString().slice(0, 10);
+      const day = order.deliveredAt!.toISOString().slice(0, 10);
       byDay.set(day, (byDay.get(day) ?? 0) + 1);
     }
     return this.sortedChartPoints(byDay);

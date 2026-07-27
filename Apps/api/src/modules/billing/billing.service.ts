@@ -1,9 +1,8 @@
-import type { PrismaClient } from '@prisma/client';
-import { Prisma, InvoiceSource as PrismaInvoiceSource, InvoiceStatus as PrismaInvoiceStatus } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
+import { InvoiceSource as PrismaInvoiceSource, InvoiceStatus as PrismaInvoiceStatus } from '@prisma/client';
 import {
   DocType,
   InvoiceResponseSchema,
-  InvoiceSource,
   ClientPaymentResponseSchema,
   paginated,
   type CancelInvoiceCommand,
@@ -12,19 +11,14 @@ import {
   type CreateClientPaymentCommand,
   type InvoiceDto,
   type InvoiceListQuery,
-  type OrdersEvents,
   type PaginatedResult,
 } from '@dragon-telecom/contract';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@common/errors';
-import { logger } from '@common/config/logger';
 import { eventBus } from '@common/events/event-bus';
 import { renderInvoicePdf } from '@common/utils/pdf.utils';
 import type { ISequenceService } from '../platform/platform.interface';
 import type { IBillingService, IClientCreditPort, InvoiceIssueRequest, IStoreSettingsPort, PdfResult } from './billing.interface';
-import { BillingMapper, type InvoiceIssueInput, type InvoiceMapContext, type InvoiceRow } from './billing.mapper';
-
-const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaClientKnownRequestError =>
-  err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
+import { BillingMapper, type InvoiceMapContext, type InvoiceRow } from './billing.mapper';
 
 const INVOICE_INCLUDE = {
   staff: { select: { firstName: true, lastName: true } },
@@ -279,101 +273,27 @@ export class BillingService implements IBillingService {
     tx: Prisma.TransactionClient,
     input: InvoiceIssueRequest,
   ): Promise<{ invoiceId: string; number: string }> {
-    const snapshot = input.posClientId != null ? await this.resolvePosClientSnapshot(input.posClientId) : {};
+    // S10 — a caller-supplied clientNameSnapshot/clientAddressSnapshot (orders, for a registered
+    // client never approved as a PosClient) wins outright; otherwise fall back to the posClientId
+    // resolution / "Walk-in Customer" default exactly as before.
+    const snapshot = input.clientNameSnapshot == null && input.posClientId != null ? await this.resolvePosClientSnapshot(input.posClientId) : {};
     const number = await this.sequence.nextNumber(tx, DocType.INVOICE);
     const invoice = await tx.invoice.create({
       data: BillingMapper.toInvoicePersistence({
         ...input,
         number,
-        clientNameSnapshot: snapshot.name ?? 'Walk-in Customer',
-        ...(snapshot.address != null ? { clientAddressSnapshot: snapshot.address } : {}),
+        clientNameSnapshot: input.clientNameSnapshot ?? snapshot.name ?? 'Walk-in Customer',
+        ...(input.clientAddressSnapshot != null
+          ? { clientAddressSnapshot: input.clientAddressSnapshot }
+          : snapshot.address != null
+            ? { clientAddressSnapshot: snapshot.address }
+            : {}),
       }),
     });
     return { invoiceId: invoice.id, number };
   }
 
-  // --- Listener-invoked (never HTTP) ---
-
-  // The event payload itself carries no per-line cost/profit — Order.costOfGoods/profit (the
-  // real FIFO figures, stamped at confirm) are the source of truth, read straight off the row
-  // the listener already fetches (audit fix A3). A confirmed order should always have both set
-  // (orders BL#3); null-guarded defensively since this runs inside a listener — never throw,
-  // just default to 0 and log loudly so a genuine data gap surfaces without breaking issuance.
-  async issueFromOrder(payload: OrdersEvents['order.confirmed']): Promise<void> {
-    const order = await this.prisma.order.findUniqueOrThrow({ where: { id: payload.orderId } });
-
-    if (order.costOfGoods == null || order.profit == null) {
-      logger.warn(
-        { orderId: order.id },
-        'issueFromOrder: confirmed order missing costOfGoods/profit — defaulting invoice cost/profit to 0',
-      );
-    }
-    const totalCost = order.costOfGoods?.toNumber() ?? 0;
-    const totalProfit = order.profit?.toNumber() ?? 0;
-
-    let clientNameSnapshot = 'Walk-in Customer';
-    let clientAddressSnapshot: string | undefined;
-    if (payload.posClientId != null) {
-      const snapshot = await this.resolvePosClientSnapshot(payload.posClientId);
-      if (snapshot.name != null) clientNameSnapshot = snapshot.name;
-      if (snapshot.address != null) clientAddressSnapshot = snapshot.address;
-    }
-    if (payload.clientId != null) {
-      const client = await this.prisma.client.findUnique({
-        where: { id: payload.clientId },
-        select: { firstName: true, lastName: true, address: true },
-      });
-      if (client) {
-        clientNameSnapshot = `${client.firstName} ${client.lastName}`;
-        if (client.address != null) clientAddressSnapshot = client.address;
-      }
-    }
-
-    const input: Omit<InvoiceIssueInput, 'number'> = {
-      ...(payload.posClientId != null ? { posClientId: payload.posClientId } : {}),
-      sourceType: InvoiceSource.ORDER,
-      sourceId: order.id,
-      clientNameSnapshot,
-      ...(clientAddressSnapshot != null ? { clientAddressSnapshot } : {}),
-      totalAmount: payload.totals.totalAmount,
-      paidAmount: payload.totals.paidAmount,
-      totalCost,
-      totalProfit,
-      staffId: payload.confirmedByStaffId,
-      lines: [
-        {
-          label: payload.snapshotLine.productName,
-          quantity: payload.snapshotLine.quantity,
-          unitPrice: payload.snapshotLine.unitPrice,
-          costSnapshot: totalCost,
-          profit: totalProfit,
-          lineTotal: payload.snapshotLine.lineTotal,
-        },
-      ],
-    };
-
-    await this.issueInvoice(input, order.reference);
-  }
-
   // --- Internal helpers ---
-
-  private async issueInvoice(input: Omit<InvoiceIssueInput, 'number'>, sourceReference: string): Promise<void> {
-    let allocatedNumber = '';
-    try {
-      await this.prisma.$transaction(async (tx) => {
-        const number = await this.sequence.nextNumber(tx, DocType.INVOICE);
-        await tx.invoice.create({ data: BillingMapper.toInvoicePersistence({ ...input, number }) });
-        allocatedNumber = number;
-      });
-    } catch (err) {
-      // Invoice @@unique(sourceType, sourceId) — a duplicate insert on replay is swallowed as a
-      // no-op (one invoice survives); the sequence bump inside the same tx rolls back with it.
-      if (isKnownRequestError(err, 'P2002')) return;
-      throw err;
-    }
-
-    eventBus.emit('invoice.issued', { invoiceNumber: allocatedNumber, sourceType: input.sourceType, sourceReference });
-  }
 
   private async findInvoiceOrThrow(number: string): Promise<InvoiceRow> {
     const invoice = await this.prisma.invoice.findUnique({ where: { number }, include: INVOICE_INCLUDE });
@@ -486,14 +406,14 @@ export class BillingService implements IBillingService {
     return map;
   }
 
-  // `InvoiceLine` has no `productId` (only a free-text `label`) — no FK path to Product at all
-  // for SALE-origin invoices, so those are correlated back to the source Sale's own lines by
-  // best-effort (label, quantity, unitPrice) matching — not airtight for a sale with two
-  // identical lines entered separately rather than one line at a higher quantity (documented
-  // limitation, Sprint 5 report). ORDER-origin invoices have no such ambiguity: Order.productId
-  // is a direct FK and every ORDER invoice has exactly one line (audit fix A3). REPAIR-origin
-  // invoices are not correlated at all yet — whether a repair invoice line even carries a
-  // productId is S13's decision, made when it builds pickup-time issuance.
+  // `InvoiceLine` has no `productId` (only a free-text `label`) — no FK path to Product at all,
+  // so both SALE- and (since D1/S9) ORDER-origin invoices are correlated back to their source's
+  // own lines by best-effort (label, quantity, unitPrice) matching — not airtight for a document
+  // with two identical lines entered separately rather than one line at a higher quantity
+  // (documented limitation, Sprint 5 report; now applies to orders too, since an order can carry
+  // more than one line). REPAIR-origin invoices are not correlated at all yet — whether a repair
+  // invoice line even carries a productId is S13's decision, made when it builds pickup-time
+  // issuance.
   private async resolveCurrentAvgStockPrices(invoices: InvoiceRow[]): Promise<Map<string, number>> {
     const result = new Map<string, number>();
     const saleSourced = invoices.filter((invoice) => invoice.sourceType === PrismaInvoiceSource.SALE);
@@ -525,16 +445,25 @@ export class BillingService implements IBillingService {
     }
 
     if (orderSourced.length > 0) {
-      const orders = await this.prisma.order.findMany({
-        where: { id: { in: orderSourced.map((i) => i.sourceId) } },
-        select: { id: true, productId: true },
-      });
-      const productIdByOrderId = new Map(orders.map((order) => [order.id, order.productId]));
+      const orderLines = await this.prisma.orderLine.findMany({ where: { orderId: { in: orderSourced.map((i) => i.sourceId) } } });
+      const linesByOrderId = new Map<string, typeof orderLines>();
+      for (const line of orderLines) {
+        const list = linesByOrderId.get(line.orderId) ?? [];
+        list.push(line);
+        linesByOrderId.set(line.orderId, list);
+      }
 
       for (const invoice of orderSourced) {
-        const productId = productIdByOrderId.get(invoice.sourceId);
-        const invoiceLine = invoice.lines[0]; // ORDER invoices always have exactly one line
-        if (productId != null && invoiceLine) productIdByInvoiceLineId.set(invoiceLine.id, productId);
+        const candidates = linesByOrderId.get(invoice.sourceId) ?? [];
+        for (const invoiceLine of invoice.lines) {
+          const match = candidates.find(
+            (line) =>
+              line.productNameSnapshot === invoiceLine.label &&
+              line.quantity === invoiceLine.quantity &&
+              line.unitPrice.toNumber() === invoiceLine.unitPrice.toNumber(),
+          );
+          if (match) productIdByInvoiceLineId.set(invoiceLine.id, match.productId);
+        }
       }
     }
 

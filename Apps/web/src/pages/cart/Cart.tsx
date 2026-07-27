@@ -10,8 +10,8 @@ import { useClientCart, useRemoveFromCart } from "@/hooks/useClientPortal";
 import { useWilayas, usePlatformDeliveryFee } from "@/hooks/usePlatform";
 import { usePlaceOrder } from "@/hooks/useOrdersPortal";
 import { useTranslation } from "@/hooks/useTranslation";
-import type { CartItemDto, OrderType, PlaceOrderCommand } from "@dragon-telecom/contract";
-import type { OrderFormValues } from "@/pages/product-detail/order.schema";
+import type { CartItemDto, OrderType } from "@dragon-telecom/contract";
+import { toPlaceOrderCommand, type OrderFormValues } from "@/pages/product-detail/order.schema";
 
 interface DeliveryParams {
   wilayaId: string;
@@ -45,7 +45,7 @@ export default function Cart() {
   };
 
   const handleOrderSubmit = async (data: OrderFormValues) => {
-    const command: PlaceOrderCommand = { ...data, clientId: null };
+    const command = toPlaceOrderCommand(data, null);
     const order = await placeOrderMutation.mutateAsync(command);
     setSelectedItem(null);
     navigate("/order-confirmation", { state: { order } });

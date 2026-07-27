@@ -2,7 +2,6 @@ import type { Prisma } from '@prisma/client';
 import type {
   BackofficeOrdersQuery,
   BillingEvents,
-  ConfirmOrderCommand,
   JWTPayload,
   MyOrdersQuery,
   OrderDto,
@@ -13,6 +12,7 @@ import type {
   ReturnOrderCommand,
   UpdateOrderStatusCommand,
 } from '@dragon-telecom/contract';
+import type { InvoiceIssueRequest } from '../billing/billing.interface';
 
 // No contract schema for CANCEL's body (plan §I.2 footnote — reusing UpdateOrderStatusSchema
 // would accept fields CANCEL never uses); a minimal local type, validated in orders.routes.ts
@@ -44,9 +44,9 @@ export interface ICatalogViewerPricingPort {
 // directly in `orders.routes.ts` (one-directional dependency, no adapter — the same shape as
 // ICatalogViewerPricingPort above). PosClient belongs to the clients module; orders must write it
 // only through this port, always inside its own transaction (`tx`), never via a post-commit
-// listener. Orders never touch credit today (spec: "totalSold += totalAmount" only) —
-// `creditDelta: 0` at the call site makes that explicit. S10 moves this call from confirm to
-// COMPLETED and gives it a real credit delta.
+// listener. S10 — orders now apply `creditDelta: totalAmount` at COMPLETED (D2/D3), with the
+// captured payment applied separately through billing's captureClientPaymentInTx (D5's split,
+// S5 §R1); orders never call this at confirm any more.
 export interface IOrderCreditPort {
   applyDocumentCharge(
     tx: Prisma.TransactionClient,
@@ -55,20 +55,32 @@ export interface IOrderCreditPort {
   ): Promise<{ previousCredit: number; newCredit: number }>;
 }
 
+// Injected port (dependency inversion, S5's primitives) — real implementation is billing's own
+// composition-root singleton (`billingService`, exported from billing.routes.ts), assembled
+// directly in orders.routes.ts. An order's invoice and its captured payment are created INSIDE
+// the completion transaction (D3/D5), never by a post-commit listener — the same shape sales'
+// confirm has used since S5.
+export interface IBillingIssuePort {
+  issueInvoiceInTx(tx: Prisma.TransactionClient, input: InvoiceIssueRequest): Promise<{ invoiceId: string; number: string }>;
+  captureClientPaymentInTx(
+    tx: Prisma.TransactionClient,
+    input: { posClientId: string; invoiceId?: string; amount: number; paidAt?: Date; staffId: string },
+  ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }>;
+}
+
 export interface IOrdersService {
   // public|client — actor absent for a guest placement (plan §I.2/§D-2).
   placeOrder(cmd: PlaceOrderCommand, actor?: JWTPayload): Promise<OrderDto>;
 
   // client — scoped clientId=me.
   listMyOrders(query: MyOrdersQuery, clientId: string): Promise<OrderDto[]>;
-  // client — own + PENDING only.
+  // client — any non-terminal status except COMPLETED (D4/R4, S10) — writes CANCELLED_BY_CLIENT.
   cancelMyOrder(id: string, clientId: string): Promise<OrderDto>;
 
   // staff(STAFF_ORDERS)|admin — same data; margins gated per actor.type (plan §D-3).
   listBackoffice(query: BackofficeOrdersQuery, actor: JWTPayload): Promise<PaginatedResult<OrderDto>>;
-  // staff(STAFF_ORDERS)|admin — the confirm transaction.
-  confirmOrder(id: string, cmd: ConfirmOrderCommand, actor: JWTPayload): Promise<OrderDto>;
-  // staff(STAFF_ORDERS)|admin — forward-only ≤ COMPLETED.
+  // staff(STAFF_ORDERS)|admin — the single forward-transition driver (S10/R3 — confirm folded
+  // in). Drives the per-type machine (ORDER_STATUS_TRANSITIONS); COMPLETED is the money moment.
   updateStatus(id: string, cmd: UpdateOrderStatusCommand, actor: JWTPayload): Promise<OrderDto>;
 
   // admin-only.

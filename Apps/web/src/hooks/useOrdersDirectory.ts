@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   BackofficeOrdersQuery,
-  ConfirmOrderCommand,
   UpdateOrderStatusCommand,
   ReturnOrderCommand,
 } from "@dragon-telecom/contract";
@@ -27,7 +26,7 @@ export function useOrderStats(scope: OrderScope) {
   });
 }
 
-// Confirm/cancel/return all cross-invalidate inventory (stock reserved→consumed or released),
+// Status/cancel/return all cross-invalidate inventory (stock reserved→consumed or released),
 // billing (an invoice may be issued/cancelled), and client/pos-client credit — plan.md §3.
 function invalidateOrderSideEffects(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: qk.orders.all() });
@@ -38,22 +37,9 @@ function invalidateOrderSideEffects(queryClient: ReturnType<typeof useQueryClien
   queryClient.invalidateQueries({ queryKey: qk.stats.all() });
 }
 
-export function useConfirmOrder() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      scope,
-      id,
-      command,
-    }: {
-      scope: OrderScope;
-      id: string;
-      command: ConfirmOrderCommand;
-    }) => ordersService.confirmOrder(scope, id, command),
-    onSuccess: () => invalidateOrderSideEffects(queryClient),
-  });
-}
-
+// S10/R3 — the single forward-transition mutation (confirm is folded in: PENDING->CONFIRMED now
+// goes through this same command). A transition may consume stock, issue an invoice and move
+// credit (at COMPLETED), so it invalidates every side effect, not just qk.orders.
 export function useUpdateOrderStatus() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -66,9 +52,7 @@ export function useUpdateOrderStatus() {
       id: string;
       command: UpdateOrderStatusCommand;
     }) => ordersService.updateOrderStatus(scope, id, command),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.orders.all() });
-    },
+    onSuccess: () => invalidateOrderSideEffects(queryClient),
   });
 }
 

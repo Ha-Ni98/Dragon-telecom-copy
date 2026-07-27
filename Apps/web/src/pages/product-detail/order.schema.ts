@@ -55,9 +55,19 @@ export function orderSchema(t: ReturnType<typeof useTranslation>["t"]) {
 
 export type OrderFormValues = z.infer<ReturnType<typeof orderSchema>>;
 
-// Compile-time guard — fails to compile if this schema's output drifts from the contract
-// Command (e.g. a renamed/removed contract field).
-type AssertAssignable<T extends true> = T;
-type _PlaceOrderCommandCheck = AssertAssignable<
-  OrderFormValues extends PlaceOrderCommand ? true : false
->;
+// D1 (S9) — PlaceOrderCommand carries a lines[] array; this form collects a single product, so
+// the mapping is one line. The `: PlaceOrderCommand` return annotation is the compile-time guard
+// the old `AssertAssignable` check used to provide: a renamed or removed contract field fails
+// here. The cart's true multi-line placement is S16.
+export function toPlaceOrderCommand(
+  values: OrderFormValues,
+  clientId: string | null,
+): PlaceOrderCommand {
+  return {
+    clientId,
+    lines: [{ productId: values.productId, quantity: values.quantity }],
+    orderType: values.orderType,
+    contact: values.contact,
+    ...(values.delivery !== undefined ? { delivery: values.delivery } : {}),
+  };
+}

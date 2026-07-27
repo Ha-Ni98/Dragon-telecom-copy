@@ -17,6 +17,7 @@ const STATUS_LABEL_KEY: Record<OrderFilterValue, string> = {
   [OrderStatus.IN_DELIVERY]: "orders.delivery",
   [OrderStatus.COMPLETED]: "orders.completed",
   [OrderStatus.CANCELLED]: "orders.cancelled",
+  [OrderStatus.CANCELLED_BY_CLIENT]: "orders.cancelledByClient",
   [OrderStatus.RETURNED]: "orders.returned",
 };
 
@@ -28,6 +29,7 @@ const FILTER_ORDER: OrderFilterValue[] = [
   OrderStatus.IN_DELIVERY,
   OrderStatus.COMPLETED,
   OrderStatus.CANCELLED,
+  OrderStatus.CANCELLED_BY_CLIENT,
   OrderStatus.RETURNED,
 ];
 

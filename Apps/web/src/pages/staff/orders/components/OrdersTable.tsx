@@ -44,12 +44,18 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
         ),
       },
       {
-        accessorKey: "productName",
+        id: "productName",
         header: t("staff.orders.table.product"),
+        cell: ({ row }) => (
+          <span className="line-clamp-2">
+            {row.original.lines.map((l) => l.productName).join(", ")}
+          </span>
+        ),
       },
       {
-        accessorKey: "quantity",
+        id: "quantity",
         header: t("staff.orders.table.quantity"),
+        cell: ({ row }) => row.original.lines.reduce((sum, l) => sum + l.quantity, 0),
       },
       {
         accessorKey: "orderType",
@@ -93,7 +99,7 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
         <div className="text-muted-foreground">{order.contactPhone}</div>
       </div>
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{order.productName}</span>
+        <span>{order.lines.map((l) => l.productName).join(", ")}</span>
         <span>{t(ORDER_STATUS_LABEL_KEY[order.status])}</span>
       </div>
       {order.status === OrderStatus.PENDING && (

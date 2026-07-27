@@ -6,7 +6,6 @@ import type {
   CreateClientPaymentCommand,
   InvoiceDto,
   InvoiceListQuery,
-  OrdersEvents,
   PaginatedResult,
   SettingsDto,
 } from '@dragon-telecom/contract';
@@ -17,8 +16,16 @@ import type { InvoiceIssueInput } from './billing.mapper';
 export type PdfResult = { filename: string; mime: 'application/pdf'; body: Buffer };
 
 // The caller-supplied half of an invoice issuance — billing itself owns the client-name/address
-// snapshot, so those fields are deliberately absent. Backend-internal (never crosses the wire).
-export type InvoiceIssueRequest = Omit<InvoiceIssueInput, 'number' | 'clientNameSnapshot' | 'clientAddressSnapshot'>;
+// snapshot by default (resolved from posClientId), so those two fields are optional overrides
+// rather than the always-required InvoiceIssueInput shape. S10: orders needs this for a
+// registered client who was never approved as a PosClient (no posClientId, but a real name is
+// known) — sales never hits this gap, since a POS sale only ever knows a PosClient or a walk-in.
+// When omitted, issueInvoiceInTx falls back to its existing posClientId resolution / "Walk-in
+// Customer" default exactly as before. clientAddressSnapshot was already optional on
+// InvoiceIssueInput, so only clientNameSnapshot needs re-adding as optional here.
+export type InvoiceIssueRequest = Omit<InvoiceIssueInput, 'number' | 'clientNameSnapshot'> & {
+  clientNameSnapshot?: string;
+};
 
 export interface IBillingService {
   // Client — `req.user` (JWTPayload) carries `clientId`, never a `posClientId` directly (that's
@@ -46,16 +53,14 @@ export interface IBillingService {
   listClientPayments(query: ClientPaymentListQuery): Promise<PaginatedResult<ClientPaymentDto>>;
 
   // Injected-port methods (S5) — invoked by sibling modules INSIDE THEIR OWN transaction, never
-  // by HTTP routes directly. issueFromOrder remains listener-invoked (post-commit) until S10
-  // moves order issuance the same way sales' confirm now does.
+  // by HTTP routes directly. S10 — order completion now calls these too (issueFromOrder and
+  // billing.listener.ts are both deleted); every invoice/payment in the codebase is issued
+  // in-transaction, none post-commit.
   issueInvoiceInTx(tx: Prisma.TransactionClient, input: InvoiceIssueRequest): Promise<{ invoiceId: string; number: string }>;
   captureClientPaymentInTx(
     tx: Prisma.TransactionClient,
     input: { posClientId: string; invoiceId?: string; amount: number; paidAt?: Date; staffId: string },
   ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }>;
-
-  // Internal — invoked only by this module's own listener (post-commit), never by HTTP routes.
-  issueFromOrder(payload: OrdersEvents['order.confirmed']): Promise<void>;
 }
 
 // Injected port (dependency inversion) — real implementation is platform's own PlatformService,

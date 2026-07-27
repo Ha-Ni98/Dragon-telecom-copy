@@ -27,7 +27,6 @@ import {
   type OrderDto,
   type MyOrdersQuery,
   type BackofficeOrdersQuery,
-  type ConfirmOrderCommand,
   type UpdateOrderStatusCommand,
   type ReturnOrderCommand,
   type OrderStatsDto,
@@ -82,17 +81,6 @@ export async function listOrders(
   const res = await api.get<ApiResponse<PaginatedResult<OrderDto>>>(apiPath(route), {
     params: query,
   });
-  if (!res.data.success) throw new Error(res.data.error.message); // defensive
-  return res.data.data;
-}
-
-export async function confirmOrder(
-  scope: OrderScope,
-  id: string,
-  command: ConfirmOrderCommand,
-): Promise<OrderDto> {
-  const route = scope === "admin" ? ORDER_ROUTES.ADMIN_CONFIRM : ORDER_ROUTES.STAFF_CONFIRM;
-  const res = await api.post<ApiResponse<OrderDto>>(withParams(apiPath(route), { id }), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

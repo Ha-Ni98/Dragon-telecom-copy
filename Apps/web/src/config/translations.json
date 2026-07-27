@@ -6159,6 +6159,11 @@
     "fr": "Annulé",
     "ar": ""
   },
+  "orders.cancelledByClient": {
+    "en": "Cancelled by client",
+    "fr": "Annulée par le client",
+    "ar": ""
+  },
   "orders.completed": {
     "en": "Completed",
     "fr": "Terminé",
@@ -10757,6 +10762,46 @@
   "staff.orders.statusDialog.submit": {
     "en": "Update",
     "fr": "Mettre à jour",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.priceSectionTitle": {
+    "en": "Line prices",
+    "fr": "Prix des lignes",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.unitPriceLabel": {
+    "en": "Charged price",
+    "fr": "Prix facturé",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.unitPriceInvalid": {
+    "en": "Charged price must be zero or more",
+    "fr": "Le prix facturé doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.paidAmountLabel": {
+    "en": "Amount paid",
+    "fr": "Montant payé",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.paidAmountInvalid": {
+    "en": "Amount paid must be zero or more",
+    "fr": "Le montant payé doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.paidAmountRequired": {
+    "en": "Enter the amount paid to complete this order",
+    "fr": "Saisissez le montant payé pour terminer cette commande",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.creditRequiresClient": {
+    "en": "A guest order must be paid in full",
+    "fr": "Une commande sans compte client doit être payée intégralement",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.noTransitions": {
+    "en": "No further action is available for this order",
+    "fr": "Aucune action supplémentaire n'est disponible pour cette commande",
     "ar": ""
   },
   "admin.orders.pageTitle": {

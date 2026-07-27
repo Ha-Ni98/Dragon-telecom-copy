@@ -18,8 +18,8 @@ import { ProductOrderModal } from "@/components/shared/ProductOrderModal";
 import { ProductErrorBoundary } from "@/components/shared/ProductErrorBoundary";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { RelatedProductsStrip } from "@/pages/product-detail/components/RelatedProductsStrip";
-import { ClientActivityType, UserType, OrderType, type PlaceOrderCommand } from "@dragon-telecom/contract";
-import type { OrderFormValues } from "@/pages/product-detail/order.schema";
+import { ClientActivityType, UserType, OrderType } from "@dragon-telecom/contract";
+import { toPlaceOrderCommand, type OrderFormValues } from "@/pages/product-detail/order.schema";
 
 interface DeliveryParams {
   wilayaId: string;
@@ -91,10 +91,7 @@ export default function ProductDetails() {
   // is the real success target: renders the returned OrderDto via router state. /orders (PUB-09)
   // is a different page (the client's order history), not the post-order confirmation.
   const handleOrderSubmit = async (data: OrderFormValues) => {
-    const command: PlaceOrderCommand = {
-      ...data,
-      clientId: isClient ? (session?.clientId ?? null) : null,
-    };
+    const command = toPlaceOrderCommand(data, isClient ? (session?.clientId ?? null) : null);
     const order = await placeOrderMutation.mutateAsync(command);
     setIsOrderModalOpen(false);
     navigate("/order-confirmation", { state: { order } });

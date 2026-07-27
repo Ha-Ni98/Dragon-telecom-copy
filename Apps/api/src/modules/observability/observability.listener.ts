@@ -249,12 +249,15 @@ export class ObservabilityListener {
   }
 
   private registerOrders(): void {
+    // S10 — order.confirmed no longer carries totals/lines (D2/D3: nothing accrues at
+    // confirmation any more); the money narration for a completed order comes through
+    // invoice.issued/payment.clientRecorded, exactly like a POS sale.
     eventBus.on('order.confirmed', (payload) =>
       this.handle('order.confirmed', payload, (p) => ({
         actionType: 'order.confirmed',
         entityType: 'Order',
         entityId: p.orderId,
-        description: `Confirmed: total ${p.totals.totalAmount}`,
+        description: 'Confirmed',
       })),
     );
 
@@ -276,12 +279,13 @@ export class ObservabilityListener {
       })),
     );
 
+    // D4 (S10) — byClient distinguishes a client's own cancellation from an admin one.
     eventBus.on('order.cancelled', (payload) =>
       this.handle('order.cancelled', payload, (p) => ({
         actionType: 'order.cancelled',
         entityType: 'Order',
         entityId: p.orderId,
-        description: p.reason ? `Cancelled: ${p.reason}` : 'Cancelled',
+        description: `${p.byClient ? 'Cancelled by client' : 'Cancelled'}${p.reason ? `: ${p.reason}` : ''}`,
       })),
     );
 

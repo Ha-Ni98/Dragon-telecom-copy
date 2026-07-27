@@ -15,6 +15,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import type { OrderDto } from "@dragon-telecom/contract";
 import {
   returnOrderSchema,
+  type ReturnOrderFormInput,
   type ReturnOrderFormValues,
 } from "@/pages/admin/orders/components/return-order.schema";
 
@@ -27,6 +28,7 @@ interface ReturnOrderDialogProps {
 }
 
 // Admin-only (ADM-09 §UI). Dumb (owns only local form state) — Sprint 6 wires useReturnOrder().
+// D1 (S9) — one quantity input per order line, replacing the single quantity field.
 export function ReturnOrderDialog({
   open,
   onOpenChange,
@@ -40,10 +42,13 @@ export function ReturnOrderDialog({
     handleSubmit,
     control,
     formState: { errors },
-  } = useForm<ReturnOrderFormValues>({
-    resolver: zodResolver(returnOrderSchema(t, order?.quantity ?? 1)),
+  } = useForm<ReturnOrderFormInput, unknown, ReturnOrderFormValues>({
+    resolver: zodResolver(returnOrderSchema(t, order?.lines ?? [])),
     defaultValues: {
-      quantity: order?.quantity ?? 1,
+      lines: (order?.lines ?? []).map((line) => ({
+        orderLineId: line.id,
+        quantity: line.quantity,
+      })),
       restock: true,
       refundAmount: order?.totalAmount ?? 0,
     },
@@ -58,18 +63,27 @@ export function ReturnOrderDialog({
           <DialogTitle>{t("admin.orders.returnDialog.title")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1">
-            <Label htmlFor="return-quantity">{t("admin.orders.returnDialog.quantityLabel")}</Label>
-            <Input
-              id="return-quantity"
-              type="number"
-              min={1}
-              max={order.quantity}
-              {...register("quantity", { valueAsNumber: true })}
-            />
-            {errors.quantity && (
-              <p className="text-sm text-destructive">{errors.quantity.message}</p>
-            )}
+          <div className="space-y-3">
+            {order.lines.map((line, index) => (
+              <div key={line.id} className="space-y-1">
+                <Label htmlFor={`return-quantity-${line.id}`}>
+                  {line.productName} — {t("admin.orders.returnDialog.quantityLabel")}
+                </Label>
+                <Input
+                  id={`return-quantity-${line.id}`}
+                  type="number"
+                  min={1}
+                  max={line.quantity}
+                  {...register(`lines.${index}.quantity`)}
+                />
+                <input type="hidden" {...register(`lines.${index}.orderLineId`)} value={line.id} />
+                {errors.lines?.[index]?.quantity && (
+                  <p className="text-sm text-destructive">
+                    {errors.lines[index]?.quantity?.message}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
 
           <div className="flex items-center justify-between">
@@ -91,12 +105,7 @@ export function ReturnOrderDialog({
             <Label htmlFor="return-refund">
               {t("admin.orders.returnDialog.refundAmountLabel")}
             </Label>
-            <Input
-              id="return-refund"
-              type="number"
-              step="0.01"
-              {...register("refundAmount", { valueAsNumber: true })}
-            />
+            <Input id="return-refund" type="number" step="0.01" {...register("refundAmount")} />
             {errors.refundAmount && (
               <p className="text-sm text-destructive">{errors.refundAmount.message}</p>
             )}

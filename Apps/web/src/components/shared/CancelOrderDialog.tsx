@@ -14,10 +14,12 @@ import type { OrderDto } from "@dragon-telecom/contract";
 import { formatDZD, formatDateTime } from "@/lib/utils";
 
 // set-02 Sprint 3 retype — was OrderWithDetails (orderLines[], a preview of "up to 3 items,
-// +N more"). OrderDto is single-product, so there's nothing left to preview beyond the one
-// line already summarized below — the old orderItems/moreItems preview section is dropped
-// (its two translation keys, cancellation.orderItems/moreItems, are now unused but left in
-// translations.json rather than deleted, matching this codebase's no-key-removal convention).
+// +N more"). OrderDto was single-product at the time, so the old orderItems/moreItems preview
+// section was dropped in favor of the one-line summary below (its two translation keys,
+// cancellation.orderItems/moreItems, are unused but left in translations.json, matching this
+// codebase's no-key-removal convention). D1 (S9) brought orders.lines[] back — the summary below
+// now joins every line rather than a single product/quantity pair, but still as one line, not a
+// re-introduced multi-row preview.
 // Stays a plain confirm (no reason field) per Sprint 1's D-decision: the client MY_CANCEL route
 // takes no request body.
 interface CancelOrderDialogProps {
@@ -66,7 +68,7 @@ export function CancelOrderDialog({
                 <span>{formatDateTime(order.placedAt)}</span>
               </div>
               <div>
-                {order.productName} × {order.quantity}
+                {order.lines.map((line) => `${line.productName} × ${line.quantity}`).join(", ")}
               </div>
               <div className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
