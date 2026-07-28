@@ -25,6 +25,9 @@ export type SupplierInvoiceListQuery = z.infer<typeof SupplierInvoiceListQuerySc
 
 export const SupplierPaymentListQuerySchema = z.object({
   supplierId: z.uuid().optional(),
+  // S8 J8 — the payments tab's date-range filter, on the same `paidAt` column the list sorts by.
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
 });

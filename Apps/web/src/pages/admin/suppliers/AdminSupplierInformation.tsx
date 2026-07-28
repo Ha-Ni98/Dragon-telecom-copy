@@ -32,6 +32,15 @@ export default function AdminSupplierInformation() {
     }
   };
 
+  // S7 I12 — re-enable from the detail page too, mirroring the list's toggle.
+  const handleEnable = () => {
+    if (!id) return;
+    updateSupplier.mutate(
+      { id, command: { isEnabled: true } },
+      { onSuccess: () => toast.success(t("admin.suppliers.enableSuccess")) },
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -51,13 +60,20 @@ export default function AdminSupplierInformation() {
     );
   }
 
+  const isDisabled = !data.supplier.isEnabled;
+
   return (
     <main className="space-y-6">
-      <SupplierInformationHeader supplier={data.supplier} onRefresh={() => refetch()} />
+      <SupplierInformationHeader
+        supplier={data.supplier}
+        onRefresh={() => refetch()}
+        onEnable={isDisabled ? handleEnable : undefined}
+      />
       <SupplierDetailsSection
         supplier={data.supplier}
         onSave={handleSave}
         saving={updateSupplier.isPending}
+        readOnly={isDisabled}
       />
       <SupplierFinancialSummary supplier={data.supplier} />
       <SupplierInvoicesTable invoices={data.invoices} />

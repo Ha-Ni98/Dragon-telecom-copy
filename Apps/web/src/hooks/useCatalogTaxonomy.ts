@@ -30,10 +30,12 @@ export function useCatalogBrands(admin = false) {
   });
 }
 
-export function useCreateCatalogBrand() {
+// `admin` (S18/D-3) — repairs intake's create-if-absent brand needs the staff-reachable route;
+// defaults to true so every existing admin caller (Settings hierarchy, Add Product) is unchanged.
+export function useCreateCatalogBrand(admin = true) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (command: CreateBrandCommand) => catalogService.createBrand(command),
+    mutationFn: (command: CreateBrandCommand) => catalogService.createBrand(command, admin),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.catalog.brands.all() });
     },
@@ -93,10 +95,11 @@ export function useCatalogModels(query: ModelsQuery = {}, admin = false, options
   });
 }
 
-export function useCreateCatalogModel() {
+// `admin` (S18/D-3) — same staff/admin split as useCreateCatalogBrand above.
+export function useCreateCatalogModel(admin = true) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (command: CreateModelCommand) => catalogService.createModel(command),
+    mutationFn: (command: CreateModelCommand) => catalogService.createModel(command, admin),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.catalog.models.all() });
     },

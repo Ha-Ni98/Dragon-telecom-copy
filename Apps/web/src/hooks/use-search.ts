@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from "react";
 
 /**
- * Custom hook for recent searches with localStorage
+ * Custom hook for recent searches with localStorage. Consumed by StorefrontSearch
+ * (components/shared/StorefrontSearch.tsx) — the header's own search state (isSearchOpen/
+ * searchQuery) moved into that component in S15; this file no longer exports it.
  */
 export const useRecentSearches = () => {
-  const STORAGE_KEY = 'recent-searches';
+  const STORAGE_KEY = "recent-searches";
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -42,41 +44,5 @@ export const useRecentSearches = () => {
     addRecentSearch,
     removeRecentSearch,
     clearRecentSearches,
-  };
-};
-
-/**
- * Custom hook for search state management
- */
-export const useSearchState = () => {
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-
-  const openSearch = useCallback(() => {
-    setIsSearchOpen(true);
-  }, []);
-
-  const closeSearch = useCallback(() => {
-    setIsSearchOpen(false);
-    setSearchQuery('');
-  }, []);
-
-  const updateSearchQuery = useCallback((query: string) => {
-    setSearchQuery(query);
-  }, []);
-
-  const setSearching = useCallback((searching: boolean) => {
-    setIsSearching(searching);
-  }, []);
-
-  return {
-    isSearchOpen,
-    searchQuery,
-    isSearching,
-    openSearch,
-    closeSearch,
-    updateSearchQuery,
-    setSearching,
   };
 };

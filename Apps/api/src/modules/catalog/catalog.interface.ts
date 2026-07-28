@@ -46,6 +46,7 @@ export interface ICatalogProductService {
   updatePricing(id: string, cmd: UpdatePricingCommand): Promise<AdminProductDto>;
   addImages(id: string, cmd: AddProductImagesCommand, files: Express.Multer.File[]): Promise<AdminProductDto>;
   updateImages(id: string, cmd: UpdateProductImagesCommand): Promise<AdminProductDto>;
+  deleteImage(id: string, imageId: string): Promise<AdminProductDto>;
   productStats(): Promise<ProductStatsDto>;
 }
 

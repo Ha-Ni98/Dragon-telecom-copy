@@ -9,7 +9,7 @@ interface ProductInformationHeaderProps {
   isSaving: boolean;
   onBack: () => void;
   onToggleEdit: () => void;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
   onCancel: () => void;
 }
 

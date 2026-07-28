@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { OrderStatus, type OrderDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD, formatDateTime } from "@/lib/utils";
-import { ORDER_STATUS_LABEL_KEY } from "@/pages/staff/orders/order-status-labels";
+import { ORDER_STATUS_LABEL_KEY } from "@/lib/order-status-labels";
+import { OrderStatusBadge } from "@/components/shared/StatusBadge";
+import { OrderActionsMenu } from "@/pages/staff/orders/components/OrderActionsMenu";
 
 interface OrdersTableProps {
   orders?: OrderDto[];
@@ -18,14 +20,26 @@ interface OrdersTableProps {
   isError?: boolean;
   onRetry?: () => void;
   onRowClick?: (order: OrderDto) => void;
+  onAction?: (order: OrderDto, target: OrderStatus) => void;
 }
 
-// Dumb, props-only (Sprint 4) — Sprint 6 wires useOrdersList(scope, query) around this.
-export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }: OrdersTableProps) {
+// Dumb, props-only (Sprint 4) — Sprint 6 wires useOrdersList(scope, query) around this. ADM-09
+// §S11 originally gated the user/category/action columns behind `scope === "admin"`; S18/D-1
+// opened them to staff holding the orders page too, so the gate is gone — the user/category
+// columns are now unconditional and the action column is gated on `onAction` alone (still absent
+// for AdminClientDetail.tsx's read-only embedded use of this table).
+export function OrdersTable({
+  orders,
+  isLoading,
+  isError,
+  onRetry,
+  onRowClick,
+  onAction,
+}: OrdersTableProps) {
   const { t, language } = useTranslation();
 
-  const columns = useMemo<ColumnDef<OrderDto>[]>(
-    () => [
+  const columns = useMemo<ColumnDef<OrderDto>[]>(() => {
+    const base: ColumnDef<OrderDto>[] = [
       {
         accessorKey: "reference",
         header: t("staff.orders.table.reference"),
@@ -43,13 +57,35 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
           </div>
         ),
       },
+    ];
+
+    base.push(
       {
-        accessorKey: "productName",
-        header: t("staff.orders.table.product"),
+        id: "user",
+        header: t("staff.orders.table.user"),
+        cell: ({ row }) => row.original.clientUsername ?? "-",
       },
       {
-        accessorKey: "quantity",
+        id: "clientCategory",
+        header: t("staff.orders.table.category"),
+        cell: ({ row }) => row.original.clientCategoryName ?? "-",
+      },
+    );
+
+    base.push(
+      {
+        id: "productName",
+        header: t("staff.orders.table.product"),
+        cell: ({ row }) => (
+          <span className="line-clamp-2">
+            {row.original.lines.map((l) => l.productName).join(", ")}
+          </span>
+        ),
+      },
+      {
+        id: "quantity",
         header: t("staff.orders.table.quantity"),
+        cell: ({ row }) => row.original.lines.reduce((sum, l) => sum + l.quantity, 0),
       },
       {
         accessorKey: "orderType",
@@ -63,7 +99,7 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
       {
         accessorKey: "status",
         header: t("staff.orders.table.status"),
-        cell: ({ row }) => t(ORDER_STATUS_LABEL_KEY[row.original.status]),
+        cell: ({ row }) => <OrderStatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "placedAt",
@@ -78,9 +114,18 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
             <AgeFlag since={row.original.placedAt} thresholdHours={24} />
           ) : null,
       },
-    ],
-    [t, language],
-  );
+    );
+
+    if (onAction) {
+      base.push({
+        id: "actions",
+        header: t("admin.orders.table.actions"),
+        cell: ({ row }) => <OrderActionsMenu order={row.original} onAction={onAction} />,
+      });
+    }
+
+    return base;
+  }, [t, language, onAction]);
 
   const renderMobileRow = (order: OrderDto) => (
     <div className="space-y-2 p-4">
@@ -93,7 +138,7 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
         <div className="text-muted-foreground">{order.contactPhone}</div>
       </div>
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{order.productName}</span>
+        <span>{order.lines.map((l) => l.productName).join(", ")}</span>
         <span>{t(ORDER_STATUS_LABEL_KEY[order.status])}</span>
       </div>
       {order.status === OrderStatus.PENDING && (
@@ -102,7 +147,7 @@ export function OrdersTable({ orders, isLoading, isError, onRetry, onRowClick }:
     </div>
   );
 
-  if (isLoading) return <TableSkeleton rows={8} columns={9} />;
+  if (isLoading) return <TableSkeleton rows={8} columns={12} />;
 
   if (isError) {
     return (

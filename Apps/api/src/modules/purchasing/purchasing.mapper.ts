@@ -23,9 +23,9 @@ type Money = Prisma.Decimal | number;
 // purchasing.service.ts's getLastDeliveryAt for why this avoids a schema migration).
 export type SupplierExtras = { invoiceCount: number; lastDeliveryAt?: Date };
 
-export type SupplierInvoiceLineRow = SupplierInvoiceLine & { projectedNewAverageCost?: number };
+export type SupplierInvoiceLineRow = SupplierInvoiceLine & { projectedNewAvgStockPrice?: number };
 export type SupplierInvoiceRow = SupplierInvoice & {
-  supplier: Pick<Supplier, 'name'>;
+  supplier: Pick<Supplier, 'name' | 'credit'>;
   staff: Pick<Staff, 'firstName' | 'lastName'>;
   lines: SupplierInvoiceLineRow[];
 };
@@ -33,7 +33,8 @@ export type SupplierInvoiceRow = SupplierInvoice & {
 export type RepriceCandidateRow = {
   productId: string;
   name: string;
-  averageCost: number;
+  avgStockPrice: number;
+  quantityOnHand: number;
   current: {
     guestPrice?: number;
     defaultSalePrice?: number;
@@ -87,8 +88,10 @@ export class PurchasingMapper {
       ...(invoice.amountOnly != null ? { amountOnly: PurchasingMapper.toMoney(invoice.amountOnly) } : {}),
       totalAmount: PurchasingMapper.toMoney(invoice.totalAmount),
       paidAmount: PurchasingMapper.toMoney(invoice.paidAmount),
+      ...(invoice.paidDate != null ? { paidDate: invoice.paidDate.toISOString() } : {}),
       ...(invoice.previousCredit != null ? { previousCredit: PurchasingMapper.toMoney(invoice.previousCredit) } : {}),
       ...(invoice.newCredit != null ? { newCredit: PurchasingMapper.toMoney(invoice.newCredit) } : {}),
+      supplierCredit: PurchasingMapper.toMoney(invoice.supplier.credit),
       ...(invoice.note != null ? { note: invoice.note } : {}),
       staffName: `${invoice.staff.firstName} ${invoice.staff.lastName}`,
       lines: invoice.lines.map((line) => ({
@@ -100,7 +103,7 @@ export class PurchasingMapper {
         landedUnitCost: PurchasingMapper.toMoney(line.landedUnitCost),
         lineTotal: PurchasingMapper.toMoney(line.lineTotal),
         ...(line.serialNumbers != null ? { serialNumbers: line.serialNumbers } : {}),
-        ...(line.projectedNewAverageCost != null ? { projectedNewAverageCost: line.projectedNewAverageCost } : {}),
+        ...(line.projectedNewAvgStockPrice != null ? { projectedNewAvgStockPrice: line.projectedNewAvgStockPrice } : {}),
       })),
     };
     return SupplierInvoiceResponseSchema.parse(dto);

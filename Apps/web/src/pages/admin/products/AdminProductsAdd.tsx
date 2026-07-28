@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Wand2, X, GripVertical, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AutocompleteInput } from "@/components/shared/autocomplete-input";
+import { MarginDisplay } from "@/components/shared/MarginDisplay";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
 import {
@@ -57,6 +59,9 @@ const optionalNumber = (raw: string) => (raw === "" ? undefined : Number(raw));
 // since the id always resolves before submit; they exist on the command for API completeness.
 // Auto-name recompute is plain string concatenation (no fake "API delay" stub — the deleted
 // use-product-name-generation.ts simulated a network call for what's just string interpolation).
+// On a successful create, the form is fully reset (S3 F4) — a same-path navigate() does not
+// remount this route element, so without an explicit reset every field, staged image and the
+// manual-name flag would survive into the "next" product.
 export default function AdminProductsAdd() {
   const navigate = useNavigate();
   const { t, language } = useTranslation();
@@ -86,6 +91,7 @@ export default function AdminProductsAdd() {
     watch,
     setValue,
     getValues,
+    reset,
     formState: { errors },
   } = useForm<ProductsAddFormValues>({
     resolver: zodResolver(productsAddSchema(t)),
@@ -99,6 +105,7 @@ export default function AdminProductsAdd() {
     "initialQuantity",
     "initialUnitCost",
   ]);
+  const categoryPrices = watch("categoryPrices");
 
   const familyName = families?.find((f) => f.id === familyId)?.name ?? "";
   const brandName = brands?.find((b) => b.id === brandId)?.name ?? "";
@@ -119,11 +126,6 @@ export default function AdminProductsAdd() {
   };
 
   const pricingUnlocked = (initialQuantity ?? 0) > 0;
-
-  const marginPercent = (price?: number) => {
-    if (!price || !initialUnitCost) return undefined;
-    return ((price - initialUnitCost) / initialUnitCost) * 100;
-  };
 
   const handleFilesSelected = (files: FileList | null) => {
     if (!files) return;
@@ -146,7 +148,7 @@ export default function AdminProductsAdd() {
   };
 
   const categoryPriceValue = (categoryId: string) =>
-    getValues("categoryPrices")?.find((c) => c.categoryId === categoryId)?.price;
+    categoryPrices?.find((c) => c.categoryId === categoryId)?.price;
 
   const setCategoryPrice = (categoryId: string, price: number) => {
     const current = getValues("categoryPrices") ?? [];
@@ -161,9 +163,17 @@ export default function AdminProductsAdd() {
     createProduct.mutate(
       { command: values, images: images.map((img) => img.file) },
       {
-        onSuccess: (product) => {
+        onSuccess: () => {
           setShowConfirm(false);
-          navigate(`/admin/products/add`);
+          toast.success(t("admin.productsAdd.createSuccess"));
+          // A same-path navigate() does not remount this route element, so the old code left every
+          // field, every staged image and the manual-name flag in place. Reset the form state
+          // explicitly instead — and revoke the object URLs, or the staged previews leak.
+          images.forEach((img) => URL.revokeObjectURL(img.preview));
+          setImages([]);
+          setNameManuallyEdited(false);
+          setSelectedBrandId(undefined);
+          reset({ name: "", initialQuantity: 0 });
         },
         onError: () => setShowConfirm(false),
       },
@@ -187,31 +197,11 @@ export default function AdminProductsAdd() {
             <CardTitle>{t("admin.productsAdd.card.basicInfo")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="add-barcode">{t("admin.productsAdd.barcodeLabel")}</Label>
-              <div className="flex gap-2">
-                <Input id="add-barcode" {...register("barcode")} />
-                <Button type="button" variant="outline" onClick={generateBarcode}>
-                  <Wand2 className="mr-1 h-4 w-4" />
-                  {t("admin.productsAdd.autoGenerateBarcode")}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="add-name">{t("admin.productsAdd.nameLabel")}</Label>
-              <Input
-                id="add-name"
-                {...register("name", { onChange: () => setNameManuallyEdited(true) })}
-              />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-            </div>
-
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label>{t("admin.productsAdd.familyLabel")}</Label>
                 <AutocompleteInput
-                  value={familyName}
+                  value={familyId ?? ""}
                   onChange={(value) => {
                     const family = families?.find((f) => f.id === value);
                     if (family) {
@@ -220,7 +210,6 @@ export default function AdminProductsAdd() {
                     }
                   }}
                   suggestions={(families ?? []).map((f) => ({ value: f.id, label: f.name }))}
-                  onSearch={() => {}}
                   onCreateNew={(name) =>
                     createFamily.mutate(
                       { name },
@@ -242,7 +231,7 @@ export default function AdminProductsAdd() {
               <div className="space-y-1">
                 <Label>{t("admin.productsAdd.brandLabel")}</Label>
                 <AutocompleteInput
-                  value={brandName}
+                  value={brandId ?? ""}
                   onChange={(value) => {
                     const brand = brands?.find((b) => b.id === value);
                     if (brand) {
@@ -252,7 +241,6 @@ export default function AdminProductsAdd() {
                     }
                   }}
                   suggestions={(brands ?? []).map((b) => ({ value: b.id, label: b.name }))}
-                  onSearch={() => {}}
                   onCreateNew={(name) =>
                     createBrand.mutate(
                       { name },
@@ -275,7 +263,7 @@ export default function AdminProductsAdd() {
               <div className="space-y-1">
                 <Label>{t("admin.productsAdd.modelLabel")}</Label>
                 <AutocompleteInput
-                  value={modelName}
+                  value={modelId ?? ""}
                   onChange={(value) => {
                     const model = models?.find((m) => m.id === value);
                     if (model) {
@@ -284,7 +272,6 @@ export default function AdminProductsAdd() {
                     }
                   }}
                   suggestions={(models ?? []).map((m) => ({ value: m.id, label: m.name }))}
-                  onSearch={() => {}}
                   disabled={!brandId}
                   onCreateNew={(name) => {
                     if (!brandId) return;
@@ -304,8 +291,28 @@ export default function AdminProductsAdd() {
             </div>
 
             <div className="space-y-1">
+              <Label htmlFor="add-name">{t("admin.productsAdd.nameLabel")}</Label>
+              <Input
+                id="add-name"
+                {...register("name", { onChange: () => setNameManuallyEdited(true) })}
+              />
+              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+            </div>
+
+            <div className="space-y-1">
               <Label htmlFor="add-description">{t("admin.productsAdd.descriptionLabel")}</Label>
               <Textarea id="add-description" rows={3} {...register("description")} />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="add-barcode">{t("admin.productsAdd.barcodeLabel")}</Label>
+              <div className="flex gap-2">
+                <Input id="add-barcode" {...register("barcode")} />
+                <Button type="button" variant="outline" onClick={generateBarcode}>
+                  <Wand2 className="mr-1 h-4 w-4" />
+                  {t("admin.productsAdd.autoGenerateBarcode")}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -365,6 +372,7 @@ export default function AdminProductsAdd() {
                 <p className="text-xs text-muted-foreground">
                   {t("admin.productsAdd.guestPriceHelper")}
                 </p>
+                <MarginDisplay price={watch("guestPrice")} cost={initialUnitCost} />
               </div>
 
               <div className="space-y-1">
@@ -377,12 +385,7 @@ export default function AdminProductsAdd() {
                   step="0.01"
                   {...register("defaultSalePrice", { setValueAs: optionalNumber })}
                 />
-                {marginPercent(watch("defaultSalePrice")) != null && (
-                  <p className="text-xs text-muted-foreground">
-                    {t("admin.productsAdd.marginLabel")}:{" "}
-                    {marginPercent(watch("defaultSalePrice"))?.toFixed(1)}%
-                  </p>
-                )}
+                <MarginDisplay price={watch("defaultSalePrice")} cost={initialUnitCost} />
               </div>
 
               {(categories ?? []).map((category) => (
@@ -397,12 +400,7 @@ export default function AdminProductsAdd() {
                     defaultValue={categoryPriceValue(category.id)}
                     onChange={(e) => setCategoryPrice(category.id, Number(e.target.value))}
                   />
-                  {marginPercent(categoryPriceValue(category.id)) != null && (
-                    <p className="text-xs text-muted-foreground">
-                      {t("admin.productsAdd.marginLabel")}:{" "}
-                      {marginPercent(categoryPriceValue(category.id))?.toFixed(1)}%
-                    </p>
-                  )}
+                  <MarginDisplay price={categoryPriceValue(category.id)} cost={initialUnitCost} />
                 </div>
               ))}
 

@@ -14,5 +14,9 @@ export const BILLING_ROUTES = {
   CANCEL: '/admin/invoices/:number/cancel',
   STAFF_CLIENT_PAYMENTS: '/staff/client-payments',
   ADMIN_CLIENT_PAYMENTS: '/admin/client-payments',
-  CLIENT_PAYMENTS_LIST: '/admin/client-payments',
+  ADMIN_CLIENT_PAYMENTS_LIST: '/admin/client-payments',
+  // S18 — same path as STAFF_CLIENT_PAYMENTS, distinguished by verb (GET vs POST), same
+  // convention as SALE_ROUTES.DELETE_DRAFT/UPDATE_DRAFT. Backs the staff POS-clients drawer's
+  // Payments tab (D-5).
+  STAFF_CLIENT_PAYMENTS_LIST: '/staff/client-payments',
 } as const;

@@ -1,24 +1,23 @@
 /**
  * ProductPricingSection Component
- * Displays the price block by viewer, a quantity stepper, and the Order Now entry point
- * into ProductOrderModal (which owns the actual order form — see plan.md PUB-03 §4).
+ * Displays the price block by viewer, a quantity stepper, and (S15) the inline
+ * OrderPlacementSection — replaces the old ProductOrderModal dialog.
  */
 
 import { useMemo, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Minus, Plus, ShoppingCart, EyeOff } from "lucide-react";
+import { Minus, Plus, EyeOff } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { OrderPlacementSection } from "@/components/shared/OrderPlacementSection";
 import type { ProductDetailDto } from "@dragon-telecom/contract";
 
 interface ProductPricingSectionProps {
   product: ProductDetailDto;
   className?: string;
-  onOrderNow?: (quantity: number) => void;
 }
 
 // The public/client detail DTO deliberately has no exact stock count (catalog.dtos.ts: "no cost,
@@ -26,11 +25,7 @@ interface ProductPricingSectionProps {
 // The server remains the authoritative check (409 INSUFFICIENT_STOCK on submit, plan.md D6/PUB-03).
 const MAX_ORDER_QUANTITY = 99;
 
-export const ProductPricingSection = ({
-  product,
-  className,
-  onOrderNow,
-}: ProductPricingSectionProps) => {
+export const ProductPricingSection = ({ product, className }: ProductPricingSectionProps) => {
   const { t } = useTranslation();
   const [quantity, setQuantity] = useState(1);
   const { isAuthenticated: authStatus } = useAuth();
@@ -53,10 +48,6 @@ export const ProductPricingSection = ({
   const decrementQuantity = useCallback(() => {
     handleQuantityChange(quantity - 1);
   }, [quantity, handleQuantityChange]);
-
-  const handleOrderNow = () => {
-    onOrderNow?.(quantity);
-  };
 
   const totalPrice = useMemo(() => {
     return priceAvailable ? resolvedPrice * quantity : 0;
@@ -106,16 +97,12 @@ export const ProductPricingSection = ({
               {product.inStock ? (
                 <>
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-green-600">
-                    {t("product.inStock")}
-                  </span>
+                  <span className="text-sm text-green-600">{t("product.inStock")}</span>
                 </>
               ) : (
                 <>
                   <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                  <span className="text-sm text-red-600">
-                    {t("products.outStock")}
-                  </span>
+                  <span className="text-sm text-red-600">{t("products.outStock")}</span>
                 </>
               )}
             </div>
@@ -162,24 +149,20 @@ export const ProductPricingSection = ({
 
         <Separator />
 
-        {/* Action Buttons */}
-        <div className="space-y-3">
-          {product.inStock ? (
-            <Button
-              onClick={handleOrderNow}
-              disabled={orderDisabled}
-              className="w-full"
-              size="lg"
-            >
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              {t("product.orderNow")}
-            </Button>
-          ) : (
-            <Button disabled className="w-full" size="lg">
-              {t("products.outStock")}
-            </Button>
-          )}
-        </div>
+        {/* Order — inline section (S15), replacing the old dialog. Not rendered at all when out
+            of stock (the disabled placeholder button covers that case). */}
+        {product.inStock ? (
+          <OrderPlacementSection
+            key={product.id}
+            lines={[{ product, quantity }]}
+            disabled={orderDisabled}
+            className="pt-2"
+          />
+        ) : (
+          <Button disabled className="w-full" size="lg">
+            {t("products.outStock")}
+          </Button>
+        )}
 
         {/* Product Information */}
         <div className="space-y-2 text-sm text-muted-foreground">

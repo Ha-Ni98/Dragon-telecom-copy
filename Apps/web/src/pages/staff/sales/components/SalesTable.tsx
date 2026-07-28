@@ -53,6 +53,11 @@ export function SalesTable({
           row.original.soldAt ? formatDateTime(row.original.soldAt, language) : "—",
       },
       {
+        accessorKey: "createdAt",
+        header: t("staff.sales.table.createdAt"),
+        cell: ({ row }) => formatDateTime(row.original.createdAt, language),
+      },
+      {
         id: "client",
         header: t("staff.sales.table.client"),
         cell: ({ row }) => row.original.posClientName ?? t("staff.sales.table.counter"),
@@ -106,7 +111,7 @@ export function SalesTable({
     [scope, sales],
   );
 
-  if (isLoading) return <TableSkeleton rows={8} columns={scope === "admin" ? 7 : 6} />;
+  if (isLoading) return <TableSkeleton rows={8} columns={scope === "admin" ? 8 : 7} />;
 
   if (isError) {
     return (

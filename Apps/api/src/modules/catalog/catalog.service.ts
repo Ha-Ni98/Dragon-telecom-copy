@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import { unlink } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import type { ClientCategory, PrismaClient, Product } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import {
   AdminProductResponseSchema,
   MovementType,
+  PRODUCT_UPLOAD_DIR,
   ProductSort,
   ProductWithPricingResponseSchema,
   StaffProductResponseSchema,
@@ -383,11 +386,21 @@ export class CatalogProductService implements ICatalogProductService {
   }
 
   // Public storefront: enabled + published only, viewer-resolved pricing/inStock/inCart.
+  // S15 — search widened to name-or-barcode (same pair staffAdminWhere uses); `ids` lets the
+  // settings-driven featured strip ask for an exact product list.
   async listProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<ProductWithPricingDto>> {
     const where: Prisma.ProductWhereInput = {
       isEnabled: true,
       isPublished: true,
-      ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' as const } },
+              { barcode: { startsWith: query.search } },
+            ],
+          }
+        : {}),
+      ...(query.ids ? { id: { in: query.ids.split(',') } } : {}),
       ...(query.familyId != null ? { familyId: query.familyId } : {}),
       ...(query.brandId != null ? { brandId: query.brandId } : {}),
       ...(query.modelId != null ? { deviceModelId: query.modelId } : {}),
@@ -523,8 +536,8 @@ export class CatalogProductService implements ICatalogProductService {
 
   // qty=0 -> priceless product, pricing fields already schema-rejected (PRICING_REQUIRES_STOCK);
   // qty>0 -> cost required (schema-enforced), first FIFO layer created in the same tx via the
-  // injected port, then pricing unlocked. Catalog never writes quantityOnHand/averageCost itself
-  // — inventory.addLayer owns those columns (spec BL#6).
+  // injected port, then pricing unlocked. Catalog never writes quantityOnHand/avgStockPrice/
+  // avgPrice itself — inventory.addLayer owns those columns (spec BL#6).
   async createProduct(
     cmd: CreateProductCommand,
     images: Express.Multer.File[],
@@ -594,7 +607,7 @@ export class CatalogProductService implements ICatalogProductService {
     }
   }
 
-  // Core fields only — quantity/averageCost/pricing all live on other routes (spec BL#6).
+  // Core fields only — quantity/avgStockPrice/avgPrice/pricing all live on other routes (spec BL#6).
   // No CatalogEvents member covers a plain product-detail update; nothing is emitted.
   async updateProduct(id: string, cmd: UpdateProductCommand): Promise<AdminProductDto> {
     try {
@@ -696,6 +709,42 @@ export class CatalogProductService implements ICatalogProductService {
     return this.getAdminProduct(id);
   }
 
+  // Deletes the row *and* the file on disk (S3). The DB row is the source of truth: if the file
+  // is already gone (manual cleanup, a failed earlier delete) the unlink error is swallowed and
+  // the row still goes — an orphaned row would keep rendering a broken <img>, which is worse than
+  // an orphaned file. `basename()` is a path-traversal guard: `url` is written by this service as
+  // `/uploads/<generated-uuid><ext>`, but it is still a stored string, so the filesystem path is
+  // rebuilt from its last segment only and never from the stored value directly.
+  async deleteImage(id: string, imageId: string): Promise<AdminProductDto> {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    if (!product) throw new NotFoundError('Product');
+
+    const image = await this.prisma.productImage.findUnique({ where: { id: imageId } });
+    if (!image || image.productId !== id) throw new NotFoundError('ProductImage');
+
+    await this.prisma.productImage.delete({ where: { id: imageId } });
+
+    // Deleting the primary leaves the product with no primary at all, so the storefront card and
+    // every `images[0]`-style consumer would render nothing. Promote the lowest-position survivor.
+    if (image.isPrimary) {
+      const next = await this.prisma.productImage.findFirst({
+        where: { productId: id },
+        orderBy: [{ position: 'asc' }, { id: 'asc' }],
+      });
+      if (next) {
+        await this.prisma.productImage.update({ where: { id: next.id }, data: { isPrimary: true } });
+      }
+    }
+
+    try {
+      await unlink(join(process.cwd(), PRODUCT_UPLOAD_DIR, basename(image.url)));
+    } catch {
+      // File already absent — the row is gone, which is what the caller asked for.
+    }
+
+    return this.getAdminProduct(id);
+  }
+
   // Fetches minimal columns for every product and reduces in application code — no raw SQL for
   // the onHand-vs-reserved comparison; the catalog scale this app targets (a single store's
   // parts inventory) makes this trivially cheap.
@@ -749,9 +798,10 @@ export class CatalogProductService implements ICatalogProductService {
   }
 
   // Read port for purchasing's confirm step (plan §C-3, §II.5) — runs inside the *caller's*
-  // transaction (`tx`) so it observes each line's `addLayer`-updated `averageCost` before the
+  // transaction (`tx`) so it observes each line's `addLayer`-updated `avgStockPrice` before the
   // caller's own commit, matching the spec's "post-addLayer average" requirement for
-  // ConfirmResultDto.repriceCandidates.
+  // ConfirmResultDto.repriceCandidates. `quantityOnHand` is S7's "qty in stock beside the avg
+  // stock qty" — pure plumbing added here rather than reopening the contract twice.
   async getRepriceCandidates(
     tx: Prisma.TransactionClient,
     productIds: string[],
@@ -759,7 +809,8 @@ export class CatalogProductService implements ICatalogProductService {
     {
       productId: string;
       name: string;
-      averageCost: number;
+      avgStockPrice: number;
+      quantityOnHand: number;
       current: {
         guestPrice?: number;
         defaultSalePrice?: number;
@@ -777,7 +828,8 @@ export class CatalogProductService implements ICatalogProductService {
     return products.map((product) => ({
       productId: product.id,
       name: product.name,
-      averageCost: product.averageCost.toNumber(),
+      avgStockPrice: product.avgStockPrice.toNumber(),
+      quantityOnHand: product.quantityOnHand,
       current: {
         ...(product.guestPrice != null ? { guestPrice: product.guestPrice.toNumber() } : {}),
         ...(product.defaultSalePrice != null ? { defaultSalePrice: product.defaultSalePrice.toNumber() } : {}),
@@ -791,21 +843,24 @@ export class CatalogProductService implements ICatalogProductService {
   }
 
   // Read port for purchasing's DRAFT-read projection (plan §C-3, §II.3 #2) — plain read (no
-  // tx), feeds projectedNewAverageCost + productNameSnapshot before any layer is added.
+  // tx), feeds projectedNewAvgStockPrice + productNameSnapshot before any layer is added.
+  // avgPrice (D10) is exposed here too — purchasing's Add-Invoice "avg price is …" helper
+  // (S7) reads the unweighted figure, distinct from the projection which uses avgStockPrice.
   async getCostBasis(
     productIds: string[],
-  ): Promise<{ productId: string; name: string; averageCost: number; quantityOnHand: number }[]> {
+  ): Promise<{ productId: string; name: string; avgStockPrice: number; avgPrice: number; quantityOnHand: number }[]> {
     if (productIds.length === 0) return [];
 
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, name: true, averageCost: true, quantityOnHand: true },
+      select: { id: true, name: true, avgStockPrice: true, avgPrice: true, quantityOnHand: true },
     });
 
     return products.map((product) => ({
       productId: product.id,
       name: product.name,
-      averageCost: product.averageCost.toNumber(),
+      avgStockPrice: product.avgStockPrice.toNumber(),
+      avgPrice: product.avgPrice.toNumber(),
       quantityOnHand: product.quantityOnHand,
     }));
   }
@@ -849,7 +904,20 @@ export class CatalogProductService implements ICatalogProductService {
   private staffAdminWhere(query: ProductListQuery, extra: Prisma.ProductWhereInput = {}): Prisma.ProductWhereInput {
     return {
       ...extra,
-      ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+      // Name is a case-insensitive substring match; barcode is a prefix match so it can use the
+      // `Product.barcode @unique` btree index (S1 finding F1 — a `contains` predicate could not).
+      // A scanner emits a whole barcode, so `startsWith` also covers the exact-scan case.
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' as const } },
+              { barcode: { startsWith: query.search } },
+            ],
+          }
+        : {}),
+      // S17 — same comma-separated `ids` filter the public list already honours (S15); the
+      // Settings featured-products picker resolves its saved ids to admin rows through this.
+      ...(query.ids ? { id: { in: query.ids.split(',') } } : {}),
       ...(query.familyId != null ? { familyId: query.familyId } : {}),
       ...(query.brandId != null ? { brandId: query.brandId } : {}),
       ...(query.modelId != null ? { deviceModelId: query.modelId } : {}),

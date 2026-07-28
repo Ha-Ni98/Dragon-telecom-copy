@@ -2,9 +2,12 @@ import type { ReactNode } from "react";
 import { Outlet } from "react-router-dom";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
+import { ScrollToTop } from "@/components/layout/ScrollToTop";
 
 interface Props {
-  /** Explicit children override <Outlet/> — used by the catch-all route, which isn't a matched child route. */
+  /** Explicit children override <Outlet/>. Currently unused — CatchAllRoute (S2) no longer
+   *  mounts this layout at all, since the 404 it renders is shell-less for every user. Kept for
+   *  any future non-router caller that needs to render this shell around arbitrary content. */
   children?: ReactNode;
 }
 
@@ -17,6 +20,7 @@ interface Props {
 export function AdminLayout({ children }: Props) {
   return (
     <div className="min-h-screen bg-surface">
+      <ScrollToTop />
       <AdminHeader />
       <div className="mx-auto flex max-w-7xl">
         <AdminSidebar />

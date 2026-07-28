@@ -14,10 +14,11 @@ export class StatisticsController {
     }
   };
 
-  // Strictly staffId=me — never a query param (spec BL#5).
+  // Strictly staffId=me — never a query param (spec BL#5). staffId is genuinely absent for an
+  // ADMIN caller (S18/P5) — the service treats that as "no staff to scope to", not "everyone".
   getStaffDashboard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      sendSuccess(res, await this.service.getStaffDashboard(req.user!.staffId!), 200);
+      sendSuccess(res, await this.service.getStaffDashboard(req.user!.staffId), 200);
     } catch (error) {
       next(error);
     }

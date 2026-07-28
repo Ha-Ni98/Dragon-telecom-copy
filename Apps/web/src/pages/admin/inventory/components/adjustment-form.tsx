@@ -22,6 +22,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 interface AdjustmentFormProps {
   productOptions: AutocompleteOption[];
   systemQuantityByProductId: Record<string, number>;
+  avgStockPriceByProductId: Record<string, number>;
   onSubmit: (values: AdjustmentFormValues) => void;
   isSubmitting?: boolean;
 }
@@ -31,6 +32,7 @@ interface AdjustmentFormProps {
 export function AdjustmentForm({
   productOptions,
   systemQuantityByProductId,
+  avgStockPriceByProductId,
   onSubmit,
   isSubmitting = false,
 }: AdjustmentFormProps) {
@@ -40,6 +42,7 @@ export function AdjustmentForm({
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<AdjustmentFormValues>({
     resolver: zodResolver(adjustmentSchema(t, systemQuantityByProductId)),
@@ -95,8 +98,10 @@ export function AdjustmentForm({
             key={field.id}
             index={index}
             control={control}
+            setValue={setValue}
             productOptions={productOptions}
             systemQuantityByProductId={systemQuantityByProductId}
+            avgStockPrice={avgStockPriceByProductId[watchedLines?.[index]?.productId ?? ""] ?? 0}
             countedQuantity={watchedLines?.[index]?.countedQuantity ?? 0}
             productId={watchedLines?.[index]?.productId ?? ""}
             onRemove={() => remove(index)}

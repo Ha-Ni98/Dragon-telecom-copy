@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { TrendingUp } from "lucide-react";
 import type { ChartPoint } from "@/services/statistics.service";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useChartTheme } from "@/lib/chart-theme";
 
 interface RevenueChartProps {
   data: ChartPoint[];
@@ -24,8 +25,11 @@ interface RevenueChartProps {
 // only shape for this endpoint (`{ label, value }[]`, reused from `ReportDto.chart` — no
 // dedicated schema exists). The old view-model's per-point `date`/`family` fields and the
 // invented total/average stat line have no DTO backing and are dropped (Sprint 3 §Risks).
+// S14/RC-5 — colours read from useChartTheme() (literal OKLCH, both themes), not
+// `hsl(var(--primary))`, which never resolved to a real colour on this project's token format.
 export function RevenueChart({ data, isLoading = false, className = "" }: RevenueChartProps) {
   const { t } = useTranslation();
+  const chart = useChartTheme();
 
   return (
     <Card className={className}>
@@ -48,16 +52,24 @@ export function RevenueChart({ data, isLoading = false, className = "" }: Revenu
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
+                <CartesianGrid stroke={chart.grid} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 12, fill: chart.axis }}
+                  stroke={chart.grid}
                 />
+                <YAxis tick={{ fontSize: 12, fill: chart.axis }} stroke={chart.grid} />
+                <Tooltip
+                  contentStyle={{
+                    background: chart.tooltipBg,
+                    color: chart.tooltipFg,
+                    border: `1px solid ${chart.tooltipBorder}`,
+                    borderRadius: 8,
+                  }}
+                  itemStyle={{ color: chart.tooltipFg }}
+                  labelStyle={{ color: chart.tooltipFg }}
+                />
+                <Line type="monotone" dataKey="value" stroke={chart.series[0]} strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </div>

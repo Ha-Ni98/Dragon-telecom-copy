@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { RegisterClientCommand } from "@dragon-telecom/contract";
 import type { useTranslation } from "@/hooks/useTranslation";
+import { phoneField } from "@/lib/validation/phone.schema";
 
 // Contract's RegisterClientSchema (clients.command.ts) carries no field-level messages — this
 // wrapper adds the translated required/format validation the PUB-07 form UX needs, same pattern
@@ -11,7 +12,9 @@ export function registerSchema(t: ReturnType<typeof useTranslation>["t"]) {
   return z.object({
     firstName: z.string().min(1, t("register.firstNameRequired")),
     lastName: z.string().min(1, t("register.lastNameRequired")),
-    phone: z.string().min(1, t("register.phoneRequired")),
+    // S15/R3 — shared with the order form's phone field (lib/validation/phone.schema.ts): the
+    // register form previously had no format rule at all, just this required check.
+    phone: phoneField(t),
     email: z
       .union([z.email(t("register.emailRequired")), z.literal("")])
       .optional()

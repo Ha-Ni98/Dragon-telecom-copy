@@ -1,14 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma, PrismaClient, ReturnType as PrismaReturnType } from '@prisma/client';
 import {
+  InvoiceSource as PrismaInvoiceSource,
   MovementDirection as PrismaMovementDirection,
-  SaleOrigin as PrismaSaleOrigin,
   SaleStatus as PrismaSaleStatus,
 } from '@prisma/client';
 import {
   DocType,
+  InvoiceSource,
   MovementType,
-  SaleOrigin,
+  ReturnResponseSchema,
   SaleResponseSchema,
   UserType,
   paginated,
@@ -17,7 +18,8 @@ import {
   type JWTPayload,
   type PaginatedResult,
   type ReceiptDto,
-  type RepairsEvents,
+  type ReturnDto,
+  type ReturnListQuery,
   type SaleDraftCommand,
   type SaleDto,
   type SaleListQuery,
@@ -27,14 +29,26 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '@
 import { eventBus } from '@common/events/event-bus';
 import type { ConsumptionLine, IInventoryService } from '../inventory/inventory.interface';
 import type { ISequenceService } from '../platform/platform.interface';
-import type { ICatalogPosPricingPort, IClientCreditPort, ISalesService } from './sales.interface';
-import { SalesMapper, type SaleRow } from './sales.mapper';
+import type { IBillingIssuePort, ICatalogPosPricingPort, IClientCreditPort, ISalesService } from './sales.interface';
+import { SalesMapper, type ReturnRow, type SaleRow } from './sales.mapper';
 
 const SALE_INCLUDE = {
   posClient: { select: { name: true, categoryId: true } },
   staff: { select: { firstName: true, lastName: true } },
   lines: true,
 } satisfies Prisma.SaleInclude;
+
+// S12 — the admin Returns tab's read side. Stable order so a return's lines never reshuffle
+// between reads (same rule as orders' ORDER_INCLUDE); the SaleLine join supplies the product
+// identity a ReturnLine lacks.
+const RETURN_INCLUDE = {
+  sale: { select: { reference: true, posClientId: true, posClient: { select: { name: true } } } },
+  staff: { select: { firstName: true, lastName: true } },
+  lines: {
+    orderBy: { id: 'asc' },
+    include: { saleLine: { select: { productId: true, productNameSnapshot: true, unitPrice: true } } },
+  },
+} satisfies Prisma.ReturnInclude;
 
 export class SalesService implements ISalesService {
   constructor(
@@ -43,6 +57,7 @@ export class SalesService implements ISalesService {
     private inventory: IInventoryService,
     private catalogPricing: ICatalogPosPricingPort,
     private clientCredit: IClientCreditPort,
+    private billing: IBillingIssuePort,
   ) {}
 
   async createDraft(cmd: SaleDraftCommand, staffId: string): Promise<SaleDto> {
@@ -80,8 +95,29 @@ export class SalesService implements ISalesService {
     return SalesMapper.toSaleDto(updated as SaleRow, { includeMargins: isAdmin });
   }
 
+  // A DRAFT sale is a scratch document — the POS deletes it outright when the cashier clears the
+  // ticket or removes its last line (S6/I4). Guards mirror updateDraft: owner-or-admin, and DRAFT
+  // only — a COMPLETED sale is an accounting record and can never be deleted here (a return is the
+  // only way to reverse one). SaleLine has no cascade on its Sale relation (schema.prisma), so the
+  // lines are removed first, in the same transaction.
+  async deleteDraft(id: string, actor: JWTPayload): Promise<void> {
+    const existing = await this.prisma.sale.findUnique({ where: { id }, select: { staffId: true, status: true } });
+    if (!existing) throw new NotFoundError('Sale');
+    const isAdmin = actor.type === UserType.ADMIN;
+    if (!isAdmin && existing.staffId !== actor.staffId) throw new ForbiddenError();
+    if (existing.status !== PrismaSaleStatus.DRAFT) throw new ConflictError('Sale is not deletable (not DRAFT)');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.saleLine.deleteMany({ where: { saleId: id } });
+      await tx.sale.delete({ where: { id } });
+    });
+  }
+
   // The transaction (spec BL#2), one prisma.$transaction, idempotent (no second consumption/
   // event on an already-COMPLETED sale — that's surfaced as a 409 instead, per plan §D-5).
+  // S5/R2: the sale, its invoice and its captured payment (when any) are one atomic unit — the
+  // invoice is issued and the payment row created inside THIS transaction via the injected
+  // billing port, never by a post-commit listener re-reading the sale afterward.
   async confirm(id: string, cmd: ConfirmSaleCommand, actor: JWTPayload): Promise<ReceiptDto> {
     const existing = await this.prisma.sale.findUnique({ where: { id }, include: SALE_INCLUDE });
     if (!existing) throw new NotFoundError('Sale');
@@ -117,25 +153,31 @@ export class SalesService implements ISalesService {
     let totalCost = 0;
     let totalProfit = 0;
     let reference = '';
+    let invoiceNumber = '';
+    let capturedPayment: { paymentId: string; previousCredit: number; newCredit: number } | undefined;
     const actingStaffId = actor.staffId!;
+    const lineFigures = new Map<string, { costOfGoods: number; profit: number }>();
 
     await this.prisma.$transaction(async (tx) => {
       capturedTx = tx;
 
+      // 6a — charge the document. The full sale total goes onto credit here; the money taken is
+      // applied separately by the ledger call below (6e) — D5/R1, composed to the pre-S5
+      // arithmetic (plan S5 §0.5).
       if (existing.posClientId != null) {
-        // Written here, inside this same locked transaction, via the injected credit port
-        // (credit-serialization fix, plan §C3) — no post-commit listener applies it.
-        ({ previousCredit, newCredit } = await this.clientCredit.applySaleCharge(tx, existing.posClientId, {
-          totalAmount,
-          paidAmount: cmd.paidAmount,
+        ({ previousCredit, newCredit } = await this.clientCredit.applyDocumentCharge(tx, existing.posClientId, {
+          totalSoldDelta: totalAmount,
+          creditDelta: totalAmount,
         }));
       } else {
-        // No linked PosClient — nothing to charge (the CREDIT_REQUIRES_CLIENT guard above
-        // already guarantees paidAmount >= totalAmount here); previousCredit/newCredit are
-        // still stored on the Sale row itself, same formula as the posClientId branch.
+        // Walk-in: no PosClient row exists, so no credit and no ledger row are possible (D5). The
+        // CREDIT_REQUIRES_CLIENT guard above already forces paidAmount >= totalAmount here, so the
+        // receipt's own previousCredit/newCredit stay 0 → 0; the Sale row's paidAmount is the only
+        // record that money changed hands.
         newCredit = previousCredit + (totalAmount - cmd.paidAmount);
       }
 
+      // 6b — the FIFO loop (unchanged).
       for (const line of existing.lines) {
         const resolvedPrice = priceMap.get(line.productId)!;
         const revenue = line.unitPrice.toNumber() * line.quantity;
@@ -148,14 +190,62 @@ export class SalesService implements ISalesService {
         });
         totalCost += result.costOfGoods;
         totalProfit += result.profit ?? 0;
+        lineFigures.set(line.id, { costOfGoods: result.costOfGoods, profit: result.profit ?? 0 });
         await tx.saleLine.update({
           where: { id: line.id },
           data: { resolvedPrice, costOfGoods: result.costOfGoods, profit: result.profit ?? 0 },
         });
       }
 
+      // 6c — allocate the sale reference. Must stay before the invoice call to preserve the
+      // SALE → INVOICE → CLIENT_PAYMENT sequence-allocation order (plan §0.4).
       reference = await this.sequence.nextNumber(tx, DocType.SALE);
 
+      // 6d — issue the invoice in-transaction (S5/R2). Built from data already in memory — no
+      // re-read of the sale, unlike the deleted post-commit issueFromSale.
+      const issued = await this.billing.issueInvoiceInTx(tx, {
+        ...(existing.posClientId != null ? { posClientId: existing.posClientId } : {}),
+        sourceType: InvoiceSource.SALE,
+        sourceId: existing.id,
+        totalAmount,
+        // A known client's invoice is paid through the ledger (6e), which recomputes this field
+        // from Σ ClientPayment.amount; issuing at 0 keeps the ledger the single writer. A walk-in
+        // has no ledger, so its invoice carries the captured amount directly (D5).
+        paidAmount: existing.posClientId != null ? 0 : cmd.paidAmount,
+        previousCredit,
+        newCredit: previousCredit + (totalAmount - cmd.paidAmount),
+        totalCost,
+        totalProfit,
+        staffId: actingStaffId,
+        lines: existing.lines.map((line) => {
+          const figures = lineFigures.get(line.id)!;
+          return {
+            label: line.productNameSnapshot,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice.toNumber(),
+            costSnapshot: figures.costOfGoods,
+            profit: figures.profit,
+            lineTotal: line.lineTotal.toNumber(),
+            ...(line.serialNumbers != null ? { serialNumbers: line.serialNumbers } : {}),
+          };
+        }),
+      });
+      invoiceNumber = issued.number;
+
+      // 6e — capture the payment. Only when a known client actually paid something; a walk-in's
+      // money is recorded on the invoice/sale directly (D5), never as a ledger row.
+      if (existing.posClientId != null && cmd.paidAmount > 0) {
+        const captured = await this.billing.captureClientPaymentInTx(tx, {
+          posClientId: existing.posClientId,
+          invoiceId: issued.invoiceId,
+          amount: cmd.paidAmount,
+          staffId: actingStaffId,
+        });
+        capturedPayment = captured;
+        newCredit = captured.newCredit; // the post-payment balance is the receipt's newCredit
+      }
+
+      // 6f — write the sale row last, so newCredit reflects the captured payment above.
       await tx.sale.update({
         where: { id },
         data: {
@@ -175,9 +265,10 @@ export class SalesService implements ISalesService {
 
     this.inventory.flushEvents(capturedTx!);
 
+    eventBus.emit('invoice.issued', { invoiceNumber, sourceType: InvoiceSource.SALE, sourceReference: reference });
+
     eventBus.emit('sale.confirmed', {
       saleId: id,
-      origin: SaleOrigin.POS,
       ...(existing.posClientId != null ? { posClientId: existing.posClientId } : {}),
       totalAmount,
       paidAmount: cmd.paidAmount,
@@ -191,6 +282,17 @@ export class SalesService implements ISalesService {
         lineTotal: line.lineTotal.toNumber(),
       })),
     });
+
+    if (capturedPayment != null && existing.posClientId != null) {
+      eventBus.emit('payment.clientRecorded', {
+        paymentId: capturedPayment.paymentId,
+        posClientId: existing.posClientId,
+        invoiceNumber,
+        amount: cmd.paidAmount,
+        previousCredit: capturedPayment.previousCredit,
+        newCredit: capturedPayment.newCredit,
+      });
+    }
 
     const confirmed = await this.prisma.sale.findUniqueOrThrow({ where: { id }, include: SALE_INCLUDE });
     return SalesMapper.toReceiptDto(confirmed as SaleRow);
@@ -209,7 +311,44 @@ export class SalesService implements ISalesService {
     if (!sale) throw new NotFoundError('Sale');
     const isAdmin = actor.type === UserType.ADMIN;
     if (!isAdmin && sale.staffId !== actor.staffId) throw new ForbiddenError();
-    return SalesMapper.toSaleDto(sale as SaleRow, { includeMargins: isAdmin });
+    // S12/F2 — cash actually refunded so far, so the return dialog can show what is still
+    // refundable. Same source of truth createReturn's own cap reads (the negative-amount ledger
+    // rows on this sale's invoice) — kept as a separate helper rather than extracted out of
+    // createReturn, to avoid touching S5's money-path transaction while adding a read-only field.
+    const refundedAmount = await this.cashRefundedSoFar(sale.id);
+    return SalesMapper.toSaleDto(sale as SaleRow, { includeMargins: isAdmin, refundedAmount });
+  }
+
+  // Admin-only route (contract). Read-only: no transaction, no stock, no money — the return
+  // document was fully applied by createReturn (S5's D6/D7 arithmetic).
+  async listReturns(query: ReturnListQuery): Promise<PaginatedResult<ReturnDto>> {
+    const where: Prisma.ReturnWhereInput = {
+      ...(query.saleId != null ? { saleId: query.saleId } : {}),
+      ...(query.from != null || query.to != null
+        ? {
+            returnedAt: {
+              ...(query.from != null ? { gte: new Date(query.from) } : {}),
+              ...(query.to != null ? { lte: new Date(query.to) } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.return.count({ where }),
+      this.prisma.return.findMany({
+        where,
+        include: RETURN_INCLUDE,
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+        orderBy: { returnedAt: 'desc' },
+      }),
+    ]);
+
+    return paginated(ReturnResponseSchema).parse({
+      items: rows.map((row) => SalesMapper.toReturnDto(row as ReturnRow)),
+      meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) },
+    });
   }
 
   // Admin-only route (contract) — quantity ≤ sold − already-returned is checked before opening
@@ -244,12 +383,35 @@ export class SalesService implements ISalesService {
       refundAmount += line.refundAmount;
     }
 
+    // R3/8a — the cash a return can give back is capped by what was actually collected on this
+    // sale, minus cash already refunded for it. The ledger is the source of truth for both: the
+    // sale's own payment row(s) and any earlier refund rows all hang off this sale's invoice.
+    // Without the cap, refunding a sale taken on credit would invent cash that never moved and
+    // drive PosClient.totalPaid negative.
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { sourceType_sourceId: { sourceType: PrismaInvoiceSource.SALE, sourceId: sale.id } },
+      select: { id: true, number: true },
+    });
+    const refundedSoFar = invoice
+      ? Math.abs(
+          (
+            await this.prisma.clientPayment.aggregate({
+              where: { invoiceId: invoice.id, amount: { lt: 0 } },
+              _sum: { amount: true },
+            })
+          )._sum.amount?.toNumber() ?? 0,
+        )
+      : 0;
+    const cashRefundable = Math.max(0, sale.paidAmount.toNumber() - refundedSoFar);
+    const cashRefunded = Math.min(refundAmount, cashRefundable);
+
     let capturedTx: Prisma.TransactionClient | undefined;
     let returnId = '';
-    // Refund reduces what the client owes (PosClient.credit is "owed to the store") — negative,
-    // may push credit negative (store owes the client), mirroring purchasing's own
-    // overpayment-allowed convention.
+    // D7 — net credit delta applied to the client's account by this return (0 on a partial
+    // return, the sale's own credit delta reversed on a full one). Not the raw refund amount any
+    // more (that was the pre-S5 semantics) — see the composed form below.
     let creditEffect = 0;
+    let refundPayment: { paymentId: string; previousCredit: number; newCredit: number } | undefined;
 
     await this.prisma.$transaction(async (tx) => {
       capturedTx = tx;
@@ -298,17 +460,45 @@ export class SalesService implements ISalesService {
       });
 
       if (sale.posClientId != null) {
-        creditEffect = -refundAmount;
-        // Written here, inside this same transaction, via the injected credit port
-        // (credit-serialization fix, plan §C3 — this direct tx.posClient.update was also a
-        // module-boundary violation: PosClient belongs to clients, not sales). The old
-        // clients-listener applied this same creditEffect a second time on every return,
-        // silently double-counting every refund — deleting that handler (below) fixes it too.
-        await this.clientCredit.applyReturnRefund(tx, sale.posClientId, { creditEffect });
+        // D6 — the refund is a NEGATIVE-amount ClientPayment row, so totalPaid stays Σ ledger by
+        // construction. It also recomputes the invoice's paidAmount/status downward.
+        // Skipped entirely when no cash is refundable (a sale taken wholly on credit): there is no
+        // payment to reverse, and a zero-amount ledger row would be noise.
+        if (cashRefunded > 0 && invoice != null) {
+          const captured = await this.billing.captureClientPaymentInTx(tx, {
+            posClientId: sale.posClientId,
+            invoiceId: invoice.id,
+            amount: -cashRefunded,
+            staffId,
+          });
+          refundPayment = captured;
+        }
+
+        // D7 — totalSold always falls by the refunded goods. Credit is deliberately left where it
+        // was on a PARTIAL return, so the -cashRefunded term below exactly cancels the credit rise
+        // the negative ledger row above just applied. A FULL return additionally reverses this
+        // sale's own credit delta (newCredit - previousCredit == totalAmount - paidAmount).
+        const saleCreditDelta = (sale.newCredit?.toNumber() ?? 0) - (sale.previousCredit?.toNumber() ?? 0);
+        creditEffect = -cashRefunded + (allFullyReturned ? -saleCreditDelta : 0);
+        await this.clientCredit.applyDocumentCharge(tx, sale.posClientId, {
+          totalSoldDelta: -refundAmount,
+          creditDelta: creditEffect,
+        });
       }
     });
 
     this.inventory.flushEvents(capturedTx!);
+
+    if (refundPayment != null && sale.posClientId != null) {
+      eventBus.emit('payment.clientRecorded', {
+        paymentId: refundPayment.paymentId,
+        posClientId: sale.posClientId,
+        ...(invoice != null ? { invoiceNumber: invoice.number } : {}),
+        amount: -cashRefunded,
+        previousCredit: refundPayment.previousCredit,
+        newCredit: refundPayment.newCredit,
+      });
+    }
 
     eventBus.emit('return.created', {
       returnId,
@@ -320,96 +510,6 @@ export class SalesService implements ISalesService {
 
     const updated = await this.prisma.sale.findUniqueOrThrow({ where: { id: sale.id }, include: SALE_INCLUDE });
     return SalesMapper.toSaleDto(updated as SaleRow, { includeMargins: true });
-  }
-
-  // Listener-only (never HTTP) — records a repair pickup as a COMPLETED REPAIR-origin sale, no
-  // FIFO re-consumption (the repair already consumed its own parts). Idempotent by repairId via
-  // the Repair.saleId @unique latch: a concurrent/replayed call either finds saleId already set
-  // (short-circuits before any write) or loses the updateMany race (0 rows updated -> throws,
-  // rolling back the just-created sale too).
-  async recordRepairSale(payload: RepairsEvents['repair.pickedUp']): Promise<void> {
-    const result = await this.prisma.$transaction(async (tx) => {
-      const repair = await tx.repair.findUnique({ where: { id: payload.repairId }, select: { saleId: true } });
-      if (!repair) throw new NotFoundError('Repair');
-      if (repair.saleId != null) return null;
-
-      // repair.pickedUp carries no staffId — the most recent status-history row (written by the
-      // repairs module in the same moment it emitted this event) is the acting staff signal.
-      const lastHistory = await tx.repairStatusHistory.findFirst({
-        where: { repairId: payload.repairId },
-        orderBy: { changedAt: 'desc' },
-      });
-      if (!lastHistory) throw new NotFoundError('RepairStatusHistory');
-
-      // Written here, inside this same locked transaction, via the injected credit port
-      // (credit-serialization fix, plan §C3) — no post-commit listener applies it.
-      let previousCredit = 0;
-      let newCredit = 0;
-      if (payload.posClientId != null) {
-        ({ previousCredit, newCredit } = await this.clientCredit.applySaleCharge(tx, payload.posClientId, {
-          totalAmount: payload.totalAmount,
-          paidAmount: payload.paidAmount,
-        }));
-      } else {
-        newCredit = previousCredit + (payload.totalAmount - payload.paidAmount);
-      }
-
-      const reference = await this.sequence.nextNumber(tx, DocType.SALE);
-
-      const sale = await tx.sale.create({
-        data: {
-          reference,
-          ...(payload.posClientId != null ? { posClientId: payload.posClientId } : {}),
-          origin: PrismaSaleOrigin.REPAIR,
-          status: PrismaSaleStatus.COMPLETED,
-          subtotal: payload.totalAmount,
-          totalAmount: payload.totalAmount,
-          paidAmount: payload.paidAmount,
-          previousCredit,
-          newCredit,
-          totalCost: payload.totalCost,
-          totalProfit: payload.totalProfit,
-          soldAt: new Date(),
-          staffId: lastHistory.staffId,
-          lines: {
-            create: payload.snapshotParts.map((part) => ({
-              productId: part.productId,
-              productNameSnapshot: part.productName,
-              quantity: part.quantity,
-              resolvedPrice: part.unitPrice,
-              unitPrice: part.unitPrice,
-              costOfGoods: part.costOfGoods,
-              profit: part.profit,
-              lineTotal: part.lineTotal,
-            })),
-          },
-        },
-      });
-
-      const latch = await tx.repair.updateMany({ where: { id: payload.repairId, saleId: null }, data: { saleId: sale.id } });
-      if (latch.count === 0) throw new ConflictError('Repair already recorded as a sale');
-
-      return { saleId: sale.id, previousCredit, newCredit };
-    });
-
-    if (!result) return;
-
-    eventBus.emit('sale.confirmed', {
-      saleId: result.saleId,
-      origin: SaleOrigin.REPAIR,
-      ...(payload.posClientId != null ? { posClientId: payload.posClientId } : {}),
-      totalAmount: payload.totalAmount,
-      paidAmount: payload.paidAmount,
-      previousCredit: result.previousCredit,
-      newCredit: result.newCredit,
-      snapshotLines: payload.snapshotParts.map((part) => ({
-        productId: part.productId,
-        productName: part.productName,
-        quantity: part.quantity,
-        unitPrice: part.unitPrice,
-        lineTotal: part.lineTotal,
-      })),
-    });
   }
 
   private async listSales(
@@ -459,6 +559,23 @@ export class SalesService implements ISalesService {
       throw new BadRequestError(`Unknown productId: ${missing}`);
     }
     return new Map(products.map((product) => [product.id, product.name]));
+  }
+
+  // S12 — cash actually refunded so far against a sale (Σ of the negative-amount ClientPayment
+  // rows on its invoice), read-only. Mirrors createReturn's own inline cap computation (R3/8a)
+  // rather than replacing it — the two must never drift, but this getter serves getSale alone and
+  // does not touch createReturn's transaction.
+  private async cashRefundedSoFar(saleId: string): Promise<number> {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { sourceType_sourceId: { sourceType: PrismaInvoiceSource.SALE, sourceId: saleId } },
+      select: { id: true },
+    });
+    if (!invoice) return 0;
+    const sum = await this.prisma.clientPayment.aggregate({
+      where: { invoiceId: invoice.id, amount: { lt: 0 } },
+      _sum: { amount: true },
+    });
+    return Math.abs(sum._sum.amount?.toNumber() ?? 0);
   }
 
   // Reconstructs the exact FIFO layers a sale line originally drained (StockMovement +

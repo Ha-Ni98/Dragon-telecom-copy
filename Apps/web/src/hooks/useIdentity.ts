@@ -105,10 +105,12 @@ export function usePages(query: PagesQuery) {
   });
 }
 
-export function useTechnicians() {
+// S18/D-3 — `admin` selects the admin or staff technician-list route; defaults to admin so
+// every existing caller keeps its current behavior.
+export function useTechnicians(admin = true) {
   return useQuery({
-    queryKey: qk.identity.technicians.all(),
-    queryFn: identityService.listTechnicians,
+    queryKey: qk.identity.technicians.list(admin),
+    queryFn: () => identityService.listTechnicians(admin),
   });
 }
 

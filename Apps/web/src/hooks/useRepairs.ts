@@ -4,6 +4,7 @@ import type {
   CreateRepairCommand,
   UpdateRepairCommand,
   AddRepairPartCommand,
+  RecordRepairPaymentCommand,
   RepairStatusCommand,
 } from "@dragon-telecom/contract";
 import * as repairsService from "@/services/repairs.service";
@@ -95,9 +96,10 @@ export function useRemoveRepairPart() {
   });
 }
 
-// Status transitions can carry consumedPartReturns (restock) and, on completion, hand off to a
-// repair-origin sale/invoice — cross-invalidates inventory + billing per plan §3's
-// "repair add-part / status(complete→sale)" row.
+// S13/D8/D9 — PICKED_UP is now the single money moment: parts are consumed, an invoice is
+// issued and a ledger payment may be captured, all inside one backend transaction. No repair-
+// origin sale exists any more (D9) — cross-invalidates inventory (consumption), billing
+// (the new invoice/payments) and clients (credit/totalSold/totalPaid moved).
 export function useUpdateRepairStatus() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -114,6 +116,37 @@ export function useUpdateRepairStatus() {
       queryClient.invalidateQueries({ queryKey: qk.repairs.all() });
       queryClient.invalidateQueries({ queryKey: qk.inventory.all() });
       queryClient.invalidateQueries({ queryKey: qk.billing.all() });
+      queryClient.invalidateQueries({ queryKey: qk.clients.all() });
     },
+  });
+}
+
+// S13/D5 — a cumulative payment at any pre-pickup step; moves the client's credit/totalPaid
+// through the ledger (for a known POS client) the same way a status-changing payment does.
+export function useRecordRepairPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      scope,
+      id,
+      command,
+    }: {
+      scope: RepairsScope;
+      id: string;
+      command: RecordRepairPaymentCommand;
+    }) => repairsService.recordRepairPayment(scope, id, command),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.repairs.all() });
+      queryClient.invalidateQueries({ queryKey: qk.billing.all() });
+      queryClient.invalidateQueries({ queryKey: qk.clients.all() });
+    },
+  });
+}
+
+// S13/R1, scoped by S18/D-3 — the Technicians tab, now shared staff/admin.
+export function useTechnicianRepairStats(scope: RepairsScope) {
+  return useQuery({
+    queryKey: qk.repairs.technicianStats(scope),
+    queryFn: () => repairsService.listTechnicianStats(scope),
   });
 }

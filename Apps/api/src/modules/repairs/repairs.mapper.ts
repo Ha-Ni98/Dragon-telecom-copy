@@ -1,23 +1,40 @@
-import type { Brand, DeviceModel, Prisma, Repair, RepairPart, RepairStatusHistory, Staff, Technician } from '@prisma/client';
+import type { ClientPayment, Brand, DeviceModel, Invoice, Prisma, Repair, RepairPart, RepairStatusHistory, Staff, Technician } from '@prisma/client';
 import {
   RepairResponseSchema,
   RepairStatus,
+  TechnicianRepairStatsResponseSchema,
   type AddRepairPartCommand,
   type CreateRepairCommand,
   type RepairDto,
   type ReportedIssue,
+  type TechnicianRepairStatsDto,
 } from '@dragon-telecom/contract';
 
 type Money = Prisma.Decimal | number;
 
 // brand/model/technician are inlined {id;name} refs (repairs has no catalog dependency in the
-// plan — plan §II.1); history's staffName needs the joined Staff row.
+// plan — plan §II.1); history's staffName needs the joined Staff row. S13 adds payments (the
+// ledger rows taken for this repair) and invoice (the number issued at PICKED_UP).
 export type RepairRow = Repair & {
   brand: Pick<Brand, 'id' | 'name'> | null;
   deviceModel: Pick<DeviceModel, 'id' | 'name'> | null;
   technician: Pick<Technician, 'id' | 'name'> | null;
   parts: RepairPart[];
   history: (RepairStatusHistory & { staff: Pick<Staff, 'firstName' | 'lastName'> })[];
+  payments: ClientPayment[];
+  invoice: Pick<Invoice, 'number'> | null;
+};
+
+export type TechnicianStatsRow = {
+  technicianId: string;
+  technicianName: string;
+  isEnabled: boolean;
+  intakeCount: number;
+  processingCount: number;
+  completedCount: number;
+  pickedUpCount: number;
+  cancelledCount: number;
+  revenue: number;
 };
 
 export type RepairDtoContext = { includeMargins: boolean; now?: Date };
@@ -64,6 +81,14 @@ export class RepairsMapper {
       ...(repair.completedAt != null ? { completedAt: repair.completedAt.toISOString() } : {}),
       ...(repair.pickedUpAt != null ? { pickedUpAt: repair.pickedUpAt.toISOString() } : {}),
       ageHours: RepairsMapper.ageHours(repair.intakeAt, now),
+      ...(repair.invoice != null ? { invoiceNumber: repair.invoice.number } : {}),
+      payments: repair.payments.map((payment) => ({
+        id: payment.id,
+        reference: payment.reference,
+        amount: RepairsMapper.toMoney(payment.amount),
+        paidAt: payment.paidAt.toISOString(),
+        ...(payment.invoiceId != null ? { invoiceId: payment.invoiceId } : {}),
+      })),
       parts: repair.parts.map((part) => ({
         id: part.id,
         productId: part.productId,
@@ -131,6 +156,24 @@ export class RepairsMapper {
 
   static ageHours(since: Date, now: Date = new Date()): number {
     return (now.getTime() - since.getTime()) / 3_600_000;
+  }
+
+  // R1 — the admin Technicians tab. totalRepairs is derived (sum of the five status counts)
+  // rather than a separate query, since every repair has exactly one of those five statuses.
+  static toTechnicianStatsDto(row: TechnicianStatsRow): TechnicianRepairStatsDto {
+    const dto: TechnicianRepairStatsDto = {
+      technicianId: row.technicianId,
+      technicianName: row.technicianName,
+      isEnabled: row.isEnabled,
+      totalRepairs: row.intakeCount + row.processingCount + row.completedCount + row.pickedUpCount + row.cancelledCount,
+      intakeCount: row.intakeCount,
+      processingCount: row.processingCount,
+      completedCount: row.completedCount,
+      pickedUpCount: row.pickedUpCount,
+      cancelledCount: row.cancelledCount,
+      revenue: row.revenue,
+    };
+    return TechnicianRepairStatsResponseSchema.parse(dto);
   }
 
   private static toMoney(value: Money): number {

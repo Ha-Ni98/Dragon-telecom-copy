@@ -5,6 +5,7 @@ import type {
   ConfirmSaleCommand,
   SaleListQuery,
   CreateReturnCommand,
+  ReturnListQuery,
 } from "@dragon-telecom/contract";
 import * as salesService from "@/services/sales.service";
 import type { SalesScope } from "@/services/sales.service";
@@ -55,6 +56,17 @@ export function useUpdateDraft() {
   });
 }
 
+// Drafts don't touch stock/billing — invalidates only the sales domain, same as create/update.
+export function useDeleteDraft() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => salesService.deleteDraft(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.sales.all() });
+    },
+  });
+}
+
 // The money/stock ripple (plan §3 cross-domain invalidation matrix): confirm commits stock
 // movements, issues an invoice, and (for a POS client sale) applies credit.
 export function useConfirmSale() {
@@ -73,11 +85,28 @@ export function useConfirmSale() {
   });
 }
 
+// S12 — the Returns tab, and the return dialog's "already returned per line" lookup
+// (`{ saleId }`). `options.enabled` follows useSales' own precedent: the dialog's query must not
+// fire until a sale is actually selected. S18/D-2 — scoped so staff and admin get separate
+// cache entries and staff can reach its own Returns tab.
+export function useReturns(
+  scope: SalesScope,
+  query: ReturnListQuery,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: qk.sales.returns(scope, query),
+    queryFn: () => salesService.listReturns(scope, query),
+    enabled: options?.enabled,
+  });
+}
+
 // Same ripple as confirm — a return restocks (sometimes) and refunds credit.
 export function useCreateReturn() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (command: CreateReturnCommand) => salesService.createReturn(command),
+    mutationFn: ({ scope, command }: { scope: SalesScope; command: CreateReturnCommand }) =>
+      salesService.createReturn(scope, command),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.sales.all() });
       queryClient.invalidateQueries({ queryKey: qk.inventory.all() });

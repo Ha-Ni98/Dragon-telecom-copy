@@ -1,5 +1,6 @@
 import type { Client, ClientCategory, Commune, PosClient, Prisma, User, Wilaya } from '@prisma/client';
 import {
+  AdminClientOverviewResponseSchema,
   AdminClientResponseSchema,
   CartItemResponseSchema,
   ClientMeResponseSchema,
@@ -7,6 +8,7 @@ import {
   PosClientResponseSchema,
   ValidatePhoneResultResponseSchema,
   type AdminClientDto,
+  type AdminClientOverviewDto,
   type CartItemDto,
   type ClientMeDto,
   type ClientStatsDto,
@@ -44,6 +46,19 @@ export type ClientStatsCounts = {
   approved: number;
   rejected: number;
   newThisMonth: number;
+};
+
+// S8 J4/J2 — the client-detail Overview tab and the clients-list record-payment preview. Money
+// figures are already-resolved numbers (or Decimal) read straight off PosClient by the service —
+// this mapper never re-derives them (D5: the ledger is the source of truth for totalPaid).
+export type AdminClientOverviewInput = {
+  clientId: string;
+  posClientId?: string | null;
+  credit: Money;
+  totalPaid: Money;
+  totalSold: Money;
+  orderCount: number;
+  totalProductQuantity: number;
 };
 
 export class ClientsMapper {
@@ -96,6 +111,7 @@ export class ClientsMapper {
       totalSpent: rollups.totalSpent,
       ...(rollups.lastOrderDate != null ? { lastOrderDate: rollups.lastOrderDate.toISOString() } : {}),
       ...(client.posClientId != null ? { posClientId: client.posClientId } : {}),
+      createdAt: client.createdAt.toISOString(),
     };
     return AdminClientResponseSchema.parse(dto);
   }
@@ -130,6 +146,19 @@ export class ClientsMapper {
 
   static toClientStatsDto(counts: ClientStatsCounts): ClientStatsDto {
     return ClientStatsResponseSchema.parse(counts);
+  }
+
+  static toAdminClientOverviewDto(input: AdminClientOverviewInput): AdminClientOverviewDto {
+    const dto: AdminClientOverviewDto = {
+      clientId: input.clientId,
+      ...(input.posClientId != null ? { posClientId: input.posClientId } : {}),
+      totalSold: ClientsMapper.toMoney(input.totalSold),
+      totalPaid: ClientsMapper.toMoney(input.totalPaid),
+      credit: ClientsMapper.toMoney(input.credit),
+      orderCount: input.orderCount,
+      totalProductQuantity: input.totalProductQuantity,
+    };
+    return AdminClientOverviewResponseSchema.parse(dto);
   }
 
   private static toMoney(value: Money): number {

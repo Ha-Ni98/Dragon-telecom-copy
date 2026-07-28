@@ -22,26 +22,41 @@ import {
   useCreateAdjustment,
 } from "@/hooks/useInventory";
 import { useAdminCatalogProducts } from "@/hooks/useCatalogProducts";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
 import { downloadBlob } from "@/lib/utils";
 
-// ADM-06 — Sprint 5 wiring. Product picker + the adjustment form's system-quantity map both
-// come from `useAdminCatalogProducts` (AdminProductDto already carries `quantityOnHand`) rather
-// than a second `useStock()` call — one fewer query, and it's the same "current on-hand" figure
-// the Stock tab itself renders.
+// ADM-06 — Sprint 5 wiring. The product picker, the adjustment form's system-quantity map and its
+// avgStockPrice map (S4, D10) all come from `useAdminCatalogProducts` (AdminProductDto carries
+// `quantityOnHand` and `avgStockPrice`) rather than a second `useStock()` call — one fewer query,
+// and it's the same "current on-hand" figure the Stock tab itself renders. Known limitation: that
+// query is capped at `limit: 100`, so only the first 100 products are pickable/adjustable here.
 export default function AdminInventory() {
   const { t } = useTranslation();
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [stockSearch, setStockSearch] = useState("");
+  const debouncedStockSearch = useDebouncedValue(stockSearch, 300);
   const [movementFilters, setMovementFilters] = useState<MovementFiltersValue>({});
+  const [movementSearch, setMovementSearch] = useState("");
+  const debouncedMovementSearch = useDebouncedValue(movementSearch, 300);
   const [movementsPage, setMovementsPage] = useState(1);
   const [reservationsPage, setReservationsPage] = useState(1);
 
-  const stock = useStock(lowStockOnly);
+  const stockQuery = useMemo(
+    () => ({ lowStockOnly, search: debouncedStockSearch.trim() || undefined }),
+    [lowStockOnly, debouncedStockSearch],
+  );
+  const stock = useStock(stockQuery);
   const exportStockCsv = useExportStockCsv();
 
   const movementsQuery = useMemo(
-    () => ({ ...movementFilters, page: movementsPage, limit: 20 }),
-    [movementFilters, movementsPage],
+    () => ({
+      ...movementFilters,
+      search: debouncedMovementSearch.trim() || undefined,
+      page: movementsPage,
+      limit: 20,
+    }),
+    [movementFilters, debouncedMovementSearch, movementsPage],
   );
   const movements = useMovements(movementsQuery);
 
@@ -62,9 +77,20 @@ export default function AdminInventory() {
     () => Object.fromEntries((products.data?.items ?? []).map((p) => [p.id, p.quantityOnHand])),
     [products.data],
   );
+  // D10 — the adjustment default and every margin read avgStockPrice (the quantity-weighted
+  // figure), never avgPrice (which is supplier-invoice context only).
+  const avgStockPriceByProductId = useMemo(
+    () => Object.fromEntries((products.data?.items ?? []).map((p) => [p.id, p.avgStockPrice])),
+    [products.data],
+  );
 
   const handleMovementFiltersChange = (value: MovementFiltersValue) => {
     setMovementFilters(value);
+    setMovementsPage(1);
+  };
+
+  const handleMovementSearchChange = (value: string) => {
+    setMovementSearch(value);
     setMovementsPage(1);
   };
 
@@ -112,6 +138,8 @@ export default function AdminInventory() {
             isLoading={stock.isLoading}
             isError={stock.isError}
             onRetry={() => stock.refetch()}
+            search={stockSearch}
+            onSearchChange={setStockSearch}
             lowStockOnly={lowStockOnly}
             onLowStockOnlyChange={setLowStockOnly}
             onExportCsv={handleExportCsv}
@@ -119,7 +147,12 @@ export default function AdminInventory() {
         </TabsContent>
 
         <TabsContent value="movements" className="space-y-4">
-          <InventoryFilters value={movementFilters} onChange={handleMovementFiltersChange} />
+          <InventoryFilters
+            value={movementFilters}
+            onChange={handleMovementFiltersChange}
+            search={movementSearch}
+            onSearchChange={handleMovementSearchChange}
+          />
           <MovementLedgerTable
             data={movements.data?.items ?? []}
             isLoading={movements.isLoading}
@@ -155,6 +188,7 @@ export default function AdminInventory() {
           <AdjustmentForm
             productOptions={productOptions}
             systemQuantityByProductId={systemQuantityByProductId}
+            avgStockPriceByProductId={avgStockPriceByProductId}
             onSubmit={handleAdjustmentSubmit}
             isSubmitting={createAdjustment.isPending}
           />

@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
@@ -24,24 +23,18 @@ const DIRECTION_TONE: Record<MovementDirection, BadgeTone> = {
   [MovementDirection.PENDING]: "warning",
 };
 
-// Reference links to the movement's source document — the plan's own scope confinement notes
-// no destination pages are built here beyond the ones this set already owns, so only the
-// staff-searches route (also this set) is linked; everything else renders as plain text.
+// Plain text — no referenceType ever links to a destination page here (the STAFF_SEARCH branch
+// this used to carry was dead: no service ever writes that referenceType, verified S1 finding
+// F3). RC-4's fix lives entirely on the backend (inventory.service.ts's resolveReferenceLabels) —
+// referenceLabel already carries the resolved human reference by the time it reaches this table.
 function referenceCell(movement: MovementDto) {
-  if (movement.referenceType === "STAFF_SEARCH") {
-    return (
-      <Link to="/admin/activity/staff-searches" className="text-primary hover:underline">
-        {movement.referenceLabel}
-      </Link>
-    );
-  }
   return <span>{movement.referenceLabel}</span>;
 }
 
 // ADM-06 Movement ledger tab — MovementDto (inventory.dtos.ts). `type` is a closed enum with 11
 // members (SUPPLIER_INVOICE/INITIAL_STOCK/ADJUSTMENT_IN/.../PENDING_RELEASE) — rendered as its
-// raw value rather than 11 new translation keys, matching `referenceType`'s own "open string,
-// not a fabricated union" contract convention.
+// raw value rather than 11 new translation keys. `referenceType` (MovementReferenceType) is a
+// closed enum too now (S1, RC-4) — the resolved referenceLabel is what this table actually shows.
 export function MovementLedgerTable({
   data,
   isLoading = false,

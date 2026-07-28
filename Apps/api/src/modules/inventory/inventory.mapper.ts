@@ -7,6 +7,7 @@ import {
   type AdjustmentResultDto,
   type MovementDirection,
   type MovementDto,
+  type MovementReferenceType,
   type MovementType,
   type ReservationDto,
   type ReservationHolderType,
@@ -31,7 +32,7 @@ export type ReservationGroup = {
 export class InventoryMapper {
   static toStockRowDto(product: Product): StockRowDto {
     const available = InventoryMapper.availableQuantity(product);
-    const averageCost = InventoryMapper.toMoney(product.averageCost);
+    const avgStockPrice = InventoryMapper.toMoney(product.avgStockPrice);
     const dto: StockRowDto = {
       productId: product.id,
       name: product.name,
@@ -39,8 +40,8 @@ export class InventoryMapper {
       quantityOnHand: product.quantityOnHand,
       quantityReserved: product.quantityReserved,
       availableQuantity: available,
-      averageCost,
-      stockValue: product.quantityOnHand * averageCost,
+      avgStockPrice,
+      stockValue: product.quantityOnHand * avgStockPrice,
       reorderThreshold: product.reorderThreshold,
       isLow: InventoryMapper.isLow(available, product.reorderThreshold),
     };
@@ -65,7 +66,11 @@ export class InventoryMapper {
       ...(movement.costOfGoods != null ? { costOfGoods: InventoryMapper.toMoney(movement.costOfGoods) } : {}),
       ...(movement.profit != null ? { profit: InventoryMapper.toMoney(movement.profit) } : {}),
       balanceAfter: movement.balanceAfter,
-      referenceType: movement.referenceType,
+      // StockMovement.referenceType is still a plain string column in the schema (S1 only closed
+      // the contract's enum, not the Prisma column) — every writer already only ever stores one
+      // of the closed MovementReferenceType members, so this cast is safe (same convention as
+      // direction/type above).
+      referenceType: movement.referenceType as MovementReferenceType,
       referenceId: movement.referenceId,
       referenceLabel,
       ...(movement.reason != null ? { reason: movement.reason } : {}),
@@ -98,8 +103,9 @@ export class InventoryMapper {
   // StockMovement stores only referenceType/referenceId — no denormalised label column (plan
   // §1.4/§8 #2). The service resolves the per-referenceType join (ADJUSTMENT ->
   // StockAdjustment.reference, PRODUCT -> Product.name, SUPPLIER_INVOICE ->
-  // SupplierInvoice.reference, ...) and passes the result here; reference types whose document
-  // module isn't built yet (SALE/ORDER/REPAIR/RETURN) pass no resolvedName and get this fallback.
+  // SupplierInvoice.reference, SALE/ORDER/REPAIR/RETURN -> their own reference — RC-4) and passes
+  // the result here. This fallback now only fires when the source document was hard-deleted —
+  // every referenceType's owning module exists and is resolved by the service.
   static resolveReferenceLabel(referenceType: string, referenceId: string, resolvedName?: string): string {
     return resolvedName ?? `${referenceType} ${referenceId.slice(0, 8)}`;
   }

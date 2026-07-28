@@ -3,6 +3,7 @@ import { sendSuccess } from '@common/http/response';
 import type {
   ConfirmSaleCommand,
   CreateReturnCommand,
+  ReturnListQuery,
   SaleDraftCommand,
   SaleIdParams,
   SaleListQuery,
@@ -30,6 +31,16 @@ export class SalesController {
       const { id } = req.validated.params as SaleIdParams;
       const result = await this.service.updateDraft(id, req.validated.body as UpdateSaleDraftCommand, req.user!);
       sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteDraft = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as SaleIdParams;
+      await this.service.deleteDraft(id, req.user!);
+      res.status(204).send();
     } catch (error) {
       next(error);
     }
@@ -77,6 +88,14 @@ export class SalesController {
     try {
       const result = await this.service.createReturn(req.validated.body as CreateReturnCommand, req.user!.staffId!);
       sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listReturns = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.service.listReturns(req.validated.query as ReturnListQuery), 200);
     } catch (error) {
       next(error);
     }

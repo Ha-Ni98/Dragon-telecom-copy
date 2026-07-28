@@ -7,7 +7,6 @@ import {
   ORDER_ROUTES,
   UserType,
   PageKey,
-  ConfirmOrderSchema,
   MyOrdersQuerySchema,
   BackofficeOrdersQuerySchema,
   OrderIdParamsSchema,
@@ -16,15 +15,18 @@ import {
   UpdateOrderStatusSchema,
 } from '@dragon-telecom/contract';
 // Direct sibling-module imports — orders depends one-directionally on platform/inventory/
-// catalog/clients (no reverse dependency), the same shape sales/purchasing established in sets
-// 05/06. catalogProductService satisfies ICatalogViewerPricingPort structurally (its
+// catalog/clients/billing (no reverse dependency), the same shape sales/purchasing established
+// in sets 05/06. catalogProductService satisfies ICatalogViewerPricingPort structurally (its
 // getCartProducts method — already public, already consumed this same way by clients'
 // ICatalogCartPort); clientsService satisfies IOrderCreditPort structurally
-// (credit-serialization fix, plan §C4) — no adapter needed for either.
+// (credit-serialization fix, plan §C4); billingService satisfies IBillingIssuePort structurally
+// (issueInvoiceInTx/captureClientPaymentInTx, S5/S10) — no adapter needed for any of them.
+// billing imports only platform and clients, never orders, so no import cycle is created.
 import { sequenceService, deliveryFeeService } from '../platform/platform.routes';
 import { inventoryService } from '../inventory/inventory.routes';
 import { catalogProductService } from '../catalog/catalog.routes';
 import { clientsService } from '../clients/clients.routes';
+import { billingService } from '../billing/billing.routes';
 import { OrdersService } from './orders.service';
 import { OrdersListener } from './orders.listener';
 import { OrdersController } from './orders.controller';
@@ -37,7 +39,15 @@ const CancelOrderSchema = z.object({ reason: z.string().optional() });
 const router = Router();
 
 // 1. Manual DI
-const service = new OrdersService(prisma, deliveryFeeService, inventoryService, sequenceService, catalogProductService, clientsService);
+const service = new OrdersService(
+  prisma,
+  deliveryFeeService,
+  inventoryService,
+  sequenceService,
+  catalogProductService,
+  clientsService,
+  billingService,
+);
 const controller = new OrdersController(service);
 new OrdersListener(service).setup();
 
@@ -67,24 +77,11 @@ router.get(
   controller.listBackoffice,
 );
 
-// STATS registered before the confirm/status/cancel/return :id routes below (specific-before-
-// parametric discipline, plan §I.2) — though no genuine collision exists here since every
-// STATS route is GET while its siblings under the same prefix are POST/PATCH.
+// STATS registered before the status/cancel/return :id routes below (specific-before-parametric
+// discipline, plan §I.2) — though no genuine collision exists here since every STATS route is
+// GET while its siblings under the same prefix are POST/PATCH.
 router.get(ORDER_ROUTES.STAFF_STATS, staffOrdersOrAdmin, controller.getStats);
 router.get(ORDER_ROUTES.ADMIN_STATS, adminOnly, controller.getStats);
-
-router.post(
-  ORDER_ROUTES.STAFF_CONFIRM,
-  staffOrdersOrAdmin,
-  validateRequest({ params: OrderIdParamsSchema, body: ConfirmOrderSchema }),
-  controller.confirmOrder,
-);
-router.post(
-  ORDER_ROUTES.ADMIN_CONFIRM,
-  adminOnly,
-  validateRequest({ params: OrderIdParamsSchema, body: ConfirmOrderSchema }),
-  controller.confirmOrder,
-);
 
 router.patch(
   ORDER_ROUTES.STAFF_STATUS,
@@ -100,14 +97,28 @@ router.patch(
 );
 
 router.post(
-  ORDER_ROUTES.CANCEL,
+  ORDER_ROUTES.ADMIN_CANCEL,
   adminOnly,
   validateRequest({ params: OrderIdParamsSchema, body: CancelOrderSchema }),
   controller.cancelOrder,
 );
 router.post(
-  ORDER_ROUTES.RETURN,
+  ORDER_ROUTES.ADMIN_RETURN,
   adminOnly,
+  validateRequest({ params: OrderIdParamsSchema, body: ReturnOrderSchema }),
+  controller.returnOrder,
+);
+
+// S18/D-1 — staff holding the orders page may cancel and return an order, same as admin.
+router.post(
+  ORDER_ROUTES.STAFF_CANCEL,
+  staffOrdersOrAdmin,
+  validateRequest({ params: OrderIdParamsSchema, body: CancelOrderSchema }),
+  controller.cancelOrder,
+);
+router.post(
+  ORDER_ROUTES.STAFF_RETURN,
+  staffOrdersOrAdmin,
   validateRequest({ params: OrderIdParamsSchema, body: ReturnOrderSchema }),
   controller.returnOrder,
 );

@@ -10,21 +10,29 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft, RefreshCw, RotateCcw } from "lucide-react";
 import type { SupplierDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface SupplierInformationHeaderProps {
   supplier: SupplierDto;
   onRefresh?: () => void;
+  /** S7 I12 — re-enable a disabled supplier; omit or leave undefined when the supplier is
+   *  already enabled (no button renders). */
+  onEnable?: () => void;
 }
 
 // ADM-07 detail — retyped off SupplierDto: `id` (uuid), `name`/`contactName`/`phone`/`email`
 // (was `idSupplier`/`supplierName`/`supplierPersonName`/...). Edit-mode toggle now lives inside
 // `SupplierDetailsSection` itself (self-contained), so this header no longer needs to lift
 // isEditMode/isSaving/hasUnsavedChanges state — export/print/share actions (never implemented,
-// Sub-01 placeholders) are dropped rather than retyped.
-export function SupplierInformationHeader({ supplier, onRefresh }: SupplierInformationHeaderProps) {
+// Sub-01 placeholders) are dropped rather than retyped. S7 I12/I14: a disabled supplier shows a
+// destructive badge and, when `onEnable` is passed, a re-enable button beside Refresh.
+export function SupplierInformationHeader({
+  supplier,
+  onRefresh,
+  onEnable,
+}: SupplierInformationHeaderProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -65,6 +73,9 @@ export function SupplierInformationHeader({ supplier, onRefresh }: SupplierInfor
               <Badge variant="secondary">
                 {supplier.invoiceCount} {t("admin.suppliers.invoices")}
               </Badge>
+              {!supplier.isEnabled && (
+                <Badge variant="destructive">{t("admin.suppliers.disabledBadge")}</Badge>
+              )}
               {supplier.phone && (
                 <>
                   <Separator orientation="vertical" className="h-4" />
@@ -75,12 +86,20 @@ export function SupplierInformationHeader({ supplier, onRefresh }: SupplierInfor
           </div>
         </div>
 
-        {onRefresh && (
-          <Button onClick={onRefresh} variant="outline" size="sm" className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            {t("common.refresh")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!supplier.isEnabled && onEnable && (
+            <Button onClick={onEnable} variant="outline" size="sm" className="gap-2">
+              <RotateCcw className="h-4 w-4" />
+              {t("admin.suppliers.table.enable")}
+            </Button>
+          )}
+          {onRefresh && (
+            <Button onClick={onRefresh} variant="outline" size="sm" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              {t("common.refresh")}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

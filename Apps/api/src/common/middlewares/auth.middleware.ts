@@ -15,6 +15,11 @@ type RequireAuthOptions = {
   // `pages`: STAFF must hold every listed page in their enabled roles' union (DB-checked,
   // mirrors identity's effectivePages); ADMIN always bypasses.
   pages?: PageKey[];
+  // `anyPages` (S18): STAFF must hold at least ONE of the listed pages (OR); ADMIN always
+  // bypasses. Several endpoints back more than one staff page — the product lookup serves the
+  // products, POS and repairs pages; the client-payment list serves invoices and POS clients.
+  // Both options may be combined; each is evaluated independently.
+  anyPages?: PageKey[];
 };
 
 export const requireAuth = (options: RequireAuthOptions = {}) =>
@@ -50,7 +55,11 @@ export const requireAuth = (options: RequireAuthOptions = {}) =>
         throw new ForbiddenError('Insufficient permissions');
       }
 
-      if (options.pages && options.pages.length > 0 && payload.type !== UserType.ADMIN) {
+      const needsPageCheck =
+        payload.type !== UserType.ADMIN &&
+        ((options.pages?.length ?? 0) > 0 || (options.anyPages?.length ?? 0) > 0);
+
+      if (needsPageCheck) {
         const userRoles = await prisma.userRole.findMany({
           where: { userId: payload.sub },
           include: { role: { include: { rolePages: { include: { page: true } } } } },
@@ -60,9 +69,15 @@ export const requireAuth = (options: RequireAuthOptions = {}) =>
           if (!userRole.role.isEnabled) continue;
           for (const rolePage of userRole.role.rolePages) effectiveKeys.add(rolePage.page.key);
         }
-        const missing = options.pages.filter((page) => !effectiveKeys.has(page));
+
+        const missing = (options.pages ?? []).filter((page) => !effectiveKeys.has(page));
         if (missing.length > 0) {
           throw new ForbiddenError('Insufficient permissions', { missingPages: missing });
+        }
+
+        const anyPages = options.anyPages ?? [];
+        if (anyPages.length > 0 && !anyPages.some((page) => effectiveKeys.has(page))) {
+          throw new ForbiddenError('Insufficient permissions', { missingPages: anyPages });
         }
       }
 

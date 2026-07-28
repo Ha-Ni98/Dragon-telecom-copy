@@ -31,8 +31,14 @@ export const SupplierInvoiceResponseSchema = z.object({
   amountOnly: z.number().optional(),
   totalAmount: z.number(),
   paidAmount: z.number(),
+  paidDate: z.iso.datetime().optional(),
   previousCredit: z.number().optional(),
   newCredit: z.number().optional(),
+  // The supplier's credit *right now* — distinct from previousCredit/newCredit, which are the
+  // snapshot bracketing this invoice's own confirm. The record-payment dialog previews
+  // `supplierCredit - amount`; using newCredit there previewed a movement from a stale figure
+  // (S7 F3).
+  supplierCredit: z.number(),
   note: z.string().optional(),
   staffName: z.string(),
   lines: z.array(
@@ -46,7 +52,7 @@ export const SupplierInvoiceResponseSchema = z.object({
       lineTotal: z.number(),
       serialNumbers: z.string().optional(),
       // Projection on DRAFT reads only (spec) — absent once CONFIRMED.
-      projectedNewAverageCost: z.number().optional(),
+      projectedNewAvgStockPrice: z.number().optional(),
     }),
   ),
 });
@@ -61,7 +67,8 @@ export const ConfirmResultResponseSchema = z.object({
     z.object({
       productId: z.uuid(),
       name: z.string(),
-      averageCost: z.number(),
+      avgStockPrice: z.number(),
+      quantityOnHand: z.number().int(),
       current: z.object({
         guestPrice: z.number().optional(),
         defaultSalePrice: z.number().optional(),

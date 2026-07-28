@@ -93,19 +93,28 @@ export default function AdminProductInformation() {
         register={editMode.pricingForm.register}
         control={editMode.pricingForm.control}
         errors={editMode.pricingForm.formState.errors}
+        watch={editMode.pricingForm.watch}
       />
 
-      <div className="grid gap-4 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-4 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)] sm:grid-cols-3 lg:grid-cols-7">
         <StockStat label={t("admin.productInfo.stock.onHand")} value={product.quantityOnHand} />
         <StockStat label={t("admin.productInfo.stock.reserved")} value={product.quantityReserved} />
         <StockStat
           label={t("admin.productInfo.stock.available")}
           value={product.availableQuantity}
         />
-        <StockStat label={t("admin.productInfo.stock.avgCost")} value={product.averageCost} money />
+        {/* Two distinct figures (D10): avgStockPrice is the quantity-weighted moving average that
+            drives margins, adjustment defaults and stock valuation; avgPrice is the unweighted mean
+            of purchase unit costs, shown here and in the supplier-invoice context only. */}
+        <StockStat
+          label={t("admin.productInfo.stock.avgStockPrice")}
+          value={product.avgStockPrice}
+          money
+        />
+        <StockStat label={t("admin.productInfo.stock.avgPrice")} value={product.avgPrice} money />
         <StockStat
           label={t("admin.productInfo.stock.stockValue")}
-          value={product.quantityOnHand * product.averageCost}
+          value={product.quantityOnHand * product.avgStockPrice}
           money
         />
         <StockStat

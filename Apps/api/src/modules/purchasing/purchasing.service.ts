@@ -44,7 +44,7 @@ const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaCl
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
 
 const INVOICE_INCLUDE = {
-  supplier: { select: { name: true } },
+  supplier: { select: { name: true, credit: true } },
   staff: { select: { firstName: true, lastName: true } },
   lines: true,
 } satisfies Prisma.SupplierInvoiceInclude;
@@ -238,10 +238,19 @@ export class PurchasingService implements IPurchasingService {
   }
 
   async createInvoice(cmd: CreateSupplierInvoiceCommand, staffId: string): Promise<SupplierInvoiceDto> {
-    const supplier = await this.prisma.supplier.findUnique({ where: { id: cmd.supplierId }, select: { id: true } });
+    const supplier = await this.prisma.supplier.findUnique({
+      where: { id: cmd.supplierId },
+      select: { id: true, isEnabled: true },
+    });
     if (!supplier) throw new BadRequestError('Unknown supplierId');
+    // A disabled supplier is out of business with the store: no new purchase document may be
+    // opened against it (S7 I13). Existing invoices stay fully readable and payable.
+    if (!supplier.isEnabled) throw new BadRequestError('Supplier is disabled');
 
     const { linesData, totalAmount } = await this.buildInvoiceLines(cmd.lines, cmd.shippingCost ?? 0, cmd.amountOnly);
+    // Defence in depth behind the contract refine — a belt-and-braces check since this figure is
+    // also relied on by confirmInvoice's stock/credit arithmetic (S7 I2/F10).
+    if (totalAmount <= 0) throw new BadRequestError('An invoice must carry goods or an amount above 0');
 
     const created = await this.prisma.supplierInvoice.create({
       data: {
@@ -296,6 +305,11 @@ export class PurchasingService implements IPurchasingService {
       lineWrites = existing.lines.length ? { deleteMany: {} } : undefined;
     }
 
+    // Defence in depth behind the contract refine — updateInvoice composes the patch with the
+    // stored row, so an empty result is reachable through a shape the schema alone can't see
+    // (S7 I2/F10).
+    if (totalAmount <= 0) throw new BadRequestError('An invoice must carry goods or an amount above 0');
+
     await this.prisma.supplierInvoice.update({
       where: { id },
       data: {
@@ -323,7 +337,7 @@ export class PurchasingService implements IPurchasingService {
     const productIds = existing.lines.map((line) => line.productId);
 
     // Double-confirm — no-op (spec: "double-confirm no-op"): adds no layers, emits nothing
-    // again, just recomputes repriceCandidates fresh off the *current* averageCost. This pre-
+    // again, just recomputes repriceCandidates fresh off the *current* avgStockPrice. This pre-
     // lock check handles the common case cheaply; the in-tx re-check below (after the Supplier
     // lock) closes the race where a concurrent confirm on the same supplier commits while this
     // call is still waiting for the lock — same locked-read pattern as the credit write
@@ -442,7 +456,18 @@ export class PurchasingService implements IPurchasingService {
   // --- Payments ---
 
   async listPayments(query: SupplierPaymentListQuery): Promise<PaginatedResult<SupplierPaymentDto>> {
-    const where: Prisma.SupplierPaymentWhereInput = { ...(query.supplierId != null ? { supplierId: query.supplierId } : {}) };
+    const where: Prisma.SupplierPaymentWhereInput = {
+      ...(query.supplierId != null ? { supplierId: query.supplierId } : {}),
+      // S8 J8 — the payments tab's date-range filter.
+      ...(query.from != null || query.to != null
+        ? {
+            paidAt: {
+              ...(query.from != null ? { gte: new Date(query.from) } : {}),
+              ...(query.to != null ? { lte: new Date(query.to) } : {}),
+            },
+          }
+        : {}),
+    };
 
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.supplierPayment.count({ where }),
@@ -478,6 +503,9 @@ export class PurchasingService implements IPurchasingService {
 
     let previousCredit = 0;
     let newCredit = 0;
+    // Same effective date drives both the SupplierPayment row's own paidAt and the invoice's
+    // rollup paidDate (S1, R2) — computed once so the two can never disagree.
+    const effectivePaidAt = cmd.paidAt != null ? new Date(cmd.paidAt) : new Date();
 
     const created = await this.prisma.$transaction(async (tx) => {
       const lockedSupplier = await this.lockSupplier(tx, cmd.supplierId);
@@ -485,14 +513,17 @@ export class PurchasingService implements IPurchasingService {
       newCredit = previousCredit - cmd.amount; // overpayment permitted — negative = supplier owes
 
       // Written here, inside the same locked transaction (credit-serialization fix, plan §C1) —
-      // both the supplier cache and the targeted invoice's paidAmount are purchasing's own data,
-      // so both move with the snapshot computation rather than a post-commit listener.
+      // both the supplier cache and the targeted invoice's paidAmount/paidDate are purchasing's
+      // own data, so both move with the snapshot computation rather than a post-commit listener.
       await tx.supplier.update({
         where: { id: cmd.supplierId },
         data: { credit: newCredit, totalPaid: { increment: cmd.amount } },
       });
       if (invoiceId != null) {
-        await tx.supplierInvoice.update({ where: { id: invoiceId }, data: { paidAmount: { increment: cmd.amount } } });
+        await tx.supplierInvoice.update({
+          where: { id: invoiceId },
+          data: { paidAmount: { increment: cmd.amount }, paidDate: effectivePaidAt },
+        });
       }
 
       const reference = await this.sequence.nextNumber(tx, DocType.SUPPLIER_PAYMENT);
@@ -505,7 +536,7 @@ export class PurchasingService implements IPurchasingService {
           amount: cmd.amount,
           previousCredit,
           newCredit,
-          ...(cmd.paidAt != null ? { paidAt: new Date(cmd.paidAt) } : {}),
+          paidAt: effectivePaidAt,
           staffId,
         },
         include: PAYMENT_INCLUDE,
@@ -615,10 +646,11 @@ export class PurchasingService implements IPurchasingService {
     return Array.from(byProduct.entries()).map(([productId, value]) => ({ productId, ...value }));
   }
 
-  // DRAFT reads carry projectedNewAverageCost per line (spec BL#2); CONFIRMED/CANCELLED don't
-  // project (the average is already real, not projected).
+  // DRAFT reads carry projectedNewAvgStockPrice per line (spec BL#2); CONFIRMED/CANCELLED don't
+  // project (the average is already real, not projected). Projects avgStockPrice specifically —
+  // not avgPrice, which is unaffected by the quantity-weighted formula below (D10).
   private async toInvoiceDtoWithProjection(
-    invoice: SupplierInvoiceRow | (Omit<SupplierInvoiceRow, 'lines'> & { lines: Omit<SupplierInvoiceLineRow, 'projectedNewAverageCost'>[] }),
+    invoice: SupplierInvoiceRow | (Omit<SupplierInvoiceRow, 'lines'> & { lines: Omit<SupplierInvoiceLineRow, 'projectedNewAvgStockPrice'>[] }),
   ): Promise<SupplierInvoiceDto> {
     if (invoice.status !== SupplierInvoiceStatus.DRAFT || invoice.lines.length === 0) {
       return PurchasingMapper.toSupplierInvoiceDto(invoice as SupplierInvoiceRow);
@@ -630,10 +662,10 @@ export class PurchasingService implements IPurchasingService {
     const linesWithProjection: SupplierInvoiceLineRow[] = invoice.lines.map((line) => {
       const basis = basisByProduct.get(line.productId);
       if (!basis) return line;
-      const projectedNewAverageCost =
-        (basis.quantityOnHand * basis.averageCost + line.quantity * line.landedUnitCost.toNumber()) /
+      const projectedNewAvgStockPrice =
+        (basis.quantityOnHand * basis.avgStockPrice + line.quantity * line.landedUnitCost.toNumber()) /
         (basis.quantityOnHand + line.quantity);
-      return { ...line, projectedNewAverageCost };
+      return { ...line, projectedNewAvgStockPrice };
     });
 
     return PurchasingMapper.toSupplierInvoiceDto({ ...invoice, lines: linesWithProjection } as SupplierInvoiceRow);

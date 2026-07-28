@@ -11,7 +11,6 @@ import { PageLoader } from "@/components/shared/PageLoader";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { RouteErrorBoundary } from "@/components/shared/RouteErrorBoundary";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/components/providers/AuthProvider";
 import { useTranslation } from "@/hooks/useTranslation";
 import { setRedirect } from "@/lib/axios";
 
@@ -32,6 +31,7 @@ const StaffProducts = lazy(() => import("@/pages/staff/products/StaffProducts"))
 // the admin variant is a thin wrapper mounting the same tree with scope="admin" (plan.md's
 // twin pattern — one component tree, not a fork).
 const StaffPos = lazy(() => import("@/pages/staff/pos/StaffPos"));
+const StaffPosClients = lazy(() => import("@/pages/staff/pos-clients/StaffPosClients"));
 const StaffOrders = lazy(() => import("@/pages/staff/orders/StaffOrders"));
 const StaffSales = lazy(() => import("@/pages/staff/sales/StaffSales"));
 const StaffInvoices = lazy(() => import("@/pages/staff/invoices/StaffInvoices"));
@@ -76,14 +76,15 @@ const withSuspense = (Component: LazyExoticComponent<ComponentType<Record<string
   </Suspense>
 );
 
-// Not a matched child route, so it can't rely on <Outlet/> resolving to a page — it picks
-// the layout that matches the current session and passes 404 content in as children.
+// Not a matched child route, so it can't rely on <Outlet/> resolving to a page. Deliberately
+// shell-less for every user (S2, G5) — it used to pick AdminLayout for any authenticated
+// session, which meant a signed-in CLIENT hitting a bad URL saw the admin sidebar. A 404 is one
+// screen and needs no navigation chrome regardless of who's looking at it.
 // Exported (PUB-11) so pub-pages Sprint 8's unit test can render it directly.
 export function CatchAllRoute() {
-  const { isAuthenticated } = useAuth();
   const { t } = useTranslation();
-  const content = (
-    <div className="flex min-h-[60vh] items-center justify-center px-4">
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4">
       <NotFoundState
         eyebrow="404"
         title={t("common.errors.notFoundTitle")}
@@ -95,11 +96,6 @@ export function CatchAllRoute() {
         }
       />
     </div>
-  );
-  return isAuthenticated ? (
-    <AdminLayout>{content}</AdminLayout>
-  ) : (
-    <PublicLayout>{content}</PublicLayout>
   );
 }
 
@@ -159,29 +155,24 @@ const router = createBrowserRouter([
     ],
   },
   {
+    // S15 — nested inside PublicLayout so /login and /register get the storefront header/footer
+    // (theme + language toggles live there now; the pages no longer render their own pair).
     element: <PublicOnlyRoute />,
     children: [
       {
-        path: "/login",
-        element: withSuspense(LoginPage),
-        errorElement: (
-          <div className="flex min-h-screen items-center justify-center bg-background px-4">
-            <div className="w-full max-w-md">
-              <RouteErrorBoundary />
-            </div>
-          </div>
-        ),
-      },
-      {
-        path: "/register",
-        element: withSuspense(Register),
-        errorElement: (
-          <div className="flex min-h-screen items-center justify-center bg-background px-4">
-            <div className="w-full max-w-md">
-              <RouteErrorBoundary />
-            </div>
-          </div>
-        ),
+        element: <PublicLayout />,
+        children: [
+          {
+            path: "/login",
+            element: withSuspense(LoginPage),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/register",
+            element: withSuspense(Register),
+            errorElement: <RouteErrorBoundary />,
+          },
+        ],
       },
     ],
   },
@@ -341,6 +332,17 @@ const router = createBrowserRouter([
               {
                 path: "/staff/pos",
                 element: withSuspense(StaffPos),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            // S18/D-5 — the staff POS-clients page (full parity with /admin/pos-clients).
+            element: <PageGuard requires={PageKey.STAFF_POS_CLIENTS} />,
+            children: [
+              {
+                path: "/staff/pos-clients",
+                element: withSuspense(StaffPosClients),
                 errorElement: <RouteErrorBoundary />,
               },
             ],

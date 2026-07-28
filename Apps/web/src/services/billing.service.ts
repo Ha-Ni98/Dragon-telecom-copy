@@ -105,14 +105,19 @@ export async function createClientPayment(
   return res.data.data;
 }
 
-// Admin-only (no STAFF list route exists for payments — confirmed against billing.routes.ts).
+// S18 — scoped: backs the POS-clients drawer's Payments tab in both scopes (D-5), and the
+// staff invoices page if it ever surfaces payments.
 export async function listClientPayments(
+  scope: BillingScope,
   query: ClientPaymentListQuery,
 ): Promise<PaginatedResult<ClientPaymentDto>> {
-  const res = await api.get<ApiResponse<PaginatedResult<ClientPaymentDto>>>(
-    apiPath(BILLING_ROUTES.CLIENT_PAYMENTS_LIST),
-    { params: query },
-  );
+  const route =
+    scope === "admin"
+      ? BILLING_ROUTES.ADMIN_CLIENT_PAYMENTS_LIST
+      : BILLING_ROUTES.STAFF_CLIENT_PAYMENTS_LIST;
+  const res = await api.get<ApiResponse<PaginatedResult<ClientPaymentDto>>>(apiPath(route), {
+    params: query,
+  });
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

@@ -97,8 +97,11 @@ export async function listPages(query: PagesQuery): Promise<PageDto[]> {
   return res.data.data;
 }
 
-export async function listTechnicians(): Promise<TechnicianDto[]> {
-  const res = await api.get<ApiResponse<TechnicianDto[]>>(apiPath(IDENTITY_ROUTES.TECHNICIANS));
+// S18/D-3 — the staff repairs intake assigns a technician too; `admin = true` keeps every
+// existing admin caller unchanged.
+export async function listTechnicians(admin = true): Promise<TechnicianDto[]> {
+  const route = admin ? IDENTITY_ROUTES.TECHNICIANS : IDENTITY_ROUTES.STAFF_TECHNICIANS;
+  const res = await api.get<ApiResponse<TechnicianDto[]>>(apiPath(route));
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

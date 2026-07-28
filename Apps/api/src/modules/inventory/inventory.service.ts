@@ -34,6 +34,11 @@ type BufferedEvent =
   | { name: 'inventory.stockChanged'; payload: { productId: string; onHand: number; reserved: number } }
   | { name: 'inventory.lowStock'; payload: { productId: string; available: number; threshold: number } };
 
+// Which IN movements count as a "purchase receipt" for Product.avgPrice (D10, plan S1 R1).
+// RETURN_IN re-enters stock at the original consumed cost (not a purchase) and ADJUSTMENT_IN's
+// unit cost defaults to avgStockPrice (which would make avgPrice circular) — both excluded.
+const PURCHASE_RECEIPT_TYPES: MovementType[] = [MovementType.SUPPLIER_INVOICE, MovementType.INITIAL_STOCK];
+
 // The FIFO ledger engine — the injected service every document module receives (spec "Injected
 // service [CONTRACT]"). Every method runs inside the *caller's* `tx`; the engine never opens its
 // own transaction. `prisma` is injected but unused directly (every DB call goes through the
@@ -260,8 +265,9 @@ export class InventoryService implements IInventoryService {
   }
 
   // Shared by public addLayer and returnIn's per-cost-group loop — both are IN-direction writes
-  // that recompute averageCost the same way (spec BL#3 applies to every IN movement, RETURN_IN
-  // included).
+  // that recompute avgStockPrice the same way (spec BL#3 applies to every IN movement, RETURN_IN
+  // included). avgPrice (D10) only moves for purchase-receipt types (PURCHASE_RECEIPT_TYPES) —
+  // RETURN_IN and ADJUSTMENT_IN never touch it.
   private async addLayerCore(
     tx: Prisma.TransactionClient,
     productId: string,
@@ -273,8 +279,8 @@ export class InventoryService implements IInventoryService {
     const product = await this.lockProduct(tx, productId);
     const preAvailable = InventoryMapper.availableQuantity(product);
     const newOnHand = product.quantityOnHand + qty;
-    const oldAvg = product.averageCost.toNumber();
-    const newAvg = newOnHand === 0 ? 0 : (product.quantityOnHand * oldAvg + qty * unitCost) / newOnHand;
+    const oldAvgStockPrice = product.avgStockPrice.toNumber();
+    const newAvgStockPrice = newOnHand === 0 ? 0 : (product.quantityOnHand * oldAvgStockPrice + qty * unitCost) / newOnHand;
 
     const movement = await tx.stockMovement.create({
       data: {
@@ -292,7 +298,23 @@ export class InventoryService implements IInventoryService {
       },
     });
 
-    await tx.product.update({ where: { id: productId }, data: { quantityOnHand: newOnHand, averageCost: newAvg } });
+    // Recomputed by aggregate (over every purchase-receipt IN row for this product, including the
+    // one just created) rather than an incremental running mean — this can never drift from its
+    // own definition, and the product lock held since lockProduct() above means no concurrent IN
+    // row can appear mid-computation.
+    let newAvgPrice = product.avgPrice.toNumber();
+    if (PURCHASE_RECEIPT_TYPES.includes(type)) {
+      const receiptAvg = await tx.stockMovement.aggregate({
+        _avg: { unitCost: true },
+        where: { productId, direction: 'IN', type: { in: PURCHASE_RECEIPT_TYPES } },
+      });
+      newAvgPrice = receiptAvg._avg.unitCost?.toNumber() ?? 0;
+    }
+
+    await tx.product.update({
+      where: { id: productId },
+      data: { quantityOnHand: newOnHand, avgStockPrice: newAvgStockPrice, avgPrice: newAvgPrice },
+    });
 
     // addLayer/returnIn only ever increase onHand (available goes up) — never a downward
     // low-stock cross, but the check stays uniform with consumeFifo/reserve for one code path.
@@ -309,9 +331,9 @@ export class InventoryService implements IInventoryService {
   // Locks the Product row for the duration of the caller's transaction (SequenceService's own
   // `SELECT ... FOR UPDATE` precedent — platform.service.ts). Every mutating method above starts
   // here, so this single row lock is the serialization point for a product's entire inventory
-  // state: onHand, reserved, averageCost, and — since nothing else ever writes StockMovement rows
-  // — its FIFO layers too. Concurrent calls for the *same* product queue behind this lock;
-  // different products never contend.
+  // state: onHand, reserved, avgStockPrice, avgPrice, and — since nothing else ever writes
+  // StockMovement rows — its FIFO layers too. Concurrent calls for the *same* product queue
+  // behind this lock; different products never contend.
   private async lockProduct(tx: Prisma.TransactionClient, productId: string): Promise<Product> {
     const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Product" WHERE id = ${productId} FOR UPDATE`;
     if (!rows[0]) throw new NotFoundError('Product');
@@ -355,7 +377,7 @@ const STOCK_ROW_CSV_HEADERS = [
   'quantityOnHand',
   'quantityReserved',
   'availableQuantity',
-  'averageCost',
+  'avgStockPrice',
   'stockValue',
   'reorderThreshold',
   'isLow',
@@ -374,7 +396,18 @@ export class InventoryReadService implements IInventoryReadService {
   ) {}
 
   async getStock(query: StockQuery): Promise<StockRowDto[] | ExportResult> {
-    const products = await this.prisma.product.findMany({ orderBy: { name: 'asc' } });
+    // Name is a case-insensitive substring match; barcode is a prefix match so it can use the
+    // `Product.barcode @unique` btree index (S1 finding F1 — a `contains` predicate could not).
+    // A scanner emits a whole barcode, so `startsWith` also covers the exact-scan case.
+    const where: Prisma.ProductWhereInput = query.search
+      ? {
+          OR: [
+            { name: { contains: query.search, mode: 'insensitive' as const } },
+            { barcode: { startsWith: query.search } },
+          ],
+        }
+      : {};
+    const products = await this.prisma.product.findMany({ where, orderBy: { name: 'asc' } });
     const rows = products.map((product) => InventoryMapper.toStockRowDto(product));
     const filtered = query.lowStockOnly ? rows.filter((row) => row.isLow) : rows;
 
@@ -389,7 +422,7 @@ export class InventoryReadService implements IInventoryReadService {
             row.quantityOnHand,
             row.quantityReserved,
             row.availableQuantity,
-            row.averageCost,
+            row.avgStockPrice,
             row.stockValue,
             row.reorderThreshold,
             row.isLow,
@@ -411,6 +444,18 @@ export class InventoryReadService implements IInventoryReadService {
       ...(query.from || toExclusive
         ? { createdAt: { ...(query.from ? { gte: new Date(query.from) } : {}), ...(toExclusive ? { lt: toExclusive } : {}) } }
         : {}),
+      // Product search — same name/barcode predicate as getStock, applied through the movement's
+      // product relation (StockMovement itself carries no product name or barcode).
+      ...(query.search
+        ? {
+            product: {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' as const } },
+                { barcode: { startsWith: query.search } },
+              ],
+            },
+          }
+        : {}),
     };
 
     const [total, movements] = await Promise.all([
@@ -424,37 +469,73 @@ export class InventoryReadService implements IInventoryReadService {
       }),
     ]);
 
-    // Batch-resolve referenceLabel per distinct referenceType — PRODUCT needs no extra query
-    // (the joined product IS the reference); ADJUSTMENT/SUPPLIER_INVOICE batch-fetch their
-    // document's own reference; any other type (SALE/ORDER/REPAIR/RETURN — modules not yet
-    // built) falls back to the mapper's "type shortId" (plan §1.4, Sprint 1's scope note).
-    const adjustmentIds = movements.filter((m) => m.referenceType === 'ADJUSTMENT').map((m) => m.referenceId);
-    const supplierInvoiceIds = movements.filter((m) => m.referenceType === 'SUPPLIER_INVOICE').map((m) => m.referenceId);
-    const [adjustments, supplierInvoices] = await Promise.all([
+    // RC-4: resolve every movement's source document to its human reference.
+    const labelsByKey = await this.resolveReferenceLabels(movements);
+
+    const items = movements.map((movement) => {
+      const resolvedName =
+        movement.referenceType === 'PRODUCT'
+          ? movement.product.name
+          : labelsByKey.get(`${movement.referenceType}:${movement.referenceId}`);
+      const referenceLabel = InventoryMapper.resolveReferenceLabel(movement.referenceType, movement.referenceId, resolvedName);
+      return InventoryMapper.toMovementDto(movement, movement.product, movement.staff, referenceLabel);
+    });
+
+    return { items, meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) } };
+  }
+
+  // Resolves each movement/reservation's source document to its human reference (ORD-…, SAL-…,
+  // REP-…, RET-…, FAC-…, AJU-…) — RC-4. One batched query per referenceType, keyed by
+  // `${referenceType}:${referenceId}` so the RETURN fallback below can never collide with a
+  // same-id hit from another type.
+  //
+  // RETURN is the awkward one: sales passes the Return.id, orders passes the Order.id and repairs
+  // passes the Repair.id for the very same referenceType (plan S1 finding F2), so it is resolved
+  // by trying all three tables and taking whichever id exists. S10 and S13 should normalise their
+  // writers; until then this fallback chain is the only correct read.
+  private async resolveReferenceLabels(
+    rows: { referenceType: string; referenceId: string }[],
+  ): Promise<Map<string, string>> {
+    const idsOf = (type: string) => rows.filter((r) => r.referenceType === type).map((r) => r.referenceId);
+    const adjustmentIds = idsOf('ADJUSTMENT');
+    const supplierInvoiceIds = idsOf('SUPPLIER_INVOICE');
+    const saleIds = idsOf('SALE');
+    const orderIds = idsOf('ORDER');
+    const repairIds = idsOf('REPAIR');
+    const returnCandidateIds = idsOf('RETURN');
+
+    const [adjustments, supplierInvoices, sales, orders, repairs, returns, returnOrders, returnRepairs] = await Promise.all([
       adjustmentIds.length
         ? this.prisma.stockAdjustment.findMany({ where: { id: { in: adjustmentIds } }, select: { id: true, reference: true } })
         : [],
       supplierInvoiceIds.length
         ? this.prisma.supplierInvoice.findMany({ where: { id: { in: supplierInvoiceIds } }, select: { id: true, reference: true } })
         : [],
+      saleIds.length ? this.prisma.sale.findMany({ where: { id: { in: saleIds } }, select: { id: true, reference: true } }) : [],
+      orderIds.length ? this.prisma.order.findMany({ where: { id: { in: orderIds } }, select: { id: true, reference: true } }) : [],
+      repairIds.length ? this.prisma.repair.findMany({ where: { id: { in: repairIds } }, select: { id: true, reference: true } }) : [],
+      returnCandidateIds.length
+        ? this.prisma.return.findMany({ where: { id: { in: returnCandidateIds } }, select: { id: true, reference: true } })
+        : [],
+      returnCandidateIds.length
+        ? this.prisma.order.findMany({ where: { id: { in: returnCandidateIds } }, select: { id: true, reference: true } })
+        : [],
+      returnCandidateIds.length
+        ? this.prisma.repair.findMany({ where: { id: { in: returnCandidateIds } }, select: { id: true, reference: true } })
+        : [],
     ]);
-    const adjustmentRefById = new Map(adjustments.map((a) => [a.id, a.reference]));
-    const supplierInvoiceRefById = new Map(supplierInvoices.map((s) => [s.id, s.reference]));
 
-    const items = movements.map((movement) => {
-      const resolvedName =
-        movement.referenceType === 'PRODUCT'
-          ? movement.product.name
-          : movement.referenceType === 'ADJUSTMENT'
-            ? adjustmentRefById.get(movement.referenceId)
-            : movement.referenceType === 'SUPPLIER_INVOICE'
-              ? supplierInvoiceRefById.get(movement.referenceId)
-              : undefined;
-      const referenceLabel = InventoryMapper.resolveReferenceLabel(movement.referenceType, movement.referenceId, resolvedName);
-      return InventoryMapper.toMovementDto(movement, movement.product, movement.staff, referenceLabel);
-    });
-
-    return { items, meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) } };
+    const map = new Map<string, string>();
+    for (const a of adjustments) map.set(`ADJUSTMENT:${a.id}`, a.reference);
+    for (const s of supplierInvoices) map.set(`SUPPLIER_INVOICE:${s.id}`, s.reference);
+    for (const s of sales) map.set(`SALE:${s.id}`, s.reference);
+    for (const o of orders) map.set(`ORDER:${o.id}`, o.reference);
+    for (const r of repairs) map.set(`REPAIR:${r.id}`, r.reference);
+    // First hit wins across the three RETURN sources — Return, then Order, then Repair.
+    for (const r of returns) if (!map.has(`RETURN:${r.id}`)) map.set(`RETURN:${r.id}`, r.reference);
+    for (const o of returnOrders) if (!map.has(`RETURN:${o.id}`)) map.set(`RETURN:${o.id}`, o.reference);
+    for (const r of returnRepairs) if (!map.has(`RETURN:${r.id}`)) map.set(`RETURN:${r.id}`, r.reference);
+    return map;
   }
 
   async listReservations(query: ReservationsQuery): Promise<PaginatedResult<ReservationDto>> {
@@ -484,16 +565,21 @@ export class InventoryReadService implements IInventoryReadService {
       : [];
     const productNameById = new Map(products.map((product) => [product.id, product.name]));
 
+    // RC-4: resolve every open holder's reference the same way listMovements does — previously
+    // this passed no resolvedName at all, so every row rendered "ORDER a1b2c3d4".
+    const labelsByKey = await this.resolveReferenceLabels(pageGroups);
+
     const now = new Date();
     const items = pageGroups.map((group) => {
       // Reservations only ever come from ORDER/REPAIR documents (mirrors the engine's own
       // reservationType derivation, inverted) — no third holder type exists.
       const holderType = group.referenceType === 'REPAIR' ? ReservationHolderType.REPAIR : ReservationHolderType.ORDER;
+      const resolvedName = labelsByKey.get(`${group.referenceType}:${group.referenceId}`);
       const reservationGroup: ReservationGroup = {
         productId: group.productId,
         quantity: group._sum.quantity ?? 0,
         holderType,
-        holderReference: InventoryMapper.resolveReferenceLabel(group.referenceType, group.referenceId),
+        holderReference: InventoryMapper.resolveReferenceLabel(group.referenceType, group.referenceId, resolvedName),
         ageHours: InventoryMapper.ageHours(group._min.createdAt ?? now, now),
       };
       return InventoryMapper.toReservationDto(reservationGroup, { name: productNameById.get(group.productId) ?? 'Unknown product' });
@@ -544,7 +630,7 @@ export class InventoryReadService implements IInventoryReadService {
         let lineUnitCost: number | undefined;
 
         if (delta > 0) {
-          lineUnitCost = line.unitCost ?? product.averageCost.toNumber();
+          lineUnitCost = line.unitCost ?? product.avgStockPrice.toNumber();
           const result = await this.engine.addLayer(tx, line.productId, delta, lineUnitCost, MovementType.ADJUSTMENT_IN, ref);
           movementId = result.movementId;
         } else if (delta < 0) {

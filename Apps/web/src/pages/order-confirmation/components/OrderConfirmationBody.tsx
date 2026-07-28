@@ -40,13 +40,25 @@ export function OrderConfirmationBody({ order, isClient }: OrderConfirmationBody
           <span className="text-muted-foreground">{t("orderConfirmation.reference")}</span>
           <span className="font-medium">{order.reference}</span>
         </div>
-        <Separator className="my-3" />
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{t("orderConfirmation.product")}</span>
-          <span className="font-medium">
-            {order.productName} × {order.quantity}
-          </span>
+        <div className="mt-2 flex justify-between text-sm">
+          <span className="text-muted-foreground">{t("product.fullName")}</span>
+          <span className="font-medium">{order.contactName}</span>
         </div>
+        <div className="mt-1 flex justify-between text-sm">
+          <span className="text-muted-foreground">{t("product.phone")}</span>
+          <span className="font-medium">{order.contactPhone}</span>
+        </div>
+        <Separator className="my-3" />
+        {order.lines.map((line, index) => (
+          <div key={line.id} className="flex justify-between text-sm">
+            <span className="text-muted-foreground">
+              {index === 0 ? t("orderConfirmation.product") : ""}
+            </span>
+            <span className="font-medium">
+              {line.productName} × {line.quantity}
+            </span>
+          </div>
+        ))}
         {order.deliveryFee > 0 && (
           <div className="mt-2 flex justify-between text-sm">
             <span className="text-muted-foreground">{t("orders.deliveryFee")}</span>

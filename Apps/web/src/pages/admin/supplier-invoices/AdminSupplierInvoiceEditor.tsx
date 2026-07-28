@@ -26,8 +26,8 @@ import {
 } from "@/pages/admin/supplier-invoices/components/invoice-line-editor";
 import { ConfirmBar } from "@/pages/admin/supplier-invoices/components/confirm-bar";
 import { RepricePrompt } from "@/pages/admin/supplier-invoices/components/reprice-prompt";
-import { InlineCreateProductDialog } from "@/pages/admin/supplier-invoices/components/inline-create-product-dialog";
-import type { InlineCreateProductFormValues } from "@/pages/admin/supplier-invoices/components/inline-create-product.schema";
+import { QuickAddProductDialog } from "@/pages/admin/supplier-invoices/components/quick-add-product-dialog";
+import type { QuickAddProductFormValues } from "@/pages/admin/supplier-invoices/components/quick-add-product.schema";
 import { SupplierPaymentDialog } from "@/pages/admin/invoices/components/SupplierPaymentDialog";
 import type { RecordSupplierPaymentFormValues } from "@/pages/admin/invoices/components/record-supplier-payment.schema";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
@@ -36,7 +36,6 @@ import {
   useCreatePurchasingInvoice,
   useUpdatePurchasingInvoice,
   useConfirmPurchasingInvoice,
-  useCancelPurchasingInvoice,
 } from "@/hooks/usePurchasingInvoices";
 import { useCreatePurchasingPayment } from "@/hooks/usePurchasingPayments";
 import { usePurchasingSuppliers } from "@/hooks/usePurchasingSuppliers";
@@ -45,14 +44,20 @@ import {
   useCreateProduct,
   useUpdatePricing,
 } from "@/hooks/useCatalogProducts";
+import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { useTranslation } from "@/hooks/useTranslation";
 
 type RepriceCandidate = ConfirmResultDto["repriceCandidates"][number];
 
-// ADM-08 (editor) — Sprint 6 wiring. `id === "new"` is the create-flow sentinel (Sprint 2
-// §Risks); `?supplierId=` preselects the supplier from ADM-07's "Add invoice" link. The form's
-// `values` option (not a `useEffect` reset) reactively syncs onto the fetched DRAFT/CONFIRMED
-// DTO once it loads — same reactive-sync convention as EditPosClientDialog (set-04 Sprint 5).
+// ADM-08 (editor) — S7 R1 rewire: DRAFT is no longer a UI state. `id === "new"` is the
+// create-flow sentinel (Sprint 2 §Risks); `?supplierId=` preselects the supplier from ADM-07's
+// "Add invoice" link. Save now creates (or patches) the invoice and immediately confirms it in
+// one click — stock, supplier credit and the real reference all land together — so the page
+// only ever shows a CONFIRMED, read-only invoice once anything has been saved. The create/
+// update/confirm endpoints and hooks are untouched; only this page's use of them changed
+// (I1: "UI only"). The form's `values` option (not a `useEffect` reset) reactively syncs onto
+// the fetched CONFIRMED DTO once it loads — same reactive-sync convention as
+// EditPosClientDialog (set-04 Sprint 5).
 export default function AdminSupplierInvoiceEditor() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -60,8 +65,8 @@ export default function AdminSupplierInvoiceEditor() {
   const { t } = useTranslation();
   const isCreate = id === "new";
 
-  const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
-  const [createProductLineIndex, setCreateProductLineIndex] = useState<number | null>(null);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [quickAddLineIndex, setQuickAddLineIndex] = useState<number | null>(null);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [alreadyConfirmedError, setAlreadyConfirmedError] = useState(false);
@@ -83,12 +88,27 @@ export default function AdminSupplierInvoiceEditor() {
     () => (products.data?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
     [products.data],
   );
+  // I6's two helper texts read the *unweighted* avgPrice (D10 — the supplier-invoice-context
+  // figure), never avgStockPrice, which drives margins instead.
+  const productStockById = useMemo(
+    () =>
+      new Map(
+        (products.data?.items ?? []).map((p) => [
+          p.id,
+          { quantityOnHand: p.quantityOnHand, avgPrice: p.avgPrice },
+        ]),
+      ),
+    [products.data],
+  );
+
+  const clientCategories = useCatalogClientCategories();
 
   const form = useForm<SupplierInvoiceFormValues>({
     resolver: zodResolver(supplierInvoiceSchema(t)),
     defaultValues: {
       supplierId: searchParams.get("supplierId") ?? "",
       invoiceDate: new Date().toISOString().slice(0, 10),
+      shippingCost: 0,
       lines: [{ productId: "", quantity: 1, unitCost: 0 }],
     },
     values:
@@ -133,21 +153,37 @@ export default function AdminSupplierInvoiceEditor() {
   const createInvoice = useCreatePurchasingInvoice();
   const updateInvoice = useUpdatePurchasingInvoice();
   const confirmInvoice = useConfirmPurchasingInvoice();
-  const cancelInvoice = useCancelPurchasingInvoice();
   const createPayment = useCreatePurchasingPayment();
   const createProduct = useCreateProduct();
   const updatePricing = useUpdatePricing();
 
-  const handleSaveDraft = handleSubmit((values) => {
+  // R1 — DRAFT is no longer a UI state: Save creates the invoice and immediately confirms it, so
+  // stock, supplier credit and the real reference all land in one click. The create/update/
+  // confirm endpoints and their hooks are untouched (I1: "UI only").
+  const handleSave = handleSubmit((values) => {
     setAlreadyConfirmedError(false);
     if (isCreate) {
       createInvoice.mutate(values, {
-        onSuccess: (dto) => navigate(`/admin/supplier-invoices/${dto.id}`, { replace: true }),
+        onSuccess: (dto) =>
+          confirmInvoice.mutate(dto.id, {
+            onSuccess: (result) => {
+              setRepriceCandidates(result.repriceCandidates);
+              toast.success(t("admin.supplierInvoices.editor.saveSuccess"));
+              navigate(`/admin/supplier-invoices/${dto.id}`, { replace: true });
+            },
+          }),
       });
     } else if (id) {
       updateInvoice.mutate(
         { id, command: values },
         {
+          onSuccess: () =>
+            confirmInvoice.mutate(id, {
+              onSuccess: (result) => {
+                setRepriceCandidates(result.repriceCandidates);
+                toast.success(t("admin.supplierInvoices.editor.saveSuccess"));
+              },
+            }),
           onError: (err) => {
             if (axios.isAxiosError(err) && err.response?.status === 409) {
               setAlreadyConfirmedError(true);
@@ -158,17 +194,8 @@ export default function AdminSupplierInvoiceEditor() {
     }
   });
 
-  const handleConfirm = () => {
-    if (!id || isCreate) return;
-    confirmInvoice.mutate(id, {
-      onSuccess: (result) => setRepriceCandidates(result.repriceCandidates),
-    });
-  };
-
-  const handleCancel = () => {
-    if (!id || isCreate) return;
-    cancelInvoice.mutate({ id, command: {} });
-  };
+  // I1 — Cancel discards the in-progress form and returns to the list; it writes nothing.
+  const handleCancelEdit = () => navigate("/admin/supplier-invoices");
 
   const handleApplyReprice = (productId: string, values: UpdatePricingCommand) => {
     updatePricing.mutate(
@@ -183,19 +210,19 @@ export default function AdminSupplierInvoiceEditor() {
     setRepriceCandidates((prev) => prev.filter((c) => c.productId !== productId));
   const handleSkipAllReprice = () => setRepriceCandidates([]);
 
-  const handleCreateNewProduct = (index: number) => {
-    setCreateProductLineIndex(index);
-    setIsCreateProductOpen(true);
+  const handleQuickAddProduct = (index: number) => {
+    setQuickAddLineIndex(index);
+    setIsQuickAddOpen(true);
   };
-  const handleSaveNewProduct = (values: InlineCreateProductFormValues) => {
+  const handleSaveNewProduct = (values: QuickAddProductFormValues) => {
     createProduct.mutate(
       { command: values, images: [] },
       {
         onSuccess: (product) => {
-          if (createProductLineIndex !== null) {
-            setValue(`lines.${createProductLineIndex}.productId`, product.id);
+          if (quickAddLineIndex !== null) {
+            setValue(`lines.${quickAddLineIndex}.productId`, product.id);
           }
-          setIsCreateProductOpen(false);
+          setIsQuickAddOpen(false);
         },
       },
     );
@@ -252,10 +279,17 @@ export default function AdminSupplierInvoiceEditor() {
         )}
       </div>
 
-      <form
-        onSubmit={isEditable ? handleSaveDraft : (e) => e.preventDefault()}
-        className="space-y-6"
-      >
+      {/* I7 — the reprice section sits above the invoice information, not below it. */}
+      <RepricePrompt
+        candidates={repriceCandidates}
+        categories={(clientCategories.data ?? []).map((c) => ({ id: c.id, name: c.name }))}
+        onApply={handleApplyReprice}
+        onSkip={handleSkipReprice}
+        onSkipAll={handleSkipAllReprice}
+        isApplying={updatePricing.isPending}
+      />
+
+      <form onSubmit={isEditable ? handleSave : (e) => e.preventDefault()} className="space-y-6">
         <InvoiceHeaderForm
           control={control}
           supplierOptions={supplierOptions}
@@ -279,7 +313,9 @@ export default function AdminSupplierInvoiceEditor() {
                 quantity={watchedLines?.[index]?.quantity ?? 0}
                 unitCost={watchedLines?.[index]?.unitCost ?? 0}
                 onRemove={() => remove(index)}
-                onCreateNewProduct={isEditable ? () => handleCreateNewProduct(index) : undefined}
+                onQuickAddProduct={isEditable ? () => handleQuickAddProduct(index) : undefined}
+                productStock={productStockById.get(watchedLines?.[index]?.productId ?? "")}
+                productNameSnapshot={invoice?.lines[index]?.productNameSnapshot}
                 disabled={!isEditable}
               />
             ))}
@@ -300,28 +336,20 @@ export default function AdminSupplierInvoiceEditor() {
         )}
 
         <ConfirmBar
-          status={status}
-          onSaveDraft={isEditable ? handleSaveDraft : undefined}
-          onConfirm={isEditable && !isCreate ? handleConfirm : undefined}
-          onCancel={!isCreate ? handleCancel : undefined}
-          isSaving={isCreate ? createInvoice.isPending : updateInvoice.isPending}
-          isConfirming={confirmInvoice.isPending}
-          isCancelling={cancelInvoice.isPending}
+          onSave={isEditable ? handleSave : undefined}
+          onCancel={handleCancelEdit}
+          isSaving={
+            isCreate
+              ? createInvoice.isPending || confirmInvoice.isPending
+              : updateInvoice.isPending || confirmInvoice.isPending
+          }
           alreadyConfirmedError={alreadyConfirmedError}
         />
       </form>
 
-      <RepricePrompt
-        candidates={repriceCandidates}
-        onApply={handleApplyReprice}
-        onSkip={handleSkipReprice}
-        onSkipAll={handleSkipAllReprice}
-        isApplying={updatePricing.isPending}
-      />
-
-      <InlineCreateProductDialog
-        open={isCreateProductOpen}
-        onOpenChange={setIsCreateProductOpen}
+      <QuickAddProductDialog
+        open={isQuickAddOpen}
+        onOpenChange={setIsQuickAddOpen}
         onSave={handleSaveNewProduct}
         isSaving={createProduct.isPending}
       />
@@ -335,7 +363,7 @@ export default function AdminSupplierInvoiceEditor() {
           onOpenChange={setIsPaymentOpen}
           supplierId={invoice.supplierId}
           supplierInvoiceReference={invoice.reference}
-          previousCredit={invoice.newCredit ?? 0}
+          previousCredit={invoice.supplierCredit}
           amount={paymentAmount}
           onAmountChange={setPaymentAmount}
           onSubmit={handleSubmitPayment}

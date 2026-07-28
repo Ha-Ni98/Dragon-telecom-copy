@@ -19,3 +19,14 @@ export type SaleReferenceParams = z.infer<typeof SaleReferenceParamsSchema>;
 
 export const SaleIdParamsSchema = z.object({ id: z.uuid() });
 export type SaleIdParams = z.infer<typeof SaleIdParamsSchema>;
+
+// S12 — the admin Returns tab. `saleId` doubles as the return dialog's "already returned per line"
+// lookup (one sale's returns), which is why the list carries its lines inline.
+export const ReturnListQuerySchema = z.object({
+  saleId: z.uuid().optional(),
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type ReturnListQuery = z.infer<typeof ReturnListQuerySchema>;

@@ -54,12 +54,18 @@ export class PlatformMapper {
       store: (byKey.get('store') as SettingsDto['store'] | undefined) ?? DEFAULT_SETTINGS.store,
       invoicing: (byKey.get('invoicing') as SettingsDto['invoicing'] | undefined) ?? DEFAULT_SETTINGS.invoicing,
       delivery: (byKey.get('delivery') as SettingsDto['delivery'] | undefined) ?? DEFAULT_SETTINGS.delivery,
-      storefront: (byKey.get('storefront') as SettingsDto['storefront'] | undefined) ?? DEFAULT_SETTINGS.storefront,
+      // Field-wise, unlike the other three sections: `storefront` gained `featuredFamilyIds` in
+      // S15, and any row written before that carries only `featuredProductIds` — a whole-section
+      // fallback would let that stale row through and fail SettingsResponseSchema.parse below.
+      storefront: {
+        ...DEFAULT_SETTINGS.storefront,
+        ...((byKey.get('storefront') as Partial<SettingsDto['storefront']> | undefined) ?? {}),
+      },
     };
     return SettingsResponseSchema.parse(dto);
   }
 
-  // SETTINGS_PUBLIC route note: "featured products only" — trims an already-assembled
+  // SETTINGS_PUBLIC route note: "featured products and families only" — trims an already-assembled
   // SettingsDto down to the one public-safe section (store/invoicing/delivery stay internal).
   static toPublicSettingsDto(settings: SettingsDto): PublicSettingsDto {
     const dto: PublicSettingsDto = { storefront: settings.storefront };

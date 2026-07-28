@@ -12,10 +12,15 @@ import { qk } from "@/lib/query-keys";
 
 // --- Reads ---
 
-export function useCatalogProducts(query: ProductListQuery) {
+// `options.enabled` (S15) — the header's StorefrontSearch only wants this to fire once the
+// visitor has typed something, matching useStaffProducts' precedent below; omitting `options`
+// keeps every existing caller's always-on behavior (react-query treats `enabled: undefined` as
+// enabled).
+export function useCatalogProducts(query: ProductListQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.catalog.products.list(query),
     queryFn: () => catalogService.listProducts(query),
+    enabled: options?.enabled,
   });
 }
 
@@ -39,10 +44,14 @@ export function useStaffProducts(query: ProductListQuery, options?: { enabled?: 
   });
 }
 
-export function useAdminCatalogProducts(query: ProductListQuery) {
+// `options.enabled` (S17) — the Settings featured-products chip-resolution query must not fire
+// with an empty `ids` string. Every existing single-argument caller keeps its always-on behavior
+// (react-query treats `enabled: undefined` as enabled).
+export function useAdminCatalogProducts(query: ProductListQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.catalog.adminProducts.list(query),
     queryFn: () => catalogService.listAdminProducts(query),
+    enabled: options?.enabled,
   });
 }
 
@@ -62,8 +71,8 @@ export function useProductStats() {
 }
 
 // --- Mutations ---
-// Create/update/pricing/images all cross-invalidate inventory (plan.md §3) — averageCost,
-// quantities, and low-stock status are inventory-owned but rendered on the admin product list.
+// Create/update/pricing/images all cross-invalidate inventory (plan.md §3) — avgStockPrice,
+// avgPrice, quantities, and low-stock status are inventory-owned but rendered on the admin product list.
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();
@@ -129,6 +138,21 @@ export function useUpdateProductImages() {
       catalogService.updateImages(id, command),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.detail(id) });
+    },
+  });
+}
+
+export function useDeleteProductImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, imageId }: { id: string; imageId: string }) =>
+      catalogService.deleteImage(id, imageId),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.detail(id) });
+      // The public/product lists render the primary image, and deleting one can promote a new
+      // primary — so both list caches are stale, not just this product's detail.
+      queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.products.all() });
     },
   });
 }

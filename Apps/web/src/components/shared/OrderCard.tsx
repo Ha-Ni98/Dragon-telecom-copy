@@ -27,11 +27,11 @@ import { formatDZD, formatDateTime } from "@/lib/utils";
 import { CancelOrderDialog } from "@/components/shared/CancelOrderDialog";
 
 // set-02 Sprint 3 retype — was OrderWithDetails (numeric idOrder, multi-line orderLines[],
-// OrderStatusCode's 5 values). OrderDto is single-product (productId/productName/quantity, no
-// line array) and OrderStatus has 7 values (adds PACKAGED, RETURNED). No longer imports
+// OrderStatusCode's 5 values). D1 (S9) brought OrderDto back to multi-line (order.lines[]) and
+// OrderStatus now has 8 values (adds PACKAGED, RETURNED, CANCELLED_BY_CLIENT). No longer imports
 // useOrders() directly — parent owns the useCancelMyOrder() mutation and passes onCancel/
-// isCancelling, matching the established shared-component convention (ProductOrderModal takes
-// onSubmit/isSubmitting rather than owning usePlaceOrder itself).
+// isCancelling, matching the established shared-component convention (OrderPlacementSection
+// takes onSubmit/isSubmitting rather than owning usePlaceOrder itself).
 interface OrderCardProps {
   order: OrderDto;
   onCancel?: () => void;
@@ -46,6 +46,7 @@ const STATUS_ICON: Record<OrderStatus, ReactNode> = {
   [OrderStatus.IN_DELIVERY]: <Truck className="h-4 w-4" />,
   [OrderStatus.COMPLETED]: <BadgeCheck className="h-4 w-4" />,
   [OrderStatus.CANCELLED]: <XCircle className="h-4 w-4" />,
+  [OrderStatus.CANCELLED_BY_CLIENT]: <XCircle className="h-4 w-4" />,
   [OrderStatus.RETURNED]: <Undo2 className="h-4 w-4" />,
 };
 
@@ -56,6 +57,7 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
   [OrderStatus.IN_DELIVERY]: "bg-purple-100 text-purple-800 border-purple-200",
   [OrderStatus.COMPLETED]: "bg-green-100 text-green-800 border-green-200",
   [OrderStatus.CANCELLED]: "bg-red-100 text-red-800 border-red-200",
+  [OrderStatus.CANCELLED_BY_CLIENT]: "bg-red-100 text-red-800 border-red-200",
   [OrderStatus.RETURNED]: "bg-orange-100 text-orange-800 border-orange-200",
 };
 
@@ -66,6 +68,7 @@ const STATUS_LABEL_KEY: Record<OrderStatus, string> = {
   [OrderStatus.IN_DELIVERY]: "orders.delivery",
   [OrderStatus.COMPLETED]: "orders.completed",
   [OrderStatus.CANCELLED]: "orders.cancelled",
+  [OrderStatus.CANCELLED_BY_CLIENT]: "orders.cancelledByClient",
   [OrderStatus.RETURNED]: "orders.returned",
 };
 
@@ -132,7 +135,7 @@ export function OrderCard({
               </div>
               <div className="flex items-center gap-1">
                 <span>
-                  {order.productName} × {order.quantity}
+                  {order.lines.map((line) => `${line.productName} × ${line.quantity}`).join(", ")}
                 </span>
               </div>
             </div>
@@ -171,6 +174,24 @@ export function OrderCard({
         {isExpanded && (
           <div className="mt-4 space-y-4">
             <Separator />
+
+            {/* D11 — unitPrice, the order's current charged price (resolvedPrice is what the
+                catalog showed at placement and never changes). */}
+            <div>
+              <h4 className="font-medium mb-2">{t("orders.items")}</h4>
+              <div className="space-y-1">
+                {order.lines.map((line) => (
+                  <div key={line.id} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {line.productName} × {line.quantity}
+                    </span>
+                    <span>
+                      {formatDZD(line.unitPrice)} · {formatDZD(line.lineTotal)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* Delivery Information */}
             {!isPickup && (

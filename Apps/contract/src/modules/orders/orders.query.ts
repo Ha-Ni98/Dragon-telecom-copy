@@ -13,6 +13,9 @@ export const BackofficeOrdersQuerySchema = z.object({
   search: z.string().optional(),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
+  // S8 J4 — the admin client-detail Orders tab scopes the same list to one registered client.
+  // Order.clientId is the registered Client, not the PosClient the invoice/payment lists key on.
+  clientId: z.uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });

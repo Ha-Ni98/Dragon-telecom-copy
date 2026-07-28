@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Form,
   FormControl,
@@ -11,31 +12,36 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Plus } from "lucide-react";
+import { AlertTriangle, KeyRound } from "lucide-react";
 import {
-  inlineCreateProductSchema,
-  type InlineCreateProductFormValues,
-} from "@/pages/admin/supplier-invoices/components/inline-create-product.schema";
+  changeUserPasswordSchema,
+  type ChangeUserPasswordFormValues,
+} from "@/pages/admin/users/components/change-user-password.schema";
 import { useTranslation } from "@/hooks/useTranslation";
 
-interface InlineCreateProductDialogProps {
+interface ChangePasswordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (values: InlineCreateProductFormValues) => void;
+  username?: string;
+  onSave: (values: ChangeUserPasswordFormValues) => void;
   isSaving?: boolean;
 }
 
-// ADM-08 — dumb (owns only local form state); Sprint 6 wires `useCreateProduct`.
-export function InlineCreateProductDialog({
+// S17 — mirrors pages/admin/clients/components/reset-password-dialog.tsx (warning banner, the
+// change signs the user out everywhere via `shouldRevokeTokens`). Dumb (owns only local form
+// state); AdminUsers.tsx wires it to the existing useUpdateUser mutation — no new backend
+// surface, UpdateUserCommand.password already exists.
+export function ChangePasswordDialog({
   open,
   onOpenChange,
+  username,
   onSave,
   isSaving = false,
-}: InlineCreateProductDialogProps) {
+}: ChangePasswordDialogProps) {
   const { t } = useTranslation();
-  const form = useForm<InlineCreateProductFormValues>({
-    resolver: zodResolver(inlineCreateProductSchema(t)),
-    defaultValues: { name: "", newFamilyName: "", newBrandName: "", initialQuantity: 0 },
+  const form = useForm<ChangeUserPasswordFormValues>({
+    resolver: zodResolver(changeUserPasswordSchema(t)),
+    defaultValues: { password: "", confirmPassword: "" },
   });
 
   return (
@@ -43,20 +49,28 @@ export function InlineCreateProductDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            {t("admin.supplierInvoices.editor.createProduct")}
+            <KeyRound className="h-5 w-5" />
+            {username
+              ? `${t("admin.users.changePassword.title")} ${username}`
+              : t("admin.users.changePassword.title")}
           </DialogTitle>
         </DialogHeader>
+
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{t("admin.users.changePassword.warning")}</AlertDescription>
+        </Alert>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
             <FormField
               control={form.control}
-              name="name"
+              name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("admin.suppliers.productName")}</FormLabel>
+                  <FormLabel>{t("admin.users.changePassword.newPassword")}</FormLabel>
                   <FormControl>
-                    <Input {...field} disabled={isSaving} />
+                    <Input type="password" {...field} disabled={isSaving} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -64,25 +78,12 @@ export function InlineCreateProductDialog({
             />
             <FormField
               control={form.control}
-              name="newFamilyName"
+              name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("admin.settings.hierarchy.tabs.families")}</FormLabel>
+                  <FormLabel>{t("admin.users.changePassword.confirmPassword")}</FormLabel>
                   <FormControl>
-                    <Input {...field} disabled={isSaving} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="newBrandName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("admin.settings.hierarchy.tabs.brands")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled={isSaving} />
+                    <Input type="password" {...field} disabled={isSaving} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

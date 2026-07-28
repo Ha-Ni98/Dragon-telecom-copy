@@ -58,16 +58,18 @@ export const registerModules = (apiRouter: Router): void => {
   apiRouter.use(salesRouter);
   // billing.routes.ts imports sequenceService directly and constructs its own second
   // PlatformService(prisma) for IStoreSettingsPort (platform.routes.ts exports no service
-  // singleton) — same one-directional shape, no adapter needed. No listener registration here:
-  // billing.routes.ts wires its own BillingListener, matching every prior module; clients' and
-  // observability's dormant handlers for invoice.issued/payment.clientRecorded wake automatically.
+  // singleton) — same one-directional shape, no adapter needed. billing has no listener of its
+  // own any more (S10 — every invoice/payment in the codebase is issued in-transaction by its
+  // owning module, none post-commit); clients' and observability's dormant handlers for
+  // invoice.issued/payment.clientRecorded still wake automatically.
   apiRouter.use(billingRouter);
   // orders.routes.ts imports sequenceService/deliveryFeeService/inventoryService/
-  // catalogProductService directly, same one-directional shape (catalogProductService
-  // satisfies ICatalogViewerPricingPort structurally via its getCartProducts method — already
-  // public, already consumed this same way by clients' ICatalogCartPort — no adapter needed).
-  // No listener registration here: orders.routes.ts wires its own OrdersListener, matching
-  // every prior module; billing's/clients'/observability's dormant handlers for
+  // catalogProductService/billingService directly, same one-directional shape
+  // (catalogProductService satisfies ICatalogViewerPricingPort structurally via its
+  // getCartProducts method — already public, already consumed this same way by clients'
+  // ICatalogCartPort; billingService satisfies IBillingIssuePort structurally — no adapter
+  // needed for either). No listener registration here: orders.routes.ts wires its own
+  // OrdersListener, matching every prior module; clients'/observability's dormant handlers for
   // order.confirmed/order.placed/order.statusChanged/order.cancelled/order.returned wake
   // automatically.
   apiRouter.use(ordersRouter);

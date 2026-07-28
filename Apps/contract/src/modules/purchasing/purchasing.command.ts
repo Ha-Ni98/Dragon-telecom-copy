@@ -44,6 +44,12 @@ export const CreateSupplierInvoiceSchema = z
   .refine((d) => (d.amountOnly === undefined) !== (d.lines === undefined), {
     message: 'Exactly one of amountOnly or lines is required',
     path: ['amountOnly'],
+  })
+  // An invoice with neither goods nor money is a junk row: confirming it allocates a real
+  // reference and moves the supplier's credit by 0, permanently (S7 I2/F10).
+  .refine((d) => (d.lines === undefined ? (d.amountOnly ?? 0) > 0 : d.lines.length > 0), {
+    message: 'An invoice must carry at least one line, or an amount-only above 0',
+    path: ['lines'],
   });
 export type CreateSupplierInvoiceCommand = z.infer<typeof CreateSupplierInvoiceSchema>;
 
@@ -61,6 +67,14 @@ export const UpdateSupplierInvoiceSchema = z
   })
   .refine((d) => d.amountOnly === undefined || d.lines === undefined, {
     message: 'amountOnly and lines are mutually exclusive',
+    path: ['amountOnly'],
+  })
+  .refine((d) => d.lines === undefined || d.lines.length > 0, {
+    message: 'An invoice must carry at least one line',
+    path: ['lines'],
+  })
+  .refine((d) => d.amountOnly === undefined || d.amountOnly > 0, {
+    message: 'An amount-only invoice must be above 0',
     path: ['amountOnly'],
   });
 export type UpdateSupplierInvoiceCommand = z.infer<typeof UpdateSupplierInvoiceSchema>;

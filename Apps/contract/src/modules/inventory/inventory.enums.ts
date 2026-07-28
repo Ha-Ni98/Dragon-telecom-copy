@@ -31,3 +31,19 @@ export enum ReservationHolderType {
   ORDER = 'ORDER',
   REPAIR = 'REPAIR',
 }
+
+// StockMovement.referenceType — the source-document kind a movement is attributed to. Closed
+// (not the open string it used to be) because S1's reference resolver must be exhaustive over it,
+// and because the frontend compares against these values directly. Every writer is accounted for:
+// PRODUCT (modules/index.ts's catalog initial-stock adapter), SUPPLIER_INVOICE (purchasing),
+// ADJUSTMENT (inventory), SALE (sales), ORDER (orders), REPAIR (repairs), RETURN (sales, orders
+// and repairs — see the resolver's own note on the three referenceId meanings).
+export enum MovementReferenceType {
+  PRODUCT = 'PRODUCT',
+  SUPPLIER_INVOICE = 'SUPPLIER_INVOICE',
+  ADJUSTMENT = 'ADJUSTMENT',
+  SALE = 'SALE',
+  ORDER = 'ORDER',
+  REPAIR = 'REPAIR',
+  RETURN = 'RETURN',
+}

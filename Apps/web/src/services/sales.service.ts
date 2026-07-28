@@ -14,6 +14,8 @@ import {
   type ReceiptDto,
   type SaleListQuery,
   type CreateReturnCommand,
+  type ReturnDto,
+  type ReturnListQuery,
 } from "@dragon-telecom/contract";
 
 // CREATE_DRAFT/UPDATE_DRAFT/CONFIRM/RETURN are single (non-dual-mounted) routes — only
@@ -35,6 +37,11 @@ export async function updateDraft(id: string, command: UpdateSaleDraftCommand): 
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
+}
+
+// 204, no body — the draft row is gone, there is nothing to map back.
+export async function deleteDraft(id: string): Promise<void> {
+  await api.delete(withParams(apiPath(SALE_ROUTES.DELETE_DRAFT), { id }));
 }
 
 // Returns a ReceiptDto (customer-facing, cost/profit-free) — a different shape from SaleDto,
@@ -68,10 +75,27 @@ export async function getSale(scope: SalesScope, reference: string): Promise<Sal
   return res.data.data;
 }
 
-// Admin-only, single route (no :id/:reference param — CreateReturnCommand carries its own
-// `saleId`, confirmed against sales.routes.ts: RETURN is the bare `/admin/returns`).
-export async function createReturn(command: CreateReturnCommand): Promise<SaleDto> {
-  const res = await api.post<ApiResponse<SaleDto>>(apiPath(SALE_ROUTES.RETURN), command);
+// S18/D-2 — scoped (no :id/:reference param — CreateReturnCommand carries its own `saleId`).
+// Staff holding the sales page gets the Returns tab + issue-return too, same as admin.
+export async function createReturn(
+  scope: SalesScope,
+  command: CreateReturnCommand,
+): Promise<SaleDto> {
+  const route = scope === "admin" ? SALE_ROUTES.ADMIN_RETURN : SALE_ROUTES.STAFF_RETURN;
+  const res = await api.post<ApiResponse<SaleDto>>(apiPath(route), command);
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// Read side of the same route `createReturn` posts to (GET vs POST).
+export async function listReturns(
+  scope: SalesScope,
+  query: ReturnListQuery,
+): Promise<PaginatedResult<ReturnDto>> {
+  const route = scope === "admin" ? SALE_ROUTES.ADMIN_RETURNS_LIST : SALE_ROUTES.STAFF_RETURNS_LIST;
+  const res = await api.get<ApiResponse<PaginatedResult<ReturnDto>>>(apiPath(route), {
+    params: query,
+  });
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ResolvedVsChargedPrice } from "@/components/shared/ResolvedVsChargedPrice";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD, formatDateTime } from "@/lib/utils";
-import { OrderStatus, type OrderDto } from "@dragon-telecom/contract";
+import { OrderStatus, orderTransitionsFrom, type OrderDto } from "@dragon-telecom/contract";
 
 interface OrderShowDialogProps {
   open: boolean;
@@ -13,27 +13,26 @@ interface OrderShowDialogProps {
   /** Live re-check (STF-04 §UI: "live availability re-check") — the caller's own
    * useCatalogProduct(order.productId) read, passed in rather than fetched here. */
   liveAvailableQuantity?: number;
-  /** ADM-09 adds cancel/return; both are absent for scope="staff" (STF-04 §Interactions). */
-  scope?: "staff" | "admin";
-  /** Sprint 6 addition — this dialog is the only place a row's forward-state/cancel/return
-   * actions can be launched from (OrdersTable has no per-row action column); mirrors
-   * SaleDetailDrawer's own action-footer pattern (same cluster, same sprint). Each callback
-   * is optional so the dialog stays a pure read view when none are wired (e.g. tests). */
-  onConfirm?: () => void;
+  /** Sprint 6 addition — this dialog is the only place a row's status/cancel/return actions can
+   * be launched from (OrdersTable has no per-row action column); mirrors SaleDetailDrawer's own
+   * action-footer pattern (same cluster, same sprint). Each callback is optional so the dialog
+   * stays a pure read view when none are wired (e.g. tests). S10/R3 — confirm is folded into
+   * onUpdateStatus (there is no separate confirm action any more). */
   onUpdateStatus?: () => void;
   onCancel?: () => void;
   onReturn?: () => void;
 }
 
 // Dumb, props-only (Sprint 4, action footer added Sprint 6) — Sprint 6 wires this to the row
-// click + a live product read + the mutation dialogs.
+// click + a live product read + the mutation dialogs. S18/D-1 — cancel/return used to be
+// admin-only (`scope === "admin"`); staff holding the orders page gets them too, so the gate
+// (and the now-unused `scope` prop) is gone — presence is decided purely by `onCancel`/`onReturn`
+// being wired, same as `onUpdateStatus`.
 export function OrderShowDialog({
   open,
   onOpenChange,
   order,
   liveAvailableQuantity,
-  scope = "staff",
-  onConfirm,
   onUpdateStatus,
   onCancel,
   onReturn,
@@ -42,12 +41,12 @@ export function OrderShowDialog({
 
   if (!order) return null;
 
-  const showConfirm = order.status === OrderStatus.PENDING && !!onConfirm;
+  // S10/R3 — the status dialog now covers every forward move, including PENDING->CONFIRMED
+  // (confirm is folded in), so the button shows whenever the per-type machine offers any target.
   const showUpdateStatus =
-    !!onUpdateStatus &&
-    [OrderStatus.CONFIRMED, OrderStatus.PACKAGED, OrderStatus.IN_DELIVERY].includes(order.status);
-  const showCancel = scope === "admin" && order.canBeCancelled && !!onCancel;
-  const showReturn = scope === "admin" && order.status === OrderStatus.COMPLETED && !!onReturn;
+    !!onUpdateStatus && orderTransitionsFrom(order.orderType, order.status).length > 0;
+  const showCancel = order.canBeCancelled && !!onCancel;
+  const showReturn = order.status === OrderStatus.COMPLETED && !!onReturn;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,18 +56,23 @@ export function OrderShowDialog({
         </DialogHeader>
 
         <div className="space-y-4 text-sm">
-          <div className="flex items-center justify-between rounded-lg border border-border p-3">
-            <div>
-              <div className="font-medium">{order.productName}</div>
-              <div className="text-muted-foreground">
-                {t("staff.orders.table.quantity")}: {order.quantity}
+          {order.lines.map((line) => (
+            <div
+              key={line.id}
+              className="flex items-center justify-between rounded-lg border border-border p-3"
+            >
+              <div>
+                <div className="font-medium">{line.productName}</div>
+                <div className="text-muted-foreground">
+                  {t("staff.orders.table.quantity")}: {line.quantity}
+                </div>
               </div>
+              <ResolvedVsChargedPrice
+                resolvedPrice={line.resolvedPrice}
+                unitPrice={line.unitPrice}
+              />
             </div>
-            <ResolvedVsChargedPrice
-              resolvedPrice={order.resolvedPrice}
-              unitPrice={order.unitPrice}
-            />
-          </div>
+          ))}
 
           {liveAvailableQuantity != null && (
             <div className="text-muted-foreground">
@@ -126,15 +130,10 @@ export function OrderShowDialog({
             <span>{formatDZD(order.totalAmount, language)}</span>
           </div>
 
-          {(showConfirm || showUpdateStatus || showCancel || showReturn) && (
+          {(showUpdateStatus || showCancel || showReturn) && (
             <>
               <Separator />
               <div className="flex flex-wrap gap-2">
-                {showConfirm && (
-                  <Button size="sm" onClick={onConfirm}>
-                    {t("staff.orders.confirmDialog.submit")}
-                  </Button>
-                )}
                 {showUpdateStatus && (
                   <Button size="sm" variant="outline" onClick={onUpdateStatus}>
                     {t("staff.orders.statusDialog.title")}

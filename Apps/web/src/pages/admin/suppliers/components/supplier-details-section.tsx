@@ -9,6 +9,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Form,
   FormControl,
@@ -24,14 +25,20 @@ interface SupplierDetailsSectionProps {
   supplier: SupplierDto;
   onSave: (data: UpdateSupplierFormValues) => Promise<void>;
   saving?: boolean;
+  /** S7 I14 — a disabled supplier's information is read-only: hides Edit and disables every
+   *  field, regardless of isEditMode. */
+  readOnly?: boolean;
 }
 
 // ADM-07 detail — retyped off SupplierDto; edit-mode is now self-contained (was lifted through
-// the page + header). Validated via the Sprint-1 `updateSupplierSchema` wrapper.
+// the page + header). Validated via the Sprint-1 `updateSupplierSchema` wrapper. S7 I14: the
+// `readOnly` prop (set by the page when the supplier is disabled) suppresses the Edit button
+// and forces every field disabled.
 export function SupplierDetailsSection({
   supplier,
   onSave,
   saving = false,
+  readOnly = false,
 }: SupplierDetailsSectionProps) {
   const { t } = useTranslation();
   const [isEditMode, setIsEditMode] = useState(false);
@@ -68,7 +75,7 @@ export function SupplierDetailsSection({
             </CardTitle>
             <CardDescription>{t("admin.suppliers.detailsDescription")}</CardDescription>
           </div>
-          {!isEditMode && (
+          {!isEditMode && !readOnly && (
             <Button
               onClick={() => setIsEditMode(true)}
               variant="outline"
@@ -82,6 +89,11 @@ export function SupplierDetailsSection({
         </div>
       </CardHeader>
       <CardContent>
+        {readOnly && (
+          <Alert className="mb-4">
+            <AlertDescription>{t("admin.suppliers.disabledReadOnly")}</AlertDescription>
+          </Alert>
+        )}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {(
@@ -103,8 +115,8 @@ export function SupplierDetailsSection({
                     <FormControl>
                       <Input
                         {...field}
-                        disabled={!isEditMode}
-                        className={isEditMode ? "" : "bg-muted"}
+                        disabled={!isEditMode || readOnly}
+                        className={isEditMode && !readOnly ? "" : "bg-muted"}
                       />
                     </FormControl>
                     <FormMessage />
@@ -113,7 +125,7 @@ export function SupplierDetailsSection({
               />
             ))}
 
-            {isEditMode && (
+            {isEditMode && !readOnly && (
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={handleCancel} disabled={saving}>
                   <X className="mr-2 h-4 w-4" />

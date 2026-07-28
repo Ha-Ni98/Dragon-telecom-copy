@@ -854,6 +854,21 @@
     "fr": "Les informations du client ont été mises à jour.",
     "ar": ""
   },
+  "admin.clients.recordPayment.action": {
+    "en": "Record a payment",
+    "fr": "Enregistrer un paiement",
+    "ar": ""
+  },
+  "admin.clients.recordPayment.needsApproval": {
+    "en": "Approve this client first",
+    "fr": "Approuvez d'abord ce client",
+    "ar": ""
+  },
+  "admin.clients.recordPayment.success": {
+    "en": "Payment recorded",
+    "fr": "Paiement enregistré",
+    "ar": ""
+  },
   "admin.clients.networkDescription": {
     "en": "Connecting to server...",
     "fr": "Connexion au serveur...",
@@ -3030,13 +3045,13 @@
     "ar": ""
   },
   "admin.productInfo.imageRemoveError": {
-    "en": "Failed to remove image",
+    "en": "Couldn't remove the image",
     "fr": "Échec de la suppression de l'image",
     "ar": ""
   },
   "admin.productInfo.imageRemoveSuccess": {
-    "en": "Image removed successfully",
-    "fr": "Image supprimée avec succès",
+    "en": "Image removed",
+    "fr": "Image supprimée",
     "ar": ""
   },
   "admin.productInfo.imageUploadError": {
@@ -3090,8 +3105,23 @@
     "ar": ""
   },
   "admin.productInfo.removeImage": {
-    "en": "Remove Image",
-    "fr": "Supprimer l'Image",
+    "en": "Remove image",
+    "fr": "Supprimer l'image",
+    "ar": ""
+  },
+  "admin.productInfo.images.confirmRemove": {
+    "en": "Remove this image?",
+    "fr": "Supprimer cette image ?",
+    "ar": ""
+  },
+  "admin.productInfo.saveSuccess": {
+    "en": "Product saved",
+    "fr": "Produit enregistré",
+    "ar": ""
+  },
+  "admin.productInfo.saveError": {
+    "en": "Couldn't save the product — check the highlighted fields",
+    "fr": "Échec de l'enregistrement — vérifiez les champs signalés",
     "ar": ""
   },
   "admin.productInfo.save": {
@@ -4117,11 +4147,6 @@
   "admin.suppliers.autoCalculatedDescription": {
     "en": "These fields are calculated automatically based on your inputs",
     "fr": "Ces champs sont calculés automatiquement en fonction de vos saisies",
-    "ar": ""
-  },
-  "admin.suppliers.averageQuantity": {
-    "en": "Average Quantity",
-    "fr": "Quantité Moyenne",
     "ar": ""
   },
   "admin.suppliers.basicInformation": {
@@ -5429,6 +5454,16 @@
     "fr": "Suivant",
     "ar": ""
   },
+  "common.margin.label": {
+    "en": "Margin",
+    "fr": "Marge",
+    "ar": ""
+  },
+  "common.margin.noCostBasis": {
+    "en": "No cost basis yet",
+    "fr": "Pas encore de coût de revient",
+    "ar": ""
+  },
   "common.noChanges": {
     "en": "No changes",
     "fr": "Aucun changement",
@@ -6122,6 +6157,11 @@
   "orders.cancelled": {
     "en": "Cancelled",
     "fr": "Annulé",
+    "ar": ""
+  },
+  "orders.cancelledByClient": {
+    "en": "Cancelled by client",
+    "fr": "Annulée par le client",
     "ar": ""
   },
   "orders.completed": {
@@ -7712,6 +7752,11 @@
   "common.actions.clear": {
     "en": "Clear",
     "fr": "Effacer",
+    "ar": ""
+  },
+  "common.actions.clearSelection": {
+    "en": "Clear selection",
+    "fr": "Effacer la sélection",
     "ar": ""
   },
   "common.actions.refresh": {
@@ -9899,6 +9944,11 @@
     "fr": "Commande",
     "ar": ""
   },
+  "invoices.source.repair": {
+    "en": "Repair",
+    "fr": "Réparation",
+    "ar": ""
+  },
   "invoices.status.issued": {
     "en": "Issued",
     "fr": "Émise",
@@ -10284,6 +10334,16 @@
     "fr": "Point de vente",
     "ar": ""
   },
+  "staff.posClients.title": {
+    "en": "POS clients",
+    "fr": "Clients point de vente",
+    "ar": ""
+  },
+  "staff.posClients.description": {
+    "en": "Manage walk-in clients created at the point of sale",
+    "fr": "Gérez les clients de passage créés au point de vente",
+    "ar": ""
+  },
   "staff.pos.search.placeholder": {
     "en": "Scan or search products (F2)",
     "fr": "Scanner ou rechercher des produits (F2)",
@@ -10297,6 +10357,11 @@
   "staff.pos.search.error": {
     "en": "Couldn't load products — retry",
     "fr": "Échec du chargement des produits — réessayer",
+    "ar": ""
+  },
+  "staff.pos.search.defaultPriceLabel": {
+    "en": "Default",
+    "fr": "Par défaut",
     "ar": ""
   },
   "staff.pos.familyQuickPick.title": {
@@ -10409,9 +10474,24 @@
     "fr": "Créer",
     "ar": ""
   },
+  "staff.pos.quickAddClient.categoryLabel": {
+    "en": "Category",
+    "fr": "Catégorie",
+    "ar": ""
+  },
+  "staff.pos.quickAddClient.categoryPlaceholder": {
+    "en": "Select a category",
+    "fr": "Sélectionner une catégorie",
+    "ar": ""
+  },
   "staff.pos.payment.title": {
     "en": "Payment (F4)",
     "fr": "Paiement (F4)",
+    "ar": ""
+  },
+  "staff.pos.payment.creditPreviewLabel": {
+    "en": "Client credit",
+    "fr": "Crédit du client",
     "ar": ""
   },
   "staff.pos.payment.paidAmountLabel": {
@@ -10487,6 +10567,11 @@
   "staff.pos.receipt.print": {
     "en": "Print",
     "fr": "Imprimer",
+    "ar": ""
+  },
+  "staff.pos.receipt.newSale": {
+    "en": "New sale",
+    "fr": "Nouvelle vente",
     "ar": ""
   },
   "admin.pos.pageTitle": {
@@ -10687,6 +10772,46 @@
   "staff.orders.statusDialog.submit": {
     "en": "Update",
     "fr": "Mettre à jour",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.priceSectionTitle": {
+    "en": "Line prices",
+    "fr": "Prix des lignes",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.unitPriceLabel": {
+    "en": "Charged price",
+    "fr": "Prix facturé",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.unitPriceInvalid": {
+    "en": "Charged price must be zero or more",
+    "fr": "Le prix facturé doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.paidAmountLabel": {
+    "en": "Amount paid",
+    "fr": "Montant payé",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.paidAmountInvalid": {
+    "en": "Amount paid must be zero or more",
+    "fr": "Le montant payé doit être égal ou supérieur à zéro",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.paidAmountRequired": {
+    "en": "Enter the amount paid to complete this order",
+    "fr": "Saisissez le montant payé pour terminer cette commande",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.creditRequiresClient": {
+    "en": "A guest order must be paid in full",
+    "fr": "Une commande sans compte client doit être payée intégralement",
+    "ar": ""
+  },
+  "staff.orders.statusDialog.noTransitions": {
+    "en": "No further action is available for this order",
+    "fr": "Aucune action supplémentaire n'est disponible pour cette commande",
     "ar": ""
   },
   "admin.orders.pageTitle": {
@@ -11089,6 +11214,26 @@
     "fr": "Paiements",
     "ar": ""
   },
+  "admin.invoices.filters.from": {
+    "en": "From",
+    "fr": "Du",
+    "ar": ""
+  },
+  "admin.invoices.filters.to": {
+    "en": "To",
+    "fr": "Au",
+    "ar": ""
+  },
+  "admin.invoices.filters.source": {
+    "en": "Source",
+    "fr": "Source",
+    "ar": ""
+  },
+  "admin.invoices.filters.allSources": {
+    "en": "All sources",
+    "fr": "Toutes les sources",
+    "ar": ""
+  },
   "admin.invoices.outgoing.table.averageCost": {
     "en": "Current avg. cost",
     "fr": "Coût moyen actuel",
@@ -11489,16 +11634,6 @@
     "fr": "Le montant payé est requis",
     "ar": ""
   },
-  "staff.repairs.statusDialog.consumedPartReturnsLabel": {
-    "en": "Restock choice per part",
-    "fr": "Choix de réapprovisionnement par pièce",
-    "ar": ""
-  },
-  "staff.repairs.statusDialog.consumedPartReturnsRequired": {
-    "en": "Choose a restock option for every consumed part",
-    "fr": "Choisissez une option de réapprovisionnement pour chaque pièce consommée",
-    "ar": ""
-  },
   "staff.repairs.statusDialog.submit": {
     "en": "Update status",
     "fr": "Mettre à jour le statut",
@@ -11507,6 +11642,151 @@
   "staff.repairs.statusDialog.dragRejected": {
     "en": "That move isn't allowed",
     "fr": "Ce déplacement n'est pas autorisé",
+    "ar": ""
+  },
+  "staff.repairs.board.dateFrom": {
+    "en": "From",
+    "fr": "Du",
+    "ar": ""
+  },
+  "staff.repairs.board.dateTo": {
+    "en": "To",
+    "fr": "Au",
+    "ar": ""
+  },
+  "staff.repairs.detail.readOnly": {
+    "en": "This repair is closed — no further edits",
+    "fr": "Cette réparation est clôturée — plus de modifications possibles",
+    "ar": ""
+  },
+  "staff.repairs.detail.invoiceNumber": {
+    "en": "Invoice",
+    "fr": "Facture",
+    "ar": ""
+  },
+  "staff.repairs.detail.amountDue": {
+    "en": "Amount due",
+    "fr": "Montant dû",
+    "ar": ""
+  },
+  "staff.repairs.addPart.productPlaceholder": {
+    "en": "Search a product",
+    "fr": "Rechercher un produit",
+    "ar": ""
+  },
+  "staff.repairs.addPart.productRequired": {
+    "en": "Select a product",
+    "fr": "Sélectionnez un produit",
+    "ar": ""
+  },
+  "staff.repairs.addPart.noResults": {
+    "en": "No matching product",
+    "fr": "Aucun produit correspondant",
+    "ar": ""
+  },
+  "staff.repairs.intake.brandPlaceholder": {
+    "en": "Search or add a brand",
+    "fr": "Rechercher ou ajouter une marque",
+    "ar": ""
+  },
+  "staff.repairs.intake.modelPlaceholder": {
+    "en": "Search or add a model",
+    "fr": "Rechercher ou ajouter un modèle",
+    "ar": ""
+  },
+  "staff.repairs.intake.modelBrandFirst": {
+    "en": "Choose a brand first",
+    "fr": "Choisissez d'abord une marque",
+    "ar": ""
+  },
+  "staff.repairs.payments.title": {
+    "en": "Payments",
+    "fr": "Paiements",
+    "ar": ""
+  },
+  "staff.repairs.payments.empty": {
+    "en": "No payments recorded",
+    "fr": "Aucun paiement enregistré",
+    "ar": ""
+  },
+  "staff.repairs.payments.walkIn": {
+    "en": "Walk-in customer — no client ledger",
+    "fr": "Client de passage — aucun registre client",
+    "ar": ""
+  },
+  "staff.repairs.payments.record": {
+    "en": "Record payment",
+    "fr": "Enregistrer un paiement",
+    "ar": ""
+  },
+  "staff.repairs.payments.amountLabel": {
+    "en": "Amount",
+    "fr": "Montant",
+    "ar": ""
+  },
+  "staff.repairs.payments.amountInvalid": {
+    "en": "Amount must be above zero",
+    "fr": "Le montant doit être supérieur à zéro",
+    "ar": ""
+  },
+  "staff.repairs.payments.submit": {
+    "en": "Record payment",
+    "fr": "Enregistrer le paiement",
+    "ar": ""
+  },
+  "staff.repairs.payments.success": {
+    "en": "Payment recorded",
+    "fr": "Paiement enregistré",
+    "ar": ""
+  },
+  "staff.repairs.payments.refundRow": {
+    "en": "Refund",
+    "fr": "Remboursement",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.paymentAmountLabel": {
+    "en": "Amount collected now",
+    "fr": "Montant encaissé maintenant",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.paymentAmountInvalid": {
+    "en": "Amount must be zero or more",
+    "fr": "Le montant doit être supérieur ou égal à zéro",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.paymentAmountRequired": {
+    "en": "Collect the remaining amount to complete the pickup",
+    "fr": "Encaissez le montant restant pour finaliser la récupération",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.nothingDue": {
+    "en": "Fully paid — nothing left to collect",
+    "fr": "Entièrement payé — rien à encaisser",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.refundAmountLabel": {
+    "en": "Amount to return",
+    "fr": "Montant à rembourser",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.refundAmountInvalid": {
+    "en": "Amount must be zero or more",
+    "fr": "Le montant doit être supérieur ou égal à zéro",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.refundHelp": {
+    "en": "This repair collected {amount}. Returning it records a refund.",
+    "fr": "Cette réparation a encaissé {amount}. Le rembourser enregistre un remboursement.",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.cancel": {
+    "en": "Cancel",
+    "fr": "Annuler",
+    "ar": ""
+  },
+  "staff.repairs.errors.readOnly": {
+    "en": "This repair is closed and can no longer be changed",
+    "fr": "Cette réparation est clôturée et ne peut plus être modifiée",
     "ar": ""
   },
   "admin.repairs.pageTitle": {
@@ -11522,6 +11802,76 @@
   "admin.repairs.detail.profit": {
     "en": "Profit",
     "fr": "Profit",
+    "ar": ""
+  },
+  "admin.repairs.tabs.board": {
+    "en": "Board",
+    "fr": "Tableau",
+    "ar": ""
+  },
+  "admin.repairs.tabs.technicians": {
+    "en": "Technicians",
+    "fr": "Techniciens",
+    "ar": ""
+  },
+  "admin.repairs.technicians.title": {
+    "en": "Technicians",
+    "fr": "Techniciens",
+    "ar": ""
+  },
+  "admin.repairs.technicians.add": {
+    "en": "Add technician",
+    "fr": "Ajouter un technicien",
+    "ar": ""
+  },
+  "admin.repairs.technicians.nameLabel": {
+    "en": "Name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "admin.repairs.technicians.nameRequired": {
+    "en": "Name is required",
+    "fr": "Le nom est requis",
+    "ar": ""
+  },
+  "admin.repairs.technicians.phoneLabel": {
+    "en": "Phone (optional)",
+    "fr": "Téléphone (optionnel)",
+    "ar": ""
+  },
+  "admin.repairs.technicians.submit": {
+    "en": "Add technician",
+    "fr": "Ajouter le technicien",
+    "ar": ""
+  },
+  "admin.repairs.technicians.success": {
+    "en": "Technician added",
+    "fr": "Technicien ajouté",
+    "ar": ""
+  },
+  "admin.repairs.technicians.empty": {
+    "en": "No technicians yet",
+    "fr": "Aucun technicien pour le moment",
+    "ar": ""
+  },
+  "admin.repairs.technicians.error": {
+    "en": "Couldn't load technicians — retry",
+    "fr": "Impossible de charger les techniciens — réessayez",
+    "ar": ""
+  },
+  "admin.repairs.technicians.disabled": {
+    "en": "Disabled",
+    "fr": "Désactivé",
+    "ar": ""
+  },
+  "admin.repairs.technicians.columns.total": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "admin.repairs.technicians.columns.revenue": {
+    "en": "Revenue",
+    "fr": "Revenu",
     "ar": ""
   },
   "admin.productsList.pageTitle": {
@@ -11555,8 +11905,8 @@
     "ar": ""
   },
   "admin.productsList.filters.search": {
-    "en": "Search products",
-    "fr": "Rechercher des produits",
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
     "ar": ""
   },
   "admin.productsList.filters.family": {
@@ -11615,8 +11965,28 @@
     "ar": ""
   },
   "admin.productsList.table.avgCost": {
-    "en": "Avg. cost",
-    "fr": "Coût moyen",
+    "en": "Avg. stock price",
+    "fr": "Prix de stock moyen",
+    "ar": ""
+  },
+  "admin.productsList.table.guestPrice": {
+    "en": "Guest price",
+    "fr": "Prix invité",
+    "ar": ""
+  },
+  "admin.productsList.table.defaultPrice": {
+    "en": "Default price",
+    "fr": "Prix par défaut",
+    "ar": ""
+  },
+  "admin.productsList.tabs.stock": {
+    "en": "Stock",
+    "fr": "Stock",
+    "ar": ""
+  },
+  "admin.productsList.tabs.prices": {
+    "en": "Prices",
+    "fr": "Prix",
     "ar": ""
   },
   "admin.productsList.table.stockBadge": {
@@ -11647,6 +12017,11 @@
   "admin.productsList.table.error": {
     "en": "Couldn't load products — retry",
     "fr": "Échec du chargement des produits — réessayer",
+    "ar": ""
+  },
+  "admin.productsAdd.createSuccess": {
+    "en": "Product created",
+    "fr": "Produit créé",
     "ar": ""
   },
   "admin.productsAdd.pageTitle": {
@@ -11794,11 +12169,6 @@
     "fr": "Prix par catégorie",
     "ar": ""
   },
-  "admin.productsAdd.marginLabel": {
-    "en": "Margin",
-    "fr": "Marge",
-    "ar": ""
-  },
   "admin.productsAdd.pricingRequiresStock": {
     "en": "Pricing requires initial stock",
     "fr": "La tarification nécessite un stock initial",
@@ -11879,9 +12249,14 @@
     "fr": "Disponible",
     "ar": ""
   },
-  "admin.productInfo.stock.avgCost": {
-    "en": "Avg. cost",
-    "fr": "Coût moyen",
+  "admin.productInfo.stock.avgStockPrice": {
+    "en": "Avg. stock price",
+    "fr": "Prix de stock moyen",
+    "ar": ""
+  },
+  "admin.productInfo.stock.avgPrice": {
+    "en": "Avg. purchase price",
+    "fr": "Prix d'achat moyen",
     "ar": ""
   },
   "admin.productInfo.stock.stockValue": {
@@ -12079,6 +12454,31 @@
     "fr": "Quantité",
     "ar": ""
   },
+  "admin.inventory.stock.table.reservedQuantity": {
+    "en": "Reserved qty",
+    "fr": "Qté réservée",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.availableQuantity": {
+    "en": "Available",
+    "fr": "Disponible",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.avgStockPrice": {
+    "en": "Avg. stock price",
+    "fr": "Prix de stock moyen",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.totalCost": {
+    "en": "Total cost",
+    "fr": "Coût total",
+    "ar": ""
+  },
+  "admin.inventory.stock.filters.search": {
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
+    "ar": ""
+  },
   "admin.inventory.stock.table.lowStock": {
     "en": "Low stock",
     "fr": "Stock faible",
@@ -12147,6 +12547,11 @@
   "admin.inventory.movements.filters.product": {
     "en": "Product",
     "fr": "Produit",
+    "ar": ""
+  },
+  "admin.inventory.movements.filters.search": {
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
     "ar": ""
   },
   "admin.inventory.movements.filters.type": {
@@ -12259,6 +12664,16 @@
     "fr": "Coût unitaire",
     "ar": ""
   },
+  "admin.inventory.adjustment.avgStockPriceHint": {
+    "en": "The average price is {price}",
+    "fr": "Le prix moyen est {price}",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.avgStockPriceUnknown": {
+    "en": "No average price yet — enter the unit cost",
+    "fr": "Aucun prix moyen — saisissez le coût unitaire",
+    "ar": ""
+  },
   "admin.inventory.adjustment.submit": {
     "en": "Post adjustment",
     "fr": "Enregistrer l'ajustement",
@@ -12332,6 +12747,21 @@
   "admin.supplierInvoices.table.amount": {
     "en": "Amount",
     "fr": "Montant",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.supplierReference": {
+    "en": "Supplier ref.",
+    "fr": "Réf. fournisseur",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.paidAmount": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.paidDate": {
+    "en": "Paid on",
+    "fr": "Payé le",
     "ar": ""
   },
   "admin.supplierInvoices.status.draft": {
@@ -12455,23 +12885,23 @@
     "ar": ""
   },
   "admin.supplierInvoices.editor.save": {
-    "en": "Save draft",
-    "fr": "Enregistrer le brouillon",
+    "en": "Save",
+    "fr": "Enregistrer",
     "ar": ""
   },
-  "admin.supplierInvoices.editor.confirm": {
-    "en": "Confirm",
-    "fr": "Confirmer",
+  "admin.supplierInvoices.editor.saveSuccess": {
+    "en": "Invoice saved and confirmed",
+    "fr": "Facture enregistrée et confirmée",
     "ar": ""
   },
-  "admin.supplierInvoices.editor.cancel": {
-    "en": "Cancel invoice",
-    "fr": "Annuler la facture",
+  "admin.supplierInvoices.editor.cancelEdit": {
+    "en": "Cancel",
+    "fr": "Annuler",
     "ar": ""
   },
-  "admin.supplierInvoices.editor.cancelReason": {
-    "en": "Cancellation reason",
-    "fr": "Motif d'annulation",
+  "admin.supplierInvoices.editor.emptyInvoice": {
+    "en": "An invoice must have at least one product, or an amount above 0",
+    "fr": "Une facture doit comporter au moins un produit, ou un montant supérieur à 0",
     "ar": ""
   },
   "admin.supplierInvoices.editor.alreadyConfirmed": {
@@ -12487,6 +12917,26 @@
   "admin.supplierInvoices.editor.createProduct": {
     "en": "Create product",
     "fr": "Créer un produit",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.quickAddProduct": {
+    "en": "Add a new product",
+    "fr": "Ajouter un nouveau produit",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.qtyInStock": {
+    "en": "Qty in stock is {qty}",
+    "fr": "La quantité en stock est {qty}",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.avgPriceHint": {
+    "en": "Avg price is {price}",
+    "fr": "Le prix moyen est {price}",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.unknownProduct": {
+    "en": "Unknown product",
+    "fr": "Produit inconnu",
     "ar": ""
   },
   "admin.supplierInvoices.editor.reprice.title": {
@@ -12507,6 +12957,36 @@
   "admin.supplierInvoices.editor.reprice.skipAll": {
     "en": "Skip all",
     "fr": "Tout ignorer",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.qtyInStock": {
+    "en": "Qty in stock",
+    "fr": "Quantité en stock",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.avgStockPrice": {
+    "en": "Avg. stock price",
+    "fr": "Prix moyen du stock",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.guestPrice": {
+    "en": "Guest price",
+    "fr": "Prix visiteur",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.defaultSalePrice": {
+    "en": "Default sale price",
+    "fr": "Prix de vente par défaut",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.previous": {
+    "en": "-previous {value}-",
+    "fr": "-précédent {value}-",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.reprice.previousEmpty": {
+    "en": "-previous empty-",
+    "fr": "-précédent vide-",
     "ar": ""
   },
   "admin.supplierInvoices.payment.title": {
@@ -12592,6 +13072,11 @@
   "admin.posClients.table.linkedAccount": {
     "en": "Linked account",
     "fr": "Compte lié",
+    "ar": ""
+  },
+  "admin.posClients.table.viewLinkedAccount": {
+    "en": "View client account",
+    "fr": "Voir le compte client",
     "ar": ""
   },
   "admin.posClients.table.status": {
@@ -12784,6 +13269,36 @@
     "fr": "Activité de navigation",
     "ar": ""
   },
+  "admin.clients.overview.totalSold": {
+    "en": "Total sold",
+    "fr": "Total vendu",
+    "ar": ""
+  },
+  "admin.clients.overview.totalPaid": {
+    "en": "Total paid",
+    "fr": "Total payé",
+    "ar": ""
+  },
+  "admin.clients.overview.credit": {
+    "en": "Credit",
+    "fr": "Crédit",
+    "ar": ""
+  },
+  "admin.clients.overview.orderCount": {
+    "en": "Orders",
+    "fr": "Commandes",
+    "ar": ""
+  },
+  "admin.clients.overview.productQuantity": {
+    "en": "Products bought",
+    "fr": "Produits achetés",
+    "ar": ""
+  },
+  "admin.clients.overview.notApproved": {
+    "en": "This client has not been approved yet, so no account figures exist.",
+    "fr": "Ce client n'a pas encore été approuvé, aucun chiffre de compte n'existe.",
+    "ar": ""
+  },
   "admin.clients.resetPassword.title": {
     "en": "Reset password",
     "fr": "Réinitialiser le mot de passe",
@@ -12864,6 +13379,26 @@
     "fr": "Fournisseur activé avec succès",
     "ar": ""
   },
+  "admin.suppliers.table.enable": {
+    "en": "Re-enable",
+    "fr": "Réactiver",
+    "ar": ""
+  },
+  "admin.suppliers.table.disable": {
+    "en": "Disable",
+    "fr": "Désactiver",
+    "ar": ""
+  },
+  "admin.suppliers.disabledBadge": {
+    "en": "Disabled",
+    "fr": "Désactivé",
+    "ar": ""
+  },
+  "admin.suppliers.disabledReadOnly": {
+    "en": "This supplier is disabled — its information is read-only. Re-enable it to make changes.",
+    "fr": "Ce fournisseur est désactivé — ses informations sont en lecture seule. Réactivez-le pour les modifier.",
+    "ar": ""
+  },
   "admin.suppliers.notFound": {
     "en": "Supplier not found",
     "fr": "Fournisseur introuvable",
@@ -12879,9 +13414,159 @@
     "fr": "Exporter en CSV",
     "ar": ""
   },
-  "admin.statistics.reports.groupBy": {
-    "en": "Group by",
-    "fr": "Grouper par",
+  "admin.statistics.reports.columns.productId": {
+    "en": "Product ID",
+    "fr": "ID produit",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.productName": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.revenue": {
+    "en": "Revenue",
+    "fr": "Revenu",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.cost": {
+    "en": "Cost",
+    "fr": "Coût",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.profit": {
+    "en": "Profit",
+    "fr": "Profit",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.discount": {
+    "en": "Discount",
+    "fr": "Remise",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.resolvedRevenue": {
+    "en": "Revenue at list price",
+    "fr": "Revenu au prix catalogue",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.posClientId": {
+    "en": "Client ID",
+    "fr": "ID client",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.clientName": {
+    "en": "Client",
+    "fr": "Client",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.categoryId": {
+    "en": "Category ID",
+    "fr": "ID catégorie",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.categoryName": {
+    "en": "Client category",
+    "fr": "Catégorie client",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.salesCount": {
+    "en": "Documents",
+    "fr": "Documents",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.staffId": {
+    "en": "Seller ID",
+    "fr": "ID vendeur",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.staffName": {
+    "en": "Seller",
+    "fr": "Vendeur",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.supplierId": {
+    "en": "Supplier ID",
+    "fr": "ID fournisseur",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.supplierName": {
+    "en": "Supplier",
+    "fr": "Fournisseur",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.spend": {
+    "en": "Spend",
+    "fr": "Dépense",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.count": {
+    "en": "Count",
+    "fr": "Nombre",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalAmount": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.type": {
+    "en": "Movement type",
+    "fr": "Type de mouvement",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalQuantity": {
+    "en": "Total quantity",
+    "fr": "Quantité totale",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.movementCount": {
+    "en": "Movements",
+    "fr": "Mouvements",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.flagged": {
+    "en": "Flagged",
+    "fr": "Signalé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.bucket": {
+    "en": "Age bucket",
+    "fr": "Tranche d'âge",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.clientOutstanding": {
+    "en": "Client outstanding",
+    "fr": "Solde client dû",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.supplierOutstanding": {
+    "en": "Supplier outstanding",
+    "fr": "Solde fournisseur dû",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.query": {
+    "en": "Search term",
+    "fr": "Terme recherché",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.viewCount": {
+    "en": "Views",
+    "fr": "Vues",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.kind": {
+    "en": "Kind",
+    "fr": "Type",
     "ar": ""
   },
   "admin.statistics.reports.viewDetails": {
@@ -13124,6 +13809,46 @@
     "fr": "Utilisateur mis à jour avec succès",
     "ar": ""
   },
+  "admin.users.changePassword.action": {
+    "en": "Change password",
+    "fr": "Modifier le mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.title": {
+    "en": "Change password",
+    "fr": "Modifier le mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.warning": {
+    "en": "This immediately signs the user out of every device",
+    "fr": "Cela déconnecte immédiatement l'utilisateur de tous les appareils",
+    "ar": ""
+  },
+  "admin.users.changePassword.newPassword": {
+    "en": "New password",
+    "fr": "Nouveau mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.confirmPassword": {
+    "en": "Confirm password",
+    "fr": "Confirmer le mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.minLength": {
+    "en": "Password must be at least 8 characters",
+    "fr": "Le mot de passe doit contenir au moins 8 caractères",
+    "ar": ""
+  },
+  "admin.users.changePassword.confirmRequired": {
+    "en": "Please confirm the new password",
+    "fr": "Veuillez confirmer le nouveau mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.success": {
+    "en": "Password changed",
+    "fr": "Mot de passe modifié",
+    "ar": ""
+  },
   "admin.users.roles.table.code": {
     "en": "Code",
     "fr": "Code",
@@ -13324,6 +14049,61 @@
     "fr": "Les sociétés de livraison seront gérées dans une prochaine version",
     "ar": ""
   },
+  "admin.settings.storefront.featuredProductsHelp": {
+    "en": "These products appear in the storefront's featured strip",
+    "fr": "Ces produits apparaissent dans la sélection de la vitrine",
+    "ar": ""
+  },
+  "admin.settings.storefront.searchProductsPlaceholder": {
+    "en": "Search a product by name",
+    "fr": "Rechercher un produit par nom",
+    "ar": ""
+  },
+  "admin.settings.storefront.noProductSelected": {
+    "en": "No featured product yet",
+    "fr": "Aucun produit mis en avant",
+    "ar": ""
+  },
+  "admin.settings.storefront.removeProduct": {
+    "en": "Remove this product",
+    "fr": "Retirer ce produit",
+    "ar": ""
+  },
+  "admin.settings.storefront.featuredFamilies": {
+    "en": "Featured families",
+    "fr": "Familles mises en avant",
+    "ar": ""
+  },
+  "admin.settings.storefront.featuredFamiliesHelp": {
+    "en": "Choose up to 6 families to show on the home page",
+    "fr": "Choisissez jusqu'à 6 familles à afficher sur la page d'accueil",
+    "ar": ""
+  },
+  "admin.settings.storefront.searchFamiliesPlaceholder": {
+    "en": "Search a family",
+    "fr": "Rechercher une famille",
+    "ar": ""
+  },
+  "admin.settings.storefront.noFamilySelected": {
+    "en": "No featured family yet",
+    "fr": "Aucune famille mise en avant",
+    "ar": ""
+  },
+  "admin.settings.storefront.removeFamily": {
+    "en": "Remove this family",
+    "fr": "Retirer cette famille",
+    "ar": ""
+  },
+  "admin.settings.storefront.familyLimitReached": {
+    "en": "Maximum of 6 families reached — remove one to add another",
+    "fr": "Maximum de 6 familles atteint — retirez-en une pour en ajouter une autre",
+    "ar": ""
+  },
+  "admin.settings.storefront.unsavedChanges": {
+    "en": "Unsaved changes",
+    "fr": "Modifications non enregistrées",
+    "ar": ""
+  },
   "admin.settings.saveSuccess": {
     "en": "Settings saved successfully",
     "fr": "Paramètres enregistrés avec succès",
@@ -13502,6 +14282,231 @@
   "admin.settings.tabs.storefront": {
     "en": "Storefront",
     "fr": "Vitrine",
+    "ar": ""
+  },
+  "staff.orders.stats.completed": {
+    "en": "Completed",
+    "fr": "Terminées",
+    "ar": ""
+  },
+  "staff.orders.stats.cancelledByClient": {
+    "en": "Cancelled by client",
+    "fr": "Annulées par le client",
+    "ar": ""
+  },
+  "staff.orders.table.user": {
+    "en": "User",
+    "fr": "Utilisateur",
+    "ar": ""
+  },
+  "staff.orders.table.category": {
+    "en": "Category",
+    "fr": "Catégorie",
+    "ar": ""
+  },
+  "admin.orders.table.actionsAria": {
+    "en": "Order actions",
+    "fr": "Actions de la commande",
+    "ar": ""
+  },
+  "staff.sales.table.createdAt": {
+    "en": "Created",
+    "fr": "Créée le",
+    "ar": ""
+  },
+  "admin.sales.tabs.sales": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "admin.sales.tabs.returns": {
+    "en": "Returns",
+    "fr": "Retours",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.reference": {
+    "en": "Return",
+    "fr": "Retour",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.saleReference": {
+    "en": "Sale",
+    "fr": "Vente",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.client": {
+    "en": "Client",
+    "fr": "Client",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.user": {
+    "en": "User",
+    "fr": "Utilisateur",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.quantity": {
+    "en": "Qty returned",
+    "fr": "Qté retournée",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.total": {
+    "en": "Total refunded",
+    "fr": "Total remboursé",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.type": {
+    "en": "Type",
+    "fr": "Type",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.empty": {
+    "en": "No returns yet",
+    "fr": "Aucun retour",
+    "ar": ""
+  },
+  "admin.sales.returnsTable.error": {
+    "en": "Returns could not be loaded",
+    "fr": "Impossible de charger les retours",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.title": {
+    "en": "Return detail",
+    "fr": "Détail du retour",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.unitPrice": {
+    "en": "Sold at",
+    "fr": "Vendu à",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.refundAmount": {
+    "en": "Refunded",
+    "fr": "Remboursé",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.restock": {
+    "en": "Restocked",
+    "fr": "Remis en stock",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.restockYes": {
+    "en": "Yes",
+    "fr": "Oui",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.restockNo": {
+    "en": "No",
+    "fr": "Non",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.reason": {
+    "en": "Reason",
+    "fr": "Motif",
+    "ar": ""
+  },
+  "admin.sales.returnDetail.total": {
+    "en": "Total refunded",
+    "fr": "Total remboursé",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.summaryTitle": {
+    "en": "Refund summary",
+    "fr": "Résumé du remboursement",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.summaryRefundTotal": {
+    "en": "Refund entered",
+    "fr": "Remboursement saisi",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.summaryCashRefundable": {
+    "en": "Cash refundable",
+    "fr": "Remboursable en espèces",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.summaryCashCapped": {
+    "en": "Only the refundable cash will be paid back; the remainder reduces what the client owes.",
+    "fr": "Seul le montant remboursable sera rendu en espèces ; le reste réduit ce que le client doit.",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.creditEffectPartial": {
+    "en": "Partial return — the client's credit is unchanged.",
+    "fr": "Retour partiel — le crédit du client reste inchangé.",
+    "ar": ""
+  },
+  "admin.sales.returnDialog.creditEffectFull": {
+    "en": "Full return — this sale's credit is reversed.",
+    "fr": "Retour complet — le crédit de cette vente est annulé.",
+    "ar": ""
+  },
+  "search.loading": {
+    "en": "Searching…",
+    "fr": "Recherche…",
+    "ar": ""
+  },
+  "header.openSearch": {
+    "en": "Open search",
+    "fr": "Ouvrir la recherche",
+    "ar": ""
+  },
+  "header.closeSearch": {
+    "en": "Close search",
+    "fr": "Fermer la recherche",
+    "ar": ""
+  },
+  "orderSection.title": {
+    "en": "Order information",
+    "fr": "Informations de commande",
+    "ar": ""
+  },
+  "orderSection.insufficientStock": {
+    "en": "Not enough stock for this order",
+    "fr": "Stock insuffisant pour cette commande",
+    "ar": ""
+  },
+  "cart.includeInOrder": {
+    "en": "Include in order",
+    "fr": "Inclure dans la commande",
+    "ar": ""
+  },
+  "cart.orderAll": {
+    "en": "Order selected items",
+    "fr": "Commander les articles sélectionnés",
+    "ar": ""
+  },
+  "cart.nothingSelected": {
+    "en": "Select at least one product to order",
+    "fr": "Sélectionnez au moins un produit à commander",
+    "ar": ""
+  },
+  "cart.blockedOutOfStock": {
+    "en": "Out of stock — cannot be ordered",
+    "fr": "En rupture de stock — ne peut pas être commandé",
+    "ar": ""
+  },
+  "cart.blockedNoPrice": {
+    "en": "No price available for your account",
+    "fr": "Aucun prix disponible pour votre compte",
+    "ar": ""
+  },
+  "cart.excludedNotice": {
+    "en": "Some products can't be ordered right now and are left out of this order.",
+    "fr": "Certains produits ne peuvent pas être commandés pour le moment et sont exclus de cette commande.",
     "ar": ""
   }
 }

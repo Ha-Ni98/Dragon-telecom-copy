@@ -5,6 +5,9 @@ export enum OrderStatus {
   IN_DELIVERY = 'IN_DELIVERY',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
+  // D4 — client-initiated cancellation; terminal, releases the reservation exactly like admin
+  // CANCELLED (S10).
+  CANCELLED_BY_CLIENT = 'CANCELLED_BY_CLIENT',
   RETURNED = 'RETURNED',
 }
 

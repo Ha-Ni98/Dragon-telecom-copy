@@ -120,12 +120,28 @@ DRAFT holds no stock and no money; visible only to its creator (+admin). Confirm
 
 ## 8. Online Orders
 
-**Order** — single product, so the line is **folded into the order row**; reserves stock at placement:
-`reference` unique (`ORD-2026-0001`) · `clientId?` FK nullable (**null for guests** — no auto client row; contact fields carry the identity) · `status` enum `PENDING | CONFIRMED | PACKAGED | IN_DELIVERY | COMPLETED | CANCELLED | RETURNED` · `orderType` enum `PICKUP | DELIVERY_HOME | DELIVERY_OFFICE` (PICKUP requires a client token) · `contactName` · `contactPhone` · `wilayaId?` + `communeId?` FK (null when pickup; prefilled from profile, editable) · `address?` · `deliveryCompany?` · `trackingNumber?` (set at IN_DELIVERY) ·
-`productId` FK · `productNameSnapshot` · `quantity` · `resolvedPrice` (frozen at placement) · `unitPrice` (staff may adjust at confirmation) · `serialNumbers?` (entered at confirmation) ·
-`subtotal` · `deliveryFee` (server-resolved: commune override → wilaya → default; 0 pickup) · `totalAmount` · `paidAmount` · `costOfGoods?` + `profit?` (set at confirmation, FIFO) ·
+**Order** — multi-line (`OrderLine`); reserves stock at placement, one reservation per line:
+`reference` unique (`ORD-2026-0001`) · `clientId?` FK nullable (**null for guests** — no auto client row; contact fields carry the identity) · `status` enum `PENDING | CONFIRMED | PACKAGED | IN_DELIVERY | COMPLETED | CANCELLED | CANCELLED_BY_CLIENT | RETURNED` · `orderType` enum `PICKUP | DELIVERY_HOME | DELIVERY_OFFICE` (PICKUP requires a client token) · `contactName` · `contactPhone` · `wilayaId?` + `communeId?` FK (null when pickup; prefilled from profile, editable) · `address?` · `deliveryCompany?` · `trackingNumber?` (set at IN_DELIVERY) ·
+`subtotal` · `deliveryFee` (server-resolved: commune override → wilaya → default; 0 pickup) · `totalAmount` · `paidAmount` · `totalCost?` + `totalProfit?` (set at COMPLETED, FIFO) ·
 `placedAt` · `confirmedAt?` · `deliveredAt?` (at COMPLETED) · `cancelledAt?` · `confirmedByStaffId?` FK · `cancellationReason?`.
-Placement → PENDING_ORDER reservation. Client cancels only while PENDING (release). Confirm (idempotent): release + consume (ORDER_OUT), profit stored, invoice issued (sourceType ORDER — **no sale row**). Staff (page `STAFF_ORDERS`) may drive PENDING → … → COMPLETED; **cancel and return remain admin-only**. RETURNED only from COMPLETED, with a restock toggle → RETURN_IN at consumed cost.
+
+**OrderLine** — `orderId` FK · `productId` FK · `productNameSnapshot` · `quantity` · `resolvedPrice` (frozen at placement) · `unitPrice` (staff may adjust — pickup: at COMPLETED; delivery: at PACKAGED) · `costOfGoods?` + `profit?` (set at COMPLETED, FIFO) · `lineTotal` · `serialNumbers?` (entered at confirmation).
+
+Placement → one `PENDING_ORDER` reservation **per line**, held through every intermediate state.
+Pickup: `PENDING → CONFIRMED → PACKAGED → COMPLETED`; delivery (home or office):
+`PENDING → CONFIRMED → PACKAGED → IN_DELIVERY → COMPLETED`, with each line's charged price
+settable at `PACKAGED` for delivery and at `COMPLETED` for pickup. **`COMPLETED` is the single
+moment** that releases the reservations, consumes the stock (`ORDER_OUT`, FIFO, per line), stamps
+each line's `costOfGoods`/`profit` and the order's `totalCost`/`totalProfit`, issues the invoice
+(`sourceType ORDER`, **no sale row**) and captures the payment — which becomes a `ClientPayment`
+row when the client is known, while the order applies `totalSold` and credit. A guest (or a
+registered client never approved as a `PosClient`) must pay in full at `COMPLETED`. `CANCELLED`
+(admin, any non-terminal state) and `CANCELLED_BY_CLIENT` (client, any state but `COMPLETED`)
+simply release the reservations, as does `RETURNED` reached from `IN_DELIVERY` — nothing was ever
+consumed or invoiced at that point. Staff (page `STAFF_ORDERS`) may drive every forward
+transition; **cancel remains admin-only**. A separate admin action returns a `COMPLETED` order:
+it restocks at the consumed cost (a restock toggle → `RETURN_IN`) and refunds through a
+negative-amount `ClientPayment` row, reversing credit only on a full return.
 
 ---
 

@@ -83,10 +83,9 @@ export async function listProducts(
     {
       params: query,
     },
-
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
-  
+
   for (const image of res.data.data.items.flatMap((p) => p.images)) {
     // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
     image.url = `${baseURL}${image.url}`;
@@ -205,6 +204,14 @@ export async function updateImages(
   return res.data.data;
 }
 
+export async function deleteImage(id: string, imageId: string): Promise<AdminProductDto> {
+  const res = await api.delete<ApiResponse<AdminProductDto>>(
+    withParams(apiPath(CATALOG_ROUTES.IMAGE_BY_ID), { id, imageId }),
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
 export async function productStats(): Promise<ProductStatsDto> {
   const res = await api.get<ApiResponse<ProductStatsDto>>(apiPath(CATALOG_ROUTES.PRODUCT_STATS));
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
@@ -220,8 +227,11 @@ export async function listBrands(admin = false): Promise<BrandDto[]> {
   return res.data.data;
 }
 
-export async function createBrand(command: CreateBrandCommand): Promise<BrandDto> {
-  const res = await api.post<ApiResponse<BrandDto>>(apiPath(CATALOG_ROUTES.ADMIN_BRANDS), command);
+// S18/D-3 — repairs intake's create-if-absent brand also needs a staff-reachable path;
+// `admin = true` keeps every existing admin caller (Settings hierarchy, Add Product) unchanged.
+export async function createBrand(command: CreateBrandCommand, admin = true): Promise<BrandDto> {
+  const route = admin ? CATALOG_ROUTES.ADMIN_BRANDS : CATALOG_ROUTES.STAFF_BRANDS;
+  const res = await api.post<ApiResponse<BrandDto>>(apiPath(route), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }
@@ -274,11 +284,13 @@ export async function listModels(
   return res.data.data;
 }
 
-export async function createModel(command: CreateModelCommand): Promise<DeviceModelDto> {
-  const res = await api.post<ApiResponse<DeviceModelDto>>(
-    apiPath(CATALOG_ROUTES.ADMIN_MODELS),
-    command,
-  );
+// S18/D-3 — same staff/admin split as createBrand above.
+export async function createModel(
+  command: CreateModelCommand,
+  admin = true,
+): Promise<DeviceModelDto> {
+  const route = admin ? CATALOG_ROUTES.ADMIN_MODELS : CATALOG_ROUTES.STAFF_MODELS;
+  const res = await api.post<ApiResponse<DeviceModelDto>>(apiPath(route), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

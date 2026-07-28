@@ -13,6 +13,7 @@ import { StatCardSkeleton } from "@/components/shared/StatCardSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import type { FilteredDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { formatDZD } from "@/lib/utils";
 
 interface AdminStatisticsFilteredCardsProps {
   stats?: FilteredDto;
@@ -51,15 +52,6 @@ const filteredStatsConfig = [
   },
 ];
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "DZD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 function getComparisonIndicator(change: number) {
   if (change === 0)
     return { icon: Minus, bgColor: "bg-gray-50 dark:bg-gray-950", textColor: "text-gray-600" };
@@ -78,7 +70,7 @@ export function AdminStatisticsFilteredCards({
   loading = false,
   className = "",
 }: AdminStatisticsFilteredCardsProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   if (loading) {
     return (
@@ -145,7 +137,7 @@ export function AdminStatisticsFilteredCards({
                 key={config.key}
                 icon={<Icon className="h-5 w-5" />}
                 label={t(config.labelKey)}
-                value={config.key === "orders" ? value.toString() : formatCurrency(value)}
+                value={config.key === "orders" ? value.toString() : formatDZD(value, language)}
                 trend={
                   <div className="space-y-1">
                     <Badge

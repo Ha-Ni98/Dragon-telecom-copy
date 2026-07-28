@@ -2,7 +2,6 @@ import type { NextFunction, Request, Response } from 'express';
 import { sendSuccess } from '@common/http/response';
 import type {
   BackofficeOrdersQuery,
-  ConfirmOrderCommand,
   MyOrdersQuery,
   OrderIdParams,
   PlaceOrderCommand,
@@ -49,17 +48,6 @@ export class OrdersController {
   listBackoffice = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const result = await this.service.listBackoffice(req.validated.query as BackofficeOrdersQuery, req.user!);
-      sendSuccess(res, result, 200);
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  // Serves both STAFF_CONFIRM and ADMIN_CONFIRM.
-  confirmOrder = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { id } = req.validated.params as OrderIdParams;
-      const result = await this.service.confirmOrder(id, req.validated.body as ConfirmOrderCommand, req.user!);
       sendSuccess(res, result, 200);
     } catch (error) {
       next(error);

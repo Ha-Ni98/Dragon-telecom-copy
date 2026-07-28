@@ -6,15 +6,26 @@ import type {
   CreateClientPaymentCommand,
   InvoiceDto,
   InvoiceListQuery,
-  OrdersEvents,
   PaginatedResult,
-  SalesEvents,
   SettingsDto,
 } from '@dragon-telecom/contract';
+import type { InvoiceIssueInput } from './billing.mapper';
 
 // Mirrors platform/inventory's ExportResult — not a contract DTO; PDFs bypass the
 // ApiResponse<T> envelope (plan §D-6), streamed by the controller instead of sendSuccess.
 export type PdfResult = { filename: string; mime: 'application/pdf'; body: Buffer };
+
+// The caller-supplied half of an invoice issuance — billing itself owns the client-name/address
+// snapshot by default (resolved from posClientId), so those two fields are optional overrides
+// rather than the always-required InvoiceIssueInput shape. S10: orders needs this for a
+// registered client who was never approved as a PosClient (no posClientId, but a real name is
+// known) — sales never hits this gap, since a POS sale only ever knows a PosClient or a walk-in.
+// When omitted, issueInvoiceInTx falls back to its existing posClientId resolution / "Walk-in
+// Customer" default exactly as before. clientAddressSnapshot was already optional on
+// InvoiceIssueInput, so only clientNameSnapshot needs re-adding as optional here.
+export type InvoiceIssueRequest = Omit<InvoiceIssueInput, 'number' | 'clientNameSnapshot'> & {
+  clientNameSnapshot?: string;
+};
 
 export interface IBillingService {
   // Client — `req.user` (JWTPayload) carries `clientId`, never a `posClientId` directly (that's
@@ -41,9 +52,25 @@ export interface IBillingService {
   createClientPayment(cmd: CreateClientPaymentCommand, staffId: string): Promise<ClientPaymentDto>;
   listClientPayments(query: ClientPaymentListQuery): Promise<PaginatedResult<ClientPaymentDto>>;
 
-  // Internal — invoked only by this module's own listener (post-commit), never by HTTP routes.
-  issueFromSale(payload: SalesEvents['sale.confirmed']): Promise<void>;
-  issueFromOrder(payload: OrdersEvents['order.confirmed']): Promise<void>;
+  // Injected-port methods (S5) — invoked by sibling modules INSIDE THEIR OWN transaction, never
+  // by HTTP routes directly. S10 — order completion now calls these too (issueFromOrder and
+  // billing.listener.ts are both deleted); every invoice/payment in the codebase is issued
+  // in-transaction, none post-commit.
+  issueInvoiceInTx(tx: Prisma.TransactionClient, input: InvoiceIssueRequest): Promise<{ invoiceId: string; number: string }>;
+  // `repairId` (S13) tags an on-account row (`invoiceId` still null) with the repair it was
+  // collected for, so it can be found again by linkRepairPaymentsToInvoiceInTx below once that
+  // repair's invoice is issued at PICKED_UP.
+  captureClientPaymentInTx(
+    tx: Prisma.TransactionClient,
+    input: { posClientId: string; invoiceId?: string; repairId?: string; amount: number; paidAt?: Date; staffId: string },
+  ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }>;
+  // S13/D5/R3 — at PICKED_UP the repair's on-account rows (invoiceId null) are re-pointed at the
+  // invoice just issued, then the invoice's paidAmount/status are recomputed from the ledger, so
+  // Invoice.paidAmount = Σ ClientPayment.amount holds for repair invoices exactly as it does for
+  // sale and order invoices. A no-op when nothing was linked: a walk-in repair has no ledger rows
+  // at all, and recomputing from an empty ledger would wipe the paidAmount the invoice was issued
+  // with.
+  linkRepairPaymentsToInvoiceInTx(tx: Prisma.TransactionClient, input: { repairId: string; invoiceId: string }): Promise<void>;
 }
 
 // Injected port (dependency inversion) — real implementation is platform's own PlatformService,
@@ -63,7 +90,7 @@ export interface IStoreSettingsPort {
 // module; billing must write it only through this port, always inside its own transaction
 // (`tx`), never via a post-commit listener.
 export interface IClientCreditPort {
-  applyPayment(
+  applyLedgerPayment(
     tx: Prisma.TransactionClient,
     posClientId: string,
     payload: { amount: number },

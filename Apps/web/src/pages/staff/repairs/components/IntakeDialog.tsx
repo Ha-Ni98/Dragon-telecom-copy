@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AutocompleteInput } from "@/components/shared/autocomplete-input";
 import {
   Select,
   SelectContent,
@@ -18,13 +19,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  ReportedIssue,
-  type BrandDto,
-  type DeviceModelDto,
-  type TechnicianDto,
-} from "@dragon-telecom/contract";
+import { ReportedIssue, type TechnicianDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import {
+  useCatalogBrands,
+  useCatalogModels,
+  useCreateCatalogBrand,
+  useCreateCatalogModel,
+} from "@/hooks/useCatalogTaxonomy";
 import {
   intakeRepairSchema,
   type IntakeRepairFormValues,
@@ -45,22 +47,25 @@ const ISSUE_LABEL_KEY: Record<ReportedIssue, string> = {
 interface IntakeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  brands?: BrandDto[];
-  models?: DeviceModelDto[];
   technicians?: TechnicianDto[];
   onSubmit: (values: IntakeRepairFormValues) => void;
   isSubmitting?: boolean;
+  /** S18/D-3 — the create-if-absent brand/model calls need to hit the staff-reachable catalog
+   *  routes when this dialog is opened from `/staff/repairs`. */
+  scope?: "staff" | "admin";
 }
 
-// Dumb (owns only local form state) — Sprint 7 wires useCreateRepair() + print-claim-slip.
+// S13/F5 — owns its own brand/model fetch + create-if-absent (previously the caller passed a
+// flat, unfiltered model list with no cascading filter — a documented gap, now closed: model
+// selection is disabled until a brand is chosen, and only that brand's models are offered,
+// exactly like AdminProductsAdd's own family/brand/model cluster).
 export function IntakeDialog({
   open,
   onOpenChange,
-  brands,
-  models,
   technicians,
   onSubmit,
   isSubmitting,
+  scope = "staff",
 }: IntakeDialogProps) {
   const { t } = useTranslation();
   const {
@@ -68,12 +73,19 @@ export function IntakeDialog({
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<IntakeRepairFormValues>({
     resolver: zodResolver(intakeRepairSchema(t)),
     defaultValues: { customerName: "", customerPhone: "", reportedIssues: [] },
   });
   const watchedIssues = watch("reportedIssues");
+  const brandId = watch("brandId");
+
+  const { data: brands } = useCatalogBrands();
+  const { data: models } = useCatalogModels({ brandId }, false, { enabled: !!brandId });
+  const createBrand = useCreateCatalogBrand(scope === "admin");
+  const createModel = useCreateCatalogModel(scope === "admin");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,45 +117,57 @@ export function IntakeDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="intake-brand">{t("staff.repairs.intake.brandLabel")}</Label>
-              <Controller
-                control={control}
-                name="brandId"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="intake-brand">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(brands ?? []).map((brand) => (
-                        <SelectItem key={brand.id} value={brand.id}>
-                          {brand.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+              <AutocompleteInput
+                label={t("staff.repairs.intake.brandLabel")}
+                value={brandId ?? ""}
+                onChange={(value) => {
+                  const brand = brands?.find((b) => b.id === value);
+                  if (brand) {
+                    setValue("brandId", brand.id);
+                    // Cascading reset (F5) — a model belongs to exactly one brand; switching
+                    // brand invalidates whatever model was previously chosen.
+                    setValue("deviceModelId", undefined);
+                  }
+                }}
+                suggestions={(brands ?? []).map((b) => ({ value: b.id, label: b.name }))}
+                onCreateNew={(name) =>
+                  createBrand.mutate(
+                    { name },
+                    {
+                      onSuccess: (brand) => {
+                        setValue("brandId", brand.id);
+                        setValue("deviceModelId", undefined);
+                      },
+                    },
+                  )
+                }
+                placeholder={t("staff.repairs.intake.brandPlaceholder")}
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="intake-model">{t("staff.repairs.intake.modelLabel")}</Label>
-              <Controller
-                control={control}
-                name="deviceModelId"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="intake-model">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(models ?? []).map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+              <AutocompleteInput
+                label={t("staff.repairs.intake.modelLabel")}
+                value={watch("deviceModelId") ?? ""}
+                onChange={(value) => {
+                  const model = models?.find((m) => m.id === value);
+                  if (model) setValue("deviceModelId", model.id);
+                }}
+                suggestions={(models ?? []).map((m) => ({ value: m.id, label: m.name }))}
+                disabled={!brandId}
+                onCreateNew={
+                  brandId
+                    ? (name) =>
+                        createModel.mutate(
+                          { brandId, name },
+                          { onSuccess: (model) => setValue("deviceModelId", model.id) },
+                        )
+                    : undefined
+                }
+                placeholder={
+                  brandId
+                    ? t("staff.repairs.intake.modelPlaceholder")
+                    : t("staff.repairs.intake.modelBrandFirst")
+                }
               />
             </div>
           </div>

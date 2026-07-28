@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { Prisma, ClientStatus as PrismaClientStatus } from '@prisma/client';
+import { Prisma, ClientStatus as PrismaClientStatus, InvoiceStatus as PrismaInvoiceStatus } from '@prisma/client';
 import {
   AdminClientResponseSchema,
   DocType,
@@ -10,6 +10,7 @@ import {
   type AddCartItemCommand,
   type AdminClientDto,
   type AdminClientListQuery,
+  type AdminClientOverviewDto,
   type AdminUpdateClientCommand,
   type ApproveClientCommand,
   type CartItemDto,
@@ -241,6 +242,43 @@ export class ClientsService implements IClientsService {
     return this.toAdminClientDtoWithRollups(client as AdminClientRow);
   }
 
+  // The Overview tab's five figures (S8 J4). Money is read straight off the linked PosClient —
+  // never recomputed here (D5: the ledger is the source of truth for totalPaid, and clients' own
+  // applyDocumentCharge/applyLedgerPayment are its only writers). totalProductQuantity is
+  // Σ InvoiceLine.quantity over non-cancelled invoices (S8 R1), which counts POS sales, orders
+  // and repairs alike and survives S9/S10/S13 unchanged.
+  async getClientOverview(id: string): Promise<AdminClientOverviewDto> {
+    const client = await this.prisma.client.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        posClientId: true,
+        posClient: { select: { credit: true, totalPaid: true, totalSold: true } },
+      },
+    });
+    if (!client) throw new NotFoundError('Client');
+
+    const [orderCount, lineAgg] = await Promise.all([
+      this.prisma.order.count({ where: { clientId: id } }),
+      client.posClientId != null
+        ? this.prisma.invoiceLine.aggregate({
+            where: { invoice: { posClientId: client.posClientId, status: { not: PrismaInvoiceStatus.CANCELLED } } },
+            _sum: { quantity: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    return ClientsMapper.toAdminClientOverviewDto({
+      clientId: client.id,
+      posClientId: client.posClientId,
+      credit: client.posClient?.credit ?? 0,
+      totalPaid: client.posClient?.totalPaid ?? 0,
+      totalSold: client.posClient?.totalSold ?? 0,
+      orderCount,
+      totalProductQuantity: lineAgg?._sum.quantity ?? 0,
+    });
+  }
+
   async approveClient(id: string, cmd: ApproveClientCommand, staffId: string): Promise<AdminClientDto> {
     const existing = await this.prisma.client.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError('Client');
@@ -406,34 +444,50 @@ export class ClientsService implements IClientsService {
     });
   }
 
-  // --- Injected credit port (credit-serialization fix, plan §C2) ---
+  // --- Injected credit port (credit-serialization fix, plan §C2; split into two orthogonal
+  // primitives, plan S5) ---
   //
   // PosClient belongs to this module — sales/orders/billing must not write it directly; each
   // consumes these methods as an injected port (structural typing, the established
   // ICatalogCartPort precedent: the consumer declares its own narrowed interface locally,
   // `ClientsService` satisfies it by having the matching methods, no `implements` clause here).
   // Every method locks the row for the duration of the CALLER's own transaction and writes the
-  // new cache values in that same transaction — the numbers replicate exactly what the former
-  // post-commit listener handlers above computed (do not diverge the math when those handlers
-  // are deleted in C3–C5), only the read-lock-write now all happen atomically together instead
-  // of racing a fire-and-forget event.
+  // new cache values in that same transaction.
+  //
+  // The two primitives below are `applyDocumentCharge` (credit + totalSold — a document charging
+  // the account) and `applyLedgerPayment` (credit + totalPaid — the ledger, D5's single writer of
+  // totalPaid). Composed, they reproduce the pre-S5 single-call arithmetic exactly: see plan S5
+  // §0.5 for the per-field proof.
 
-  async applySaleCharge(
+  // A document (sale, and from S10/S13 an order or repair) charging the account. The full
+  // document total goes onto `credit`; any money taken at the same moment is a *separate*
+  // ledger call (applyLedgerPayment) in the same transaction — D5/R1. Composed, the two calls
+  // reproduce the old single applySaleCharge arithmetic exactly (see plan S5 §0.5).
+  // `totalSoldDelta` and `creditDelta` are caller-signed so returns can pass negatives.
+  // This method never touches totalPaid — the ledger owns that field, and only the ledger.
+  async applyDocumentCharge(
     tx: Prisma.TransactionClient,
     posClientId: string,
-    payload: { totalAmount: number; paidAmount: number },
+    payload: { totalSoldDelta: number; creditDelta: number },
   ): Promise<{ previousCredit: number; newCredit: number }> {
     const locked = await this.lockPosClient(tx, posClientId);
     const previousCredit = locked.credit.toNumber();
-    const newCredit = previousCredit + (payload.totalAmount - payload.paidAmount);
+    const newCredit = previousCredit + payload.creditDelta;
     await tx.posClient.update({
       where: { id: posClientId },
-      data: { credit: newCredit, totalPaid: { increment: payload.paidAmount }, totalSold: { increment: payload.totalAmount } },
+      data: { credit: newCredit, totalSold: { increment: payload.totalSoldDelta } },
     });
     return { previousCredit, newCredit };
   }
 
-  async applyPayment(
+  // The ledger primitive — the ONLY writer of PosClient.totalPaid anywhere in the codebase (D5).
+  // Always paired with exactly one ClientPayment row created in the same transaction, of the same
+  // amount, so `totalPaid = Σ ClientPayment.amount` holds by construction.
+  // `amount` is signed: a positive amount is money received (credit down, totalPaid up); a
+  // NEGATIVE amount is a refund (credit up, totalPaid down) and is how D6's negative-amount
+  // refund rows are applied. Overpayment is permitted — a negative newCredit means the store owes
+  // the client, mirroring purchasing's own overpayment-allowed convention.
+  async applyLedgerPayment(
     tx: Prisma.TransactionClient,
     posClientId: string,
     payload: { amount: number },
@@ -445,32 +499,6 @@ export class ClientsService implements IClientsService {
       where: { id: posClientId },
       data: { credit: newCredit, totalPaid: { increment: payload.amount } },
     });
-    return { previousCredit, newCredit };
-  }
-
-  // Orders never touch credit (spec: "totalSold += totalAmount" only, for the linked POS
-  // client when any).
-  async applyOrderSold(tx: Prisma.TransactionClient, posClientId: string, payload: { totalAmount: number }): Promise<void> {
-    await this.lockPosClient(tx, posClientId);
-    await tx.posClient.update({
-      where: { id: posClientId },
-      data: { totalSold: { increment: payload.totalAmount } },
-    });
-  }
-
-  // `creditEffect` is the caller's already-signed delta (a negative refund reduces what the
-  // client owes) — sales' createReturn computes it the same way it always did; the only change
-  // is a locked read first so the returned previousCredit/newCredit snapshot is consistent
-  // under concurrency.
-  async applyReturnRefund(
-    tx: Prisma.TransactionClient,
-    posClientId: string,
-    payload: { creditEffect: number },
-  ): Promise<{ previousCredit: number; newCredit: number }> {
-    const locked = await this.lockPosClient(tx, posClientId);
-    const previousCredit = locked.credit.toNumber();
-    const newCredit = previousCredit + payload.creditEffect;
-    await tx.posClient.update({ where: { id: posClientId }, data: { credit: newCredit } });
     return { previousCredit, newCredit };
   }
 

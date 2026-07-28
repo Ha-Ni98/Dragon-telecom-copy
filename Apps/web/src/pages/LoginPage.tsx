@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/shared/Logo";
-import { ThemeToggle } from "@/components/shared/ThemeToggle";
-import { LanguageToggle } from "@/components/shared/LanguageToggle";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { loginSchema, type LoginFormValues } from "./login.schema";
@@ -56,14 +54,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative overflow-hidden bg-background py-12">
       <div className="pointer-events-none absolute inset-0 [background:var(--login-glow)]" />
-      <div className="absolute right-4 top-4 flex items-center gap-1">
-        <LanguageToggle />
-        <ThemeToggle />
-      </div>
 
-      <div className="relative flex min-h-screen items-center justify-center px-4">
+      <div className="relative flex items-center justify-center px-4">
         <div
           className={`w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-[var(--shadow-card)] ${shake ? "animate-shake" : ""}`}
         >

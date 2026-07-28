@@ -7,14 +7,12 @@ import { SimplePagination } from "@/components/shared/SimplePagination";
 import { InvoicesTable } from "@/pages/staff/invoices/components/InvoicesTable";
 import { InvoiceSnapshotView } from "@/pages/staff/invoices/components/InvoiceSnapshotView";
 import { RecordPaymentDialog } from "@/pages/staff/invoices/components/RecordPaymentDialog";
+import { InvoiceFiltersBar } from "@/pages/staff/invoices/components/InvoiceFiltersBar";
 import { IncomingInvoicesTable } from "@/pages/admin/invoices/components/IncomingInvoicesTable";
 import { PaymentsLedger } from "@/pages/admin/invoices/components/PaymentsLedger";
 import { SupplierPaymentDialog } from "@/pages/admin/invoices/components/SupplierPaymentDialog";
 import { CancelInvoiceDialog } from "@/pages/admin/invoices/components/CancelInvoiceDialog";
 import {
-  useMyInvoices,
-  useMyInvoice,
-  useMyInvoicePdf,
   useInvoices,
   useInvoice,
   useInvoicePdf,
@@ -26,7 +24,12 @@ import { usePurchasingInvoices } from "@/hooks/usePurchasingInvoices";
 import { usePurchasingPayments, useCreatePurchasingPayment } from "@/hooks/usePurchasingPayments";
 import { useTranslation } from "@/hooks/useTranslation";
 import { downloadBlob } from "@/lib/utils";
-import type { InvoiceDto, InvoiceListQuery, SupplierInvoiceDto } from "@dragon-telecom/contract";
+import type {
+  InvoiceDto,
+  InvoiceListQuery,
+  InvoiceSource,
+  SupplierInvoiceDto,
+} from "@dragon-telecom/contract";
 import type { RecordClientPaymentFormValues } from "@/pages/staff/invoices/record-client-payment.schema";
 import type { RecordSupplierPaymentFormValues } from "@/pages/admin/invoices/components/record-supplier-payment.schema";
 import type { CancelInvoiceFormValues } from "@/pages/admin/invoices/components/cancel-invoice.schema";
@@ -42,48 +45,54 @@ type AdminTab = "outgoing" | "incoming" | "payments";
 // in report-sprint-06.md, same "small + acceptance-criteria-required" precedent as OrderShowDialog's
 // action footer): InvoiceSnapshotView had no cancel/record-payment buttons, and
 // IncomingInvoicesTable had no onRowClick — the only entry point for "record supplier payment"
-// once the table is kept read-only for invoice edits themselves.
+// once the table is kept read-only for invoice edits themselves. S8: both payment dialogs now
+// preview from the counterparty's *live* credit (SupplierInvoiceDto.supplierCredit /
+// InvoiceDto.posClientCredit) rather than the document's frozen issuance snapshot — do not
+// "restore" the old `newCredit` expressions. Each tab also gained its own date-range filter
+// (outgoing gains a source filter too), each with its own page state (J7/J8) — a filter change
+// resets that tab's page to 1, since applying a filter on page 3 would otherwise show an empty
+// table.
 export default function StaffInvoices({ scope = "staff" }: Props) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<AdminTab>("outgoing");
-  const [page, setPage] = useState(1);
 
-  const outgoingQuery: InvoiceListQuery = useMemo(() => ({ page, limit: 20 }), [page]);
+  const [outgoingFilters, setOutgoingFilters] = useState<{
+    source?: InvoiceSource;
+    from?: string;
+    to?: string;
+  }>({});
+  const [outgoingPage, setOutgoingPage] = useState(1);
+  const [incomingFilters, setIncomingFilters] = useState<{ from?: string; to?: string }>({});
+  const [paymentsFilters, setPaymentsFilters] = useState<{ from?: string; to?: string }>({});
 
-  const myInvoices = useMyInvoices(outgoingQuery);
-  const adminInvoices = useInvoices("admin", outgoingQuery, {
-    enabled: scope === "admin" && activeTab === "outgoing",
-  });
-  const outgoing = scope === "admin" ? adminInvoices : myInvoices;
+  const outgoingQuery: InvoiceListQuery = useMemo(
+    () => ({ ...outgoingFilters, page: outgoingPage, limit: 20 }),
+    [outgoingFilters, outgoingPage],
+  );
+
+  // S18/P1 — was useMyInvoices (`/clients/me/invoices`, clientOnly), so every staff user 403'd
+  // on this page's default tab and every admin fired a client-only request in the background.
+  // Both scopes now use the scoped billing route.
+  const outgoing = useInvoices(scope, outgoingQuery, { enabled: activeTab === "outgoing" });
 
   const [selectedNumber, setSelectedNumber] = useState<string | null>(null);
   const handleRowClick = useCallback(
     (invoice: InvoiceDto) => setSelectedNumber(invoice.number),
     [],
   );
-  const myInvoiceDetail = useMyInvoice(scope === "staff" ? (selectedNumber ?? "") : "");
-  const adminInvoiceDetail = useInvoice("admin", scope === "admin" ? (selectedNumber ?? "") : "");
-  const selectedInvoice = scope === "admin" ? adminInvoiceDetail.data : myInvoiceDetail.data;
+  const { data: selectedInvoice } = useInvoice(scope, selectedNumber ?? "");
 
-  const myPdfMutation = useMyInvoicePdf();
-  const adminPdfMutation = useInvoicePdf();
+  const pdfMutation = useInvoicePdf();
 
   const handleDownloadPdf = () => {
     if (!selectedNumber) return;
-    if (scope === "admin") {
-      adminPdfMutation.mutate(
-        { scope: "admin", number: selectedNumber },
-        {
-          onSuccess: (blob) => downloadBlob(`${selectedNumber}.pdf`, blob),
-          onError: () => toast.error(t("staff.invoices.table.error")),
-        },
-      );
-    } else {
-      myPdfMutation.mutate(selectedNumber, {
+    pdfMutation.mutate(
+      { scope, number: selectedNumber },
+      {
         onSuccess: (blob) => downloadBlob(`${selectedNumber}.pdf`, blob),
         onError: () => toast.error(t("staff.invoices.table.error")),
-      });
-    }
+      },
+    );
   };
 
   const cancelMutation = useCancelInvoice();
@@ -106,13 +115,19 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
     );
   };
 
-  const incomingQuery = useMemo(() => ({ page: 1, limit: 20 }), []);
+  const incomingQuery = useMemo(
+    () => ({ ...incomingFilters, page: 1, limit: 20 }),
+    [incomingFilters],
+  );
   const incoming = usePurchasingInvoices(incomingQuery, {
     enabled: scope === "admin" && activeTab === "incoming",
   });
 
-  const paymentsQuery = useMemo(() => ({ page: 1, limit: 20 }), []);
-  const clientPayments = useClientPayments(paymentsQuery, {
+  const paymentsQuery = useMemo(
+    () => ({ ...paymentsFilters, page: 1, limit: 20 }),
+    [paymentsFilters],
+  );
+  const clientPayments = useClientPayments(scope, paymentsQuery, {
     enabled: scope === "admin" && activeTab === "payments",
   });
   const supplierPayments = usePurchasingPayments(paymentsQuery, {
@@ -130,6 +145,16 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
 
   const outgoingTable = (
     <>
+      <InvoiceFiltersBar
+        from={outgoingFilters.from}
+        to={outgoingFilters.to}
+        source={outgoingFilters.source}
+        showSource={scope === "admin"}
+        onChange={(next) => {
+          setOutgoingFilters(next);
+          setOutgoingPage(1);
+        }}
+      />
       <InvoicesTable
         invoices={outgoing.data?.items}
         isLoading={outgoing.isLoading}
@@ -141,7 +166,7 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
         <SimplePagination
           page={outgoing.data.meta.page}
           totalPages={outgoing.data.meta.totalPages}
-          onPageChange={setPage}
+          onPageChange={setOutgoingPage}
         />
       )}
     </>
@@ -163,7 +188,12 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
           <TabsContent value="outgoing" className="space-y-4">
             {outgoingTable}
           </TabsContent>
-          <TabsContent value="incoming">
+          <TabsContent value="incoming" className="space-y-4">
+            <InvoiceFiltersBar
+              from={incomingFilters.from}
+              to={incomingFilters.to}
+              onChange={(next) => setIncomingFilters({ from: next.from, to: next.to })}
+            />
             <IncomingInvoicesTable
               invoices={incoming.data?.items}
               isLoading={incoming.isLoading}
@@ -172,7 +202,12 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
               onRowClick={setSupplierPaymentTarget}
             />
           </TabsContent>
-          <TabsContent value="payments">
+          <TabsContent value="payments" className="space-y-4">
+            <InvoiceFiltersBar
+              from={paymentsFilters.from}
+              to={paymentsFilters.to}
+              onChange={(next) => setPaymentsFilters({ from: next.from, to: next.to })}
+            />
             <PaymentsLedger
               clientPayments={clientPayments.data?.items}
               isClientLoading={clientPayments.isLoading}
@@ -209,7 +244,7 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
           onOpenChange={setPaymentDialogOpen}
           posClientId={selectedInvoice.posClientId}
           invoiceNumber={selectedInvoice.number}
-          previousCredit={selectedInvoice.newCredit ?? 0}
+          previousCredit={selectedInvoice.posClientCredit ?? 0}
           amount={paymentAmount}
           onAmountChange={setPaymentAmount}
           onSubmit={handleRecordPaymentSubmit}
@@ -237,7 +272,7 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
           onOpenChange={(open) => !open && setSupplierPaymentTarget(null)}
           supplierId={supplierPaymentTarget?.supplierId ?? ""}
           supplierInvoiceReference={supplierPaymentTarget?.reference}
-          previousCredit={supplierPaymentTarget?.newCredit ?? 0}
+          previousCredit={supplierPaymentTarget?.supplierCredit ?? 0}
           amount={supplierPaymentAmount}
           onAmountChange={setSupplierPaymentAmount}
           onSubmit={handleSupplierPaymentSubmit}

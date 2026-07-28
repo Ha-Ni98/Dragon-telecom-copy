@@ -4,31 +4,43 @@ import axios from "axios";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { LayoutDashboard, ShoppingCart, FileText, CreditCard, Search } from "lucide-react";
 import { ClientDetailHeader } from "@/pages/admin/clients/components/client-detail-header";
 import { ApprovalDialog } from "@/pages/admin/clients/components/approval-dialog";
 import { ResetPasswordDialog } from "@/pages/admin/clients/components/reset-password-dialog";
 import { BrowsingActivityTable } from "@/pages/admin/clients/components/browsing-activity-table";
+import { ClientOverviewPanel } from "@/pages/admin/clients/components/client-overview-panel";
+import { ClientPaymentsTable } from "@/pages/admin/clients/components/client-payments-table";
+import { OrdersTable } from "@/pages/staff/orders/components/OrdersTable";
+import { InvoicesTable } from "@/pages/staff/invoices/components/InvoicesTable";
 import type { ApproveClientFormValues } from "@/pages/admin/clients/components/approve-client.schema";
 import type { ResetClientPasswordFormValues } from "@/pages/admin/clients/components/reset-client-password.schema";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
+import type {
+  BackofficeOrdersQuery,
+  InvoiceListQuery,
+  ClientPaymentListQuery,
+} from "@dragon-telecom/contract";
 import {
   useClientDirectoryEntry,
+  useClientOverview,
   useApproveClient,
   useRejectClient,
   useResetClientPassword,
 } from "@/hooks/useClientDirectory";
+import { useOrdersList } from "@/hooks/useOrdersDirectory";
+import { useInvoices, useClientPayments } from "@/hooks/useBilling";
 import { useClientActivity } from "@/hooks/useObservability";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { useTranslation } from "@/hooks/useTranslation";
 
-// ADM-12b — Sprint 7 wiring. `useClientActivity` has no per-tab `enabled` option (unlike
-// `useSales`/`useInvoices`), so it fires once the client id is known rather than strictly on
-// Browsing-tab activation — harmless here since it's the only tab that consumes it (Overview/
-// Orders/Invoices/Payments stay EmptyState placeholders; no scoped hook exists for them per the
-// plan's resolve-first section).
+// ADM-12b — Sprint 7 wiring, S8 J4 fills in the four previously-empty tabs. `useClientActivity`
+// (and, per the same precedent, `useOrdersList`/`useClientOverview`) has no per-tab `enabled`
+// option (unlike `useInvoices`/`useClientPayments`), so it fires once the client id is known
+// rather than strictly on tab activation — harmless, since Overview/Orders load instantly and
+// are cheap single-client reads. Invoices/Payments are genuinely gated on `client?.posClientId`
+// being known (a client who has never been approved has none), not on tab activation.
 export default function AdminClientDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
@@ -43,6 +55,26 @@ export default function AdminClientDetail() {
 
   const activityQuery = useMemo(() => ({}), []);
   const activity = useClientActivity(id ?? "", activityQuery);
+
+  const overview = useClientOverview(id ?? "");
+
+  const ordersQuery = useMemo(
+    () => ({ clientId: id, page: 1, limit: 20 }) as BackofficeOrdersQuery,
+    [id],
+  );
+  const orders = useOrdersList("admin", ordersQuery);
+
+  const invoicesQuery = useMemo(
+    () => ({ posClientId: client?.posClientId, page: 1, limit: 20 }) as InvoiceListQuery,
+    [client?.posClientId],
+  );
+  const invoices = useInvoices("admin", invoicesQuery, { enabled: !!client?.posClientId });
+
+  const paymentsQuery = useMemo(
+    () => ({ posClientId: client?.posClientId, page: 1, limit: 20 }) as ClientPaymentListQuery,
+    [client?.posClientId],
+  );
+  const payments = useClientPayments("admin", paymentsQuery, { enabled: !!client?.posClientId });
 
   const categories = useCatalogClientCategories();
   const categoryOptions: AutocompleteOption[] = useMemo(
@@ -150,32 +182,26 @@ export default function AdminClientDetail() {
         </TabsList>
 
         <TabsContent value="overview">
-          <EmptyState
-            icon={<LayoutDashboard className="h-6 w-6" />}
-            title={t("common.noDataAvailable")}
-            body=""
-          />
+          <ClientOverviewPanel overview={overview.data} isLoading={overview.isLoading} />
         </TabsContent>
         <TabsContent value="orders">
-          <EmptyState
-            icon={<ShoppingCart className="h-6 w-6" />}
-            title={t("common.noDataAvailable")}
-            body=""
+          <OrdersTable
+            orders={orders.data?.items}
+            isLoading={orders.isLoading}
+            isError={orders.isError}
+            onRetry={() => orders.refetch()}
           />
         </TabsContent>
         <TabsContent value="invoices">
-          <EmptyState
-            icon={<FileText className="h-6 w-6" />}
-            title={t("common.noDataAvailable")}
-            body=""
+          <InvoicesTable
+            invoices={invoices.data?.items}
+            isLoading={invoices.isLoading}
+            isError={invoices.isError}
+            onRetry={() => invoices.refetch()}
           />
         </TabsContent>
         <TabsContent value="payments">
-          <EmptyState
-            icon={<CreditCard className="h-6 w-6" />}
-            title={t("common.noDataAvailable")}
-            body=""
-          />
+          <ClientPaymentsTable payments={payments.data?.items} isLoading={payments.isLoading} />
         </TabsContent>
         <TabsContent value="browsing">
           <BrowsingActivityTable data={activity.data ?? []} isLoading={activity.isLoading} />

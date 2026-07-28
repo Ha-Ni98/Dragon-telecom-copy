@@ -11,4 +11,7 @@ export const IDENTITY_ROUTES = {
   PAGES: '/admin/pages',
   TECHNICIANS: '/admin/technicians',
   TECHNICIAN_BY_ID: '/admin/technicians/:id',
+  // S18 — the staff repairs page assigns a technician at intake, so it needs the list; the
+  // create/update endpoints stay admin-only (D-3).
+  STAFF_TECHNICIANS: '/staff/technicians',
 } as const;

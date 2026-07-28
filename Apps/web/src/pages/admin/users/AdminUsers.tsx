@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Users, ShieldCheck } from "lucide-react";
 import { UsersTable } from "@/pages/admin/users/components/users-table";
 import { UserDialog } from "@/pages/admin/users/components/user-dialog";
+import { ChangePasswordDialog } from "@/pages/admin/users/components/change-password-dialog";
 import { RolesTable } from "@/pages/admin/users/components/roles-table";
 import { RoleDialog } from "@/pages/admin/users/components/role-dialog";
 import { PageScope, type UserDto, type RoleDto } from "@dragon-telecom/contract";
@@ -14,6 +15,7 @@ import type {
   CreateUserFormValues,
   UpdateUserFormValues,
 } from "@/pages/admin/users/components/user.schema";
+import type { ChangeUserPasswordFormValues } from "@/pages/admin/users/components/change-user-password.schema";
 import type {
   CreateRoleFormValues,
   UpdateRoleFormValues,
@@ -34,7 +36,9 @@ import { useTranslation } from "@/hooks/useTranslation";
 // (`RolesTable`/`UsersTable` both take a bare array, no `PaginatedResult`, and `useRoles()`
 // itself returns a bare `RoleDto[]`) — fetching a single generous page rather than adding new
 // pagination UI in a wiring sprint (same scope-confinement call as set-04 Sprint 6's
-// supplier-invoices list).
+// supplier-invoices list). S17 added the per-row change-password dialog — it reuses the
+// existing `useUpdateUser` mutation (`UpdateUserCommand.password` already existed and the
+// backend already hashes + revokes tokens on it), so no new hook or service call was needed.
 export default function AdminUsers() {
   const { t } = useTranslation();
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
@@ -42,6 +46,7 @@ export default function AdminUsers() {
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<RoleDto | null>(null);
   const [lastAdminGuardError, setLastAdminGuardError] = useState<string | undefined>();
+  const [passwordUser, setPasswordUser] = useState<UserDto | null>(null);
 
   const usersQuery = useMemo(() => ({ page: 1, limit: 100 }), []);
   const users = useUsers(usersQuery);
@@ -89,6 +94,19 @@ export default function AdminUsers() {
           if (axios.isAxiosError(err) && err.response?.status === 409) {
             setLastAdminGuardError(t("admin.users.form.lastAdminGuard"));
           }
+        },
+      },
+    );
+  };
+
+  const handleChangePassword = (values: ChangeUserPasswordFormValues) => {
+    if (!passwordUser) return;
+    updateUser.mutate(
+      { id: passwordUser.id, command: { password: values.password } },
+      {
+        onSuccess: () => {
+          toast.success(t("admin.users.changePassword.success"));
+          setPasswordUser(null);
         },
       },
     );
@@ -148,6 +166,7 @@ export default function AdminUsers() {
             data={users.data?.items ?? []}
             isLoading={users.isLoading}
             onEdit={openUserDialog}
+            onChangePassword={setPasswordUser}
           />
         </TabsContent>
 
@@ -173,6 +192,15 @@ export default function AdminUsers() {
         onSaveUpdate={handleSaveUpdateUser}
         isSaving={createUser.isPending || updateUser.isPending}
         lastAdminGuardError={lastAdminGuardError}
+      />
+
+      <ChangePasswordDialog
+        key={`password-${passwordUser?.id ?? "none"}`}
+        open={!!passwordUser}
+        onOpenChange={(open) => !open && setPasswordUser(null)}
+        username={passwordUser?.username}
+        onSave={handleChangePassword}
+        isSaving={updateUser.isPending}
       />
 
       <RoleDialog

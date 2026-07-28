@@ -25,10 +25,12 @@ interface AdminCancelOrderDialogProps {
   isSubmitting?: boolean;
 }
 
-// Admin-only (ADM-09 §UI: "any pre-COMPLETED state, reason optional") — distinct from the
-// shared client-facing CancelOrderDialog (components/shared/), which is a plain confirm with
-// no reason field (the CLIENT_MY_CANCEL route takes no body). This one is a real RHF form
-// aligned to the admin-only AdminCancelOrderCommand. Dumb — Sprint 6 wires useAdminCancelOrder().
+// ADM-09 §UI: "any pre-COMPLETED state, reason optional" — distinct from the shared
+// client-facing CancelOrderDialog (components/shared/), which is a plain confirm with no reason
+// field (the CLIENT_MY_CANCEL route takes no body). This one is a real RHF form aligned to
+// AdminCancelOrderCommand. Dumb — Sprint 6 wires useCancelBackofficeOrder(). S18/D-1 — no longer
+// admin-only despite the component's name (kept for history): staff holding the orders page
+// reaches this dialog too, via the staff-mounted cancel route.
 export function AdminCancelOrderDialog({
   open,
   onOpenChange,

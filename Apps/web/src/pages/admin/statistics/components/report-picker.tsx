@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/shared/DataTable";
@@ -21,6 +20,8 @@ import { ReportType } from "@dragon-telecom/contract";
 import { useReport, useExportReportCsv } from "@/hooks/useStatistics";
 import { useTranslation } from "@/hooks/useTranslation";
 import { downloadBlob } from "@/lib/utils";
+import { useChartTheme } from "@/lib/chart-theme";
+import { REPORT_COLUMN_KEY } from "@/pages/admin/statistics/report-columns";
 
 interface ReportPickerProps {
   from?: string;
@@ -28,11 +29,13 @@ interface ReportPickerProps {
   className?: string;
 }
 
-// Known drill entities this admin app has a route for — everything else renders as plain
-// text (same scope-confinement convention as AdminLogsTable's ENTITY_ROUTES).
+// S14/F3 — known drill entities this admin app has a route for. The service also emits
+// `posClient`/`clientCategory`/`staff`/`stockMovement`/`repair`/`invoice` as drill entities;
+// none of those have a per-record admin detail route, so they render as plain text (same
+// scope-confinement convention as AdminLogsTable's ENTITY_ROUTES). `client` was removed — no
+// report ever actually emits it (the service emits `posClient`), so the entry was dead.
 const DRILL_ROUTES: Record<string, (id: string) => string> = {
   product: (id) => `/admin/products/${id}`,
-  client: (id) => `/admin/clients/${id}`,
   supplier: (id) => `/admin/suppliers/${id}`,
 };
 
@@ -47,15 +50,16 @@ function formatCellValue(value: unknown): string {
 // ADM-15 — new (Sprint 8): one report at a time (chart + table + CSV), independent of the
 // overview/filtered/charts widgets above it — its own `useReport`/`useExportReportCsv` calls,
 // its own loading/error state, so a report failure never blanks the rest of the page.
+// S14/F2 — the `groupBy` text input is gone: ReportQuery.groupBy was validated by the backend
+// but never read by any report method, so the box did nothing. Removed from the UI only —
+// the contract schema and service signature are untouched (same "remove from the UI only"
+// precedent S7 applied to save-draft).
 export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
   const { t } = useTranslation();
+  const chart = useChartTheme();
   const [type, setType] = useState<ReportType>(ReportType.SALES_BY_PRODUCT);
-  const [groupBy, setGroupBy] = useState("");
 
-  const reportQuery = useMemo(
-    () => ({ from, to, groupBy: groupBy.trim() || undefined }),
-    [from, to, groupBy],
-  );
+  const reportQuery = useMemo(() => ({ from, to }), [from, to]);
   const report = useReport(type, reportQuery);
   const exportCsv = useExportReportCsv();
 
@@ -67,7 +71,7 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
     const buildRoute = drill ? DRILL_ROUTES[drill.entity] : undefined;
     return Object.keys(rows[0]).map((key) => ({
       accessorKey: key,
-      header: key,
+      header: t(REPORT_COLUMN_KEY[key] ?? key),
       cell: ({ row }) => {
         const value = row.original[key];
         if (drill && key === drill.idField && buildRoute && typeof value === "string") {
@@ -80,7 +84,7 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
         return formatCellValue(value);
       },
     }));
-  }, [rows, drill]);
+  }, [rows, drill, t]);
 
   const handleExport = () => {
     exportCsv.mutate(
@@ -112,25 +116,18 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Select value={type} onValueChange={(v) => setType(v as ReportType)}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("admin.statistics.reports.selectType")} />
-            </SelectTrigger>
-            <SelectContent>
-              {REPORT_TYPES.map((reportType) => (
-                <SelectItem key={reportType} value={reportType}>
-                  {t(`admin.statistics.reports.types.${reportType}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            placeholder={t("admin.statistics.reports.groupBy")}
-            value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value)}
-          />
-        </div>
+        <Select value={type} onValueChange={(v) => setType(v as ReportType)}>
+          <SelectTrigger className="w-full md:w-72">
+            <SelectValue placeholder={t("admin.statistics.reports.selectType")} />
+          </SelectTrigger>
+          <SelectContent>
+            {REPORT_TYPES.map((reportType) => (
+              <SelectItem key={reportType} value={reportType}>
+                {t(`admin.statistics.reports.types.${reportType}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {report.isLoading ? (
           <TableSkeleton rows={5} columns={4} />
@@ -157,11 +154,24 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
               <div className="h-56 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={report.data.chart}>
-                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="hsl(var(--primary))" />
+                    <CartesianGrid stroke={chart.grid} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 12, fill: chart.axis }}
+                      stroke={chart.grid}
+                    />
+                    <YAxis tick={{ fontSize: 12, fill: chart.axis }} stroke={chart.grid} />
+                    <Tooltip
+                      contentStyle={{
+                        background: chart.tooltipBg,
+                        color: chart.tooltipFg,
+                        border: `1px solid ${chart.tooltipBorder}`,
+                        borderRadius: 8,
+                      }}
+                      itemStyle={{ color: chart.tooltipFg }}
+                      labelStyle={{ color: chart.tooltipFg }}
+                    />
+                    <Bar dataKey="value" fill={chart.series[0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -176,7 +186,9 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
                 <div className="space-y-1 p-4 text-sm">
                   {Object.entries(row).map(([key, value]) => (
                     <div key={key} className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground">{key}</span>
+                      <span className="text-muted-foreground">
+                        {t(REPORT_COLUMN_KEY[key] ?? key)}
+                      </span>
                       <span>{formatCellValue(value)}</span>
                     </div>
                   ))}

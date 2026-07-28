@@ -12,19 +12,20 @@ type Money = Prisma.Decimal | number;
 
 export type InvoiceRow = Invoice & {
   staff: Pick<Staff, 'firstName' | 'lastName'>;
+  posClient: Pick<PosClient, 'credit'> | null;
   lines: InvoiceLine[];
 };
 
-// `sourceReference` and each line's `currentAverageCost` aren't stored columns at all —
-// `Invoice` has no `sourceReference` (only the internal `sourceId` FK into Sale|Order), and
-// `InvoiceLine` has no `productId` (only a free-text `label`) to join `Product.averageCost`
+// `sourceReference` and each line's `currentAvgStockPrice` aren't stored columns at all —
+// `Invoice` has no `sourceReference` (only the internal `sourceId` FK into Sale|Order|Repair),
+// and `InvoiceLine` has no `productId` (only a free-text `label`) to join `Product.avgStockPrice`
 // through. Both are supplied pre-resolved by the service (Sprint 6's join through `sourceId`
 // and, for margins, a label/quantity/unitPrice correlation back to the source document's own
 // lines) — same "never rebuilt here" precedent as sales' ctx.productNames.
 export type InvoiceMapContext = {
   audience: 'client' | 'staff' | 'admin';
   sourceReference: string;
-  currentAverageCostByLineId?: Map<string, number>;
+  currentAvgStockPriceByLineId?: Map<string, number>;
 };
 
 export type ClientPaymentRow = ClientPayment & {
@@ -67,6 +68,10 @@ export type InvoiceIssueInput = {
 export class BillingMapper {
   static toInvoiceDto(invoice: InvoiceRow, ctx: InvoiceMapContext): InvoiceDto {
     const includeMargins = ctx.audience === 'admin';
+    // S8 J9/F7 — posClientCredit is gated like margins are gated for staff, but open to staff
+    // too (unlike totalCost/totalProfit): both the incoming-invoice and outgoing-invoice
+    // record-payment dialogs are staff-operated, and neither needs the cost/profit figures.
+    const includeCounterpartyCredit = ctx.audience !== 'client';
     const dto: InvoiceDto = {
       number: invoice.number,
       ...(invoice.posClientId != null ? { posClientId: invoice.posClientId } : {}),
@@ -81,6 +86,9 @@ export class BillingMapper {
       paidAmount: BillingMapper.toMoney(invoice.paidAmount),
       ...(invoice.previousCredit != null ? { previousCredit: BillingMapper.toMoney(invoice.previousCredit) } : {}),
       ...(invoice.newCredit != null ? { newCredit: BillingMapper.toMoney(invoice.newCredit) } : {}),
+      ...(includeCounterpartyCredit && invoice.posClient != null
+        ? { posClientCredit: BillingMapper.toMoney(invoice.posClient.credit) }
+        : {}),
       // Margin-gated (Data Mapping: client/staff strip totalCost/totalProfit, admin-only).
       ...(includeMargins
         ? { totalCost: BillingMapper.toMoney(invoice.totalCost), totalProfit: BillingMapper.toMoney(invoice.totalProfit) }
@@ -89,7 +97,7 @@ export class BillingMapper {
       ...(invoice.dueDate != null ? { dueDate: BillingMapper.toDateOnly(invoice.dueDate) } : {}),
       staffName: `${invoice.staff.firstName} ${invoice.staff.lastName}`,
       lines: invoice.lines.map((line) => {
-        const currentAverageCost = includeMargins ? ctx.currentAverageCostByLineId?.get(line.id) : undefined;
+        const currentAvgStockPrice = includeMargins ? ctx.currentAvgStockPriceByLineId?.get(line.id) : undefined;
         return {
           label: line.label,
           quantity: line.quantity,
@@ -99,7 +107,7 @@ export class BillingMapper {
             : {}),
           lineTotal: BillingMapper.toMoney(line.lineTotal),
           ...(line.serialNumbers != null ? { serialNumbers: line.serialNumbers } : {}),
-          ...(currentAverageCost != null ? { currentAverageCost } : {}),
+          ...(currentAvgStockPrice != null ? { currentAvgStockPrice } : {}),
         };
       }),
     };

@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PieChart as PieChartIcon } from "lucide-react";
 import type { ChartPoint } from "@/services/statistics.service";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useChartTheme } from "@/lib/chart-theme";
 
 interface SalesByFamilyChartProps {
   data: ChartPoint[];
@@ -12,23 +13,18 @@ interface SalesByFamilyChartProps {
   className?: string;
 }
 
-const COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--success))",
-  "hsl(var(--warning))",
-  "hsl(var(--destructive))",
-  "hsl(var(--muted-foreground))",
-];
-
 // ADM-15 — retyped off `ChartPoint[]` (`useChart(ChartType.SALES_BY_FAMILY, query)`). The old
 // view-model's top-family/percentage/total-revenue stat rows have no DTO backing (a single
-// `{ label, value }` pair per family) and are dropped (Sprint 3 §Risks).
+// `{ label, value }` pair per family) and are dropped (Sprint 3 §Risks). S14/RC-5 — the slice
+// palette and legend/label colours read from useChartTheme() (literal OKLCH, both themes), not
+// the module-level `hsl(var(--x))` array this file used to declare.
 export function SalesByFamilyChart({
   data,
   isLoading = false,
   className = "",
 }: SalesByFamilyChartProps) {
   const { t } = useTranslation();
+  const chart = useChartTheme();
 
   return (
     <Card className={className}>
@@ -58,14 +54,23 @@ export function SalesByFamilyChart({
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label
+                  label={{ fill: chart.axis }}
                 >
                   {data.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={index} fill={chart.series[index % chart.series.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip
+                  contentStyle={{
+                    background: chart.tooltipBg,
+                    color: chart.tooltipFg,
+                    border: `1px solid ${chart.tooltipBorder}`,
+                    borderRadius: 8,
+                  }}
+                  itemStyle={{ color: chart.tooltipFg }}
+                  labelStyle={{ color: chart.tooltipFg }}
+                />
+                <Legend wrapperStyle={{ color: chart.axis }} />
               </PieChart>
             </ResponsiveContainer>
           </div>

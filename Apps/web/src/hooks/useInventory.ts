@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  StockQuery,
   MovementsQuery,
   ReservationsQuery,
   CreateAdjustmentCommand,
@@ -7,10 +8,10 @@ import type {
 import * as inventoryService from "@/services/inventory.service";
 import { qk } from "@/lib/query-keys";
 
-export function useStock(lowStockOnly?: boolean) {
+export function useStock(query: Omit<StockQuery, "export"> = {}) {
   return useQuery({
-    queryKey: qk.inventory.stock({ lowStockOnly }),
-    queryFn: () => inventoryService.getStock(lowStockOnly),
+    queryKey: qk.inventory.stock(query),
+    queryFn: () => inventoryService.getStock(query),
   });
 }
 
@@ -36,7 +37,7 @@ export function useReservations(query: ReservationsQuery) {
   });
 }
 
-// Cross-invalidates catalog admin products (quantities/averageCost change) and stats — plan.md §3.
+// Cross-invalidates catalog admin products (quantities/avgStockPrice/avgPrice change) and stats — plan.md §3.
 export function useCreateAdjustment() {
   const queryClient = useQueryClient();
   return useMutation({
