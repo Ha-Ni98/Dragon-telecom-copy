@@ -20,20 +20,20 @@ interface OrdersTableProps {
   isError?: boolean;
   onRetry?: () => void;
   onRowClick?: (order: OrderDto) => void;
-  /** ADM-09 §S11 — the user/category columns and the action column are admin-only; S18 carries
-   * staff parity. Mirrors SalesTable's own `scope` gate. */
-  scope?: "staff" | "admin";
   onAction?: (order: OrderDto, target: OrderStatus) => void;
 }
 
-// Dumb, props-only (Sprint 4) — Sprint 6 wires useOrdersList(scope, query) around this.
+// Dumb, props-only (Sprint 4) — Sprint 6 wires useOrdersList(scope, query) around this. ADM-09
+// §S11 originally gated the user/category/action columns behind `scope === "admin"`; S18/D-1
+// opened them to staff holding the orders page too, so the gate is gone — the user/category
+// columns are now unconditional and the action column is gated on `onAction` alone (still absent
+// for AdminClientDetail.tsx's read-only embedded use of this table).
 export function OrdersTable({
   orders,
   isLoading,
   isError,
   onRetry,
   onRowClick,
-  scope = "staff",
   onAction,
 }: OrdersTableProps) {
   const { t, language } = useTranslation();
@@ -59,20 +59,18 @@ export function OrdersTable({
       },
     ];
 
-    if (scope === "admin") {
-      base.push(
-        {
-          id: "user",
-          header: t("staff.orders.table.user"),
-          cell: ({ row }) => row.original.clientUsername ?? "-",
-        },
-        {
-          id: "clientCategory",
-          header: t("staff.orders.table.category"),
-          cell: ({ row }) => row.original.clientCategoryName ?? "-",
-        },
-      );
-    }
+    base.push(
+      {
+        id: "user",
+        header: t("staff.orders.table.user"),
+        cell: ({ row }) => row.original.clientUsername ?? "-",
+      },
+      {
+        id: "clientCategory",
+        header: t("staff.orders.table.category"),
+        cell: ({ row }) => row.original.clientCategoryName ?? "-",
+      },
+    );
 
     base.push(
       {
@@ -118,7 +116,7 @@ export function OrdersTable({
       },
     );
 
-    if (scope === "admin" && onAction) {
+    if (onAction) {
       base.push({
         id: "actions",
         header: t("admin.orders.table.actions"),
@@ -127,7 +125,7 @@ export function OrdersTable({
     }
 
     return base;
-  }, [t, language, scope, onAction]);
+  }, [t, language, onAction]);
 
   const renderMobileRow = (order: OrderDto) => (
     <div className="space-y-2 p-4">
@@ -149,7 +147,7 @@ export function OrdersTable({
     </div>
   );
 
-  if (isLoading) return <TableSkeleton rows={8} columns={scope === "admin" ? 12 : 9} />;
+  if (isLoading) return <TableSkeleton rows={8} columns={12} />;
 
   if (isError) {
     return (

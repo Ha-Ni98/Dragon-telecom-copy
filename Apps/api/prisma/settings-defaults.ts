@@ -28,5 +28,5 @@ export const DEFAULT_SETTINGS = {
   store: { name: 'Dragon Telecom' },
   invoicing: { prefixes: DEFAULT_INVOICING_PREFIXES, nextSequences: DEFAULT_NEXT_SEQUENCES },
   delivery: { defaultHome: 500, defaultOffice: 300 },
-  storefront: { featuredProductIds: [] as string[] },
+  storefront: { featuredProductIds: [] as string[], featuredFamilyIds: [] as string[] },
 };

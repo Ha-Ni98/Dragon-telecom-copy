@@ -3,7 +3,7 @@
  * Complete settings management interface with all sections
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import {
@@ -41,8 +41,10 @@ import { HierarchyPanel } from "@/pages/admin/settings/components/hierarchy-pane
 import { StorefrontSettings } from "@/pages/admin/settings/components/storefront-settings";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { NotFoundState } from "@/components/shared/NotFoundState";
+import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
 import type { StoreSettingsFormValues } from "@/pages/admin/settings/components/store-settings.schema";
 import type { InvoicingSettingsFormValues } from "@/pages/admin/settings/components/invoicing-settings.schema";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePlatformSettings, useUpdatePlatformSettings } from "@/hooks/usePlatform";
 import {
   useCatalogFamilies,
@@ -66,6 +68,13 @@ import { useAdminCatalogProducts } from "@/hooks/useCatalogProducts";
 // tab tree here since Sprint 4: ADM-16 (Users & roles) owns user management (plan §Deletion
 // Audit) — the stub `admin-accounts-section.tsx`/`admin-account-dialog.tsx` files themselves
 // were deleted in Sprint 9 (zero remaining consumers).
+//
+// S17 rebuilt the Storefront tab: it now drives a server-searched product picker (a static
+// 100-row page could neither show nor find a product outside it, so a featured product beyond
+// that page rendered its raw uuid) plus a new featured-**families** picker capped at 6
+// (StorefrontSettingsInputSchema's own `.max(6)`, mirrored client-side). Both lists are draft
+// state batched into one real PATCH on Save — the old Save button only fired a toast; every
+// actual write happened one PATCH per chip via onAdd/onRemove.
 export default function AdminSettings() {
   const { t } = useTranslation();
 
@@ -90,30 +99,88 @@ export default function AdminSettings() {
   const setModelFamilies = useSetModelFamilies();
   const hierarchyLoading = families.isLoading || brands.isLoading || models.isLoading;
 
-  // Product options for the Storefront featured-picker — same "one generous page, no
-  // search-as-you-type UI in a wiring sprint" call as AdminInventory's adjustment-form product
-  // picker (useAdminCatalogProducts({ page: 1, limit: 100 })). A featured product outside this
-  // first 100 falls back to showing its raw id in the chip until it appears in this page.
-  const adminProducts = useAdminCatalogProducts({ page: 1, limit: 100 });
-  const featuredIds = useMemo(
-    () => settingsQuery.data?.storefront.featuredProductIds ?? [],
-    [settingsQuery.data],
+  // --- Storefront tab (S17) ---
+  // Draft state: the tab batches both lists into one PATCH instead of one PATCH per chip (the
+  // old Save button did nothing at all — see the deleted handleSaveStorefront below). Seeded
+  // from the server whenever the settings query resolves or refetches; local edits win until
+  // Save or a fresh server value arrives.
+  const [draftProductIds, setDraftProductIds] = useState<string[] | null>(null);
+  const [draftFamilyIds, setDraftFamilyIds] = useState<string[] | null>(null);
+  const savedProductIds = settingsQuery.data?.storefront.featuredProductIds;
+  const savedFamilyIds = settingsQuery.data?.storefront.featuredFamilyIds;
+  useEffect(() => {
+    if (savedProductIds) setDraftProductIds(savedProductIds);
+  }, [savedProductIds]);
+  useEffect(() => {
+    if (savedFamilyIds) setDraftFamilyIds(savedFamilyIds);
+  }, [savedFamilyIds]);
+  // Memoized so the `?? []` fallback doesn't mint a new array identity every render, which would
+  // otherwise recompute every useMemo below on each render regardless of an actual change.
+  const productIds = useMemo(
+    () => draftProductIds ?? savedProductIds ?? [],
+    [draftProductIds, savedProductIds],
   );
-  const productNameById = useMemo(
-    () => new Map((adminProducts.data?.items ?? []).map((p) => [p.id, p.name])),
-    [adminProducts.data],
+  const familyIds = useMemo(
+    () => draftFamilyIds ?? savedFamilyIds ?? [],
+    [draftFamilyIds, savedFamilyIds],
+  );
+
+  // Picker options: server-side search (a static 100-row page could neither show nor find a
+  // product outside it — the real cause of the old picker's uuid-chip bug). 300 ms, the debounce
+  // every other admin search on this app uses.
+  const [productSearchInput, setProductSearchInput] = useState("");
+  const debouncedProductSearch = useDebouncedValue(productSearchInput, 300);
+  const productSearchResult = useAdminCatalogProducts({
+    search: debouncedProductSearch || undefined,
+    page: 1,
+    limit: 20,
+  });
+
+  // Chip labels: resolved by id, so a featured product outside the search page still shows its
+  // name instead of a raw uuid (catalog.service.ts#staffAdminWhere was taught the `ids` filter
+  // the public list already honoured, for this).
+  const featuredProductsResult = useAdminCatalogProducts(
+    { ids: productIds.join(","), page: 1, limit: 100 },
+    { enabled: productIds.length > 0 },
+  );
+  const featuredProductNameById = useMemo(
+    () => new Map((featuredProductsResult.data?.items ?? []).map((p) => [p.id, p.name])),
+    [featuredProductsResult.data],
   );
   const featuredProducts = useMemo(
-    () => featuredIds.map((id) => ({ id, name: productNameById.get(id) ?? id })),
-    [featuredIds, productNameById],
+    () => productIds.map((id) => ({ id, name: featuredProductNameById.get(id) ?? id })),
+    [productIds, featuredProductNameById],
   );
-  const productOptions = useMemo(
+  const productOptions: AutocompleteOption[] = useMemo(
     () =>
-      (adminProducts.data?.items ?? [])
-        .filter((p) => !featuredIds.includes(p.id))
+      (productSearchResult.data?.items ?? [])
+        .filter((p) => !productIds.includes(p.id))
         .map((p) => ({ value: p.id, label: p.name })),
-    [adminProducts.data, featuredIds],
+    [productSearchResult.data, productIds],
   );
+
+  // Families reuse the Hierarchy tab's existing query — no extra request.
+  const familyNameById = useMemo(
+    () => new Map((families.data ?? []).map((f) => [f.id, f.name])),
+    [families.data],
+  );
+  const featuredFamilies = useMemo(
+    () => familyIds.map((id) => ({ id, name: familyNameById.get(id) ?? id })),
+    [familyIds, familyNameById],
+  );
+  const familyOptions: AutocompleteOption[] = useMemo(
+    () =>
+      (families.data ?? [])
+        .filter((f) => !familyIds.includes(f.id))
+        .map((f) => ({ value: f.id, label: f.name })),
+    [families.data, familyIds],
+  );
+
+  const MAX_FEATURED_FAMILIES = 6; // mirrors StorefrontSettingsInputSchema's own .max(6)
+
+  const storefrontDirty =
+    JSON.stringify(productIds) !== JSON.stringify(savedProductIds ?? []) ||
+    JSON.stringify(familyIds) !== JSON.stringify(savedFamilyIds ?? []);
 
   const handleSaveStore = (values: StoreSettingsFormValues) => {
     updateSettings.mutate(
@@ -137,15 +204,21 @@ export default function AdminSettings() {
     );
   };
 
-  const handleAddFeatured = (productId: string) => {
-    updateSettings.mutate({ storefront: { featuredProductIds: [...featuredIds, productId] } });
-  };
-
-  const handleRemoveFeatured = (productId: string) => {
-    updateSettings.mutate({
-      storefront: { featuredProductIds: featuredIds.filter((id) => id !== productId) },
+  const handleAddProduct = (id: string) =>
+    setDraftProductIds((prev) => {
+      const current = prev ?? savedProductIds ?? [];
+      return current.includes(id) ? current : [...current, id];
     });
-  };
+  const handleRemoveProduct = (id: string) =>
+    setDraftProductIds((prev) => (prev ?? savedProductIds ?? []).filter((x) => x !== id));
+  const handleAddFamily = (id: string) =>
+    setDraftFamilyIds((prev) => {
+      const current = prev ?? savedFamilyIds ?? [];
+      if (current.includes(id) || current.length >= MAX_FEATURED_FAMILIES) return current;
+      return [...current, id];
+    });
+  const handleRemoveFamily = (id: string) =>
+    setDraftFamilyIds((prev) => (prev ?? savedFamilyIds ?? []).filter((x) => x !== id));
 
   const handleCreateFamily = (name: string) => {
     createFamily.mutate(
@@ -192,7 +265,10 @@ export default function AdminSettings() {
   };
 
   const handleSaveStorefront = () => {
-    toast.success(t("admin.settings.saveSuccess"));
+    updateSettings.mutate(
+      { storefront: { featuredProductIds: productIds, featuredFamilyIds: familyIds } },
+      { onSuccess: () => toast.success(t("admin.settings.saveSuccess")) },
+    );
   };
 
   return (
@@ -536,8 +612,16 @@ export default function AdminSettings() {
             <StorefrontSettings
               featuredProducts={featuredProducts}
               productOptions={productOptions}
-              onAdd={handleAddFeatured}
-              onRemove={handleRemoveFeatured}
+              productSearch={productSearchInput}
+              onProductSearchChange={setProductSearchInput}
+              isProductSearchLoading={productSearchResult.isFetching}
+              onAddProduct={handleAddProduct}
+              onRemoveProduct={handleRemoveProduct}
+              featuredFamilies={featuredFamilies}
+              familyOptions={familyOptions}
+              onAddFamily={handleAddFamily}
+              onRemoveFamily={handleRemoveFamily}
+              isDirty={storefrontDirty}
               onSave={handleSaveStorefront}
               isSaving={updateSettings.isPending}
             />

@@ -20,13 +20,17 @@ interface PosClientsTableProps {
   onRowClick: (client: PosClientDto) => void;
   onEdit?: (client: PosClientDto) => void;
   onPageChange: (page: number) => void;
+  /** S18/D-5 — the linked-account arrow opens `/admin/clients/:id`, which has no staff twin;
+   *  shown only in admin scope. */
+  scope?: "staff" | "admin";
 }
 
 function formatCurrency(amount: number): string {
   return `${amount.toLocaleString()} DZD`;
 }
 
-// ADM-11 — PosClientDto (clients.dtos.ts). Sprint 5 wires `usePosClientsList`.
+// ADM-11 — PosClientDto (clients.dtos.ts). Sprint 5 wires `usePosClientsList`. S18 made this the
+// shared staff/admin twin (full parity, D-5).
 export function PosClientsTable({
   data,
   isLoading = false,
@@ -35,6 +39,7 @@ export function PosClientsTable({
   onRowClick,
   onEdit,
   onPageChange,
+  scope = "admin",
 }: PosClientsTableProps) {
   const { t } = useTranslation();
   const clients = data?.items ?? [];
@@ -73,7 +78,7 @@ export function PosClientsTable({
         accessorKey: "linkedClientId",
         header: t("admin.posClients.table.linkedAccount"),
         cell: ({ row }) =>
-          row.original.linkedClientId ? (
+          scope === "admin" && row.original.linkedClientId ? (
             <Link
               to={`/admin/clients/${row.original.linkedClientId}`}
               onClick={(e) => e.stopPropagation()}
@@ -115,7 +120,7 @@ export function PosClientsTable({
         ),
       },
     ],
-    [t, onRowClick, onEdit],
+    [t, onRowClick, onEdit, scope],
   );
 
   const renderMobileRow = (client: PosClientDto) => (

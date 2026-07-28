@@ -44,6 +44,13 @@ export const billingService = service;
 const clientOnly = requireAuth({ types: [UserType.CLIENT] });
 const staffInvoicesOrAdmin = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], pages: [PageKey.STAFF_INVOICES], checkDB: true });
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
+// S18 — backs the POS-clients drawer's Payments tab (D-5); STAFF_INVOICES is included so the
+// staff invoices page could use the same route if it ever surfaces payments.
+const staffPaymentsReadOrAdmin = requireAuth({
+  types: [UserType.STAFF, UserType.ADMIN],
+  anyPages: [PageKey.STAFF_INVOICES, PageKey.STAFF_POS_CLIENTS],
+  checkDB: true,
+});
 
 // 2. Routes (validation uses contract schemas per segment). Literal suffixes (/pdf, /cancel)
 // registered before each family's bare :number route — defensive; no actual segment-count
@@ -99,8 +106,14 @@ router.post(
   controller.createClientPayment,
 );
 router.get(
-  BILLING_ROUTES.CLIENT_PAYMENTS_LIST,
+  BILLING_ROUTES.ADMIN_CLIENT_PAYMENTS_LIST,
   adminOnly,
+  validateRequest({ query: ClientPaymentListQuerySchema }),
+  controller.listClientPayments,
+);
+router.get(
+  BILLING_ROUTES.STAFF_CLIENT_PAYMENTS_LIST,
+  staffPaymentsReadOrAdmin,
   validateRequest({ query: ClientPaymentListQuerySchema }),
   controller.listClientPayments,
 );

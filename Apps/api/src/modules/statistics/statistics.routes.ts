@@ -23,11 +23,16 @@ const service = new StatisticsService(prisma);
 const controller = new StatisticsController(service);
 
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
-const staffOnly = requireAuth({ types: [UserType.STAFF], checkDB: true });
+// S18/P5 — was `types: [UserType.STAFF]`, so an ADMIN browsing /staff (which the staff sidebar
+// explicitly supports — effectivePages() returns every PageKey for ADMIN) 403'd on the page's
+// only query. getStaffDashboard(staffId) filters "my sales"/"my drafts" by staffId and computes
+// pending-orders/low-stock globally, so an admin caller simply sees zeroed "my" figures
+// alongside the real global ones — no service change needed.
+const staffDashboardViewer = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], checkDB: true });
 
 // 2. Routes (validation uses contract schemas per segment)
 router.get(STATS_ROUTES.ADMIN_DASHBOARD, adminOnly, controller.getAdminDashboard);
-router.get(STATS_ROUTES.STAFF_DASHBOARD, staffOnly, controller.getStaffDashboard);
+router.get(STATS_ROUTES.STAFF_DASHBOARD, staffDashboardViewer, controller.getStaffDashboard);
 router.get(STATS_ROUTES.OVERVIEW, adminOnly, controller.getOverview);
 router.get(STATS_ROUTES.FILTERED, adminOnly, validateRequest({ query: FilteredQuerySchema }), controller.getFiltered);
 router.get(

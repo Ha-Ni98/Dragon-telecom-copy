@@ -4,6 +4,7 @@ import { validateRequest } from '@common/middlewares/validate-request.middleware
 import { requireAuth } from '@common/middlewares/auth.middleware';
 import {
   IDENTITY_ROUTES,
+  PageKey,
   UserType,
   LoginSchema,
   RefreshSchema,
@@ -37,6 +38,13 @@ export const identityService = service;
 // checkDB:true closes the "disabled admin's still-valid access token" window (refresh tokens
 // are already revoked on disable — see plan §5.1).
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
+// S18 — the staff repairs intake assigns a technician, so STAFF_REPAIRS holders may read the
+// list. Creating/updating a technician stays adminOnly (D-3).
+const staffRepairsOrAdmin = requireAuth({
+  types: [UserType.STAFF, UserType.ADMIN],
+  anyPages: [PageKey.STAFF_REPAIRS],
+  checkDB: true,
+});
 
 // 2. Routes (validation uses contract schemas per segment)
 router.post(IDENTITY_ROUTES.LOGIN, validateRequest({ body: LoginSchema }), controller.login);
@@ -76,6 +84,7 @@ router.put(
 router.get(IDENTITY_ROUTES.PAGES, adminOnly, validateRequest({ query: PagesQuerySchema }), controller.listPages);
 
 router.get(IDENTITY_ROUTES.TECHNICIANS, adminOnly, controller.listTechnicians);
+router.get(IDENTITY_ROUTES.STAFF_TECHNICIANS, staffRepairsOrAdmin, controller.listTechnicians);
 router.post(
   IDENTITY_ROUTES.TECHNICIANS,
   adminOnly,

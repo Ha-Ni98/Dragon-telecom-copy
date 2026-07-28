@@ -42,6 +42,13 @@ const controller = new SalesController(service);
 // mirroring catalog's own staffProductsOrAdmin precedent.
 const staffPosOrAdmin = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], pages: [PageKey.STAFF_POS], checkDB: true });
 const staffSalesOrAdmin = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], pages: [PageKey.STAFF_SALES], checkDB: true });
+// S18 — also backs the POS-clients detail drawer's Sales tab, whose page key is
+// STAFF_POS_CLIENTS, not STAFF_SALES.
+const staffSalesListOrAdmin = requireAuth({
+  types: [UserType.STAFF, UserType.ADMIN],
+  anyPages: [PageKey.STAFF_SALES, PageKey.STAFF_POS_CLIENTS],
+  checkDB: true,
+});
 // No page restriction — the owner-or-admin guard + margin-gating both live in the service.
 const staffOrAdmin = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], checkDB: true });
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
@@ -66,11 +73,15 @@ router.post(
   validateRequest({ params: SaleIdParamsSchema, body: ConfirmSaleSchema }),
   controller.confirm,
 );
-router.get(SALE_ROUTES.STAFF_LIST, staffSalesOrAdmin, validateRequest({ query: SaleListQuerySchema }), controller.listStaffSales);
+router.get(SALE_ROUTES.STAFF_LIST, staffSalesListOrAdmin, validateRequest({ query: SaleListQuerySchema }), controller.listStaffSales);
 router.get(SALE_ROUTES.ADMIN_LIST, adminOnly, validateRequest({ query: SaleListQuerySchema }), controller.listAdminSales);
 router.get(SALE_ROUTES.STAFF_DETAIL, staffOrAdmin, validateRequest({ params: SaleReferenceParamsSchema }), controller.getSale);
 router.get(SALE_ROUTES.ADMIN_DETAIL, adminOnly, validateRequest({ params: SaleReferenceParamsSchema }), controller.getSale);
-router.get(SALE_ROUTES.RETURNS_LIST, adminOnly, validateRequest({ query: ReturnListQuerySchema }), controller.listReturns);
-router.post(SALE_ROUTES.RETURN, adminOnly, validateRequest({ body: CreateReturnSchema }), controller.createReturn);
+router.get(SALE_ROUTES.ADMIN_RETURNS_LIST, adminOnly, validateRequest({ query: ReturnListQuerySchema }), controller.listReturns);
+router.post(SALE_ROUTES.ADMIN_RETURN, adminOnly, validateRequest({ body: CreateReturnSchema }), controller.createReturn);
+
+// S18/D-2 — staff holding the sales page gets the Returns tab + issue-return, same as admin.
+router.get(SALE_ROUTES.STAFF_RETURNS_LIST, staffSalesOrAdmin, validateRequest({ query: ReturnListQuerySchema }), controller.listReturns);
+router.post(SALE_ROUTES.STAFF_RETURN, staffSalesOrAdmin, validateRequest({ body: CreateReturnSchema }), controller.createReturn);
 
 export { router };

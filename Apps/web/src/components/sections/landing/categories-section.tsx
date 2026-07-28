@@ -6,15 +6,15 @@ import { Button } from "@/components/ui/button";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
+import { usePublicSettings } from "@/hooks/usePlatform";
+import type { FamilyDto } from "@dragon-telecom/contract";
 
 export function CategoriesSection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data: families, isLoading, isError, refetch } = useCatalogFamilies({
-    featured: true,
-    limit: 6,
-    withCount: true,
-  });
+  const { data: publicSettings } = usePublicSettings();
+  const featuredFamilyIds = publicSettings?.storefront.featuredFamilyIds ?? [];
+  const { data: families, isLoading, isError, refetch } = useCatalogFamilies({ withCount: true });
 
   if (isLoading) {
     return (
@@ -54,7 +54,13 @@ export function CategoriesSection() {
     );
   }
 
-  const items = families ?? [];
+  // S15/R2 — settings first, in the admin's own order; `Family.isFeatured` is the fallback
+  // while no pick exists (S17 builds the picker). Six tiles either way.
+  const items = featuredFamilyIds.length
+    ? featuredFamilyIds
+        .map((id) => (families ?? []).find((f) => f.id === id))
+        .filter((f): f is FamilyDto => !!f)
+    : (families ?? []).filter((f) => f.isFeatured).slice(0, 6);
   // Empty section hides itself (PUB-01).
   if (items.length === 0) return null;
 
@@ -78,7 +84,11 @@ export function CategoriesSection() {
               <CardContent className="p-6 text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden">
                   {family.iconUrl ? (
-                    <img src={family.iconUrl} alt={family.name} className="h-8 w-8 object-contain" />
+                    <img
+                      src={family.iconUrl}
+                      alt={family.name}
+                      className="h-8 w-8 object-contain"
+                    />
                   ) : (
                     <Package className="h-8 w-8 text-white" />
                   )}

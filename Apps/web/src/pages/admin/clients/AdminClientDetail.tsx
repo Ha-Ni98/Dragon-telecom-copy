@@ -74,7 +74,7 @@ export default function AdminClientDetail() {
     () => ({ posClientId: client?.posClientId, page: 1, limit: 20 }) as ClientPaymentListQuery,
     [client?.posClientId],
   );
-  const payments = useClientPayments(paymentsQuery, { enabled: !!client?.posClientId });
+  const payments = useClientPayments("admin", paymentsQuery, { enabled: !!client?.posClientId });
 
   const categories = useCatalogClientCategories();
   const categoryOptions: AutocompleteOption[] = useMemo(

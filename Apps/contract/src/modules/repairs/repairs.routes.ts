@@ -23,4 +23,7 @@ export const REPAIR_ROUTES = {
   // S13/R1 — the admin Technicians tab. Mounted OUTSIDE /admin/repairs on purpose: a
   // /admin/repairs/technicians path would be swallowed by ADMIN_BY_ID's uuid-validated :id.
   ADMIN_TECHNICIAN_STATS: '/admin/repair-technicians',
+  // S18/D-3 — staff Technicians tab (sees stats, cannot add a technician). Mounted outside
+  // '/staff/repairs/…' for the same reason ADMIN_TECHNICIAN_STATS is.
+  STAFF_TECHNICIAN_STATS: '/staff/repair-technicians',
 } as const;

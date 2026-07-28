@@ -73,7 +73,7 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
     page,
     limit: 10,
   });
-  const { data: technicians } = useTechnicians();
+  const { data: technicians } = useTechnicians(scope === "admin");
 
   const [intakeOpen, setIntakeOpen] = useState(false);
 
@@ -197,6 +197,7 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
         technicians={technicians}
         onSubmit={handleIntakeSubmit}
         isSubmitting={createRepair.isPending}
+        scope={scope}
       />
 
       <RepairTicketDetail
@@ -230,30 +231,27 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
     </div>
   );
 
-  // S13/R1 — the Technicians tab is admin-only (its stats endpoint is adminOnly); staff keeps
-  // the bare board, same admin-only tab-bar + PageHeader-above-Tabs shape S12 established in
-  // StaffSales.tsx (the header sits above the tab bar, not inside either tab's content).
+  // S13/R1, opened to staff by S18/D-3 — the Technicians tab is now shared (stats only; adding a
+  // technician stays admin-only, gated inside TechniciansTab itself). PageHeader-above-Tabs shape
+  // matches S12's StaffSales.tsx (the header sits above the tab bar, not inside either tab's
+  // content).
   return (
     <div className="space-y-6">
       <PageHeader
         title={scope === "admin" ? t("admin.repairs.pageTitle") : t("staff.repairs.pageTitle")}
       />
-      {scope === "admin" ? (
-        <Tabs defaultValue="board">
-          <TabsList>
-            <TabsTrigger value="board">{t("admin.repairs.tabs.board")}</TabsTrigger>
-            <TabsTrigger value="technicians">{t("admin.repairs.tabs.technicians")}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="board" className="space-y-6">
-            {board}
-          </TabsContent>
-          <TabsContent value="technicians" className="space-y-6">
-            <TechniciansTab />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        board
-      )}
+      <Tabs defaultValue="board">
+        <TabsList>
+          <TabsTrigger value="board">{t("admin.repairs.tabs.board")}</TabsTrigger>
+          <TabsTrigger value="technicians">{t("admin.repairs.tabs.technicians")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="board" className="space-y-6">
+          {board}
+        </TabsContent>
+        <TabsContent value="technicians" className="space-y-6">
+          <TechniciansTab scope={scope} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

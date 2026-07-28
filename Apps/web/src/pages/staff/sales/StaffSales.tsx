@@ -34,6 +34,9 @@ interface Props {
 // here only on an exact, case-insensitive name match against the debounced search results, never
 // a "first match" guess (report-sprint-06.md: avoids silently filtering to the wrong seller).
 // `useUsers` only fires for scope="admin" (a staff caller may not hold identity:list-users).
+// S18/D-2 — the Returns tab and issue-return are no longer admin-only: staff holding the sales
+// page gets both, hitting the staff-mounted returns routes. Profit, the seller column and the
+// footer total stay admin-only (margin data, gated inside SaleDetailDrawer/SalesTable directly).
 export default function StaffSales({ scope = "staff" }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -105,7 +108,6 @@ export default function StaffSales({ scope = "staff" }: Props) {
   const returnMutation = useCreateReturn();
 
   const canReturn =
-    scope === "admin" &&
     !!selectedSale &&
     [SaleStatus.COMPLETED, SaleStatus.PARTIALLY_RETURNED].includes(selectedSale.status);
 
@@ -114,6 +116,7 @@ export default function StaffSales({ scope = "staff" }: Props) {
   // second return on the same line was rejected only by the server. limit 100: a single sale's
   // returns, not a page of the global list.
   const { data: saleReturns } = useReturns(
+    scope,
     { saleId: selectedSale?.id, page: 1, limit: 100 },
     { enabled: canReturn && !!selectedSale },
   );
@@ -128,10 +131,13 @@ export default function StaffSales({ scope = "staff" }: Props) {
   }, [saleReturns]);
 
   const handleReturnSubmit = (values: CreateReturnFormValues) => {
-    returnMutation.mutate(values, { onSuccess: () => setReturnDialogOpen(false) });
+    returnMutation.mutate(
+      { scope, command: values },
+      { onSuccess: () => setReturnDialogOpen(false) },
+    );
   };
 
-  // S12 — the Returns tab, admin-only (returns are an admin-only route).
+  // S12, opened to staff by S18/D-2 — the Returns tab.
   const [returnsPage, setReturnsPage] = useState(1);
   const [selectedReturn, setSelectedReturn] = useState<ReturnDto | null>(null);
   const returnsQuery: ReturnListQuery = useMemo(
@@ -143,7 +149,7 @@ export default function StaffSales({ scope = "staff" }: Props) {
     isLoading: returnsLoading,
     isError: returnsIsError,
     refetch: refetchReturns,
-  } = useReturns(returnsQuery, { enabled: scope === "admin" });
+  } = useReturns(scope, returnsQuery);
 
   const salesSection = (
     <>
@@ -221,22 +227,18 @@ export default function StaffSales({ scope = "staff" }: Props) {
         title={scope === "admin" ? t("admin.sales.pageTitle") : t("staff.sales.pageTitle")}
       />
 
-      {scope === "admin" ? (
-        <Tabs defaultValue="sales">
-          <TabsList>
-            <TabsTrigger value="sales">{t("admin.sales.tabs.sales")}</TabsTrigger>
-            <TabsTrigger value="returns">{t("admin.sales.tabs.returns")}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="sales" className="space-y-6">
-            {salesSection}
-          </TabsContent>
-          <TabsContent value="returns" className="space-y-6">
-            {returnsSection}
-          </TabsContent>
-        </Tabs>
-      ) : (
-        salesSection
-      )}
+      <Tabs defaultValue="sales">
+        <TabsList>
+          <TabsTrigger value="sales">{t("admin.sales.tabs.sales")}</TabsTrigger>
+          <TabsTrigger value="returns">{t("admin.sales.tabs.returns")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="sales" className="space-y-6">
+          {salesSection}
+        </TabsContent>
+        <TabsContent value="returns" className="space-y-6">
+          {returnsSection}
+        </TabsContent>
+      </Tabs>
 
       <SaleDetailDrawer
         open={!!selectedReference}
@@ -251,28 +253,24 @@ export default function StaffSales({ scope = "staff" }: Props) {
         forbidden={forbidden}
       />
 
-      {scope === "admin" && (
-        <>
-          <ReturnDialog
-            // Forces a fresh mount per sale — same defaultValues-frozen-at-first-render bug as
-            // OrderConfirmDialog (StaffOrders.tsx), found while writing set-03 Sprint 9's tests.
-            // S12 — also folds in the returns count so the bounds recompute after a return lands
-            // rather than staying frozen at the first render's values.
-            key={`${selectedSale?.id ?? "none"}-${saleReturns?.meta.total ?? 0}`}
-            open={returnDialogOpen}
-            onOpenChange={setReturnDialogOpen}
-            sale={selectedSale ?? null}
-            alreadyReturnedByLine={alreadyReturnedByLine}
-            onSubmit={handleReturnSubmit}
-            isSubmitting={returnMutation.isPending}
-          />
-          <ReturnDetailDialog
-            open={!!selectedReturn}
-            onOpenChange={(open) => !open && setSelectedReturn(null)}
-            item={selectedReturn}
-          />
-        </>
-      )}
+      <ReturnDialog
+        // Forces a fresh mount per sale — same defaultValues-frozen-at-first-render bug as
+        // OrderConfirmDialog (StaffOrders.tsx), found while writing set-03 Sprint 9's tests.
+        // S12 — also folds in the returns count so the bounds recompute after a return lands
+        // rather than staying frozen at the first render's values.
+        key={`${selectedSale?.id ?? "none"}-${saleReturns?.meta.total ?? 0}`}
+        open={returnDialogOpen}
+        onOpenChange={setReturnDialogOpen}
+        sale={selectedSale ?? null}
+        alreadyReturnedByLine={alreadyReturnedByLine}
+        onSubmit={handleReturnSubmit}
+        isSubmitting={returnMutation.isPending}
+      />
+      <ReturnDetailDialog
+        open={!!selectedReturn}
+        onOpenChange={(open) => !open && setSelectedReturn(null)}
+        item={selectedReturn}
+      />
     </div>
   );
 }

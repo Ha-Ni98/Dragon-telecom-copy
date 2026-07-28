@@ -42,16 +42,18 @@ export const SettingsResponseSchema = z.object({
   }),
   storefront: z.object({
     featuredProductIds: z.array(z.uuid()),
+    featuredFamilyIds: z.array(z.uuid()),
   }),
 });
 export type SettingsDto = z.infer<typeof SettingsResponseSchema>;
 
-// SETTINGS_PUBLIC route note: "featured products only" — trimmed to the one
+// SETTINGS_PUBLIC route note: "featured products and families only" — trimmed to the one
 // public-safe section rather than the full SettingsDto (store/invoicing/delivery
 // are internal-only).
 export const PublicSettingsResponseSchema = z.object({
   storefront: z.object({
     featuredProductIds: z.array(z.uuid()),
+    featuredFamilyIds: z.array(z.uuid()),
   }),
 });
 export type PublicSettingsDto = z.infer<typeof PublicSettingsResponseSchema>;

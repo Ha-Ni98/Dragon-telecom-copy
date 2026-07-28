@@ -117,11 +117,14 @@ export async function recordRepairPayment(
   return res.data.data;
 }
 
-// S13/R1 — admin-only; no scope parameter (there is no staff route for this yet, S18 aligns it).
-export async function listTechnicianStats(): Promise<TechnicianRepairStatsDto[]> {
-  const res = await api.get<ApiResponse<TechnicianRepairStatsDto[]>>(
-    apiPath(REPAIR_ROUTES.ADMIN_TECHNICIAN_STATS),
-  );
+// S13/R1, scoped by S18/D-3 — staff holding the repairs page sees the Technicians tab too
+// (stats only; adding a technician stays admin-only).
+export async function listTechnicianStats(
+  scope: RepairsScope,
+): Promise<TechnicianRepairStatsDto[]> {
+  const route =
+    scope === "admin" ? REPAIR_ROUTES.ADMIN_TECHNICIAN_STATS : REPAIR_ROUTES.STAFF_TECHNICIAN_STATS;
+  const res = await api.get<ApiResponse<TechnicianRepairStatsDto[]>>(apiPath(route));
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

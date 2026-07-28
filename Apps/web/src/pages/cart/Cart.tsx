@@ -1,54 +1,37 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { NotFoundState } from "@/components/shared/NotFoundState";
-import { ProductOrderModal } from "@/components/shared/ProductOrderModal";
+import { OrderPlacementSection } from "@/components/shared/OrderPlacementSection";
 import { CartItemRow, CartItemRowSkeleton } from "@/pages/cart/components/CartItemRow";
 import { useClientCart, useRemoveFromCart } from "@/hooks/useClientPortal";
-import { useWilayas, usePlatformDeliveryFee } from "@/hooks/usePlatform";
-import { usePlaceOrder } from "@/hooks/useOrdersPortal";
 import { useTranslation } from "@/hooks/useTranslation";
-import type { CartItemDto, OrderType } from "@dragon-telecom/contract";
-import { toPlaceOrderCommand, type OrderFormValues } from "@/pages/product-detail/order.schema";
+import type { CartItemDto } from "@dragon-telecom/contract";
 
-interface DeliveryParams {
-  wilayaId: string;
-  communeId: string;
-  orderType: OrderType;
-}
-
-// PUB-04 — favorites list with a per-row single-product order (reuses PUB-03's ProductOrderModal
-// + order.schema.ts wholesale, plan.md D8/D13). Route is CLIENT-scoped (App.tsx), so no guest
-// branch is needed here the way ProductDetails.tsx has one.
+// PUB-04 — favorites list with a single multi-line checkout (S16/D1: one order, N lines, one
+// delivery fee, one reservation per line — reuses S15's OrderPlacementSection, the same
+// component the product page uses). Route is CLIENT-scoped (App.tsx), so no guest branch is
+// needed here the way ProductDetails.tsx has one.
 export default function Cart() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
 
   const { data: items, isLoading, isError, refetch } = useClientCart();
   const removeMutation = useRemoveFromCart();
-  const placeOrderMutation = usePlaceOrder();
-  const { data: wilayas } = useWilayas();
 
-  const [selectedItem, setSelectedItem] = useState<CartItemDto | null>(null);
-  const [deliveryParams, setDeliveryParams] = useState<DeliveryParams | null>(null);
+  // Checkout state is local and unpersisted (S16/R1): ClientCart has no quantity column, and a
+  // favorites row is not a commitment to order that many. Keyed by productId; a row absent from
+  // the map is "included, quantity 1".
+  const [selection, setSelection] = useState<
+    Record<string, { included: boolean; quantity: number }>
+  >({});
 
-  const { data: fee, isLoading: isFeeLoading } = usePlatformDeliveryFee({
-    wilayaId: deliveryParams?.wilayaId ?? "",
-    communeId: deliveryParams?.communeId,
-  });
-
-  const handleOrder = (item: CartItemDto) => {
-    setDeliveryParams(null);
-    setSelectedItem(item);
-  };
-
-  const handleOrderSubmit = async (data: OrderFormValues) => {
-    const command = toPlaceOrderCommand(data, null);
-    const order = await placeOrderMutation.mutateAsync(command);
-    setSelectedItem(null);
-    navigate("/order-confirmation", { state: { order } });
+  const blockedReasonFor = (item: CartItemDto): string | undefined => {
+    const price = item.product.currentPrice ?? item.product.guestPrice;
+    if (item.product.priceHidden || price === undefined) return t("cart.blockedNoPrice");
+    if (!item.product.inStock) return t("cart.blockedOutOfStock");
+    return undefined;
   };
 
   if (isLoading) {
@@ -94,6 +77,23 @@ export default function Cart() {
     );
   }
 
+  const rows = items.map((item) => {
+    const blockedReason = blockedReasonFor(item);
+    const state = selection[item.productId] ?? { included: true, quantity: 1 };
+    return {
+      item,
+      blockedReason,
+      included: !blockedReason && state.included,
+      quantity: state.quantity,
+    };
+  });
+
+  const orderLines = rows
+    .filter((row) => row.included)
+    .map((row) => ({ product: row.item.product, quantity: row.quantity }));
+
+  const excludedCount = rows.filter((row) => row.blockedReason).length;
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
       <div>
@@ -102,30 +102,42 @@ export default function Cart() {
       </div>
 
       <div className="space-y-4">
-        {items.map((item) => (
+        {rows.map(({ item, blockedReason, included, quantity }) => (
           <CartItemRow
             key={item.productId}
             item={item}
-            onOrder={() => handleOrder(item)}
+            blockedReason={blockedReason}
+            included={included}
+            onIncludedChange={(next) =>
+              setSelection((prev) => ({ ...prev, [item.productId]: { included: next, quantity } }))
+            }
+            quantity={quantity}
+            onQuantityChange={(next) =>
+              setSelection((prev) => ({ ...prev, [item.productId]: { included, quantity: next } }))
+            }
             onRemove={() => removeMutation.mutate(item.productId)}
             isRemoving={removeMutation.isPending && removeMutation.variables === item.productId}
           />
         ))}
       </div>
 
-      {selectedItem && (
-        <ProductOrderModal
-          isOpen={!!selectedItem}
-          onClose={() => setSelectedItem(null)}
-          product={selectedItem.product}
-          quantity={1}
-          wilayas={wilayas ?? []}
-          fee={fee}
-          isFeeLoading={isFeeLoading}
-          onDeliveryParamsChange={setDeliveryParams}
-          onSubmit={handleOrderSubmit}
-          isSubmitting={placeOrderMutation.isPending}
-        />
+      {excludedCount > 0 && (
+        <p className="rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+          {t("cart.excludedNotice")}
+        </p>
+      )}
+
+      {/* D1 — one order, N lines, one delivery fee, one reservation per line. The section is
+          the same component the product page uses; only the lines array differs. Not cleared on
+          success (R4) — the cart is a favorites list, not a one-shot order builder. */}
+      <OrderPlacementSection
+        lines={orderLines}
+        disabled={orderLines.length === 0}
+        submitLabel={t("cart.orderAll")}
+      />
+
+      {orderLines.length === 0 && (
+        <p className="text-sm text-muted-foreground">{t("cart.nothingSelected")}</p>
       )}
     </div>
   );

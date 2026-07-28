@@ -386,11 +386,21 @@ export class CatalogProductService implements ICatalogProductService {
   }
 
   // Public storefront: enabled + published only, viewer-resolved pricing/inStock/inCart.
+  // S15 — search widened to name-or-barcode (same pair staffAdminWhere uses); `ids` lets the
+  // settings-driven featured strip ask for an exact product list.
   async listProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<ProductWithPricingDto>> {
     const where: Prisma.ProductWhereInput = {
       isEnabled: true,
       isPublished: true,
-      ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' as const } },
+              { barcode: { startsWith: query.search } },
+            ],
+          }
+        : {}),
+      ...(query.ids ? { id: { in: query.ids.split(',') } } : {}),
       ...(query.familyId != null ? { familyId: query.familyId } : {}),
       ...(query.brandId != null ? { brandId: query.brandId } : {}),
       ...(query.modelId != null ? { deviceModelId: query.modelId } : {}),
@@ -905,6 +915,9 @@ export class CatalogProductService implements ICatalogProductService {
             ],
           }
         : {}),
+      // S17 — same comma-separated `ids` filter the public list already honours (S15); the
+      // Settings featured-products picker resolves its saved ids to admin rows through this.
+      ...(query.ids ? { id: { in: query.ids.split(',') } } : {}),
       ...(query.familyId != null ? { familyId: query.familyId } : {}),
       ...(query.brandId != null ? { brandId: query.brandId } : {}),
       ...(query.modelId != null ? { deviceModelId: query.modelId } : {}),

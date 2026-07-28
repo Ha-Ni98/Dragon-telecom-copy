@@ -50,6 +50,9 @@ interface IntakeDialogProps {
   technicians?: TechnicianDto[];
   onSubmit: (values: IntakeRepairFormValues) => void;
   isSubmitting?: boolean;
+  /** S18/D-3 — the create-if-absent brand/model calls need to hit the staff-reachable catalog
+   *  routes when this dialog is opened from `/staff/repairs`. */
+  scope?: "staff" | "admin";
 }
 
 // S13/F5 — owns its own brand/model fetch + create-if-absent (previously the caller passed a
@@ -62,6 +65,7 @@ export function IntakeDialog({
   technicians,
   onSubmit,
   isSubmitting,
+  scope = "staff",
 }: IntakeDialogProps) {
   const { t } = useTranslation();
   const {
@@ -80,8 +84,8 @@ export function IntakeDialog({
 
   const { data: brands } = useCatalogBrands();
   const { data: models } = useCatalogModels({ brandId }, false, { enabled: !!brandId });
-  const createBrand = useCreateCatalogBrand();
-  const createModel = useCreateCatalogModel();
+  const createBrand = useCreateCatalogBrand(scope === "admin");
+  const createModel = useCreateCatalogModel(scope === "admin");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

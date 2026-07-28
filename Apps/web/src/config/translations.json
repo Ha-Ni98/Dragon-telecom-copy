@@ -10334,6 +10334,16 @@
     "fr": "Point de vente",
     "ar": ""
   },
+  "staff.posClients.title": {
+    "en": "POS clients",
+    "fr": "Clients point de vente",
+    "ar": ""
+  },
+  "staff.posClients.description": {
+    "en": "Manage walk-in clients created at the point of sale",
+    "fr": "Gérez les clients de passage créés au point de vente",
+    "ar": ""
+  },
   "staff.pos.search.placeholder": {
     "en": "Scan or search products (F2)",
     "fr": "Scanner ou rechercher des produits (F2)",
@@ -13799,6 +13809,46 @@
     "fr": "Utilisateur mis à jour avec succès",
     "ar": ""
   },
+  "admin.users.changePassword.action": {
+    "en": "Change password",
+    "fr": "Modifier le mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.title": {
+    "en": "Change password",
+    "fr": "Modifier le mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.warning": {
+    "en": "This immediately signs the user out of every device",
+    "fr": "Cela déconnecte immédiatement l'utilisateur de tous les appareils",
+    "ar": ""
+  },
+  "admin.users.changePassword.newPassword": {
+    "en": "New password",
+    "fr": "Nouveau mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.confirmPassword": {
+    "en": "Confirm password",
+    "fr": "Confirmer le mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.minLength": {
+    "en": "Password must be at least 8 characters",
+    "fr": "Le mot de passe doit contenir au moins 8 caractères",
+    "ar": ""
+  },
+  "admin.users.changePassword.confirmRequired": {
+    "en": "Please confirm the new password",
+    "fr": "Veuillez confirmer le nouveau mot de passe",
+    "ar": ""
+  },
+  "admin.users.changePassword.success": {
+    "en": "Password changed",
+    "fr": "Mot de passe modifié",
+    "ar": ""
+  },
   "admin.users.roles.table.code": {
     "en": "Code",
     "fr": "Code",
@@ -13997,6 +14047,61 @@
   "admin.settings.storefront.deliveryCompaniesNote": {
     "en": "Delivery companies are managed in a later release",
     "fr": "Les sociétés de livraison seront gérées dans une prochaine version",
+    "ar": ""
+  },
+  "admin.settings.storefront.featuredProductsHelp": {
+    "en": "These products appear in the storefront's featured strip",
+    "fr": "Ces produits apparaissent dans la sélection de la vitrine",
+    "ar": ""
+  },
+  "admin.settings.storefront.searchProductsPlaceholder": {
+    "en": "Search a product by name",
+    "fr": "Rechercher un produit par nom",
+    "ar": ""
+  },
+  "admin.settings.storefront.noProductSelected": {
+    "en": "No featured product yet",
+    "fr": "Aucun produit mis en avant",
+    "ar": ""
+  },
+  "admin.settings.storefront.removeProduct": {
+    "en": "Remove this product",
+    "fr": "Retirer ce produit",
+    "ar": ""
+  },
+  "admin.settings.storefront.featuredFamilies": {
+    "en": "Featured families",
+    "fr": "Familles mises en avant",
+    "ar": ""
+  },
+  "admin.settings.storefront.featuredFamiliesHelp": {
+    "en": "Choose up to 6 families to show on the home page",
+    "fr": "Choisissez jusqu'à 6 familles à afficher sur la page d'accueil",
+    "ar": ""
+  },
+  "admin.settings.storefront.searchFamiliesPlaceholder": {
+    "en": "Search a family",
+    "fr": "Rechercher une famille",
+    "ar": ""
+  },
+  "admin.settings.storefront.noFamilySelected": {
+    "en": "No featured family yet",
+    "fr": "Aucune famille mise en avant",
+    "ar": ""
+  },
+  "admin.settings.storefront.removeFamily": {
+    "en": "Remove this family",
+    "fr": "Retirer cette famille",
+    "ar": ""
+  },
+  "admin.settings.storefront.familyLimitReached": {
+    "en": "Maximum of 6 families reached — remove one to add another",
+    "fr": "Maximum de 6 familles atteint — retirez-en une pour en ajouter une autre",
+    "ar": ""
+  },
+  "admin.settings.storefront.unsavedChanges": {
+    "en": "Unsaved changes",
+    "fr": "Modifications non enregistrées",
     "ar": ""
   },
   "admin.settings.saveSuccess": {
@@ -14347,6 +14452,61 @@
   "admin.sales.returnDialog.creditEffectFull": {
     "en": "Full return — this sale's credit is reversed.",
     "fr": "Retour complet — le crédit de cette vente est annulé.",
+    "ar": ""
+  },
+  "search.loading": {
+    "en": "Searching…",
+    "fr": "Recherche…",
+    "ar": ""
+  },
+  "header.openSearch": {
+    "en": "Open search",
+    "fr": "Ouvrir la recherche",
+    "ar": ""
+  },
+  "header.closeSearch": {
+    "en": "Close search",
+    "fr": "Fermer la recherche",
+    "ar": ""
+  },
+  "orderSection.title": {
+    "en": "Order information",
+    "fr": "Informations de commande",
+    "ar": ""
+  },
+  "orderSection.insufficientStock": {
+    "en": "Not enough stock for this order",
+    "fr": "Stock insuffisant pour cette commande",
+    "ar": ""
+  },
+  "cart.includeInOrder": {
+    "en": "Include in order",
+    "fr": "Inclure dans la commande",
+    "ar": ""
+  },
+  "cart.orderAll": {
+    "en": "Order selected items",
+    "fr": "Commander les articles sélectionnés",
+    "ar": ""
+  },
+  "cart.nothingSelected": {
+    "en": "Select at least one product to order",
+    "fr": "Sélectionnez au moins un produit à commander",
+    "ar": ""
+  },
+  "cart.blockedOutOfStock": {
+    "en": "Out of stock — cannot be ordered",
+    "fr": "En rupture de stock — ne peut pas être commandé",
+    "ar": ""
+  },
+  "cart.blockedNoPrice": {
+    "en": "No price available for your account",
+    "fr": "Aucun prix disponible pour votre compte",
+    "ar": ""
+  },
+  "cart.excludedNotice": {
+    "en": "Some products can't be ordered right now and are left out of this order.",
+    "fr": "Certains produits ne peuvent pas être commandés pour le moment et sont exclus de cette commande.",
     "ar": ""
   }
 }

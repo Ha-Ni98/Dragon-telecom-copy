@@ -56,11 +56,20 @@ export function useUpdateOrderStatus() {
   });
 }
 
-export function useAdminCancelOrder() {
+// S18/D-1 — renamed from useAdminCancelOrder; both mutations now take a `scope` so staff holding
+// the orders page can cancel/return too, hitting the staff-mounted route pair.
+export function useCancelBackofficeOrder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, command }: { id: string; command: AdminCancelOrderCommand }) =>
-      ordersService.adminCancelOrder(id, command),
+    mutationFn: ({
+      scope,
+      id,
+      command,
+    }: {
+      scope: OrderScope;
+      id: string;
+      command: AdminCancelOrderCommand;
+    }) => ordersService.cancelBackofficeOrder(scope, id, command),
     onSuccess: () => invalidateOrderSideEffects(queryClient),
   });
 }
@@ -68,8 +77,15 @@ export function useAdminCancelOrder() {
 export function useReturnOrder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, command }: { id: string; command: ReturnOrderCommand }) =>
-      ordersService.returnOrder(id, command),
+    mutationFn: ({
+      scope,
+      id,
+      command,
+    }: {
+      scope: OrderScope;
+      id: string;
+      command: ReturnOrderCommand;
+    }) => ordersService.returnOrder(scope, id, command),
     onSuccess: () => invalidateOrderSideEffects(queryClient),
   });
 }

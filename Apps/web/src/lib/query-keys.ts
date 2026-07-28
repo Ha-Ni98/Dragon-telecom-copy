@@ -32,7 +32,11 @@ export const qk = {
     },
     pages: (query?: unknown) => ["identity", "pages", query] as const,
     technicians: {
+      // S18 — `list(admin)` added (mirrors qk.catalog.brands' own all()/list(admin) split) now
+      // that a staff route exists alongside the admin one (D-3). `all()` stays the bare prefix
+      // so a create/update mutation (admin-only, D-3) invalidates both variants in one call.
       all: () => ["identity", "technicians"] as const,
+      list: (admin = true) => ["identity", "technicians", admin] as const,
     },
   },
   catalog: {
@@ -82,7 +86,9 @@ export const qk = {
   },
   posClients: {
     all: () => ["pos-clients"] as const,
-    list: (query?: unknown) => ["pos-clients", "list", query] as const,
+    // S18 — `scope` added (staff/admin cache-collision fix, same as orders/sales/billing above)
+    // now that the staff POS-clients page shares this list with admin (D-5).
+    list: (scope: string, query?: unknown) => ["pos-clients", "list", scope, query] as const,
     search: (query: string) => ["pos-clients", "search", query] as const,
     detail: (id: string) => ["pos-clients", "detail", id] as const,
   },
@@ -137,15 +143,17 @@ export const qk = {
     list: (scope: string, query?: unknown) => ["sales", "list", scope, query] as const,
     detail: (scope: string, reference: string) => ["sales", "detail", scope, reference] as const,
     // S12 — nested under `sales` so useCreateReturn's existing qk.sales.all() invalidation
-    // reaches it for free; no change to that mutation's fan-out.
-    returns: (query?: unknown) => ["sales", "returns", query] as const,
+    // reaches it for free; no change to that mutation's fan-out. S18 added `scope` (same
+    // staff/admin cache-collision fix as `list`/`detail` above — returns now has a staff route
+    // too, D-2).
+    returns: (scope: string, query?: unknown) => ["sales", "returns", scope, query] as const,
   },
   repairs: {
     all: () => ["repairs"] as const,
     list: (scope: string, query?: unknown) => ["repairs", "list", scope, query] as const,
     detail: (scope: string, id: string) => ["repairs", "detail", scope, id] as const,
-    // S13/R1 — admin-only technician stats; no scope member (there is no staff route).
-    technicianStats: () => ["repairs", "technician-stats"] as const,
+    // S13/R1 — technician stats. S18 added `scope` (staff route now exists too, D-3).
+    technicianStats: (scope: string) => ["repairs", "technician-stats", scope] as const,
   },
   billing: {
     all: () => ["billing"] as const,
@@ -160,7 +168,10 @@ export const qk = {
     list: (scope: string, query?: unknown) => ["billing", "list", scope, query] as const,
     detail: (scope: string, number: string) => ["billing", "detail", scope, number] as const,
     payments: {
-      list: (query?: unknown) => ["billing", "payments", "list", query] as const,
+      // S18 — `scope` added (staff/admin cache-collision fix, same as `list`/`detail` above);
+      // the staff POS-clients drawer's Payments tab now reads through this too (D-5).
+      list: (scope: string, query?: unknown) =>
+        ["billing", "payments", "list", scope, query] as const,
     },
   },
   stats: {

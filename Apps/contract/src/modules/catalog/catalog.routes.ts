@@ -19,6 +19,10 @@ export const CATALOG_ROUTES = {
   ADMIN_MODELS: '/admin/models',
   ADMIN_MODEL_BY_ID: '/admin/models/:id',
   MODEL_FAMILIES: '/admin/models/:id/families',
+  // S18 — repairs intake creates a brand/model when absent (S13). The read routes (BRANDS,
+  // MODELS) are already public; only creation needed a staff-reachable path.
+  STAFF_BRANDS: '/staff/brands',
+  STAFF_MODELS: '/staff/models',
   CATEGORIES: '/admin/client-categories',
   CATEGORIES_CUD: '/admin/client-categories',
   CATEGORY_BY_ID: '/admin/client-categories/:id',

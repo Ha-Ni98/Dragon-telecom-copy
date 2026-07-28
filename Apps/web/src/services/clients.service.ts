@@ -186,6 +186,10 @@ export async function updateAdminClient(
 // No GET-by-id route exists (POS_CLIENT_ROUTES.ADMIN_BY_ID is PATCH-only per the real backend
 // router) — do not add a getPosClient(id); it would have no route to call.
 
+// S18/D-5 — full parity: the staff POS-clients page shares this service, scoped like
+// sales/billing/orders above.
+export type PosClientsScope = "staff" | "admin";
+
 export async function searchPosClients(query: PosClientSearchQuery): Promise<PosClientDto[]> {
   const res = await api.get<ApiResponse<PosClientDto[]>>(apiPath(POS_CLIENT_ROUTES.SEARCH), {
     params: query,
@@ -204,30 +208,37 @@ export async function quickCreatePosClient(command: CreatePosClientCommand): Pro
 }
 
 export async function listPosClients(
+  scope: PosClientsScope,
   query: PosClientListQuery,
 ): Promise<PaginatedResult<PosClientDto>> {
-  const res = await api.get<ApiResponse<PaginatedResult<PosClientDto>>>(
-    apiPath(POS_CLIENT_ROUTES.ADMIN),
-    {
-      params: query,
-    },
-  );
+  const route = scope === "admin" ? POS_CLIENT_ROUTES.ADMIN : POS_CLIENT_ROUTES.STAFF_LIST;
+  const res = await api.get<ApiResponse<PaginatedResult<PosClientDto>>>(apiPath(route), {
+    params: query,
+  });
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }
 
-export async function createPosClient(command: CreatePosClientCommand): Promise<PosClientDto> {
-  const res = await api.post<ApiResponse<PosClientDto>>(apiPath(POS_CLIENT_ROUTES.ADMIN), command);
+// Staff creates through QUICK_CREATE — same CreatePosClientSchema, same service method
+// (createPosClientRow) the admin POST calls, so no third create path exists on the backend.
+export async function createPosClient(
+  scope: PosClientsScope,
+  command: CreatePosClientCommand,
+): Promise<PosClientDto> {
+  const route = scope === "admin" ? POS_CLIENT_ROUTES.ADMIN : POS_CLIENT_ROUTES.QUICK_CREATE;
+  const res = await api.post<ApiResponse<PosClientDto>>(apiPath(route), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }
 
 export async function updatePosClient(
+  scope: PosClientsScope,
   id: string,
   command: UpdatePosClientCommand,
 ): Promise<PosClientDto> {
+  const route = scope === "admin" ? POS_CLIENT_ROUTES.ADMIN_BY_ID : POS_CLIENT_ROUTES.STAFF_BY_ID;
   const res = await api.patch<ApiResponse<PosClientDto>>(
-    withParams(apiPath(POS_CLIENT_ROUTES.ADMIN_BY_ID), { id }),
+    withParams(apiPath(route), { id }),
     command,
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive

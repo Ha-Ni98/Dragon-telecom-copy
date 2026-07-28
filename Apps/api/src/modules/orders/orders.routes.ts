@@ -97,14 +97,28 @@ router.patch(
 );
 
 router.post(
-  ORDER_ROUTES.CANCEL,
+  ORDER_ROUTES.ADMIN_CANCEL,
   adminOnly,
   validateRequest({ params: OrderIdParamsSchema, body: CancelOrderSchema }),
   controller.cancelOrder,
 );
 router.post(
-  ORDER_ROUTES.RETURN,
+  ORDER_ROUTES.ADMIN_RETURN,
   adminOnly,
+  validateRequest({ params: OrderIdParamsSchema, body: ReturnOrderSchema }),
+  controller.returnOrder,
+);
+
+// S18/D-1 — staff holding the orders page may cancel and return an order, same as admin.
+router.post(
+  ORDER_ROUTES.STAFF_CANCEL,
+  staffOrdersOrAdmin,
+  validateRequest({ params: OrderIdParamsSchema, body: CancelOrderSchema }),
+  controller.cancelOrder,
+);
+router.post(
+  ORDER_ROUTES.STAFF_RETURN,
+  staffOrdersOrAdmin,
   validateRequest({ params: OrderIdParamsSchema, body: ReturnOrderSchema }),
   controller.returnOrder,
 );

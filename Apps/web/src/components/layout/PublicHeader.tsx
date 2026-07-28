@@ -4,8 +4,8 @@ import { Menu, Search, ShoppingCart, User as UserIcon, LogOut, ChevronsUpDown } 
 import { Logo } from "@/components/shared/Logo";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { LanguageToggle } from "@/components/shared/LanguageToggle";
+import { StorefrontSearch } from "@/components/shared/StorefrontSearch";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -28,8 +28,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useSearchState, useRecentSearches } from "@/hooks/use-search";
-import { toast } from "sonner";
+import { useSession } from "@/hooks/useSession";
+import { useClientMe } from "@/hooks/useClientPortal";
+import { UserType } from "@dragon-telecom/contract";
 
 function scrollToFooter() {
   document.querySelector("footer")?.scrollIntoView({ behavior: "smooth" });
@@ -40,15 +41,24 @@ export function PublicHeader() {
   const navigate = useNavigate();
   const { isAuthenticated, displayName, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { searchQuery, openSearch, closeSearch, updateSearchQuery } = useSearchState();
-  const { addRecentSearch } = useRecentSearches();
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
-  const submitSearch = (query: string) => {
-    if (!query.trim()) return;
-    addRecentSearch(query.trim());
-    navigate(`/products?search=${encodeURIComponent(query.trim())}`);
-    closeSearch();
-  };
+  // S15/F1 — Session.profile is null for every CLIENT (types/session.ts), so AuthProvider's
+  // displayName is always null on the storefront for a client and the avatar rendered an empty
+  // circle. The client's own profile (clients module) is the only source of a display name here.
+  const { data: session } = useSession();
+  const { data: clientMe } = useClientMe({ enabled: session?.type === UserType.CLIENT });
+  const accountName =
+    displayName ?? (clientMe ? `${clientMe.firstName} ${clientMe.lastName}` : null);
+  const initials = accountName
+    ? accountName
+        .split(" ")
+        .filter(Boolean)
+        .map((s) => s[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : null;
 
   const handleLogout = async () => {
     await logout();
@@ -101,40 +111,56 @@ export function PublicHeader() {
           </SheetContent>
         </Sheet>
 
-        <Link to="/" className="flex items-center">
+        {/* S15 — mobile search replaces the logo in place (no room for both at phone width);
+            the logo/nav stay put on md+ regardless of mobileSearchOpen. */}
+        <Link
+          to="/"
+          className={mobileSearchOpen ? "hidden items-center md:flex" : "flex items-center"}
+        >
           <Logo size={36} />
         </Link>
+
+        {mobileSearchOpen && (
+          <div className="flex flex-1 md:hidden">
+            <StorefrontSearch
+              variant="mobile"
+              autoFocus
+              onDone={() => setMobileSearchOpen(false)}
+            />
+          </div>
+        )}
 
         <nav className="hidden items-center gap-6 md:flex">{navLinks()}</nav>
 
         <div className="hidden flex-1 max-w-sm md:flex">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input
-              placeholder={t("header.search")}
-              className="w-full pl-10"
-              value={searchQuery}
-              onChange={(e) => updateSearchQuery(e.target.value)}
-              onFocus={openSearch}
-              onKeyDown={(e) => e.key === "Enter" && submitSearch(searchQuery)}
-              aria-label={t("accessibility.search")}
-            />
-          </div>
+          <StorefrontSearch variant="desktop" />
         </div>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div
+          className={
+            mobileSearchOpen
+              ? "ml-auto hidden items-center gap-1 md:flex"
+              : "ml-auto flex items-center gap-1"
+          }
+        >
+          {!mobileSearchOpen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-label={t("header.openSearch")}
+              onClick={() => setMobileSearchOpen(true)}
+            >
+              <Search className="h-5 w-5" aria-hidden="true" />
+            </Button>
+          )}
           <LanguageToggle />
           <ThemeToggle />
 
-          {/* Cart is a static/disabled shell — cart wiring is deferred to Sub-02 (Decision #2). */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="opacity-50"
-            aria-label={t("accessibility.cart")}
-            onClick={() => toast.info(t("header.cartComingSoon"))}
-          >
-            <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+          <Button variant="ghost" size="icon" asChild aria-label={t("accessibility.cart")}>
+            <Link to="/cart">
+              <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+            </Link>
           </Button>
 
           {isAuthenticated ? (
@@ -142,17 +168,13 @@ export function PublicHeader() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="ml-1 gap-2 px-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                    {displayName
-                      ?.split(" ")
-                      .map((s) => s[0])
-                      .join("")
-                      .slice(0, 2)}
+                    {initials ?? <UserIcon className="h-4 w-4" />}
                   </div>
                   <ChevronsUpDown className="hidden h-3 w-3 text-muted-foreground sm:inline" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>{displayName}</DropdownMenuLabel>
+                <DropdownMenuLabel>{accountName ?? t("header.account")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/my-account">
@@ -177,7 +199,9 @@ export function PublicHeader() {
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>{t("header.signOutConfirm.title")}</AlertDialogTitle>
-                      <AlertDialogDescription>{t("header.signOutConfirm.body")}</AlertDialogDescription>
+                      <AlertDialogDescription>
+                        {t("header.signOutConfirm.body")}
+                      </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>{t("common.actions.cancel")}</AlertDialogCancel>

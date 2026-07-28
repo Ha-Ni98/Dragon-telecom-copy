@@ -116,7 +116,7 @@ export function SaleDetailDrawer({
                     </Link>
                   </Button>
                 )}
-                {scope === "admin" && onIssueReturn && (
+                {onIssueReturn && (
                   <Button size="sm" onClick={onIssueReturn}>
                     {t("admin.sales.detail.issueReturn")}
                   </Button>

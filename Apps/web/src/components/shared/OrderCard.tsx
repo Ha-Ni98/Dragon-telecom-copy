@@ -30,8 +30,8 @@ import { CancelOrderDialog } from "@/components/shared/CancelOrderDialog";
 // OrderStatusCode's 5 values). D1 (S9) brought OrderDto back to multi-line (order.lines[]) and
 // OrderStatus now has 8 values (adds PACKAGED, RETURNED, CANCELLED_BY_CLIENT). No longer imports
 // useOrders() directly — parent owns the useCancelMyOrder() mutation and passes onCancel/
-// isCancelling, matching the established shared-component convention (ProductOrderModal takes
-// onSubmit/isSubmitting rather than owning usePlaceOrder itself).
+// isCancelling, matching the established shared-component convention (OrderPlacementSection
+// takes onSubmit/isSubmitting rather than owning usePlaceOrder itself).
 interface OrderCardProps {
   order: OrderDto;
   onCancel?: () => void;
@@ -174,6 +174,24 @@ export function OrderCard({
         {isExpanded && (
           <div className="mt-4 space-y-4">
             <Separator />
+
+            {/* D11 — unitPrice, the order's current charged price (resolvedPrice is what the
+                catalog showed at placement and never changes). */}
+            <div>
+              <h4 className="font-medium mb-2">{t("orders.items")}</h4>
+              <div className="space-y-1">
+                {order.lines.map((line) => (
+                  <div key={line.id} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {line.productName} × {line.quantity}
+                    </span>
+                    <span>
+                      {formatDZD(line.unitPrice)} · {formatDZD(line.lineTotal)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* Delivery Information */}
             {!isPickup && (

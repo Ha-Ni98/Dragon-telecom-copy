@@ -13,7 +13,7 @@ import {
   useOrdersList,
   useOrderStats,
   useUpdateOrderStatus,
-  useAdminCancelOrder,
+  useCancelBackofficeOrder,
   useReturnOrder,
 } from "@/hooks/useOrdersDirectory";
 import { useAdminCatalogProduct } from "@/hooks/useCatalogProducts";
@@ -31,12 +31,14 @@ interface Props {
 }
 
 // STF-04 `/staff/orders` = ADM-09 `/admin/orders` (scope-driven twin). set-03 Sprint 6 wiring —
-// OrdersTable has no per-row action column, so OrderShowDialog (opened on row click) is the one
-// place Update status/Cancel/Return get launched from (mirrors SaleDetailDrawer's own
-// action-footer, built the same sprint). S10/R3 — confirm is folded into "Update status": there
-// is no separate confirm dialog/mutation any more. Default tab is PENDING (STF-04 §UI); filters
-// are plain local state, not URL-backed — unlike ADM-02's products list, there's no "share this
-// filtered view" requirement documented for orders.
+// OrderShowDialog (opened on row click) is one of two places Update status/Cancel/Return can be
+// launched from, the other being OrdersTable's per-row action menu (S11). S10/R3 — confirm is
+// folded into "Update status": there is no separate confirm dialog/mutation any more. Default
+// tab is PENDING (STF-04 §UI); filters are plain local state, not URL-backed — unlike ADM-02's
+// products list, there's no "share this filtered view" requirement documented for orders.
+// S18/D-1 — cancel/return used to be admin-only; staff holding the orders page gets the same
+// action menu, show-dialog buttons and dialogs now, gated only on `handleRowAction`/
+// `onCancel`/`onReturn` being wired (which they always are), not on `scope`.
 export default function StaffOrders({ scope = "staff" }: Props) {
   const { t } = useTranslation();
 
@@ -91,7 +93,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
   const [returnOrderTarget, setReturnOrderTarget] = useState<OrderDto | null>(null);
 
   const statusMutation = useUpdateOrderStatus();
-  const cancelMutation = useAdminCancelOrder();
+  const cancelMutation = useCancelBackofficeOrder();
   const returnMutation = useReturnOrder();
 
   // Live availability re-check (STF-04 §UI) — admin scope only: staff has no single-product
@@ -146,7 +148,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
   const handleCancelSubmit = (values: CancelOrderFormValues) => {
     if (!cancelOrderTarget) return;
     cancelMutation.mutate(
-      { id: cancelOrderTarget.id, command: values },
+      { scope, id: cancelOrderTarget.id, command: values },
       { onSuccess: () => setCancelOrderTarget(null) },
     );
   };
@@ -154,7 +156,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
   const handleReturnSubmit = (values: ReturnOrderFormValues) => {
     if (!returnOrderTarget) return;
     returnMutation.mutate(
-      { id: returnOrderTarget.id, command: values },
+      { scope, id: returnOrderTarget.id, command: values },
       { onSuccess: () => setReturnOrderTarget(null) },
     );
   };
@@ -184,8 +186,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
         isError={ordersIsError}
         onRetry={() => refetchOrders()}
         onRowClick={openShow}
-        scope={scope}
-        onAction={scope === "admin" ? handleRowAction : undefined}
+        onAction={handleRowAction}
       />
 
       {ordersResult && ordersResult.meta.totalPages > 1 && (
@@ -201,7 +202,6 @@ export default function StaffOrders({ scope = "staff" }: Props) {
         onOpenChange={(open) => !open && setShowOrder(null)}
         order={showOrder}
         liveAvailableQuantity={scope === "admin" ? liveProduct?.quantityOnHand : undefined}
-        scope={scope}
         onUpdateStatus={
           showOrder
             ? () => {
@@ -212,7 +212,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
             : undefined
         }
         onCancel={
-          scope === "admin" && showOrder
+          showOrder
             ? () => {
                 setCancelOrderTarget(showOrder);
                 setShowOrder(null);
@@ -220,7 +220,7 @@ export default function StaffOrders({ scope = "staff" }: Props) {
             : undefined
         }
         onReturn={
-          scope === "admin" && showOrder
+          showOrder
             ? () => {
                 setReturnOrderTarget(showOrder);
                 setShowOrder(null);
@@ -252,25 +252,21 @@ export default function StaffOrders({ scope = "staff" }: Props) {
         presetStatus={presetStatus}
       />
 
-      {scope === "admin" && (
-        <>
-          <AdminCancelOrderDialog
-            open={!!cancelOrderTarget}
-            onOpenChange={(open) => !open && setCancelOrderTarget(null)}
-            order={cancelOrderTarget}
-            onSubmit={handleCancelSubmit}
-            isSubmitting={cancelMutation.isPending}
-          />
-          <ReturnOrderDialog
-            key={returnOrderTarget?.id ?? "none"}
-            open={!!returnOrderTarget}
-            onOpenChange={(open) => !open && setReturnOrderTarget(null)}
-            order={returnOrderTarget}
-            onSubmit={handleReturnSubmit}
-            isSubmitting={returnMutation.isPending}
-          />
-        </>
-      )}
+      <AdminCancelOrderDialog
+        open={!!cancelOrderTarget}
+        onOpenChange={(open) => !open && setCancelOrderTarget(null)}
+        order={cancelOrderTarget}
+        onSubmit={handleCancelSubmit}
+        isSubmitting={cancelMutation.isPending}
+      />
+      <ReturnOrderDialog
+        key={returnOrderTarget?.id ?? "none"}
+        open={!!returnOrderTarget}
+        onOpenChange={(open) => !open && setReturnOrderTarget(null)}
+        order={returnOrderTarget}
+        onSubmit={handleReturnSubmit}
+        isSubmitting={returnMutation.isPending}
+      />
     </div>
   );
 }

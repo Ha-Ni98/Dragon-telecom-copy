@@ -27,8 +27,10 @@ interface ReturnOrderDialogProps {
   isSubmitting?: boolean;
 }
 
-// Admin-only (ADM-09 §UI). Dumb (owns only local form state) — Sprint 6 wires useReturnOrder().
+// ADM-09 §UI. Dumb (owns only local form state) — Sprint 6 wires useReturnOrder().
 // D1 (S9) — one quantity input per order line, replacing the single quantity field.
+// S18/D-1 — no longer admin-only: staff holding the orders page reaches this dialog too, via the
+// staff-mounted return route.
 export function ReturnOrderDialog({
   open,
   onOpenChange,

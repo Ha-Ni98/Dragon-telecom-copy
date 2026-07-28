@@ -26,7 +26,7 @@ interface QuickAddPosClientDialogProps {
 }
 
 // Dumb (owns only local form state, no hooks) — Sprint 7 wires useQuickCreatePosClient()
-// and passes it in as onSubmit/isSubmitting (mirrors ProductOrderModal's established
+// and passes it in as onSubmit/isSubmitting (mirrors OrderPlacementSection's established
 // onSubmit/isSubmitting convention, not owning the mutation itself). S6/I9 adds a category
 // field, matching the admin POS-client dialog component (AutocompleteInput, no create-new since
 // no onCreateNew is passed — S6/I11's shared fix).

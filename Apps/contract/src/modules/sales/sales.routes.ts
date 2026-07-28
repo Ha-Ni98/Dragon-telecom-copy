@@ -12,8 +12,11 @@ export const SALE_ROUTES = {
   ADMIN_LIST: '/admin/sales',
   STAFF_DETAIL: '/staff/sales/:reference',
   ADMIN_DETAIL: '/admin/sales/:reference',
-  RETURN: '/admin/returns',
-  // Same path as RETURN, distinguished only by HTTP verb (GET vs POST) — its own constant so no
-  // call site hardcodes the string (same convention as UPDATE_DRAFT/DELETE_DRAFT above).
-  RETURNS_LIST: '/admin/returns',
+  // S18/D-2 — staff holding the sales page gets the Returns tab + issue-return, same as admin.
+  ADMIN_RETURN: '/admin/returns',
+  // Same path as ADMIN_RETURN, distinguished only by HTTP verb (GET vs POST) — its own constant
+  // so no call site hardcodes the string (same convention as UPDATE_DRAFT/DELETE_DRAFT above).
+  ADMIN_RETURNS_LIST: '/admin/returns',
+  STAFF_RETURN: '/staff/returns',
+  STAFF_RETURNS_LIST: '/staff/returns',
 } as const;

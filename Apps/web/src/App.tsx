@@ -31,6 +31,7 @@ const StaffProducts = lazy(() => import("@/pages/staff/products/StaffProducts"))
 // the admin variant is a thin wrapper mounting the same tree with scope="admin" (plan.md's
 // twin pattern — one component tree, not a fork).
 const StaffPos = lazy(() => import("@/pages/staff/pos/StaffPos"));
+const StaffPosClients = lazy(() => import("@/pages/staff/pos-clients/StaffPosClients"));
 const StaffOrders = lazy(() => import("@/pages/staff/orders/StaffOrders"));
 const StaffSales = lazy(() => import("@/pages/staff/sales/StaffSales"));
 const StaffInvoices = lazy(() => import("@/pages/staff/invoices/StaffInvoices"));
@@ -154,29 +155,24 @@ const router = createBrowserRouter([
     ],
   },
   {
+    // S15 — nested inside PublicLayout so /login and /register get the storefront header/footer
+    // (theme + language toggles live there now; the pages no longer render their own pair).
     element: <PublicOnlyRoute />,
     children: [
       {
-        path: "/login",
-        element: withSuspense(LoginPage),
-        errorElement: (
-          <div className="flex min-h-screen items-center justify-center bg-background px-4">
-            <div className="w-full max-w-md">
-              <RouteErrorBoundary />
-            </div>
-          </div>
-        ),
-      },
-      {
-        path: "/register",
-        element: withSuspense(Register),
-        errorElement: (
-          <div className="flex min-h-screen items-center justify-center bg-background px-4">
-            <div className="w-full max-w-md">
-              <RouteErrorBoundary />
-            </div>
-          </div>
-        ),
+        element: <PublicLayout />,
+        children: [
+          {
+            path: "/login",
+            element: withSuspense(LoginPage),
+            errorElement: <RouteErrorBoundary />,
+          },
+          {
+            path: "/register",
+            element: withSuspense(Register),
+            errorElement: <RouteErrorBoundary />,
+          },
+        ],
       },
     ],
   },
@@ -336,6 +332,17 @@ const router = createBrowserRouter([
               {
                 path: "/staff/pos",
                 element: withSuspense(StaffPos),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
+          },
+          {
+            // S18/D-5 — the staff POS-clients page (full parity with /admin/pos-clients).
+            element: <PageGuard requires={PageKey.STAFF_POS_CLIENTS} />,
+            children: [
+              {
+                path: "/staff/pos-clients",
+                element: withSuspense(StaffPosClients),
                 errorElement: <RouteErrorBoundary />,
               },
             ],

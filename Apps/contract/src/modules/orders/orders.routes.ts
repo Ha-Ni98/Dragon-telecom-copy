@@ -10,8 +10,11 @@ export const ORDER_ROUTES = {
   ADMIN_LIST: '/admin/orders',
   STAFF_STATUS: '/staff/orders/:id/status',
   ADMIN_STATUS: '/admin/orders/:id/status',
-  CANCEL: '/admin/orders/:id/cancel',
-  RETURN: '/admin/orders/:id/return',
+  // S18/D-1 — staff holding the orders page may cancel and return an order, same as admin.
+  ADMIN_CANCEL: '/admin/orders/:id/cancel',
+  ADMIN_RETURN: '/admin/orders/:id/return',
+  STAFF_CANCEL: '/staff/orders/:id/cancel',
+  STAFF_RETURN: '/staff/orders/:id/return',
   STAFF_STATS: '/staff/orders/stats',
   ADMIN_STATS: '/admin/orders/stats',
 } as const;

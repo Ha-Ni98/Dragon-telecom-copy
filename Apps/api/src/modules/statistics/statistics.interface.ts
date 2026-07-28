@@ -20,8 +20,10 @@ export type ExportResult = { filename: string; mime: string; body: Buffer | stri
 
 export interface IStatisticsService {
   getAdminDashboard(): Promise<AdminDashboardDto>;
-  // Strictly staffId=me — never a global read (spec BL#5).
-  getStaffDashboard(staffId: string): Promise<StaffDashboardDto>;
+  // Strictly staffId=me — never a global read (spec BL#5). staffId is absent for an ADMIN
+  // caller (S18/P5 — /staff is reachable by admins too); the service treats that as "no staff
+  // to scope to" and zeroes the staff-scoped figures rather than reading everyone's.
+  getStaffDashboard(staffId: string | undefined): Promise<StaffDashboardDto>;
   getOverview(): Promise<OverviewDto>;
   // + % vs. the immediately-preceding equal-length period.
   getFiltered(query: FilteredQuery): Promise<FilteredDto>;

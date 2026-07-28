@@ -9,7 +9,8 @@ import { PageKey } from "@dragon-telecom/contract";
 // load-bearing: STAFF_PAGE_ROUTES is now the single source of truth `StaffSidebarNav`
 // (components/layout/StaffSidebar.tsx) reads to decide whether a permitted nav entry is a real
 // `<Link>` or a disabled "not shipped yet" row — entries are added here as each destination page
-// lands in a later page set (scope confinement, same as before).
+// lands in a later page set (scope confinement, same as before). S18 added STAFF_POS_CLIENTS,
+// the last entry — every PageKey now has a route.
 export const STAFF_PAGE_ORDER: PageKey[] = [
   PageKey.STAFF_POS,
   PageKey.STAFF_POS_CLIENTS,
@@ -21,8 +22,9 @@ export const STAFF_PAGE_ORDER: PageKey[] = [
 ];
 
 export const STAFF_PAGE_ROUTES: Partial<Record<PageKey, string>> = {
-  [PageKey.STAFF_PRODUCTS]: "/staff/products",
   [PageKey.STAFF_POS]: "/staff/pos",
+  [PageKey.STAFF_POS_CLIENTS]: "/staff/pos-clients",
+  [PageKey.STAFF_PRODUCTS]: "/staff/products",
   [PageKey.STAFF_ORDERS]: "/staff/orders",
   [PageKey.STAFF_SALES]: "/staff/sales",
   [PageKey.STAFF_INVOICES]: "/staff/invoices",

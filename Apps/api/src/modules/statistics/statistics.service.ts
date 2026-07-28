@@ -269,20 +269,30 @@ export class StatisticsService implements IStatisticsService {
   // actually be personally scoped: orders have no owner staff at all (plan §I "orders have no
   // owner staff"), so it's read as a global count, same footing as the low-stock alert (the
   // spec's own "the only non-scoped datum").
-  async getStaffDashboard(staffId: string): Promise<StaffDashboardDto> {
+  //
+  // `staffId` is optional (S18/P5) — an ADMIN viewer (opening /staff, which the staff sidebar
+  // explicitly supports: effectivePages() returns every PageKey for ADMIN) carries no `staffId`
+  // in their JWT, only STAFF users do (identity.service.ts#login). Prisma's `where` clause
+  // treats `staffId: undefined` as "field omitted", not "no match" — without the guards below an
+  // admin caller would see every staff member's sales/drafts as their own instead of zero.
+  async getStaffDashboard(staffId: string | undefined): Promise<StaffDashboardDto> {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const now = new Date();
 
     const [salesToday, draftSales, pendingOrdersCount, lowStock] = await Promise.all([
-      this.prisma.sale.findMany({
-        where: { staffId, status: 'COMPLETED', soldAt: { gte: startOfToday } },
-        select: { totalAmount: true },
-      }),
-      this.prisma.sale.findMany({
-        where: { staffId, status: 'DRAFT' },
-        select: { reference: true, totalAmount: true, createdAt: true, posClient: { select: { name: true } } },
-      }),
+      staffId != null
+        ? this.prisma.sale.findMany({
+            where: { staffId, status: 'COMPLETED', soldAt: { gte: startOfToday } },
+            select: { totalAmount: true },
+          })
+        : Promise.resolve([]),
+      staffId != null
+        ? this.prisma.sale.findMany({
+            where: { staffId, status: 'DRAFT' },
+            select: { reference: true, totalAmount: true, createdAt: true, posClient: { select: { name: true } } },
+          })
+        : Promise.resolve([]),
       this.prisma.order.count({ where: { status: 'PENDING' } }),
       this.lowStockProducts(),
     ]);

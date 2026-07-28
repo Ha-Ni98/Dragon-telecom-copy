@@ -33,13 +33,18 @@ import {
 } from "@/pages/admin/repairs/add-technician.schema";
 import { RepairStatus } from "@dragon-telecom/contract";
 
-// S13/R1 — admin-only. Counts per status plus revenue (Σ totalAmount over PICKED_UP repairs
-// only, the single status at which repair revenue is recognised, D8). No profit or turnaround
-// column (owner decision).
-export function TechniciansTab() {
+interface TechniciansTabProps {
+  scope?: "staff" | "admin";
+}
+
+// S13/R1. Counts per status plus revenue (Σ totalAmount over PICKED_UP repairs only, the single
+// status at which repair revenue is recognised, D8). No profit or turnaround column (owner
+// decision). S18/D-3 — staff holding the repairs page sees this tab too, but cannot add a
+// technician: the Add button, its dialog and `useCreateTechnician` are admin-only.
+export function TechniciansTab({ scope = "admin" }: TechniciansTabProps) {
   const { t, language } = useTranslation();
   const queryClient = useQueryClient();
-  const { data: technicians, isLoading, isError, refetch } = useTechnicianRepairStats();
+  const { data: technicians, isLoading, isError, refetch } = useTechnicianRepairStats(scope);
   const createTechnician = useCreateTechnician();
   const [addOpen, setAddOpen] = useState(false);
 
@@ -56,7 +61,8 @@ export function TechniciansTab() {
   const handleAdd = handleSubmit((values) => {
     createTechnician.mutate(values, {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: qk.repairs.technicianStats() });
+        queryClient.invalidateQueries({ queryKey: qk.repairs.technicianStats("admin") });
+        queryClient.invalidateQueries({ queryKey: qk.repairs.technicianStats("staff") });
         toast.success(t("admin.repairs.technicians.success"));
         setAddOpen(false);
         reset();
@@ -127,10 +133,12 @@ export function TechniciansTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">{t("admin.repairs.technicians.title")}</h3>
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t("admin.repairs.technicians.add")}
-        </Button>
+        {scope === "admin" && (
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("admin.repairs.technicians.add")}
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -161,29 +169,33 @@ export function TechniciansTab() {
         />
       )}
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("admin.repairs.technicians.add")}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAdd} className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="technician-name">{t("admin.repairs.technicians.nameLabel")}</Label>
-              <Input id="technician-name" {...register("name")} />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="technician-phone">{t("admin.repairs.technicians.phoneLabel")}</Label>
-              <Input id="technician-phone" {...register("phone")} />
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={createTechnician.isPending}>
-                {t("admin.repairs.technicians.submit")}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {scope === "admin" && (
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t("admin.repairs.technicians.add")}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleAdd} className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="technician-name">{t("admin.repairs.technicians.nameLabel")}</Label>
+                <Input id="technician-name" {...register("name")} />
+                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="technician-phone">
+                  {t("admin.repairs.technicians.phoneLabel")}
+                </Label>
+                <Input id="technician-phone" {...register("phone")} />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={createTechnician.isPending}>
+                  {t("admin.repairs.technicians.submit")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

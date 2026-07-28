@@ -1,17 +1,28 @@
-import React, { useMemo, useState } from 'react';
-import { Search, Filter, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { useTranslation } from '@/hooks/useTranslation';
-import { ProductSort, type BrandDto, type FamilyDto, type DeviceModelDto } from '@dragon-telecom/contract';
+import React, { useMemo, useState } from "react";
+import { Search, Filter, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useTranslation } from "@/hooks/useTranslation";
+import {
+  ProductSort,
+  type BrandDto,
+  type FamilyDto,
+  type DeviceModelDto,
+} from "@dragon-telecom/contract";
 
 /** Sentinel for "no explicit sort" — Radix `Select` rejects an empty-string item value. */
-const SORT_DEFAULT = 'default';
+const SORT_DEFAULT = "default";
 
 /**
  * ProductFilters component props
@@ -80,9 +91,9 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
   categories,
   models,
   isLoading = false,
-  className = '',
+  className = "",
   showClearFilters = true,
-  onClearFilters
+  onClearFilters,
 }) => {
   const { t } = useTranslation();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -90,12 +101,13 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
   /**
    * Check if any filters are active
    */
-  const hasActiveFilters = selectedBrand !== 'all' ||
-                          selectedCategory !== 'all' ||
-                          selectedModel !== 'all' ||
-                          searchQuery.trim() !== '' ||
-                          inStock ||
-                          sort !== SORT_DEFAULT;
+  const hasActiveFilters =
+    selectedBrand !== "all" ||
+    selectedCategory !== "all" ||
+    selectedModel !== "all" ||
+    searchQuery.trim() !== "" ||
+    inStock ||
+    sort !== SORT_DEFAULT;
 
   /**
    * Models scoped to the selected brand/category — recomputed on every keystroke of the search
@@ -104,29 +116,30 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
   const filteredModels = useMemo(
     () =>
       models.filter((model) => {
-        const brandMatch = selectedBrand === 'all' || model.brandId === selectedBrand;
-        const categoryMatch = selectedCategory === 'all' || model.familyIds.includes(selectedCategory);
+        const brandMatch = selectedBrand === "all" || model.brandId === selectedBrand;
+        const categoryMatch =
+          selectedCategory === "all" || model.familyIds.includes(selectedCategory);
         return brandMatch && categoryMatch;
       }),
     [models, selectedBrand, selectedCategory],
   );
 
   const sortOptions: Array<{ value: string; label: string }> = [
-    { value: SORT_DEFAULT, label: t('products.filters.sortDefault') },
-    { value: ProductSort.NEWEST, label: t('products.filters.sortNewest') },
-    { value: ProductSort.PRICE_ASC, label: t('products.filters.sortPriceAsc') },
-    { value: ProductSort.PRICE_DESC, label: t('products.filters.sortPriceDesc') },
-    { value: ProductSort.NAME, label: t('products.filters.sortName') },
+    { value: SORT_DEFAULT, label: t("products.filters.sortDefault") },
+    { value: ProductSort.NEWEST, label: t("products.filters.sortNewest") },
+    { value: ProductSort.PRICE_ASC, label: t("products.filters.sortPriceAsc") },
+    { value: ProductSort.PRICE_DESC, label: t("products.filters.sortPriceDesc") },
+    { value: ProductSort.NAME, label: t("products.filters.sortName") },
   ];
 
   /**
    * Handle clear filters
    */
   const handleClearFilters = () => {
-    onSearchChange('');
-    onBrandChange('all');
-    onCategoryChange('all');
-    onModelChange('all');
+    onSearchChange("");
+    onBrandChange("all");
+    onCategoryChange("all");
+    onModelChange("all");
     onInStockChange(false);
     onSortChange(SORT_DEFAULT);
     onClearFilters?.();
@@ -137,31 +150,31 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
    * Get brand name by ID
    */
   const getBrandName = (brandId: string): string => {
-    if (brandId === 'all') return t('products.filters.all');
-    const brand = brands.find(b => b.id === brandId);
-    return brand?.name || '';
+    if (brandId === "all") return t("products.filters.all");
+    const brand = brands.find((b) => b.id === brandId);
+    return brand?.name || "";
   };
 
   /**
    * Get category name by ID
    */
   const getCategoryName = (categoryId: string): string => {
-    if (categoryId === 'all') return t('products.filters.all');
-    const category = categories.find(c => c.id === categoryId);
-    return category?.name || '';
+    if (categoryId === "all") return t("products.filters.all");
+    const category = categories.find((c) => c.id === categoryId);
+    return category?.name || "";
   };
 
   /**
    * Get model name by ID
    */
   const getModelName = (modelId: string): string => {
-    if (modelId === 'all') return t('products.filters.all');
-    const model = models.find(m => m.id === modelId);
-    return model?.name || '';
+    if (modelId === "all") return t("products.filters.all");
+    const model = models.find((m) => m.id === modelId);
+    return model?.name || "";
   };
 
   const getSortLabel = (value: string): string =>
-    sortOptions.find((option) => option.value === value)?.label ?? '';
+    sortOptions.find((option) => option.value === value)?.label ?? "";
 
   // Shared by the always-visible desktop panel and the mobile Sheet — one set of controls, two
   // places it can render (never forked state, per plan.md's mobile-drawer risk note).
@@ -170,12 +183,12 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
-          placeholder={t('products.filters.search')}
+          placeholder={t("products.filters.search")}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-10"
           disabled={isLoading}
-          aria-label={t('products.filters.search')}
+          aria-label={t("products.filters.search")}
         />
       </div>
 
@@ -183,14 +196,14 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
         {/* Category Filter */}
         <div className="space-y-2">
           <label htmlFor="category-filter" className="text-sm font-medium">
-            {t('products.filters.category')}
+            {t("products.filters.category")}
           </label>
           <Select value={selectedCategory} onValueChange={onCategoryChange} disabled={isLoading}>
-            <SelectTrigger id="category-filter" aria-label={t('products.filters.category')}>
-              <SelectValue placeholder={t('products.filters.category')} />
+            <SelectTrigger id="category-filter" aria-label={t("products.filters.category")}>
+              <SelectValue placeholder={t("products.filters.category")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('products.filters.all')}</SelectItem>
+              <SelectItem value="all">{t("products.filters.all")}</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
@@ -203,14 +216,14 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
         {/* Brand Filter */}
         <div className="space-y-2">
           <label htmlFor="brand-filter" className="text-sm font-medium">
-            {t('products.filters.brand')}
+            {t("products.filters.brand")}
           </label>
           <Select value={selectedBrand} onValueChange={onBrandChange} disabled={isLoading}>
-            <SelectTrigger id="brand-filter" aria-label={t('products.filters.brand')}>
-              <SelectValue placeholder={t('products.filters.brand')} />
+            <SelectTrigger id="brand-filter" aria-label={t("products.filters.brand")}>
+              <SelectValue placeholder={t("products.filters.brand")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('products.filters.all')}</SelectItem>
+              <SelectItem value="all">{t("products.filters.all")}</SelectItem>
               {brands.map((brand) => (
                 <SelectItem key={brand.id} value={brand.id}>
                   {brand.name}
@@ -223,18 +236,18 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
         {/* Model Filter */}
         <div className="space-y-2">
           <label htmlFor="model-filter" className="text-sm font-medium">
-            {t('products.filters.model')}
+            {t("products.filters.model")}
           </label>
           <Select
             value={selectedModel}
             onValueChange={onModelChange}
             disabled={isLoading || filteredModels.length === 0}
           >
-            <SelectTrigger id="model-filter" aria-label={t('products.filters.model')}>
-              <SelectValue placeholder={t('products.filters.model')} />
+            <SelectTrigger id="model-filter" aria-label={t("products.filters.model")}>
+              <SelectValue placeholder={t("products.filters.model")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('products.filters.all')}</SelectItem>
+              <SelectItem value="all">{t("products.filters.all")}</SelectItem>
               {filteredModels.map((model) => (
                 <SelectItem key={model.id} value={model.id}>
                   {model.name}
@@ -249,11 +262,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
         {/* Sort */}
         <div className="space-y-2">
           <label htmlFor="sort-filter" className="text-sm font-medium">
-            {t('products.filters.sort')}
+            {t("products.filters.sort")}
           </label>
           <Select value={sort} onValueChange={onSortChange} disabled={isLoading}>
-            <SelectTrigger id="sort-filter" aria-label={t('products.filters.sort')}>
-              <SelectValue placeholder={t('products.filters.sort')} />
+            <SelectTrigger id="sort-filter" aria-label={t("products.filters.sort")}>
+              <SelectValue placeholder={t("products.filters.sort")} />
             </SelectTrigger>
             <SelectContent>
               {sortOptions.map((option) => (
@@ -268,7 +281,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
         {/* In-stock toggle */}
         <div className="flex items-end justify-between rounded-lg border p-3 sm:justify-start sm:gap-3">
           <Label htmlFor="in-stock-filter" className="text-sm font-medium">
-            {t('products.filters.inStock')}
+            {t("products.filters.inStock")}
           </Label>
           <Switch
             id="in-stock-filter"
@@ -287,10 +300,10 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="h-5 w-5 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">{t('products.filters.title')}</h3>
+          <h3 className="text-lg font-semibold">{t("products.filters.title")}</h3>
           {hasActiveFilters && (
             <Badge variant="secondary" className="ml-2">
-              {t('common.status.active')}
+              {t("common.status.active")}
             </Badge>
           )}
         </div>
@@ -305,7 +318,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
               disabled={isLoading}
             >
               <X className="h-4 w-4" />
-              {t('products.filters.clearAll')}
+              {t("products.filters.clearAll")}
             </Button>
           )}
 
@@ -316,15 +329,17 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
                 variant="outline"
                 size="sm"
                 className="flex items-center gap-2 sm:hidden"
-                aria-label={t('products.filters.openFilters')}
+                aria-label={t("products.filters.openFilters")}
               >
                 <Filter className="h-4 w-4" />
-                {t('products.filters.title')}
+                {t("products.filters.title")}
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
+            {/* Not w-full: the list must stay partly visible behind the drawer, like the
+                header's burger menu (S15). */}
+            <SheetContent side="right" className="w-[85%] max-w-sm overflow-y-auto">
               <SheetHeader>
-                <SheetTitle>{t('products.filters.title')}</SheetTitle>
+                <SheetTitle>{t("products.filters.title")}</SheetTitle>
               </SheetHeader>
               <div className="mt-6">{filterFields}</div>
             </SheetContent>
@@ -338,54 +353,56 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
       {/* Active Filters Summary */}
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
-          <span className="text-sm text-muted-foreground">{t('products.filters.activeFilters')}:</span>
+          <span className="text-sm text-muted-foreground">
+            {t("products.filters.activeFilters")}:
+          </span>
 
           {searchQuery.trim() && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t('common.labels.search')}: "{searchQuery}"
+              {t("common.labels.search")}: "{searchQuery}"
               <button
-                onClick={() => onSearchChange('')}
+                onClick={() => onSearchChange("")}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label={t('products.filters.removeSearch')}
+                aria-label={t("products.filters.removeSearch")}
               >
                 <X className="h-3 w-3" />
               </button>
             </Badge>
           )}
 
-          {selectedBrand !== 'all' && (
+          {selectedBrand !== "all" && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t('products.filters.brand')}: {getBrandName(selectedBrand)}
+              {t("products.filters.brand")}: {getBrandName(selectedBrand)}
               <button
-                onClick={() => onBrandChange('all')}
+                onClick={() => onBrandChange("all")}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label={t('products.filters.removeBrand')}
+                aria-label={t("products.filters.removeBrand")}
               >
                 <X className="h-3 w-3" />
               </button>
             </Badge>
           )}
 
-          {selectedCategory !== 'all' && (
+          {selectedCategory !== "all" && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t('products.filters.category')}: {getCategoryName(selectedCategory)}
+              {t("products.filters.category")}: {getCategoryName(selectedCategory)}
               <button
-                onClick={() => onCategoryChange('all')}
+                onClick={() => onCategoryChange("all")}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label={t('products.filters.removeCategory')}
+                aria-label={t("products.filters.removeCategory")}
               >
                 <X className="h-3 w-3" />
               </button>
             </Badge>
           )}
 
-          {selectedModel !== 'all' && (
+          {selectedModel !== "all" && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t('products.filters.model')}: {getModelName(selectedModel)}
+              {t("products.filters.model")}: {getModelName(selectedModel)}
               <button
-                onClick={() => onModelChange('all')}
+                onClick={() => onModelChange("all")}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label={t('products.filters.removeModel')}
+                aria-label={t("products.filters.removeModel")}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -394,11 +411,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
 
           {inStock && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t('products.filters.inStock')}
+              {t("products.filters.inStock")}
               <button
                 onClick={() => onInStockChange(false)}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label={t('products.filters.removeInStock')}
+                aria-label={t("products.filters.removeInStock")}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -407,11 +424,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
 
           {sort !== SORT_DEFAULT && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t('products.filters.sort')}: {getSortLabel(sort)}
+              {t("products.filters.sort")}: {getSortLabel(sort)}
               <button
                 onClick={() => onSortChange(SORT_DEFAULT)}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
-                aria-label={t('products.filters.removeSort')}
+                aria-label={t("products.filters.removeSort")}
               >
                 <X className="h-3 w-3" />
               </button>

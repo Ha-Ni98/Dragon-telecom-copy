@@ -12,10 +12,15 @@ import { qk } from "@/lib/query-keys";
 
 // --- Reads ---
 
-export function useCatalogProducts(query: ProductListQuery) {
+// `options.enabled` (S15) — the header's StorefrontSearch only wants this to fire once the
+// visitor has typed something, matching useStaffProducts' precedent below; omitting `options`
+// keeps every existing caller's always-on behavior (react-query treats `enabled: undefined` as
+// enabled).
+export function useCatalogProducts(query: ProductListQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.catalog.products.list(query),
     queryFn: () => catalogService.listProducts(query),
+    enabled: options?.enabled,
   });
 }
 
@@ -39,10 +44,14 @@ export function useStaffProducts(query: ProductListQuery, options?: { enabled?: 
   });
 }
 
-export function useAdminCatalogProducts(query: ProductListQuery) {
+// `options.enabled` (S17) — the Settings featured-products chip-resolution query must not fire
+// with an empty `ids` string. Every existing single-argument caller keeps its always-on behavior
+// (react-query treats `enabled: undefined` as enabled).
+export function useAdminCatalogProducts(query: ProductListQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.catalog.adminProducts.list(query),
     queryFn: () => catalogService.listAdminProducts(query),
+    enabled: options?.enabled,
   });
 }
 

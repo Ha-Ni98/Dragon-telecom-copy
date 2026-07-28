@@ -13,8 +13,6 @@ interface OrderShowDialogProps {
   /** Live re-check (STF-04 §UI: "live availability re-check") — the caller's own
    * useCatalogProduct(order.productId) read, passed in rather than fetched here. */
   liveAvailableQuantity?: number;
-  /** ADM-09 adds cancel/return; both are absent for scope="staff" (STF-04 §Interactions). */
-  scope?: "staff" | "admin";
   /** Sprint 6 addition — this dialog is the only place a row's status/cancel/return actions can
    * be launched from (OrdersTable has no per-row action column); mirrors SaleDetailDrawer's own
    * action-footer pattern (same cluster, same sprint). Each callback is optional so the dialog
@@ -26,13 +24,15 @@ interface OrderShowDialogProps {
 }
 
 // Dumb, props-only (Sprint 4, action footer added Sprint 6) — Sprint 6 wires this to the row
-// click + a live product read + the mutation dialogs.
+// click + a live product read + the mutation dialogs. S18/D-1 — cancel/return used to be
+// admin-only (`scope === "admin"`); staff holding the orders page gets them too, so the gate
+// (and the now-unused `scope` prop) is gone — presence is decided purely by `onCancel`/`onReturn`
+// being wired, same as `onUpdateStatus`.
 export function OrderShowDialog({
   open,
   onOpenChange,
   order,
   liveAvailableQuantity,
-  scope = "staff",
   onUpdateStatus,
   onCancel,
   onReturn,
@@ -45,8 +45,8 @@ export function OrderShowDialog({
   // (confirm is folded in), so the button shows whenever the per-type machine offers any target.
   const showUpdateStatus =
     !!onUpdateStatus && orderTransitionsFrom(order.orderType, order.status).length > 0;
-  const showCancel = scope === "admin" && order.canBeCancelled && !!onCancel;
-  const showReturn = scope === "admin" && order.status === OrderStatus.COMPLETED && !!onReturn;
+  const showCancel = order.canBeCancelled && !!onCancel;
+  const showReturn = order.status === OrderStatus.COMPLETED && !!onReturn;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

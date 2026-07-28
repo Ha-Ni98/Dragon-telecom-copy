@@ -96,23 +96,27 @@ export async function updateOrderStatus(
   return res.data.data;
 }
 
-export async function adminCancelOrder(
+// S18/D-1 — renamed from `adminCancelOrder`: staff holding the orders page may cancel/return an
+// order too, so the old name would lie. `AdminCancelOrderCommand` keeps its name — the command
+// shape is genuinely the same document regardless of who submits it.
+export async function cancelBackofficeOrder(
+  scope: OrderScope,
   id: string,
   command: AdminCancelOrderCommand,
 ): Promise<OrderDto> {
-  const res = await api.post<ApiResponse<OrderDto>>(
-    withParams(apiPath(ORDER_ROUTES.CANCEL), { id }),
-    command,
-  );
+  const route = scope === "admin" ? ORDER_ROUTES.ADMIN_CANCEL : ORDER_ROUTES.STAFF_CANCEL;
+  const res = await api.post<ApiResponse<OrderDto>>(withParams(apiPath(route), { id }), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }
 
-export async function returnOrder(id: string, command: ReturnOrderCommand): Promise<OrderDto> {
-  const res = await api.post<ApiResponse<OrderDto>>(
-    withParams(apiPath(ORDER_ROUTES.RETURN), { id }),
-    command,
-  );
+export async function returnOrder(
+  scope: OrderScope,
+  id: string,
+  command: ReturnOrderCommand,
+): Promise<OrderDto> {
+  const route = scope === "admin" ? ORDER_ROUTES.ADMIN_RETURN : ORDER_ROUTES.STAFF_RETURN;
+  const res = await api.post<ApiResponse<OrderDto>>(withParams(apiPath(route), { id }), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

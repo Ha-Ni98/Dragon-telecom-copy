@@ -104,10 +104,14 @@ export function useCreateClientPayment() {
   });
 }
 
-export function useClientPayments(query: ClientPaymentListQuery, options?: { enabled?: boolean }) {
+export function useClientPayments(
+  scope: BillingScope,
+  query: ClientPaymentListQuery,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
-    queryKey: qk.billing.payments.list(query),
-    queryFn: () => billingService.listClientPayments(query),
+    queryKey: qk.billing.payments.list(scope, query),
+    queryFn: () => billingService.listClientPayments(scope, query),
     enabled: options?.enabled,
   });
 }

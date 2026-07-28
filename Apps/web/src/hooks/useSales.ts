@@ -85,13 +85,18 @@ export function useConfirmSale() {
   });
 }
 
-// S12 — the admin Returns tab, and the return dialog's "already returned per line" lookup
+// S12 — the Returns tab, and the return dialog's "already returned per line" lookup
 // (`{ saleId }`). `options.enabled` follows useSales' own precedent: the dialog's query must not
-// fire until a sale is actually selected.
-export function useReturns(query: ReturnListQuery, options?: { enabled?: boolean }) {
+// fire until a sale is actually selected. S18/D-2 — scoped so staff and admin get separate
+// cache entries and staff can reach its own Returns tab.
+export function useReturns(
+  scope: SalesScope,
+  query: ReturnListQuery,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
-    queryKey: qk.sales.returns(query),
-    queryFn: () => salesService.listReturns(query),
+    queryKey: qk.sales.returns(scope, query),
+    queryFn: () => salesService.listReturns(scope, query),
     enabled: options?.enabled,
   });
 }
@@ -100,7 +105,8 @@ export function useReturns(query: ReturnListQuery, options?: { enabled?: boolean
 export function useCreateReturn() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (command: CreateReturnCommand) => salesService.createReturn(command),
+    mutationFn: ({ scope, command }: { scope: SalesScope; command: CreateReturnCommand }) =>
+      salesService.createReturn(scope, command),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.sales.all() });
       queryClient.invalidateQueries({ queryKey: qk.inventory.all() });

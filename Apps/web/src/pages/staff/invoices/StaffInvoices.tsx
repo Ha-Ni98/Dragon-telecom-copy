@@ -13,9 +13,6 @@ import { PaymentsLedger } from "@/pages/admin/invoices/components/PaymentsLedger
 import { SupplierPaymentDialog } from "@/pages/admin/invoices/components/SupplierPaymentDialog";
 import { CancelInvoiceDialog } from "@/pages/admin/invoices/components/CancelInvoiceDialog";
 import {
-  useMyInvoices,
-  useMyInvoice,
-  useMyInvoicePdf,
   useInvoices,
   useInvoice,
   useInvoicePdf,
@@ -73,40 +70,29 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
     [outgoingFilters, outgoingPage],
   );
 
-  const myInvoices = useMyInvoices(outgoingQuery);
-  const adminInvoices = useInvoices("admin", outgoingQuery, {
-    enabled: scope === "admin" && activeTab === "outgoing",
-  });
-  const outgoing = scope === "admin" ? adminInvoices : myInvoices;
+  // S18/P1 — was useMyInvoices (`/clients/me/invoices`, clientOnly), so every staff user 403'd
+  // on this page's default tab and every admin fired a client-only request in the background.
+  // Both scopes now use the scoped billing route.
+  const outgoing = useInvoices(scope, outgoingQuery, { enabled: activeTab === "outgoing" });
 
   const [selectedNumber, setSelectedNumber] = useState<string | null>(null);
   const handleRowClick = useCallback(
     (invoice: InvoiceDto) => setSelectedNumber(invoice.number),
     [],
   );
-  const myInvoiceDetail = useMyInvoice(scope === "staff" ? (selectedNumber ?? "") : "");
-  const adminInvoiceDetail = useInvoice("admin", scope === "admin" ? (selectedNumber ?? "") : "");
-  const selectedInvoice = scope === "admin" ? adminInvoiceDetail.data : myInvoiceDetail.data;
+  const { data: selectedInvoice } = useInvoice(scope, selectedNumber ?? "");
 
-  const myPdfMutation = useMyInvoicePdf();
-  const adminPdfMutation = useInvoicePdf();
+  const pdfMutation = useInvoicePdf();
 
   const handleDownloadPdf = () => {
     if (!selectedNumber) return;
-    if (scope === "admin") {
-      adminPdfMutation.mutate(
-        { scope: "admin", number: selectedNumber },
-        {
-          onSuccess: (blob) => downloadBlob(`${selectedNumber}.pdf`, blob),
-          onError: () => toast.error(t("staff.invoices.table.error")),
-        },
-      );
-    } else {
-      myPdfMutation.mutate(selectedNumber, {
+    pdfMutation.mutate(
+      { scope, number: selectedNumber },
+      {
         onSuccess: (blob) => downloadBlob(`${selectedNumber}.pdf`, blob),
         onError: () => toast.error(t("staff.invoices.table.error")),
-      });
-    }
+      },
+    );
   };
 
   const cancelMutation = useCancelInvoice();
@@ -141,7 +127,7 @@ export default function StaffInvoices({ scope = "staff" }: Props) {
     () => ({ ...paymentsFilters, page: 1, limit: 20 }),
     [paymentsFilters],
   );
-  const clientPayments = useClientPayments(paymentsQuery, {
+  const clientPayments = useClientPayments(scope, paymentsQuery, {
     enabled: scope === "admin" && activeTab === "payments",
   });
   const supplierPayments = usePurchasingPayments(paymentsQuery, {

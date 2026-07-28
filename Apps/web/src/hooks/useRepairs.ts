@@ -143,10 +143,10 @@ export function useRecordRepairPayment() {
   });
 }
 
-// S13/R1 — the admin Technicians tab.
-export function useTechnicianRepairStats() {
+// S13/R1, scoped by S18/D-3 — the Technicians tab, now shared staff/admin.
+export function useTechnicianRepairStats(scope: RepairsScope) {
   return useQuery({
-    queryKey: qk.repairs.technicianStats(),
-    queryFn: repairsService.listTechnicianStats,
+    queryKey: qk.repairs.technicianStats(scope),
+    queryFn: () => repairsService.listTechnicianStats(scope),
   });
 }

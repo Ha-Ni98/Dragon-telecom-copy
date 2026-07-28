@@ -35,6 +35,9 @@ const DeliverySettingsInputSchema = z.object({
 
 const StorefrontSettingsInputSchema = z.object({
   featuredProductIds: z.array(z.uuid()).optional(),
+  // Max 6 — the home page's family strip is a 6-tile grid (S17 builds the picker that enforces
+  // it in the UI; this is the server-side bound).
+  featuredFamilyIds: z.array(z.uuid()).max(6).optional(),
 });
 
 // Partial of SettingsDto — every section, and every field within a section, is

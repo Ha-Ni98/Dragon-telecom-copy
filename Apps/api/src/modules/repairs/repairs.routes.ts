@@ -42,10 +42,13 @@ const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
 router.get(REPAIR_ROUTES.STAFF_LIST, staffRepairsOrAdmin, validateRequest({ query: RepairListQuerySchema }), controller.listRepairs);
 router.get(REPAIR_ROUTES.ADMIN_LIST, adminOnly, validateRequest({ query: RepairListQuerySchema }), controller.listRepairs);
 
-// R1 — admin-only; the staff Technicians tab is out of scope here (S18 aligns staff guards).
-// Mounted before ADMIN_BY_ID/STAFF_BY_ID in route-declaration order isn't required (Express
-// matches by literal path vs. the /:id param), but is kept together with LIST for readability.
+// R1 — S18/D-3: staff holding the repairs page sees the Technicians tab too (stats only; adding
+// a technician stays admin-only, via identity's TECHNICIANS routes which this file never
+// touches). Mounted before ADMIN_BY_ID/STAFF_BY_ID in route-declaration order isn't required
+// (Express matches by literal path vs. the /:id param), but is kept together with LIST for
+// readability.
 router.get(REPAIR_ROUTES.ADMIN_TECHNICIAN_STATS, adminOnly, controller.listTechnicianStats);
+router.get(REPAIR_ROUTES.STAFF_TECHNICIAN_STATS, staffRepairsOrAdmin, controller.listTechnicianStats);
 
 // set-03 B1 — single-ticket read (ticket detail drawer).
 router.get(REPAIR_ROUTES.STAFF_BY_ID, staffRepairsOrAdmin, validateRequest({ params: RepairIdParamsSchema }), controller.getRepair);

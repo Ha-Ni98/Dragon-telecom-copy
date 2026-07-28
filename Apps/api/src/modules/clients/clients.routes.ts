@@ -1,9 +1,7 @@
-import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { prisma } from '@common/db/prisma';
 import { validateRequest } from '@common/middlewares/validate-request.middleware';
 import { requireAuth } from '@common/middlewares/auth.middleware';
-import { ForbiddenError } from '@common/errors';
 import {
   CLIENT_ROUTES,
   POS_CLIENT_ROUTES,
@@ -57,28 +55,17 @@ export const clientsService = service;
 
 const clientOnly = requireAuth({ types: [UserType.CLIENT] });
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
-// STAFF_POS_CLIENTS is one page — requireAuth's AND semantics collapse to a plain single-page
-// check here, no OR guard needed (ADMIN bypasses automatically inside requireAuth).
+// STAFF_POS_CLIENTS is one page — a plain single-page AND check (ADMIN bypasses automatically
+// inside requireAuth). Also backs the staff POS-clients list/update routes (S18, D-5).
 const staffPosClientsOrAdmin = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], pages: [PageKey.STAFF_POS_CLIENTS] });
 
-// requireAuth({pages}) requires ALL listed pages (AND); the spec's access column for SEARCH is
-// "STAFF_POS or STAFF_POS_CLIENTS" (OR) — a genuine HOW mismatch (plan §D-2), resolved with a
-// small one-off inline guard rather than redesigning requireAuth's shared pages semantics for
-// every other module. Reuses identity's already-built getEffectivePages (no duplicated
-// userRole/rolePage query here).
-const posSearchGuard = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], checkDB: true });
-const posSearchPagesGuard = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
-  try {
-    if (req.user!.type === UserType.ADMIN) return next();
-    const effectivePages = await identityService.getEffectivePages(req.user!);
-    if (effectivePages.includes(PageKey.STAFF_POS) || effectivePages.includes(PageKey.STAFF_POS_CLIENTS)) {
-      return next();
-    }
-    throw new ForbiddenError('Insufficient permissions');
-  } catch (err) {
-    next(err);
-  }
-};
+// S18 — was a hand-rolled inline OR guard (requireAuth's `pages` is AND-only); folded into the
+// new `anyPages` option, which expresses the spec's "STAFF_POS or STAFF_POS_CLIENTS" directly.
+const staffPosOrPosClientsOrAdmin = requireAuth({
+  types: [UserType.STAFF, UserType.ADMIN],
+  anyPages: [PageKey.STAFF_POS, PageKey.STAFF_POS_CLIENTS],
+  checkDB: true,
+});
 
 // 2. Routes (validation uses contract schemas per segment)
 
@@ -147,8 +134,7 @@ router.patch(
 // POS clients
 router.get(
   POS_CLIENT_ROUTES.SEARCH,
-  posSearchGuard,
-  posSearchPagesGuard,
+  staffPosOrPosClientsOrAdmin,
   validateRequest({ query: PosClientSearchQuerySchema }),
   controller.searchPosClients,
 );
@@ -163,6 +149,20 @@ router.post(POS_CLIENT_ROUTES.ADMIN, adminOnly, validateRequest({ body: CreatePo
 router.patch(
   POS_CLIENT_ROUTES.ADMIN_BY_ID,
   adminOnly,
+  validateRequest({ params: PosClientIdParamsSchema, body: UpdatePosClientSchema }),
+  controller.updatePosClient,
+);
+
+// S18 — staff twin of the POS-clients list/update, full parity with admin (D-5).
+router.get(
+  POS_CLIENT_ROUTES.STAFF_LIST,
+  staffPosClientsOrAdmin,
+  validateRequest({ query: PosClientListQuerySchema }),
+  controller.listPosClients,
+);
+router.patch(
+  POS_CLIENT_ROUTES.STAFF_BY_ID,
+  staffPosClientsOrAdmin,
   validateRequest({ params: PosClientIdParamsSchema, body: UpdatePosClientSchema }),
   controller.updatePosClient,
 );

@@ -75,11 +75,18 @@ const uploadImages = multer({
 
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
 const staffOrAdmin = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], checkDB: true });
-// The one page-gated guard in the codebase so far (plan §7.3) — ADMIN bypasses the page check
-// inside requireAuth itself; STAFF must additionally hold STAFF_PRODUCTS.
-const staffProductsOrAdmin = requireAuth({
+// S18 — the staff product lookup backs three staff pages: the products page itself, the POS
+// product search, and the repairs spare-part picker. AND-semantics on STAFF_PRODUCTS 403'd a
+// POS-only or repairs-only staff on a call their page cannot work without.
+const staffProductLookupOrAdmin = requireAuth({
   types: [UserType.STAFF, UserType.ADMIN],
-  pages: [PageKey.STAFF_PRODUCTS],
+  anyPages: [PageKey.STAFF_PRODUCTS, PageKey.STAFF_POS, PageKey.STAFF_REPAIRS],
+  checkDB: true,
+});
+// S18 — repairs intake's create-if-absent brand/model (D-3, P4).
+const staffRepairsOrAdmin = requireAuth({
+  types: [UserType.STAFF, UserType.ADMIN],
+  anyPages: [PageKey.STAFF_REPAIRS],
   checkDB: true,
 });
 // Token shapes the response (viewer-resolved pricing/inCart); it never gates the route itself.
@@ -109,11 +116,25 @@ router.get(
 // --- Staff ---
 router.get(
   CATALOG_ROUTES.STAFF_PRODUCTS,
-  staffProductsOrAdmin,
+  staffProductLookupOrAdmin,
   validateRequest({ query: ProductListQuerySchema }),
   controller.listStaffProducts,
 );
 router.get(CATALOG_ROUTES.CATEGORIES, staffOrAdmin, controller.listCategories);
+// S18 — repairs intake creates a brand/model when absent (S13); the read routes above (BRANDS,
+// MODELS) are already public.
+router.post(
+  CATALOG_ROUTES.STAFF_BRANDS,
+  staffRepairsOrAdmin,
+  validateRequest({ body: CreateBrandSchema }),
+  controller.createBrand,
+);
+router.post(
+  CATALOG_ROUTES.STAFF_MODELS,
+  staffRepairsOrAdmin,
+  validateRequest({ body: CreateModelSchema }),
+  controller.createModel,
+);
 
 // --- Admin: products ---
 // PRODUCT_STATS ("/admin/products/stats") must be registered before ADMIN_PRODUCT_BY_ID
