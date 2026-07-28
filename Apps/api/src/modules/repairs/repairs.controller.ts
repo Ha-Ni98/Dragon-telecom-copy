@@ -3,6 +3,7 @@ import { sendSuccess } from '@common/http/response';
 import type {
   AddRepairPartCommand,
   CreateRepairCommand,
+  RecordRepairPaymentCommand,
   RepairIdParams,
   RepairListQuery,
   RepairPartParams,
@@ -80,6 +81,27 @@ export class RepairsController {
     try {
       const { id } = req.validated.params as RepairIdParams;
       const result = await this.service.changeStatus(id, req.validated.body as RepairStatusCommand, req.user!);
+      sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // S13/D5 — cumulative payment at any pre-pickup step.
+  recordPayment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as RepairIdParams;
+      const result = await this.service.recordPayment(id, req.validated.body as RecordRepairPaymentCommand, req.user!);
+      sendSuccess(res, result, 201);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // S13/R1 — the admin Technicians tab.
+  listTechnicianStats = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await this.service.listTechnicianStats();
       sendSuccess(res, result, 200);
     } catch (error) {
       next(error);

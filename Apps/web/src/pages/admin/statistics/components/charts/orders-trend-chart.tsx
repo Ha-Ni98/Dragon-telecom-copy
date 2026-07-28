@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ClipboardList } from "lucide-react";
 import type { ChartPoint } from "@/services/statistics.service";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useChartTheme } from "@/lib/chart-theme";
 
 interface OrdersTrendChartProps {
   data: ChartPoint[];
@@ -15,12 +16,14 @@ interface OrdersTrendChartProps {
 // ADM-15 — retyped off `ChartPoint[]` (`useChart(ChartType.ORDERS, query)`). The old view-
 // model's per-status breakdown/filter buttons have no DTO backing (the endpoint returns one
 // aggregate count per point, not a per-status split) and are dropped (Sprint 3 §Risks).
+// S14/RC-5 — colours read from useChartTheme() (literal OKLCH, both themes).
 export function OrdersTrendChart({
   data,
   isLoading = false,
   className = "",
 }: OrdersTrendChartProps) {
   const { t } = useTranslation();
+  const chart = useChartTheme();
 
   return (
     <Card className={className}>
@@ -43,11 +46,24 @@ export function OrdersTrendChart({
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="value" fill="hsl(var(--primary))" />
+                <CartesianGrid stroke={chart.grid} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 12, fill: chart.axis }}
+                  stroke={chart.grid}
+                />
+                <YAxis tick={{ fontSize: 12, fill: chart.axis }} stroke={chart.grid} />
+                <Tooltip
+                  contentStyle={{
+                    background: chart.tooltipBg,
+                    color: chart.tooltipFg,
+                    border: `1px solid ${chart.tooltipBorder}`,
+                    borderRadius: 8,
+                  }}
+                  itemStyle={{ color: chart.tooltipFg }}
+                  labelStyle={{ color: chart.tooltipFg }}
+                />
+                <Bar dataKey="value" fill={chart.series[0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

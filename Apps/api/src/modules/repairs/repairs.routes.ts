@@ -8,23 +8,28 @@ import {
   PageKey,
   AddRepairPartSchema,
   CreateRepairSchema,
+  RecordRepairPaymentSchema,
   RepairIdParamsSchema,
   RepairListQuerySchema,
   RepairPartParamsSchema,
   RepairStatusSchema,
   UpdateRepairSchema,
 } from '@dragon-telecom/contract';
-// Direct sibling-module imports — repairs depends one-directionally on platform/inventory (no
-// reverse dependency), the same shape orders/sales/purchasing established.
+// Direct sibling-module imports — repairs depends one-directionally on platform/inventory/
+// clients/billing (no reverse dependency), the same shape orders/sales/purchasing established.
+// clientsService satisfies IRepairCreditPort structurally; billingService satisfies
+// IBillingIssuePort structurally (S13) — no adapter needed for either.
 import { sequenceService } from '../platform/platform.routes';
 import { inventoryService } from '../inventory/inventory.routes';
+import { clientsService } from '../clients/clients.routes';
+import { billingService } from '../billing/billing.routes';
 import { RepairsService } from './repairs.service';
 import { RepairsController } from './repairs.controller';
 
 const router = Router();
 
 // 1. Manual DI — no listener: repairs listens to nothing (contract confirmed).
-const service = new RepairsService(prisma, inventoryService, sequenceService);
+const service = new RepairsService(prisma, inventoryService, sequenceService, clientsService, billingService);
 const controller = new RepairsController(service);
 
 // Access per plan §II.2/§D-5 — mutations are page-gated only, not creator-scoped (the
@@ -36,6 +41,11 @@ const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
 // 2. Routes (validation uses contract schemas per segment)
 router.get(REPAIR_ROUTES.STAFF_LIST, staffRepairsOrAdmin, validateRequest({ query: RepairListQuerySchema }), controller.listRepairs);
 router.get(REPAIR_ROUTES.ADMIN_LIST, adminOnly, validateRequest({ query: RepairListQuerySchema }), controller.listRepairs);
+
+// R1 — admin-only; the staff Technicians tab is out of scope here (S18 aligns staff guards).
+// Mounted before ADMIN_BY_ID/STAFF_BY_ID in route-declaration order isn't required (Express
+// matches by literal path vs. the /:id param), but is kept together with LIST for readability.
+router.get(REPAIR_ROUTES.ADMIN_TECHNICIAN_STATS, adminOnly, controller.listTechnicianStats);
 
 // set-03 B1 — single-ticket read (ticket detail drawer).
 router.get(REPAIR_ROUTES.STAFF_BY_ID, staffRepairsOrAdmin, validateRequest({ params: RepairIdParamsSchema }), controller.getRepair);
@@ -94,6 +104,20 @@ router.post(
   adminOnly,
   validateRequest({ params: RepairIdParamsSchema, body: RepairStatusSchema }),
   controller.changeStatus,
+);
+
+// S13/D5 — cumulative payment at any pre-pickup step.
+router.post(
+  REPAIR_ROUTES.STAFF_PAYMENTS,
+  staffRepairsOrAdmin,
+  validateRequest({ params: RepairIdParamsSchema, body: RecordRepairPaymentSchema }),
+  controller.recordPayment,
+);
+router.post(
+  REPAIR_ROUTES.ADMIN_PAYMENTS,
+  adminOnly,
+  validateRequest({ params: RepairIdParamsSchema, body: RecordRepairPaymentSchema }),
+  controller.recordPayment,
 );
 
 export { router };

@@ -6,26 +6,31 @@ import { apiPath, withParams } from "@/lib/api-path";
 import {
   REPAIR_ROUTES,
   type ApiResponse,
+  type PaginatedResult,
+  type RecordRepairPaymentCommand,
   type RepairDto,
   type RepairListQuery,
   type CreateRepairCommand,
   type UpdateRepairCommand,
   type AddRepairPartCommand,
   type RepairStatusCommand,
+  type TechnicianRepairStatsDto,
 } from "@dragon-telecom/contract";
 
 // Every route in this domain is a genuine STAFF_*/ADMIN_* dual-mounted pair (confirmed against
 // repairs.routes.ts — unlike sales, where only list/detail are actually paired).
 export type RepairsScope = "staff" | "admin";
 
-// Bare array — RepairListQuery carries no page/limit ("board data" per the contract's own
-// interface comment, not a paginated list).
+// S13/R2 — the board is now paginated at 10/page (RepairListQuery carries page/limit + an
+// intake-date range), not the unbounded "board data" array it used to be.
 export async function listRepairs(
   scope: RepairsScope,
   query: RepairListQuery,
-): Promise<RepairDto[]> {
+): Promise<PaginatedResult<RepairDto>> {
   const route = scope === "admin" ? REPAIR_ROUTES.ADMIN_LIST : REPAIR_ROUTES.STAFF_LIST;
-  const res = await api.get<ApiResponse<RepairDto[]>>(apiPath(route), { params: query });
+  const res = await api.get<ApiResponse<PaginatedResult<RepairDto>>>(apiPath(route), {
+    params: query,
+  });
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }
@@ -96,6 +101,27 @@ export async function updateRepairStatus(
 ): Promise<RepairDto> {
   const route = scope === "admin" ? REPAIR_ROUTES.ADMIN_STATUS : REPAIR_ROUTES.STAFF_STATUS;
   const res = await api.post<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }), command);
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// S13/D5 — a cumulative payment at any pre-pickup step.
+export async function recordRepairPayment(
+  scope: RepairsScope,
+  id: string,
+  command: RecordRepairPaymentCommand,
+): Promise<RepairDto> {
+  const route = scope === "admin" ? REPAIR_ROUTES.ADMIN_PAYMENTS : REPAIR_ROUTES.STAFF_PAYMENTS;
+  const res = await api.post<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }), command);
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// S13/R1 — admin-only; no scope parameter (there is no staff route for this yet, S18 aligns it).
+export async function listTechnicianStats(): Promise<TechnicianRepairStatsDto[]> {
+  const res = await api.get<ApiResponse<TechnicianRepairStatsDto[]>>(
+    apiPath(REPAIR_ROUTES.ADMIN_TECHNICIAN_STATS),
+  );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

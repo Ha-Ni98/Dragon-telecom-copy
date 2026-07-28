@@ -144,6 +144,8 @@ export const qk = {
     all: () => ["repairs"] as const,
     list: (scope: string, query?: unknown) => ["repairs", "list", scope, query] as const,
     detail: (scope: string, id: string) => ["repairs", "detail", scope, id] as const,
+    // S13/R1 — admin-only technician stats; no scope member (there is no staff route).
+    technicianStats: () => ["repairs", "technician-stats"] as const,
   },
   billing: {
     all: () => ["billing"] as const,

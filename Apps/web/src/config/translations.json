@@ -11624,16 +11624,6 @@
     "fr": "Le montant payé est requis",
     "ar": ""
   },
-  "staff.repairs.statusDialog.consumedPartReturnsLabel": {
-    "en": "Restock choice per part",
-    "fr": "Choix de réapprovisionnement par pièce",
-    "ar": ""
-  },
-  "staff.repairs.statusDialog.consumedPartReturnsRequired": {
-    "en": "Choose a restock option for every consumed part",
-    "fr": "Choisissez une option de réapprovisionnement pour chaque pièce consommée",
-    "ar": ""
-  },
   "staff.repairs.statusDialog.submit": {
     "en": "Update status",
     "fr": "Mettre à jour le statut",
@@ -11642,6 +11632,151 @@
   "staff.repairs.statusDialog.dragRejected": {
     "en": "That move isn't allowed",
     "fr": "Ce déplacement n'est pas autorisé",
+    "ar": ""
+  },
+  "staff.repairs.board.dateFrom": {
+    "en": "From",
+    "fr": "Du",
+    "ar": ""
+  },
+  "staff.repairs.board.dateTo": {
+    "en": "To",
+    "fr": "Au",
+    "ar": ""
+  },
+  "staff.repairs.detail.readOnly": {
+    "en": "This repair is closed — no further edits",
+    "fr": "Cette réparation est clôturée — plus de modifications possibles",
+    "ar": ""
+  },
+  "staff.repairs.detail.invoiceNumber": {
+    "en": "Invoice",
+    "fr": "Facture",
+    "ar": ""
+  },
+  "staff.repairs.detail.amountDue": {
+    "en": "Amount due",
+    "fr": "Montant dû",
+    "ar": ""
+  },
+  "staff.repairs.addPart.productPlaceholder": {
+    "en": "Search a product",
+    "fr": "Rechercher un produit",
+    "ar": ""
+  },
+  "staff.repairs.addPart.productRequired": {
+    "en": "Select a product",
+    "fr": "Sélectionnez un produit",
+    "ar": ""
+  },
+  "staff.repairs.addPart.noResults": {
+    "en": "No matching product",
+    "fr": "Aucun produit correspondant",
+    "ar": ""
+  },
+  "staff.repairs.intake.brandPlaceholder": {
+    "en": "Search or add a brand",
+    "fr": "Rechercher ou ajouter une marque",
+    "ar": ""
+  },
+  "staff.repairs.intake.modelPlaceholder": {
+    "en": "Search or add a model",
+    "fr": "Rechercher ou ajouter un modèle",
+    "ar": ""
+  },
+  "staff.repairs.intake.modelBrandFirst": {
+    "en": "Choose a brand first",
+    "fr": "Choisissez d'abord une marque",
+    "ar": ""
+  },
+  "staff.repairs.payments.title": {
+    "en": "Payments",
+    "fr": "Paiements",
+    "ar": ""
+  },
+  "staff.repairs.payments.empty": {
+    "en": "No payments recorded",
+    "fr": "Aucun paiement enregistré",
+    "ar": ""
+  },
+  "staff.repairs.payments.walkIn": {
+    "en": "Walk-in customer — no client ledger",
+    "fr": "Client de passage — aucun registre client",
+    "ar": ""
+  },
+  "staff.repairs.payments.record": {
+    "en": "Record payment",
+    "fr": "Enregistrer un paiement",
+    "ar": ""
+  },
+  "staff.repairs.payments.amountLabel": {
+    "en": "Amount",
+    "fr": "Montant",
+    "ar": ""
+  },
+  "staff.repairs.payments.amountInvalid": {
+    "en": "Amount must be above zero",
+    "fr": "Le montant doit être supérieur à zéro",
+    "ar": ""
+  },
+  "staff.repairs.payments.submit": {
+    "en": "Record payment",
+    "fr": "Enregistrer le paiement",
+    "ar": ""
+  },
+  "staff.repairs.payments.success": {
+    "en": "Payment recorded",
+    "fr": "Paiement enregistré",
+    "ar": ""
+  },
+  "staff.repairs.payments.refundRow": {
+    "en": "Refund",
+    "fr": "Remboursement",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.paymentAmountLabel": {
+    "en": "Amount collected now",
+    "fr": "Montant encaissé maintenant",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.paymentAmountInvalid": {
+    "en": "Amount must be zero or more",
+    "fr": "Le montant doit être supérieur ou égal à zéro",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.paymentAmountRequired": {
+    "en": "Collect the remaining amount to complete the pickup",
+    "fr": "Encaissez le montant restant pour finaliser la récupération",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.nothingDue": {
+    "en": "Fully paid — nothing left to collect",
+    "fr": "Entièrement payé — rien à encaisser",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.refundAmountLabel": {
+    "en": "Amount to return",
+    "fr": "Montant à rembourser",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.refundAmountInvalid": {
+    "en": "Amount must be zero or more",
+    "fr": "Le montant doit être supérieur ou égal à zéro",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.refundHelp": {
+    "en": "This repair collected {amount}. Returning it records a refund.",
+    "fr": "Cette réparation a encaissé {amount}. Le rembourser enregistre un remboursement.",
+    "ar": ""
+  },
+  "staff.repairs.statusDialog.cancel": {
+    "en": "Cancel",
+    "fr": "Annuler",
+    "ar": ""
+  },
+  "staff.repairs.errors.readOnly": {
+    "en": "This repair is closed and can no longer be changed",
+    "fr": "Cette réparation est clôturée et ne peut plus être modifiée",
     "ar": ""
   },
   "admin.repairs.pageTitle": {
@@ -11657,6 +11792,76 @@
   "admin.repairs.detail.profit": {
     "en": "Profit",
     "fr": "Profit",
+    "ar": ""
+  },
+  "admin.repairs.tabs.board": {
+    "en": "Board",
+    "fr": "Tableau",
+    "ar": ""
+  },
+  "admin.repairs.tabs.technicians": {
+    "en": "Technicians",
+    "fr": "Techniciens",
+    "ar": ""
+  },
+  "admin.repairs.technicians.title": {
+    "en": "Technicians",
+    "fr": "Techniciens",
+    "ar": ""
+  },
+  "admin.repairs.technicians.add": {
+    "en": "Add technician",
+    "fr": "Ajouter un technicien",
+    "ar": ""
+  },
+  "admin.repairs.technicians.nameLabel": {
+    "en": "Name",
+    "fr": "Nom",
+    "ar": ""
+  },
+  "admin.repairs.technicians.nameRequired": {
+    "en": "Name is required",
+    "fr": "Le nom est requis",
+    "ar": ""
+  },
+  "admin.repairs.technicians.phoneLabel": {
+    "en": "Phone (optional)",
+    "fr": "Téléphone (optionnel)",
+    "ar": ""
+  },
+  "admin.repairs.technicians.submit": {
+    "en": "Add technician",
+    "fr": "Ajouter le technicien",
+    "ar": ""
+  },
+  "admin.repairs.technicians.success": {
+    "en": "Technician added",
+    "fr": "Technicien ajouté",
+    "ar": ""
+  },
+  "admin.repairs.technicians.empty": {
+    "en": "No technicians yet",
+    "fr": "Aucun technicien pour le moment",
+    "ar": ""
+  },
+  "admin.repairs.technicians.error": {
+    "en": "Couldn't load technicians — retry",
+    "fr": "Impossible de charger les techniciens — réessayez",
+    "ar": ""
+  },
+  "admin.repairs.technicians.disabled": {
+    "en": "Disabled",
+    "fr": "Désactivé",
+    "ar": ""
+  },
+  "admin.repairs.technicians.columns.total": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "admin.repairs.technicians.columns.revenue": {
+    "en": "Revenue",
+    "fr": "Revenu",
     "ar": ""
   },
   "admin.productsList.pageTitle": {
@@ -13199,9 +13404,159 @@
     "fr": "Exporter en CSV",
     "ar": ""
   },
-  "admin.statistics.reports.groupBy": {
-    "en": "Group by",
-    "fr": "Grouper par",
+  "admin.statistics.reports.columns.productId": {
+    "en": "Product ID",
+    "fr": "ID produit",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.productName": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.revenue": {
+    "en": "Revenue",
+    "fr": "Revenu",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.cost": {
+    "en": "Cost",
+    "fr": "Coût",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.profit": {
+    "en": "Profit",
+    "fr": "Profit",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.discount": {
+    "en": "Discount",
+    "fr": "Remise",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.resolvedRevenue": {
+    "en": "Revenue at list price",
+    "fr": "Revenu au prix catalogue",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.posClientId": {
+    "en": "Client ID",
+    "fr": "ID client",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.clientName": {
+    "en": "Client",
+    "fr": "Client",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.categoryId": {
+    "en": "Category ID",
+    "fr": "ID catégorie",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.categoryName": {
+    "en": "Client category",
+    "fr": "Catégorie client",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.salesCount": {
+    "en": "Documents",
+    "fr": "Documents",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.staffId": {
+    "en": "Seller ID",
+    "fr": "ID vendeur",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.staffName": {
+    "en": "Seller",
+    "fr": "Vendeur",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.supplierId": {
+    "en": "Supplier ID",
+    "fr": "ID fournisseur",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.supplierName": {
+    "en": "Supplier",
+    "fr": "Fournisseur",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.spend": {
+    "en": "Spend",
+    "fr": "Dépense",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.count": {
+    "en": "Count",
+    "fr": "Nombre",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalAmount": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.type": {
+    "en": "Movement type",
+    "fr": "Type de mouvement",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalQuantity": {
+    "en": "Total quantity",
+    "fr": "Quantité totale",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.movementCount": {
+    "en": "Movements",
+    "fr": "Mouvements",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.flagged": {
+    "en": "Flagged",
+    "fr": "Signalé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.bucket": {
+    "en": "Age bucket",
+    "fr": "Tranche d'âge",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.clientOutstanding": {
+    "en": "Client outstanding",
+    "fr": "Solde client dû",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.supplierOutstanding": {
+    "en": "Supplier outstanding",
+    "fr": "Solde fournisseur dû",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.query": {
+    "en": "Search term",
+    "fr": "Terme recherché",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.viewCount": {
+    "en": "Views",
+    "fr": "Vues",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.kind": {
+    "en": "Kind",
+    "fr": "Type",
     "ar": ""
   },
   "admin.statistics.reports.viewDetails": {

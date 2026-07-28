@@ -4,6 +4,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { AgeFlag } from "@/components/shared/AgeFlag";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { SimplePagination } from "@/components/shared/SimplePagination";
 import {
   Select,
   SelectContent,
@@ -31,6 +34,15 @@ interface RepairBoardProps {
   technicians?: TechnicianDto[];
   technicianFilter?: string;
   onTechnicianFilterChange: (technicianId?: string) => void;
+  /** S13/R2 — intake-date range, filtered server-side alongside the technician/status filters. */
+  from?: string;
+  to?: string;
+  onDateRangeChange: (from?: string, to?: string) => void;
+  /** S13/R2 — the board is now one paginated page (≤10 tickets) spread across its five lanes; a
+   * lane can legitimately be empty on a page whose tickets all share one status. */
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   onCardClick: (repair: RepairDto) => void;
   /** A rejected drop snaps back (STF-07/ADM-13 §Interactions) — the caller decides success/
    * failure (server-validated), this only fires the intent. */
@@ -51,6 +63,12 @@ export function RepairBoard({
   technicians,
   technicianFilter,
   onTechnicianFilterChange,
+  from,
+  to,
+  onDateRangeChange,
+  page,
+  totalPages,
+  onPageChange,
   onCardClick,
   onDropOnLane,
 }: RepairBoardProps) {
@@ -91,94 +109,124 @@ export function RepairBoard({
     );
   }
 
-  if ((repairs?.length ?? 0) === 0) {
-    return (
-      <EmptyState
-        icon={<Wrench className="h-6 w-6" />}
-        title={t("staff.repairs.board.empty")}
-        body=""
-      />
-    );
-  }
-
   return (
     <div className="space-y-4">
-      {technicians && (
-        <Select
-          value={technicianFilter ?? "all"}
-          onValueChange={(v) => onTechnicianFilterChange(v === "all" ? undefined : v)}
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder={t("staff.repairs.board.technicianFilter")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("staff.orders.tabs.all")}</SelectItem>
-            {technicians.map((technician) => (
-              <SelectItem key={technician.id} value={technician.id}>
-                {technician.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap items-end gap-3">
+        {technicians && (
+          <Select
+            value={technicianFilter ?? "all"}
+            onValueChange={(v) => onTechnicianFilterChange(v === "all" ? undefined : v)}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder={t("staff.repairs.board.technicianFilter")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("staff.orders.tabs.all")}</SelectItem>
+              {technicians.map((technician) => (
+                <SelectItem key={technician.id} value={technician.id}>
+                  {technician.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <div className="space-y-1">
+          <Label htmlFor="repair-board-from" className="text-xs">
+            {t("staff.repairs.board.dateFrom")}
+          </Label>
+          <Input
+            id="repair-board-from"
+            type="date"
+            value={from ?? ""}
+            onChange={(e) => onDateRangeChange(e.target.value || undefined, to)}
+            className="w-40"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="repair-board-to" className="text-xs">
+            {t("staff.repairs.board.dateTo")}
+          </Label>
+          <Input
+            id="repair-board-to"
+            type="date"
+            value={to ?? ""}
+            onChange={(e) => onDateRangeChange(from, e.target.value || undefined)}
+            className="w-40"
+          />
+        </div>
+      </div>
+
+      {(repairs?.length ?? 0) === 0 ? (
+        <EmptyState
+          icon={<Wrench className="h-6 w-6" />}
+          title={t("staff.repairs.board.empty")}
+          body=""
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {LANES.map((lane) => {
+            const laneRepairs = repairsByLane.get(lane) ?? [];
+            return (
+              <div
+                key={lane}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverLane(lane);
+                }}
+                onDragLeave={() =>
+                  setDragOverLane((current) => (current === lane ? null : current))
+                }
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverLane(null);
+                  const repair = repairs?.find((r) => r.id === draggingId);
+                  if (repair && repair.status !== lane) onDropOnLane(repair, lane);
+                  setDraggingId(null);
+                }}
+                className={cn(
+                  "min-h-[8rem] space-y-2 rounded-xl p-2",
+                  dragOverLane === lane && "bg-primary-light/50",
+                )}
+              >
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  {t(REPAIR_STATUS_LABEL_KEY[lane])}
+                </h3>
+                {laneRepairs.map((repair) => {
+                  const unpaid = repair.paidAmount < repair.totalAmount;
+                  return (
+                    <div
+                      key={repair.id}
+                      draggable
+                      onDragStart={() => setDraggingId(repair.id)}
+                      onClick={() => onCardClick(repair)}
+                      className="cursor-pointer space-y-1 rounded-2xl border border-border bg-card p-3 text-sm shadow-[var(--shadow-card)]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs">{repair.reference}</span>
+                        {unpaid && (
+                          <Badge variant="destructive">
+                            {t("staff.repairs.board.unpaidBadge")}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="font-medium">{repair.customerName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {repair.device.brand?.name} {repair.device.model?.name}
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{repair.technician?.name ?? "—"}</span>
+                        <AgeFlag since={repair.intakeAt} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {LANES.map((lane) => {
-          const laneRepairs = repairsByLane.get(lane) ?? [];
-          return (
-            <div
-              key={lane}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOverLane(lane);
-              }}
-              onDragLeave={() => setDragOverLane((current) => (current === lane ? null : current))}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOverLane(null);
-                const repair = repairs?.find((r) => r.id === draggingId);
-                if (repair && repair.status !== lane) onDropOnLane(repair, lane);
-                setDraggingId(null);
-              }}
-              className={cn(
-                "min-h-[8rem] space-y-2 rounded-xl p-2",
-                dragOverLane === lane && "bg-primary-light/50",
-              )}
-            >
-              <h3 className="text-sm font-semibold text-muted-foreground">
-                {t(REPAIR_STATUS_LABEL_KEY[lane])}
-              </h3>
-              {laneRepairs.map((repair) => {
-                const unpaid = repair.paidAmount < repair.totalAmount;
-                return (
-                  <div
-                    key={repair.id}
-                    draggable
-                    onDragStart={() => setDraggingId(repair.id)}
-                    onClick={() => onCardClick(repair)}
-                    className="cursor-pointer space-y-1 rounded-2xl border border-border bg-card p-3 text-sm shadow-[var(--shadow-card)]"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs">{repair.reference}</span>
-                      {unpaid && (
-                        <Badge variant="destructive">{t("staff.repairs.board.unpaidBadge")}</Badge>
-                      )}
-                    </div>
-                    <div className="font-medium">{repair.customerName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {repair.device.brand?.name} {repair.device.model?.name}
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{repair.technician?.name ?? "—"}</span>
-                      <AgeFlag since={repair.intakeAt} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
+      <SimplePagination page={page} totalPages={totalPages} onPageChange={onPageChange} />
     </div>
   );
 }

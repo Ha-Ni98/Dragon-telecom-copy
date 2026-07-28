@@ -24,6 +24,16 @@ const DAY_MS = 24 * 3_600_000;
 // revenue against a zero cost. Mirrors Sale's own soldAt-gated COMPLETED population.
 const ORDER_RECOGNIZED_STATUSES = ['COMPLETED'] as const;
 
+// D8/D9 (S13/S14 R1) — a repair recognises revenue, cost and profit together at PICKED_UP, and
+// produces no Sale row at all (D9). Every figure below that used to arrive through the deleted
+// REPAIR-origin Sale is read directly off Repair here, dated on pickedUpAt.
+const REPAIR_RECOGNIZED_STATUS = 'PICKED_UP' as const;
+
+// D-b (S14) — orders have no owning seller (Order.confirmedByStaffId is who CONFIRMED it, not
+// who sold it, and is nullable). They aggregate into one bucket in sales-by-seller rather than
+// being mis-attributed to whoever happened to confirm them.
+const UNASSIGNED_SELLER_BUCKET = 'Unassigned';
+
 // Large-ADJUSTMENT_OUT shrinkage flag threshold (spec: "large ADJUSTMENT_OUT flagged") — no
 // concrete number given anywhere; a documented, defensible inference, not derived from any
 // stored setting.
@@ -44,7 +54,7 @@ export class StatisticsService implements IStatisticsService {
 
     // Σ quantityOnHand × avgStockPrice (D10: stock valuation reads avgStockPrice, never avgPrice)
     // — no single-column Prisma aggregate multiplies two columns, so this reduces client-side
-    // (acceptable at this store's catalog scale).
+    // (acceptable at this store's catalog scale). Confirmed already correct pre-S14 — unchanged.
     const stockValue = products.reduce((sum, p) => sum + p.quantityOnHand * p.avgStockPrice.toNumber(), 0);
 
     return StatisticsMapper.toOverviewDto({
@@ -56,11 +66,10 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
-  // Simplification, not a blocking gap: query.familyId is validated but not yet applied here —
-  // a fully correct family-scoped revenue/profit split needs a line-level (not document-level)
-  // recomputation, the same complexity the REPORT endpoints already carry per-row. Flagged in
-  // the sprint report; the CHARTS route's own sales-by-family already gives a family-scoped
-  // breakdown (sales-by-category is the client-category-tier dimension instead, audit fix A1).
+  // S14/F1 — `familyId` now actually scopes the figures: computeRevenueProfit/countRecognizedOrders
+  // both switch to a line-level (family-scoped) computation when it's set. Previously validated
+  // and silently ignored — the Family dropdown changed the query key and refetched identical
+  // numbers.
   async getFiltered(query: FilteredQuery): Promise<FilteredDto> {
     const to = query.to != null ? new Date(query.to) : new Date();
     const from = query.from != null ? new Date(query.from) : new Date(to.getTime() - 30 * DAY_MS);
@@ -69,10 +78,10 @@ export class StatisticsService implements IStatisticsService {
     const prevFrom = new Date(from.getTime() - durationMs);
 
     const [current, previous, orders, prevOrders] = await Promise.all([
-      this.computeRevenueProfit({ from, to }),
-      this.computeRevenueProfit({ from: prevFrom, to: prevTo }),
-      this.countRecognizedOrders(from, to),
-      this.countRecognizedOrders(prevFrom, prevTo),
+      this.computeRevenueProfit({ from, to }, query.familyId),
+      this.computeRevenueProfit({ from: prevFrom, to: prevTo }, query.familyId),
+      this.countRecognizedOrders(from, to, query.familyId),
+      this.countRecognizedOrders(prevFrom, prevTo, query.familyId),
     ]);
 
     return StatisticsMapper.toFilteredDto({
@@ -89,6 +98,9 @@ export class StatisticsService implements IStatisticsService {
   // ReportResponseSchema.shape.chart). Day-bucketed for revenue/orders/clients (no explicit
   // granularity is specified anywhere — a day bucket is the most common "chart" default);
   // sales-by-family is a single category breakdown, not a time series, matching its own name.
+  // S14/F1 — REVENUE and ORDERS also honour query.familyId now; CLIENTS stays family-agnostic
+  // (a client has no family) and SALES_BY_FAMILY needs no special-case (a familyId would just
+  // collapse its own breakdown to one bar, which is already what happens today).
   async getChart(chart: ChartType, query: ChartsQuery): Promise<ChartPoint[]> {
     const to = query.to != null ? new Date(query.to) : new Date();
     const from = query.from != null ? new Date(query.from) : new Date(to.getTime() - 30 * DAY_MS);
@@ -97,9 +109,9 @@ export class StatisticsService implements IStatisticsService {
       case ChartType.SALES_BY_FAMILY:
         return this.chartSalesByFamily(from, to);
       case ChartType.REVENUE:
-        return this.chartDailyRevenue(from, to);
+        return this.chartDailyRevenue(from, to, query.familyId);
       case ChartType.ORDERS:
-        return this.chartDailyOrderCounts(from, to);
+        return this.chartDailyOrderCounts(from, to, query.familyId);
       case ChartType.CLIENTS:
         return this.chartDailyNewClients(from, to);
       default:
@@ -110,25 +122,17 @@ export class StatisticsService implements IStatisticsService {
   // No contract schema for TOP_PRODUCTS at all (statistics.mapper.ts's locally-declared
   // TopProductDto). `period` is a free string (no enumerated values anywhere) — 'week'/
   // 'month'/'year' recognized, anything else (including undefined) means all-time.
+  // S14/R1 — reads productLineTotals (Sale + completed Order + picked-up Repair lines), not
+  // SaleLine alone; a repair's parts now count toward "top products".
   async getTopProducts(query: TopProductsQuery): Promise<TopProductDto[]> {
     const range = this.resolvePeriodRange(query.period);
-    const dateFilter = range ? this.dateRangeFilter(range) : undefined;
+    const byProduct = await this.productLineTotals(range ?? {});
 
-    const lines = await this.prisma.saleLine.findMany({
-      where: { sale: { status: 'COMPLETED', ...(dateFilter ? { soldAt: dateFilter } : {}) } },
-      select: { productId: true, productNameSnapshot: true, quantity: true, lineTotal: true },
-    });
-
-    const byProduct = new Map<string, { productName: string; quantitySold: number; revenue: number }>();
-    for (const line of lines) {
-      const existing = byProduct.get(line.productId) ?? { productName: line.productNameSnapshot, quantitySold: 0, revenue: 0 };
-      existing.quantitySold += line.quantity;
-      existing.revenue += line.lineTotal.toNumber();
-      byProduct.set(line.productId, existing);
-    }
-
+    // TopProductRow names this field `quantitySold` (statistics.mapper.ts); productLineTotals'
+    // map uses the plainer `quantity` for its other consumer (reportSalesByProduct, whose row
+    // has no schema constraint) — renamed here at the one call site that needs it.
     const ranked = [...byProduct.entries()]
-      .map(([productId, data]) => ({ productId, ...data }))
+      .map(([productId, data]) => ({ productId, productName: data.productName, quantitySold: data.quantity, revenue: data.revenue }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
@@ -299,39 +303,116 @@ export class StatisticsService implements IStatisticsService {
 
   // --- Shared aggregation core ---
 
-  // Revenue/profit = Σ COMPLETED Sale rows + Σ COMPLETED Order rows (Order.totalProfit/totalCost,
-  // stamped at COMPLETED — D2/S10 — the same figures the ORDER invoice now copies too, audit fix
-  // A3, but read directly here rather than via the invoice). Dated on `deliveredAt` (the
-  // timestamp COMPLETED writes), not `confirmedAt` — nothing accrues before completion any more.
+  // Revenue/profit = Σ COMPLETED Sale + Σ COMPLETED Order (D2) + Σ PICKED_UP Repair (D8/D9, S14).
+  // Dated on soldAt/deliveredAt/pickedUpAt respectively — the timestamp each document's own
+  // recognition moment writes. No double-count: a picked-up repair produces an Invoice
+  // (sourceType REPAIR) and never a Sale or an Order, and this method never reads Invoice.
   //
-  // No repair figures here (S1): with repairs no longer producing a Sale row at all (D9), repair
-  // revenue/cost/profit no longer arrive through this query — they're recognised together at
-  // PICKED_UP (D8) and must be read directly off Repair. Auditing that and folding it in here is
-  // S14's job; until then this query under-counts total revenue by however much came from
-  // repairs, which is the documented regression (plan S1 §0.5).
-  private async computeRevenueProfit(range: { from?: Date; to?: Date }): Promise<{ revenue: number; profit: number }> {
-    const soldAtFilter = this.dateRangeFilter(range);
-    const deliveredAtFilter = this.dateRangeFilter(range);
+  // `familyId` (S14/F1) switches to a LINE-level computation (SaleLine/OrderLine/RepairPart
+  // joined to product.familyId) instead of document totals — a document's delivery fee (Order)
+  // or labour (Repair) belongs to no single family and is excluded from the family-filtered
+  // figure. This is a deliberate asymmetry from the unfiltered figure above it, not a bug.
+  private async computeRevenueProfit(range: { from?: Date; to?: Date }, familyId?: string): Promise<{ revenue: number; profit: number }> {
+    if (familyId != null) {
+      const filter = this.dateRangeFilter(range);
+      const [saleLines, orderLines, repairParts] = await Promise.all([
+        this.prisma.saleLine.findMany({
+          where: { product: { familyId }, sale: { status: 'COMPLETED', ...(filter ? { soldAt: filter } : {}) } },
+          select: { lineTotal: true, profit: true },
+        }),
+        this.prisma.orderLine.findMany({
+          where: {
+            product: { familyId },
+            order: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, ...(filter ? { deliveredAt: filter } : {}) },
+          },
+          select: { lineTotal: true, profit: true },
+        }),
+        this.prisma.repairPart.findMany({
+          where: {
+            product: { familyId },
+            repair: { status: REPAIR_RECOGNIZED_STATUS, ...(filter ? { pickedUpAt: filter } : {}) },
+          },
+          select: { lineTotal: true, profit: true },
+        }),
+      ]);
+      const revenue =
+        saleLines.reduce((sum, l) => sum + l.lineTotal.toNumber(), 0) +
+        orderLines.reduce((sum, l) => sum + l.lineTotal.toNumber(), 0) +
+        repairParts.reduce((sum, l) => sum + l.lineTotal.toNumber(), 0);
+      const profit =
+        saleLines.reduce((sum, l) => sum + l.profit.toNumber(), 0) +
+        orderLines.reduce((sum, l) => sum + (l.profit?.toNumber() ?? 0), 0) +
+        repairParts.reduce((sum, l) => sum + (l.profit?.toNumber() ?? 0), 0);
+      return { revenue, profit };
+    }
 
-    const [saleAgg, orderAgg] = await Promise.all([
+    const filter = this.dateRangeFilter(range);
+    const [saleAgg, orderAgg, repairAgg] = await Promise.all([
       this.prisma.sale.aggregate({
-        where: { status: 'COMPLETED', ...(soldAtFilter ? { soldAt: soldAtFilter } : {}) },
+        where: { status: 'COMPLETED', ...(filter ? { soldAt: filter } : {}) },
         _sum: { totalAmount: true, totalProfit: true },
       }),
       this.prisma.order.aggregate({
-        where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, ...(deliveredAtFilter ? { deliveredAt: deliveredAtFilter } : {}) },
+        where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, ...(filter ? { deliveredAt: filter } : {}) },
+        _sum: { totalAmount: true, totalProfit: true },
+      }),
+      this.prisma.repair.aggregate({
+        where: { status: REPAIR_RECOGNIZED_STATUS, ...(filter ? { pickedUpAt: filter } : {}) },
         _sum: { totalAmount: true, totalProfit: true },
       }),
     ]);
 
     return {
-      revenue: (saleAgg._sum.totalAmount?.toNumber() ?? 0) + (orderAgg._sum.totalAmount?.toNumber() ?? 0),
-      profit: (saleAgg._sum.totalProfit?.toNumber() ?? 0) + (orderAgg._sum.totalProfit?.toNumber() ?? 0),
+      revenue:
+        (saleAgg._sum.totalAmount?.toNumber() ?? 0) +
+        (orderAgg._sum.totalAmount?.toNumber() ?? 0) +
+        (repairAgg._sum.totalAmount?.toNumber() ?? 0),
+      profit:
+        (saleAgg._sum.totalProfit?.toNumber() ?? 0) +
+        (orderAgg._sum.totalProfit?.toNumber() ?? 0) +
+        (repairAgg._sum.totalProfit?.toNumber() ?? 0),
     };
   }
 
-  private async countRecognizedOrders(from: Date, to: Date): Promise<number> {
-    return this.prisma.order.count({ where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, deliveredAt: { gte: from, lte: to } } });
+  // S14/F1 — `familyId` narrows to orders with at least one line in that family.
+  private async countRecognizedOrders(from: Date, to: Date, familyId?: string): Promise<number> {
+    return this.prisma.order.count({
+      where: {
+        status: { in: [...ORDER_RECOGNIZED_STATUSES] },
+        deliveredAt: { gte: from, lte: to },
+        ...(familyId != null ? { lines: { some: { product: { familyId } } } } : {}),
+      },
+    });
+  }
+
+  // S14/R1 — the shared per-product line-level reader: Sale + completed Order + picked-up
+  // Repair lines, merged by productId. Used by both getTopProducts and reportSalesByProduct so
+  // the three-source union is written exactly once (plan's "fix the root cause once" rule).
+  private async productLineTotals(range: { from?: Date; to?: Date }): Promise<Map<string, { productName: string; quantity: number; revenue: number }>> {
+    const filter = this.dateRangeFilter(range);
+    const [saleLines, orderLines, repairParts] = await Promise.all([
+      this.prisma.saleLine.findMany({
+        where: { sale: { status: 'COMPLETED', ...(filter ? { soldAt: filter } : {}) } },
+        select: { productId: true, productNameSnapshot: true, quantity: true, lineTotal: true },
+      }),
+      this.prisma.orderLine.findMany({
+        where: { order: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, ...(filter ? { deliveredAt: filter } : {}) } },
+        select: { productId: true, productNameSnapshot: true, quantity: true, lineTotal: true },
+      }),
+      this.prisma.repairPart.findMany({
+        where: { repair: { status: REPAIR_RECOGNIZED_STATUS, ...(filter ? { pickedUpAt: filter } : {}) } },
+        select: { productId: true, productNameSnapshot: true, quantity: true, lineTotal: true },
+      }),
+    ]);
+
+    const byProduct = new Map<string, { productName: string; quantity: number; revenue: number }>();
+    for (const line of [...saleLines, ...orderLines, ...repairParts]) {
+      const existing = byProduct.get(line.productId) ?? { productName: line.productNameSnapshot, quantity: 0, revenue: 0 };
+      existing.quantity += line.quantity;
+      existing.revenue += line.lineTotal.toNumber();
+      byProduct.set(line.productId, existing);
+    }
+    return byProduct;
   }
 
   private pctChange(current: number, previous: number): number {
@@ -371,16 +452,60 @@ export class StatisticsService implements IStatisticsService {
 
   // --- Charts (day-bucketed; sales-by-family is a category breakdown, not a time series) ---
 
-  private async chartDailyRevenue(from: Date, to: Date): Promise<ChartPoint[]> {
-    const [sales, orders] = await Promise.all([
+  // S14/F1 — `familyId` switches to line-level sums (SaleLine/OrderLine/RepairPart joined to
+  // product.familyId), bucketed by the parent document's own recognition date, instead of
+  // document totals.
+  private async chartDailyRevenue(from: Date, to: Date, familyId?: string): Promise<ChartPoint[]> {
+    const byDay = new Map<string, number>();
+
+    if (familyId != null) {
+      const [saleLines, orderLines, repairParts] = await Promise.all([
+        this.prisma.saleLine.findMany({
+          where: { product: { familyId }, sale: { status: 'COMPLETED', soldAt: { gte: from, lte: to } } },
+          select: { lineTotal: true, sale: { select: { soldAt: true } } },
+        }),
+        this.prisma.orderLine.findMany({
+          where: {
+            product: { familyId },
+            order: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, deliveredAt: { gte: from, lte: to } },
+          },
+          select: { lineTotal: true, order: { select: { deliveredAt: true } } },
+        }),
+        this.prisma.repairPart.findMany({
+          where: {
+            product: { familyId },
+            repair: { status: REPAIR_RECOGNIZED_STATUS, pickedUpAt: { gte: from, lte: to } },
+          },
+          select: { lineTotal: true, repair: { select: { pickedUpAt: true } } },
+        }),
+      ]);
+      for (const line of saleLines) {
+        const day = line.sale.soldAt!.toISOString().slice(0, 10);
+        byDay.set(day, (byDay.get(day) ?? 0) + line.lineTotal.toNumber());
+      }
+      for (const line of orderLines) {
+        const day = line.order.deliveredAt!.toISOString().slice(0, 10);
+        byDay.set(day, (byDay.get(day) ?? 0) + line.lineTotal.toNumber());
+      }
+      for (const line of repairParts) {
+        const day = line.repair.pickedUpAt!.toISOString().slice(0, 10);
+        byDay.set(day, (byDay.get(day) ?? 0) + line.lineTotal.toNumber());
+      }
+      return this.sortedChartPoints(byDay);
+    }
+
+    const [sales, orders, repairs] = await Promise.all([
       this.prisma.sale.findMany({ where: { status: 'COMPLETED', soldAt: { gte: from, lte: to } }, select: { soldAt: true, totalAmount: true } }),
       this.prisma.order.findMany({
         where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, deliveredAt: { gte: from, lte: to } },
         select: { deliveredAt: true, totalAmount: true },
       }),
+      this.prisma.repair.findMany({
+        where: { status: REPAIR_RECOGNIZED_STATUS, pickedUpAt: { gte: from, lte: to } },
+        select: { pickedUpAt: true, totalAmount: true },
+      }),
     ]);
 
-    const byDay = new Map<string, number>();
     for (const sale of sales) {
       const day = sale.soldAt!.toISOString().slice(0, 10);
       byDay.set(day, (byDay.get(day) ?? 0) + sale.totalAmount.toNumber());
@@ -389,13 +514,22 @@ export class StatisticsService implements IStatisticsService {
       const day = order.deliveredAt!.toISOString().slice(0, 10);
       byDay.set(day, (byDay.get(day) ?? 0) + order.totalAmount.toNumber());
     }
+    for (const repair of repairs) {
+      const day = repair.pickedUpAt!.toISOString().slice(0, 10);
+      byDay.set(day, (byDay.get(day) ?? 0) + repair.totalAmount.toNumber());
+    }
 
     return this.sortedChartPoints(byDay);
   }
 
-  private async chartDailyOrderCounts(from: Date, to: Date): Promise<ChartPoint[]> {
+  // S14/F1 — `familyId` narrows to orders with at least one line in that family.
+  private async chartDailyOrderCounts(from: Date, to: Date, familyId?: string): Promise<ChartPoint[]> {
     const orders = await this.prisma.order.findMany({
-      where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, deliveredAt: { gte: from, lte: to } },
+      where: {
+        status: { in: [...ORDER_RECOGNIZED_STATUSES] },
+        deliveredAt: { gte: from, lte: to },
+        ...(familyId != null ? { lines: { some: { product: { familyId } } } } : {}),
+      },
       select: { deliveredAt: true },
     });
     const byDay = new Map<string, number>();
@@ -406,6 +540,8 @@ export class StatisticsService implements IStatisticsService {
     return this.sortedChartPoints(byDay);
   }
 
+  // Family-agnostic on purpose (S14) — a client has no family, so query.familyId is never read
+  // here.
   private async chartDailyNewClients(from: Date, to: Date): Promise<ChartPoint[]> {
     const clients = await this.prisma.client.findMany({ where: { createdAt: { gte: from, lte: to } }, select: { createdAt: true } });
     const byDay = new Map<string, number>();
@@ -416,13 +552,25 @@ export class StatisticsService implements IStatisticsService {
     return this.sortedChartPoints(byDay);
   }
 
+  // S14/R1 — folds in completed-Order and picked-up-Repair lines alongside SaleLine. Labour
+  // (no product, D-a) is excluded, same as it is from every other per-product dimension.
   private async chartSalesByFamily(from: Date, to: Date): Promise<ChartPoint[]> {
-    const lines = await this.prisma.saleLine.findMany({
-      where: { sale: { status: 'COMPLETED', soldAt: { gte: from, lte: to } } },
-      select: { lineTotal: true, product: { select: { family: { select: { name: true } } } } },
-    });
+    const [saleLines, orderLines, repairParts] = await Promise.all([
+      this.prisma.saleLine.findMany({
+        where: { sale: { status: 'COMPLETED', soldAt: { gte: from, lte: to } } },
+        select: { lineTotal: true, product: { select: { family: { select: { name: true } } } } },
+      }),
+      this.prisma.orderLine.findMany({
+        where: { order: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, deliveredAt: { gte: from, lte: to } } },
+        select: { lineTotal: true, product: { select: { family: { select: { name: true } } } } },
+      }),
+      this.prisma.repairPart.findMany({
+        where: { repair: { status: REPAIR_RECOGNIZED_STATUS, pickedUpAt: { gte: from, lte: to } } },
+        select: { lineTotal: true, product: { select: { family: { select: { name: true } } } } },
+      }),
+    ]);
     const byFamily = new Map<string, number>();
-    for (const line of lines) {
+    for (const line of [...saleLines, ...orderLines, ...repairParts]) {
       const name = line.product.family.name;
       byFamily.set(name, (byFamily.get(name) ?? 0) + line.lineTotal.toNumber());
     }
@@ -463,21 +611,10 @@ export class StatisticsService implements IStatisticsService {
     }
   }
 
+  // S14/R1 — reads the shared productLineTotals reader (Sale + completed Order + picked-up
+  // Repair), not SaleLine alone.
   private async reportSalesByProduct(range: { from?: Date; to?: Date }): Promise<ReportDto> {
-    const soldAtFilter = this.dateRangeFilter(range);
-    const lines = await this.prisma.saleLine.findMany({
-      where: { sale: { status: 'COMPLETED', ...(soldAtFilter ? { soldAt: soldAtFilter } : {}) } },
-      select: { productId: true, productNameSnapshot: true, quantity: true, lineTotal: true },
-    });
-
-    const byProduct = new Map<string, { productName: string; quantity: number; revenue: number }>();
-    for (const line of lines) {
-      const existing = byProduct.get(line.productId) ?? { productName: line.productNameSnapshot, quantity: 0, revenue: 0 };
-      existing.quantity += line.quantity;
-      existing.revenue += line.lineTotal.toNumber();
-      byProduct.set(line.productId, existing);
-    }
-
+    const byProduct = await this.productLineTotals(range);
     const rows = [...byProduct.entries()].map(([productId, data]) => ({ productId, ...data }));
     return StatisticsMapper.toReportDto({
       chart: rows.map((r) => ({ label: r.productName, value: r.revenue })),
@@ -487,18 +624,45 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
+  // S14/R1 — folds in completed orders (via client.posClientId — an order's registered client
+  // who was never approved as a PosClient has no ledger identity and is skipped, same as a sale
+  // with posClientId null) and picked-up repairs (posClientId is direct on Repair, no proxy).
   private async reportSalesByClient(range: { from?: Date; to?: Date }): Promise<ReportDto> {
-    const soldAtFilter = this.dateRangeFilter(range);
-    const sales = await this.prisma.sale.findMany({
-      where: { status: 'COMPLETED', posClientId: { not: null }, ...(soldAtFilter ? { soldAt: soldAtFilter } : {}) },
-      select: { posClientId: true, totalAmount: true, posClient: { select: { name: true } } },
-    });
+    const filter = this.dateRangeFilter(range);
+
+    const [sales, orders, repairs] = await Promise.all([
+      this.prisma.sale.findMany({
+        where: { status: 'COMPLETED', posClientId: { not: null }, ...(filter ? { soldAt: filter } : {}) },
+        select: { posClientId: true, totalAmount: true, posClient: { select: { name: true } } },
+      }),
+      this.prisma.order.findMany({
+        where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, clientId: { not: null }, ...(filter ? { deliveredAt: filter } : {}) },
+        select: { totalAmount: true, client: { select: { posClient: { select: { id: true, name: true } } } } },
+      }),
+      this.prisma.repair.findMany({
+        where: { status: REPAIR_RECOGNIZED_STATUS, posClientId: { not: null }, ...(filter ? { pickedUpAt: filter } : {}) },
+        select: { posClientId: true, totalAmount: true, posClient: { select: { name: true } } },
+      }),
+    ]);
 
     const byClient = new Map<string, { name: string; revenue: number }>();
     for (const sale of sales) {
       const id = sale.posClientId!;
       const existing = byClient.get(id) ?? { name: sale.posClient?.name ?? '', revenue: 0 };
       existing.revenue += sale.totalAmount.toNumber();
+      byClient.set(id, existing);
+    }
+    for (const order of orders) {
+      const posClient = order.client?.posClient;
+      if (posClient == null) continue; // never approved as a PosClient — no ledger identity to attribute to
+      const existing = byClient.get(posClient.id) ?? { name: posClient.name, revenue: 0 };
+      existing.revenue += order.totalAmount.toNumber();
+      byClient.set(posClient.id, existing);
+    }
+    for (const repair of repairs) {
+      const id = repair.posClientId!;
+      const existing = byClient.get(id) ?? { name: repair.posClient?.name ?? '', revenue: 0 };
+      existing.revenue += repair.totalAmount.toNumber();
       byClient.set(id, existing);
     }
 
@@ -511,24 +675,45 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
-  // "category" is the client's pricing tier (ClientCategory, via Sale.posClient.categoryId) —
-  // "how much discount does each tier really get" (audit fix A1). The product-family split
-  // already exists as the CHARTS route's own sales-by-family; this is a distinct dimension, not
-  // a duplicate of it. Sales with no linked POS client, or whose POS client has no category,
+  // "category" is the client's pricing tier (ClientCategory, via posClient.categoryId) — "how
+  // much discount does each tier really get" (audit fix A1). The product-family split already
+  // exists as the CHARTS route's own sales-by-family; this is a distinct dimension, not a
+  // duplicate of it. Documents with no linked POS client, or whose POS client has no category,
   // land in the categoryId=null "No client / default price" bucket.
   private static readonly NO_CATEGORY_BUCKET = 'No client / default price';
 
+  // S14/R1 — folds in completed orders and picked-up repairs. Orders carry both resolvedPrice
+  // and unitPrice per line (D11) so every column (including discount) is well-defined the same
+  // way it is for sales; a repair has no per-line resolved/charged price pair, so it contributes
+  // resolvedRevenue = revenue and discount = 0 at the document level (no per-part loop).
   private async reportSalesByCategory(range: { from?: Date; to?: Date }): Promise<ReportDto> {
-    const soldAtFilter = this.dateRangeFilter(range);
-    const sales = await this.prisma.sale.findMany({
-      where: { status: 'COMPLETED', ...(soldAtFilter ? { soldAt: soldAtFilter } : {}) },
-      select: {
-        posClient: { select: { categoryId: true, category: { select: { name: true } } } },
-        lines: {
-          select: { resolvedPrice: true, unitPrice: true, quantity: true, costOfGoods: true, profit: true },
+    const filter = this.dateRangeFilter(range);
+
+    const [sales, orders, repairs] = await Promise.all([
+      this.prisma.sale.findMany({
+        where: { status: 'COMPLETED', ...(filter ? { soldAt: filter } : {}) },
+        select: {
+          posClient: { select: { categoryId: true, category: { select: { name: true } } } },
+          lines: { select: { resolvedPrice: true, unitPrice: true, quantity: true, costOfGoods: true, profit: true } },
         },
-      },
-    });
+      }),
+      this.prisma.order.findMany({
+        where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, ...(filter ? { deliveredAt: filter } : {}) },
+        select: {
+          client: { select: { posClient: { select: { categoryId: true, category: { select: { name: true } } } } } },
+          lines: { select: { resolvedPrice: true, unitPrice: true, quantity: true, costOfGoods: true, profit: true } },
+        },
+      }),
+      this.prisma.repair.findMany({
+        where: { status: REPAIR_RECOGNIZED_STATUS, ...(filter ? { pickedUpAt: filter } : {}) },
+        select: {
+          posClient: { select: { categoryId: true, category: { select: { name: true } } } },
+          totalAmount: true,
+          totalCost: true,
+          totalProfit: true,
+        },
+      }),
+    ]);
 
     const byCategory = new Map<
       string | null,
@@ -538,16 +723,7 @@ export class StatisticsService implements IStatisticsService {
     for (const sale of sales) {
       const categoryId = sale.posClient?.categoryId ?? null;
       const name = sale.posClient?.category?.name ?? StatisticsService.NO_CATEGORY_BUCKET;
-      const existing = byCategory.get(categoryId) ?? {
-        name,
-        salesCount: 0,
-        quantity: 0,
-        revenue: 0,
-        resolvedRevenue: 0,
-        discount: 0,
-        cost: 0,
-        profit: 0,
-      };
+      const existing = byCategory.get(categoryId) ?? { name, salesCount: 0, quantity: 0, revenue: 0, resolvedRevenue: 0, discount: 0, cost: 0, profit: 0 };
       existing.salesCount += 1;
       for (const line of sale.lines) {
         const unitPrice = line.unitPrice.toNumber();
@@ -559,6 +735,38 @@ export class StatisticsService implements IStatisticsService {
         existing.cost += line.costOfGoods.toNumber();
         existing.profit += line.profit.toNumber();
       }
+      byCategory.set(categoryId, existing);
+    }
+
+    for (const order of orders) {
+      const posClient = order.client?.posClient;
+      const categoryId = posClient?.categoryId ?? null;
+      const name = posClient?.category?.name ?? StatisticsService.NO_CATEGORY_BUCKET;
+      const existing = byCategory.get(categoryId) ?? { name, salesCount: 0, quantity: 0, revenue: 0, resolvedRevenue: 0, discount: 0, cost: 0, profit: 0 };
+      existing.salesCount += 1;
+      for (const line of order.lines) {
+        const unitPrice = line.unitPrice.toNumber();
+        const resolvedPrice = line.resolvedPrice.toNumber();
+        existing.quantity += line.quantity;
+        existing.revenue += unitPrice * line.quantity;
+        existing.resolvedRevenue += resolvedPrice * line.quantity;
+        existing.discount += (resolvedPrice - unitPrice) * line.quantity;
+        existing.cost += line.costOfGoods?.toNumber() ?? 0;
+        existing.profit += line.profit?.toNumber() ?? 0;
+      }
+      byCategory.set(categoryId, existing);
+    }
+
+    for (const repair of repairs) {
+      const categoryId = repair.posClient?.categoryId ?? null;
+      const name = repair.posClient?.category?.name ?? StatisticsService.NO_CATEGORY_BUCKET;
+      const existing = byCategory.get(categoryId) ?? { name, salesCount: 0, quantity: 0, revenue: 0, resolvedRevenue: 0, discount: 0, cost: 0, profit: 0 };
+      existing.salesCount += 1;
+      const revenue = repair.totalAmount.toNumber();
+      existing.revenue += revenue;
+      existing.resolvedRevenue += revenue;
+      existing.cost += repair.totalCost?.toNumber() ?? 0;
+      existing.profit += repair.totalProfit?.toNumber() ?? 0;
       byCategory.set(categoryId, existing);
     }
 
@@ -584,17 +792,31 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
+  // S14/R1/D-b — folds in orders (bucketed under UNASSIGNED_SELLER_BUCKET — Order has no owning
+  // seller, D-b) and picked-up repairs (seller = the staff who performed the PICKED_UP
+  // transition, read from RepairStatusHistory in one batched query, not per-repair).
   private async reportSalesBySeller(range: { from?: Date; to?: Date }): Promise<ReportDto> {
-    const soldAtFilter = this.dateRangeFilter(range);
-    const sales = await this.prisma.sale.findMany({
-      where: { status: 'COMPLETED', ...(soldAtFilter ? { soldAt: soldAtFilter } : {}) },
-      select: {
-        staffId: true,
-        totalAmount: true,
-        staff: { select: { firstName: true, lastName: true } },
-        lines: { select: { resolvedPrice: true, unitPrice: true, quantity: true } },
-      },
-    });
+    const filter = this.dateRangeFilter(range);
+
+    const [sales, orders, repairs] = await Promise.all([
+      this.prisma.sale.findMany({
+        where: { status: 'COMPLETED', ...(filter ? { soldAt: filter } : {}) },
+        select: {
+          staffId: true,
+          totalAmount: true,
+          staff: { select: { firstName: true, lastName: true } },
+          lines: { select: { resolvedPrice: true, unitPrice: true, quantity: true } },
+        },
+      }),
+      this.prisma.order.findMany({
+        where: { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, ...(filter ? { deliveredAt: filter } : {}) },
+        select: { totalAmount: true, lines: { select: { resolvedPrice: true, unitPrice: true, quantity: true } } },
+      }),
+      this.prisma.repair.findMany({
+        where: { status: REPAIR_RECOGNIZED_STATUS, ...(filter ? { pickedUpAt: filter } : {}) },
+        select: { id: true, totalAmount: true },
+      }),
+    ]);
 
     const bySeller = new Map<string, { name: string; revenue: number; discount: number }>();
     for (const sale of sales) {
@@ -606,8 +828,38 @@ export class StatisticsService implements IStatisticsService {
       bySeller.set(sale.staffId, existing);
     }
 
+    if (orders.length > 0) {
+      const existing = bySeller.get(UNASSIGNED_SELLER_BUCKET) ?? { name: UNASSIGNED_SELLER_BUCKET, revenue: 0, discount: 0 };
+      for (const order of orders) {
+        existing.revenue += order.totalAmount.toNumber();
+        for (const line of order.lines) {
+          existing.discount += (line.resolvedPrice.toNumber() - line.unitPrice.toNumber()) * line.quantity;
+        }
+      }
+      bySeller.set(UNASSIGNED_SELLER_BUCKET, existing);
+    }
+
+    if (repairs.length > 0) {
+      const histories = await this.prisma.repairStatusHistory.findMany({
+        where: { repairId: { in: repairs.map((r) => r.id) }, toStatus: 'PICKED_UP' },
+        select: { repairId: true, staffId: true, staff: { select: { firstName: true, lastName: true } } },
+      });
+      const historyByRepairId = new Map(histories.map((h) => [h.repairId, h]));
+      for (const repair of repairs) {
+        const history = historyByRepairId.get(repair.id);
+        if (!history) continue; // defensive — every PICKED_UP repair has one by construction (S13)
+        const existing = bySeller.get(history.staffId) ?? {
+          name: `${history.staff.firstName} ${history.staff.lastName}`,
+          revenue: 0,
+          discount: 0,
+        };
+        existing.revenue += repair.totalAmount.toNumber();
+        bySeller.set(history.staffId, existing);
+      }
+    }
+
     const rows = [...bySeller.entries()].map(([staffId, data]) => ({
-      staffId,
+      staffId: staffId === UNASSIGNED_SELLER_BUCKET ? null : staffId,
       staffName: data.name,
       revenue: data.revenue,
       discount: data.discount,
@@ -646,20 +898,44 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
+  // S14/F7 — a workload view (rows, grouped/dated by intakeAt: how many tickets came in) plus a
+  // money view (totals, dated by pickedUpAt: what was actually recognised — D8). Every row's
+  // revenue/cost/profit is 0 except PICKED_UP's, since nothing is recognised earlier; a row's
+  // `totalAmount` (parts+labour accrued so far) is kept distinct from `revenue` for exactly that
+  // reason — they coincide only for PICKED_UP.
   private async reportRepairs(range: { from?: Date; to?: Date }): Promise<ReportDto> {
     const intakeAtFilter = this.dateRangeFilter(range);
     const groups = await this.prisma.repair.groupBy({
       by: ['status'],
       ...(intakeAtFilter ? { where: { intakeAt: intakeAtFilter } } : {}),
       _count: { _all: true },
-      _sum: { totalAmount: true },
+      _sum: { totalAmount: true, totalCost: true, totalProfit: true },
     });
 
-    const rows = groups.map((g) => ({ status: g.status, count: g._count._all, totalAmount: g._sum.totalAmount?.toNumber() ?? 0 }));
+    const rows = groups.map((g) => ({
+      status: g.status,
+      count: g._count._all,
+      totalAmount: g._sum.totalAmount?.toNumber() ?? 0,
+      revenue: g.status === REPAIR_RECOGNIZED_STATUS ? (g._sum.totalAmount?.toNumber() ?? 0) : 0,
+      cost: g.status === REPAIR_RECOGNIZED_STATUS ? (g._sum.totalCost?.toNumber() ?? 0) : 0,
+      profit: g.status === REPAIR_RECOGNIZED_STATUS ? (g._sum.totalProfit?.toNumber() ?? 0) : 0,
+    }));
+
+    const pickedUpAtFilter = this.dateRangeFilter(range);
+    const recognized = await this.prisma.repair.aggregate({
+      where: { status: REPAIR_RECOGNIZED_STATUS, ...(pickedUpAtFilter ? { pickedUpAt: pickedUpAtFilter } : {}) },
+      _sum: { totalAmount: true, totalCost: true, totalProfit: true },
+    });
+
     return StatisticsMapper.toReportDto({
       chart: rows.map((r) => ({ label: r.status, value: r.count })),
       rows,
-      totals: { totalRepairs: rows.reduce((sum, r) => sum + r.count, 0) },
+      totals: {
+        totalRepairs: rows.reduce((sum, r) => sum + r.count, 0),
+        recognizedRevenue: recognized._sum.totalAmount?.toNumber() ?? 0,
+        recognizedCost: recognized._sum.totalCost?.toNumber() ?? 0,
+        recognizedProfit: recognized._sum.totalProfit?.toNumber() ?? 0,
+      },
       drill: { entity: 'repair', idField: 'status' },
     });
   }
@@ -690,7 +966,9 @@ export class StatisticsService implements IStatisticsService {
   // Buckets outstanding client (Invoice, ISSUED|PARTIALLY_PAID) and supplier (SupplierInvoice,
   // CONFIRMED) balances by document age — no single "age" column exists on PosClient/Supplier
   // themselves (credit is a running balance, not tied to one document), so this ages each
-  // *invoice's* own outstanding remainder instead.
+  // *invoice's* own outstanding remainder instead. S14/F9 — confirmed already correct: a repair
+  // invoice (sourceType REPAIR) is just another Invoice row, already covered by this query
+  // without any change.
   private async reportAgeing(): Promise<ReportDto> {
     const now = new Date();
     const bucketFor = (days: number): (typeof AGEING_BUCKETS)[number] =>
@@ -737,10 +1015,14 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
+  // S14/F6 — "purchased" now unions SaleLine, completed-OrderLine and picked-up-RepairPart (was
+  // SaleLine alone), so a product bought via an order or fitted in a repair correctly leaves the
+  // "viewed but never purchased" set. Deliberately no date filter on the purchased-set queries
+  // (unchanged from before S14) — "ever purchased" is a lifetime fact, not scoped to `range`.
   private async reportClientBrowsing(range: { from?: Date; to?: Date }): Promise<ReportDto> {
     const createdAtFilter = this.dateRangeFilter(range);
 
-    const [searchGroups, viewGroups, purchasedLines] = await Promise.all([
+    const [searchGroups, viewGroups, purchasedSaleLines, purchasedOrderLines, purchasedRepairParts] = await Promise.all([
       this.prisma.staffSearchLog.groupBy({
         by: ['query'],
         ...(createdAtFilter ? { where: { createdAt: createdAtFilter } } : {}),
@@ -754,9 +1036,13 @@ export class StatisticsService implements IStatisticsService {
         _count: { _all: true },
       }),
       this.prisma.saleLine.findMany({ select: { productId: true }, distinct: ['productId'] }),
+      this.prisma.orderLine.findMany({ select: { productId: true }, distinct: ['productId'] }),
+      this.prisma.repairPart.findMany({ select: { productId: true }, distinct: ['productId'] }),
     ]);
 
-    const purchasedSet = new Set(purchasedLines.map((l) => l.productId));
+    const purchasedSet = new Set(
+      [...purchasedSaleLines, ...purchasedOrderLines, ...purchasedRepairParts].map((l) => l.productId),
+    );
     const zeroPurchaseViewed = viewGroups.filter((v) => v.productId != null && !purchasedSet.has(v.productId));
 
     const productIds = zeroPurchaseViewed.map((v) => v.productId!);

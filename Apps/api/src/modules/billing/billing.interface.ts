@@ -57,10 +57,20 @@ export interface IBillingService {
   // billing.listener.ts are both deleted); every invoice/payment in the codebase is issued
   // in-transaction, none post-commit.
   issueInvoiceInTx(tx: Prisma.TransactionClient, input: InvoiceIssueRequest): Promise<{ invoiceId: string; number: string }>;
+  // `repairId` (S13) tags an on-account row (`invoiceId` still null) with the repair it was
+  // collected for, so it can be found again by linkRepairPaymentsToInvoiceInTx below once that
+  // repair's invoice is issued at PICKED_UP.
   captureClientPaymentInTx(
     tx: Prisma.TransactionClient,
-    input: { posClientId: string; invoiceId?: string; amount: number; paidAt?: Date; staffId: string },
+    input: { posClientId: string; invoiceId?: string; repairId?: string; amount: number; paidAt?: Date; staffId: string },
   ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }>;
+  // S13/D5/R3 — at PICKED_UP the repair's on-account rows (invoiceId null) are re-pointed at the
+  // invoice just issued, then the invoice's paidAmount/status are recomputed from the ledger, so
+  // Invoice.paidAmount = Σ ClientPayment.amount holds for repair invoices exactly as it does for
+  // sale and order invoices. A no-op when nothing was linked: a walk-in repair has no ledger rows
+  // at all, and recomputing from an empty ledger would wipe the paidAmount the invoice was issued
+  // with.
+  linkRepairPaymentsToInvoiceInTx(tx: Prisma.TransactionClient, input: { repairId: string; invoiceId: string }): Promise<void>;
 }
 
 // Injected port (dependency inversion) — real implementation is platform's own PlatformService,

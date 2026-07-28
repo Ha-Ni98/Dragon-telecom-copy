@@ -830,8 +830,9 @@ model Repair {
   technician  Technician?  @relation(fields: [technicianId], references: [id])
   invoice     Invoice?     @relation(fields: [invoiceId], references: [id])
 
-  parts   RepairPart[]
-  history RepairStatusHistory[]
+  parts    RepairPart[]
+  history  RepairStatusHistory[]
+  payments ClientPayment[]
 
   @@index([status])
 }
@@ -918,6 +919,9 @@ model ClientPayment {
   reference      String   @unique
   posClientId    String
   invoiceId      String? // null = on account
+  repairId       String? // R3/D5 — set on a payment taken before the repair's invoice exists
+                          // (on-account). Re-pointed to `invoiceId` at PICKED_UP; the repairId
+                          // itself is kept so a repair can always list its own payments.
   amount         Decimal  @db.Decimal(12, 2)
   previousCredit Decimal  @db.Decimal(12, 2)
   newCredit      Decimal  @db.Decimal(12, 2)
@@ -926,7 +930,10 @@ model ClientPayment {
 
   posClient PosClient @relation(fields: [posClientId], references: [id])
   invoice   Invoice?  @relation(fields: [invoiceId], references: [id])
+  repair    Repair?   @relation(fields: [repairId], references: [id])
   staff     Staff     @relation(fields: [staffId], references: [id])
+
+  @@index([repairId])
 }
 
 // ─────────────────────────── System ───────────────────────────

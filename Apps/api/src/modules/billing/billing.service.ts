@@ -129,7 +129,7 @@ export class BillingService implements IBillingService {
   // Returns everything the caller needs to emit `payment.clientRecorded` after IT commits.
   async captureClientPaymentInTx(
     tx: Prisma.TransactionClient,
-    input: { posClientId: string; invoiceId?: string; amount: number; paidAt?: Date; staffId: string },
+    input: { posClientId: string; invoiceId?: string; repairId?: string; amount: number; paidAt?: Date; staffId: string },
   ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }> {
     // Written here, inside the caller's own transaction, via the injected credit port
     // (credit-serialization fix, plan §C5) — no post-commit listener applies it. Overpayment
@@ -145,6 +145,7 @@ export class BillingService implements IBillingService {
         reference,
         posClientId: input.posClientId,
         ...(input.invoiceId != null ? { invoiceId: input.invoiceId } : {}),
+        ...(input.repairId != null ? { repairId: input.repairId } : {}),
         amount: input.amount,
         previousCredit,
         newCredit,
@@ -291,6 +292,33 @@ export class BillingService implements IBillingService {
       }),
     });
     return { invoiceId: invoice.id, number };
+  }
+
+  // S13/D5/R3 — at PICKED_UP the repair's on-account rows (invoiceId null) are re-pointed at the
+  // invoice just issued, then the invoice's paidAmount/status are recomputed from the ledger, so
+  // Invoice.paidAmount = Σ ClientPayment.amount holds for repair invoices exactly as it does for
+  // sale and order invoices. A no-op when nothing was linked: a walk-in repair has no ledger rows
+  // at all, and recomputing from an empty ledger would wipe the paidAmount the invoice was issued
+  // with. The status ladder here must stay in step with captureClientPaymentInTx's own — both
+  // recompute the same invoice's paidAmount/status from Σ ClientPayment.amount.
+  async linkRepairPaymentsToInvoiceInTx(tx: Prisma.TransactionClient, input: { repairId: string; invoiceId: string }): Promise<void> {
+    const linked = await tx.clientPayment.updateMany({
+      where: { repairId: input.repairId, invoiceId: null },
+      data: { invoiceId: input.invoiceId },
+    });
+    if (linked.count === 0) return;
+
+    const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: input.invoiceId }, select: { totalAmount: true } });
+    const aggregate = await tx.clientPayment.aggregate({ where: { invoiceId: input.invoiceId }, _sum: { amount: true } });
+    const paidAmount = aggregate._sum.amount?.toNumber() ?? 0;
+    const totalAmount = invoice.totalAmount.toNumber();
+    const status =
+      paidAmount <= 0
+        ? PrismaInvoiceStatus.ISSUED
+        : paidAmount >= totalAmount
+          ? PrismaInvoiceStatus.PAID
+          : PrismaInvoiceStatus.PARTIALLY_PAID;
+    await tx.invoice.update({ where: { id: input.invoiceId }, data: { paidAmount, status } });
   }
 
   // --- Internal helpers ---

@@ -10,6 +10,7 @@ import { StatCardSkeleton } from "@/components/shared/StatCardSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import type { OverviewDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { formatDZD } from "@/lib/utils";
 
 interface AdminStatisticsOverviewCardsProps {
   stats?: OverviewDto;
@@ -53,24 +54,16 @@ const statsConfig = [
   },
 ];
 
-/**
- * Format currency value with proper localization
- */
-function formatCurrency(value: number, locale: string = "en-US"): string {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: "DZD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 export function AdminStatisticsOverviewCards({
   stats,
   loading = false,
   className = "",
 }: AdminStatisticsOverviewCardsProps) {
-  const { t } = useTranslation();
+  // S14/F5 — this file's own local `formatCurrency` took a `locale` parameter but the caller
+  // below never passed one, so it silently always formatted as en-US regardless of the app's
+  // language (the same bug named for admin-statistics-filtered-cards.tsx). Replaced with the
+  // shared formatDZD(value, language) every other money render in the app uses.
+  const { t, language } = useTranslation();
 
   // Loading state
   if (loading) {
@@ -134,7 +127,7 @@ export function AdminStatisticsOverviewCards({
                 key={config.key}
                 icon={<Icon className="h-5 w-5" />}
                 label={t(config.labelKey)}
-                value={formatCurrency(stats[config.key])}
+                value={formatDZD(stats[config.key], language)}
                 trend={
                   <span className="text-xs text-muted-foreground">{t(config.descriptionKey)}</span>
                 }

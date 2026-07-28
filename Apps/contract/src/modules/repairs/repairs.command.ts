@@ -32,12 +32,25 @@ export const AddRepairPartSchema = z.object({
 });
 export type AddRepairPartCommand = z.infer<typeof AddRepairPartSchema>;
 
+// S13/D8 — `paymentAmount` is the money captured AT this transition (a DELTA, added to the
+// repair's cumulative paidAmount), not the repair's new total. Renamed from `paidAmount`, which
+// was an absolute overwrite and cannot survive D5's cumulative payments.
+// `refundAmount` is the cash returned when cancelling a repair that already collected money
+// (D6 — recorded as a negative-amount ClientPayment row for a known client).
+// `consumedPartReturns` is GONE: under D8 nothing is ever consumed before PICKED_UP, and cancel
+// is unreachable from PICKED_UP, so no consumed part can exist at cancel time.
 export const RepairStatusSchema = z.object({
   toStatus: z.enum(RepairStatus),
   note: z.string().optional(),
-  paidAmount: z.number().min(0).optional(),
-  consumedPartReturns: z
-    .array(z.object({ partId: z.uuid(), restock: z.boolean() }))
-    .optional(),
+  paymentAmount: z.number().min(0).optional(),
+  refundAmount: z.number().min(0).optional(),
 });
 export type RepairStatusCommand = z.infer<typeof RepairStatusSchema>;
+
+// S13/D5 — a payment captured at INTAKE/PROCESSING/COMPLETED, before the invoice exists. For a
+// known POS client this becomes an on-account ClientPayment row (null invoiceId, repairId set);
+// for a walk-in it only moves the repair's own paidAmount.
+export const RecordRepairPaymentSchema = z.object({
+  amount: z.number().positive(),
+});
+export type RecordRepairPaymentCommand = z.infer<typeof RecordRepairPaymentSchema>;
