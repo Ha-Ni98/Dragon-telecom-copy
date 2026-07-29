@@ -58,4 +58,30 @@ describe("LoginPage", () => {
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
   });
+
+  it("shows a Zod required error on both fields for an empty submit, and never calls login()", async () => {
+    const user = userEvent.setup();
+    renderWithRoutes({ "/login": <LoginPage /> }, "/login");
+
+    await user.click(screen.getByRole("button", { name: "auth.login.submit" }));
+
+    await waitFor(() => expect(screen.getAllByText("auth.login.emptyFields")).toHaveLength(2));
+    expect(login).not.toHaveBeenCalled();
+  });
+
+  it("disables the submit button and shows the submitting label while logging in", () => {
+    mockAuth(true);
+    renderWithRoutes({ "/login": <LoginPage /> }, "/login");
+
+    const submitButton = screen.getByRole("button", { name: /auth\.login\.submitting/ });
+    expect(submitButton).toBeDisabled();
+  });
+
+  it("links to /register to create an account", () => {
+    renderWithRoutes({ "/login": <LoginPage /> }, "/login");
+    expect(screen.getByRole("link", { name: "auth.createAccount" })).toHaveAttribute(
+      "href",
+      "/register",
+    );
+  });
 });

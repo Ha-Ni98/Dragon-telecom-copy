@@ -1,0 +1,5 @@
+export enum ClientActivityType {
+  SEARCH = 'SEARCH',
+  PRODUCT_VIEW = 'PRODUCT_VIEW',
+  CATALOG_SESSION = 'CATALOG_SESSION',
+}

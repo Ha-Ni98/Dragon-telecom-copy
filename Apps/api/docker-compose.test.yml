@@ -6,13 +6,13 @@ services:
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: app_test
+      POSTGRES_DB: dragon_telecom_test
     ports:
       - '5433:5432'
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U user -d app_test']
+      test: ['CMD-SHELL', 'pg_isready -U user -d dragon_telecom_test']
       interval: 5s
       timeout: 5s
       retries: 5

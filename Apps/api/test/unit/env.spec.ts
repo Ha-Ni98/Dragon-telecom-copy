@@ -14,15 +14,15 @@ describe('env.ts', () => {
     originalEnv = { ...process.env };
     // Remove any previously set env vars so each test starts clean
     delete process.env['DATABASE_URL'];
+    delete process.env['TEST_DATABASE_URL'];
     delete process.env['JWT_SECRET'];
     delete process.env['NODE_ENV'];
     delete process.env['PORT'];
     delete process.env['API_PREFIX'];
     delete process.env['CORS_ORIGIN'];
     delete process.env['JWT_EXPIRATION'];
-    delete process.env['LOG_LEVEL'];
-    delete process.env['WS_PATH'];
     delete process.env['REFRESH_TOKEN_EXPIRATION'];
+    delete process.env['LOG_LEVEL'];
   });
 
   afterEach(() => {
@@ -36,12 +36,14 @@ describe('env.ts', () => {
 
     expect(env.NODE_ENV).toBe('test');
     expect(env.PORT).toBe(3000);
-    expect(env.API_PREFIX).toBe('/api/v1');
-    expect(env.WS_PATH).toBe('/socket.io');
+    expect(env.API_PREFIX).toBe('/api');
+    expect(env.CORS_ORIGIN).toBe('*');
+    expect(env.JWT_EXPIRATION).toBe('15m');
+    expect(env.REFRESH_TOKEN_EXPIRATION).toBe(7);
     expect(env.LOG_LEVEL).toBe('info');
     expect(env.JWT_SECRET).toBe(VALID_ENV.JWT_SECRET);
     expect(typeof env.PORT).toBe('number');
-    expect(env.REFRESH_TOKEN_EXPIRATION).toBe('7d');
+    expect(env.TEST_DATABASE_URL).toBeUndefined();
   });
 
   it('calls process.exit(1) when JWT_SECRET is missing', async () => {
@@ -79,6 +81,20 @@ describe('env.ts', () => {
 
     Object.assign(process.env, { JWT_SECRET: VALID_ENV.JWT_SECRET, NODE_ENV: 'test' });
     // DATABASE_URL intentionally not set
+
+    await import('../../src/env.js');
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+
+    exitSpy.mockRestore();
+    consoleSpy.mockRestore();
+  });
+
+  it('calls process.exit(1) when DATABASE_URL is not a valid url', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as never);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    Object.assign(process.env, { ...VALID_ENV, DATABASE_URL: 'not-a-url' });
 
     await import('../../src/env.js');
 

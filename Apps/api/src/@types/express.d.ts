@@ -1,4 +1,4 @@
-import type { JWTPayload } from '@your-app/contract';
+import type { JWTPayload } from '@dragon-telecom/contract';
 
 declare global {
   namespace Express {

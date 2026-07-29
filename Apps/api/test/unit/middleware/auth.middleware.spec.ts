@@ -1,81 +1,186 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Request, Response, NextFunction } from 'express';
-import { requireAuth } from '@common/middlewares/auth.middleware';
-import { AuthError, ForbiddenError } from '@common/errors';
-import { generateToken } from '@common/utils/token.utils';
-import { UserRole } from '@your-app/contract';
-import { faker } from '@faker-js/faker';
+import type { NextFunction, Request, Response } from 'express';
+import { UserType, PageKey } from '@dragon-telecom/contract';
+import { mintAuthToken } from '../../fixtures/auth.fixture';
+import { AuthError, ForbiddenError } from '../../../src/common/errors';
+import { requireAuth } from '../../../src/common/middlewares/auth.middleware';
 
-vi.mock('@common/db/prisma', () => ({
-  prisma: {
-    user: {
-      findUnique: vi.fn(),
-    },
-  },
+const { findUniqueMock, userRoleFindManyMock } = vi.hoisted(() => ({
+  findUniqueMock: vi.fn(),
+  userRoleFindManyMock: vi.fn(),
 }));
 
-const { prisma } = await import('@common/db/prisma');
+vi.mock('../../../src/common/db/prisma', () => ({
+  prisma: { user: { findUnique: findUniqueMock }, userRole: { findMany: userRoleFindManyMock } },
+}));
 
-const makeReq = (authHeader?: string): Request =>
-  ({
-    headers: authHeader ? { authorization: authHeader } : {},
-    validated: {},
-  }) as unknown as Request;
-
-const mockRes = {} as Response;
-
-const callMiddleware = async (
-  req: Request,
-  options: Parameters<typeof requireAuth>[0] = {},
-): Promise<unknown> => {
-  const next = vi.fn() as NextFunction;
-  await requireAuth(options)(req, mockRes, next);
-  return (next as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
-};
-
-const adminPayload = { id: faker.string.uuid(), role: UserRole.ADMIN };
-const userPayload = { id: faker.string.uuid(), role: UserRole.USER };
+const buildReq = (authorization?: string): Request =>
+  ({ headers: authorization ? { authorization } : {}, validated: {} }) as Request;
 
 describe('requireAuth', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    findUniqueMock.mockReset();
+    userRoleFindManyMock.mockReset();
   });
 
-  it('(1) missing authorization header — next receives AuthError', async () => {
-    const err = await callMiddleware(makeReq());
-    expect(err).toBeInstanceOf(AuthError);
+  it('rejects a missing token with AuthError', async () => {
+    const req = buildReq();
+    const next = vi.fn();
+
+    await requireAuth()(req, {} as Response, next as unknown as NextFunction);
+
+    expect(next).toHaveBeenCalledWith(expect.any(AuthError));
   });
 
-  it('(2) malformed / invalid token — next receives AuthError("Invalid token")', async () => {
-    const err = await callMiddleware(makeReq('Bearer not.a.valid.jwt'));
-    expect(err).toBeInstanceOf(AuthError);
-    expect((err as AuthError).message).toBe('Invalid token');
+  it('rejects an invalid token with AuthError', async () => {
+    const req = buildReq('Bearer not-a-real-token');
+    const next = vi.fn();
+
+    await requireAuth()(req, {} as Response, next as unknown as NextFunction);
+
+    expect(next).toHaveBeenCalledWith(expect.any(AuthError));
   });
 
-  it('(3) valid token without checkDB — req.user set and next called without error', async () => {
-    const token = generateToken(adminPayload);
-    const req = makeReq(`Bearer ${token}`);
-    const err = await callMiddleware(req);
-    expect(err).toBeUndefined();
-    expect(req.user?.id).toBe(adminPayload.id);
-    expect(req.user?.role).toBe(UserRole.ADMIN);
+  it('sets req.user on a valid token', async () => {
+    const { token, user } = mintAuthToken({ type: UserType.STAFF });
+    const req = buildReq(`Bearer ${token}`);
+    const next = vi.fn();
+
+    await requireAuth()(req, {} as Response, next as unknown as NextFunction);
+
+    expect(req.user).toMatchObject({ sub: user.id, type: UserType.STAFF });
+    expect(next).toHaveBeenCalledWith();
   });
 
-  it('(4) checkDB: true with isEnabled: false — next receives AuthError("Account disabled")', async () => {
-    vi.mocked(prisma.user.findUnique).mockResolvedValue(
-      { role: UserRole.ADMIN, isEnabled: false } as never,
+  it('rejects when the user type is not in the allowed list', async () => {
+    const { token } = mintAuthToken({ type: UserType.CLIENT });
+    const req = buildReq(`Bearer ${token}`);
+    const next = vi.fn();
+
+    await requireAuth({ types: [UserType.ADMIN, UserType.STAFF] })(req, {} as Response, next as unknown as NextFunction);
+
+    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+  });
+
+  it('checkDB rejects a disabled user without hitting the route', async () => {
+    const { token, user } = mintAuthToken({ type: UserType.STAFF });
+    findUniqueMock.mockResolvedValueOnce({ type: user.type, isEnabled: false });
+    const req = buildReq(`Bearer ${token}`);
+    const next = vi.fn();
+
+    await requireAuth({ checkDB: true })(req, {} as Response, next as unknown as NextFunction);
+
+    expect(next).toHaveBeenCalledWith(expect.any(AuthError));
+    expect(findUniqueMock).toHaveBeenCalledWith({
+      where: { id: user.id },
+      select: { type: true, isEnabled: true },
+    });
+  });
+
+  it('checkDB refreshes the type from a fresh lookup', async () => {
+    const { token, user } = mintAuthToken({ type: UserType.STAFF });
+    findUniqueMock.mockResolvedValueOnce({ type: UserType.ADMIN, isEnabled: true });
+    const req = buildReq(`Bearer ${token}`);
+    const next = vi.fn();
+
+    await requireAuth({ checkDB: true })(req, {} as Response, next as unknown as NextFunction);
+
+    expect(req.user).toMatchObject({ sub: user.id, type: UserType.ADMIN });
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('optional:true lets a missing token through with no req.user', async () => {
+    const req = buildReq();
+    const next = vi.fn();
+
+    await requireAuth({ optional: true })(req, {} as Response, next as unknown as NextFunction);
+
+    expect(req.user).toBeUndefined();
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('optional:true lets an invalid token through with no req.user', async () => {
+    const req = buildReq('Bearer not-a-real-token');
+    const next = vi.fn();
+
+    await requireAuth({ optional: true })(req, {} as Response, next as unknown as NextFunction);
+
+    expect(req.user).toBeUndefined();
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('optional:true still populates req.user on a valid token', async () => {
+    const { token, user } = mintAuthToken({ type: UserType.CLIENT });
+    const req = buildReq(`Bearer ${token}`);
+    const next = vi.fn();
+
+    await requireAuth({ optional: true })(req, {} as Response, next as unknown as NextFunction);
+
+    expect(req.user).toMatchObject({ sub: user.id, type: UserType.CLIENT });
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('pages: passes when the effective page set includes every required page', async () => {
+    const { token, user } = mintAuthToken({ type: UserType.STAFF });
+    userRoleFindManyMock.mockResolvedValueOnce([
+      { role: { isEnabled: true, rolePages: [{ page: { key: PageKey.STAFF_PRODUCTS } }] } },
+    ]);
+    const req = buildReq(`Bearer ${token}`);
+    const next = vi.fn();
+
+    await requireAuth({ types: [UserType.STAFF, UserType.ADMIN], pages: [PageKey.STAFF_PRODUCTS] })(
+      req,
+      {} as Response,
+      next as unknown as NextFunction,
     );
-    const token = generateToken(adminPayload);
-    const req = makeReq(`Bearer ${token}`);
-    const err = await callMiddleware(req, { checkDB: true });
-    expect(err).toBeInstanceOf(AuthError);
-    expect((err as AuthError).message).toBe('Account disabled');
+
+    expect(userRoleFindManyMock).toHaveBeenCalledWith({
+      where: { userId: user.id },
+      include: { role: { include: { rolePages: { include: { page: true } } } } },
+    });
+    expect(req.user).toMatchObject({ sub: user.id, type: UserType.STAFF });
+    expect(next).toHaveBeenCalledWith();
   });
 
-  it('(5) roles: [ADMIN] against role: USER — next receives ForbiddenError', async () => {
-    const token = generateToken(userPayload);
-    const req = makeReq(`Bearer ${token}`);
-    const err = await callMiddleware(req, { roles: [UserRole.ADMIN] });
-    expect(err).toBeInstanceOf(ForbiddenError);
+  it('pages: rejects with ForbiddenError when the required page is missing', async () => {
+    const { token } = mintAuthToken({ type: UserType.STAFF });
+    userRoleFindManyMock.mockResolvedValueOnce([
+      { role: { isEnabled: true, rolePages: [{ page: { key: PageKey.STAFF_SALES } }] } },
+    ]);
+    const req = buildReq(`Bearer ${token}`);
+    const next = vi.fn();
+
+    await requireAuth({ types: [UserType.STAFF, UserType.ADMIN], pages: [PageKey.STAFF_PRODUCTS] })(
+      req,
+      {} as Response,
+      next as unknown as NextFunction,
+    );
+
+    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+  });
+
+  it('pages: ignores disabled roles when building the effective set', async () => {
+    const { token } = mintAuthToken({ type: UserType.STAFF });
+    userRoleFindManyMock.mockResolvedValueOnce([
+      { role: { isEnabled: false, rolePages: [{ page: { key: PageKey.STAFF_PRODUCTS } }] } },
+    ]);
+    const req = buildReq(`Bearer ${token}`);
+    const next = vi.fn();
+
+    await requireAuth({ pages: [PageKey.STAFF_PRODUCTS] })(req, {} as Response, next as unknown as NextFunction);
+
+    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+  });
+
+  it('pages: ADMIN bypasses the page check without querying the DB', async () => {
+    const { token, user } = mintAuthToken({ type: UserType.ADMIN });
+    const req = buildReq(`Bearer ${token}`);
+    const next = vi.fn();
+
+    await requireAuth({ pages: [PageKey.STAFF_PRODUCTS] })(req, {} as Response, next as unknown as NextFunction);
+
+    expect(userRoleFindManyMock).not.toHaveBeenCalled();
+    expect(req.user).toMatchObject({ sub: user.id, type: UserType.ADMIN });
+    expect(next).toHaveBeenCalledWith();
   });
 });

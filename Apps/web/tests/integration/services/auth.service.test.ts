@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { http } from "msw";
-import { ErrorCode } from "@your-app/contract";
+import { ErrorCode } from "@dragon-telecom/contract";
 import { server } from "../../fixtures/msw/server";
 import { authUrls, authErrorHandlers } from "../../fixtures/msw/auth.handlers";
 import { ok, fail, noContent } from "../../fixtures/msw/envelope";
-import { mockAuthTokens, mockUserSession } from "../../fixtures/data/auth.mock";
+import { mockLoginResult, mockRefreshResult, mockPermissions } from "../../fixtures/data/auth.mock";
 import * as authService from "@/services/auth.service";
 import { refreshTokens, setRedirect } from "@/lib/axios";
 import * as tokenStore from "@/lib/token-store";
@@ -19,9 +19,9 @@ beforeEach(() => {
 describe("auth.service.login", () => {
   it("returns the unwrapped DTO and stores the tokens", async () => {
     const result = await authService.login({ username: "amine.b", password: "secret" });
-    expect(result).toEqual(mockAuthTokens);
-    expect(tokenStore.getAccessToken()).toBe(mockAuthTokens.accessToken);
-    expect(tokenStore.getRefreshToken()).toBe(mockAuthTokens.refreshToken);
+    expect(result).toEqual(mockLoginResult);
+    expect(tokenStore.getAccessToken()).toBe(mockLoginResult.accessToken);
+    expect(tokenStore.getRefreshToken()).toBe(mockLoginResult.refreshToken);
   });
 
   it("throws on invalid credentials and stores nothing", async () => {
@@ -35,29 +35,31 @@ describe("auth.service.login", () => {
     expect(tokenStore.getRefreshToken()).toBeNull();
   });
 
-  it("a subsequent request carries the token login just stored", async () => {
+  it("a subsequent authenticated request carries the token login just stored", async () => {
     await authService.login({ username: "amine.b", password: "secret" });
     let seenAuth: string | null = null;
     server.use(
-      http.get(authUrls.me, ({ request }) => {
+      http.get(authUrls.mePermissions, ({ request }) => {
         seenAuth = request.headers.get("authorization");
-        return ok(mockUserSession);
+        return ok(mockPermissions);
       }),
     );
-    await authService.me();
-    expect(seenAuth).toBe(`Bearer ${mockAuthTokens.accessToken}`);
+    await authService.getMyPermissions();
+    expect(seenAuth).toBe(`Bearer ${mockLoginResult.accessToken}`);
   });
 });
 
-describe("auth.service.me", () => {
-  it("returns the unwrapped session DTO", async () => {
-    const result = await authService.me();
-    expect(result).toEqual(mockUserSession);
+describe("auth.service.getMyPermissions", () => {
+  it("returns the unwrapped permissions array", async () => {
+    const result = await authService.getMyPermissions();
+    expect(result).toEqual(mockPermissions);
   });
 
   it("throws when unauthorized", async () => {
-    server.use(authErrorHandlers.meUnauthorized());
-    await expect(authService.me()).rejects.toMatchObject({ response: { status: 401 } });
+    server.use(authErrorHandlers.mePermissionsUnauthorized());
+    await expect(authService.getMyPermissions()).rejects.toMatchObject({
+      response: { status: 401 },
+    });
   });
 
   it("cold start: a 401 with only a persisted refresh token silently refreshes and retries", async () => {
@@ -65,33 +67,33 @@ describe("auth.service.me", () => {
     // but the refresh token was persisted to localStorage.
     localStorage.setItem("sv_refresh_token", "valid-refresh");
 
-    let meCalls = 0;
+    let callCount = 0;
     server.use(
-      http.get(authUrls.me, ({ request }) => {
-        meCalls += 1;
+      http.get(authUrls.mePermissions, ({ request }) => {
+        callCount += 1;
         const auth = request.headers.get("authorization");
-        if (auth === "Bearer fresh-access") return ok(mockUserSession);
+        if (auth === `Bearer ${mockRefreshResult.accessToken}`) return ok(mockPermissions);
         return fail(ErrorCode.AUTH_UNAUTHORIZED, "expired", 401);
       }),
-      http.post(authUrls.refresh, () => ok({ ...mockAuthTokens, accessToken: "fresh-access" })),
+      http.post(authUrls.refresh, () => ok(mockRefreshResult)),
     );
 
-    const session = await authService.me();
-    expect(session).toEqual(mockUserSession);
-    expect(meCalls).toBe(2); // first call misses (no access token yet), second carries the refreshed one
+    const permissions = await authService.getMyPermissions();
+    expect(permissions).toEqual(mockPermissions);
+    expect(callCount).toBe(2); // first call misses (no access token yet), second carries the refreshed one
   });
 });
 
 describe("auth.service.logout", () => {
   it("succeeds and clears tokens on 204", async () => {
-    tokenStore.setTokens(mockAuthTokens);
+    tokenStore.setTokens(mockLoginResult);
     await authService.logout();
     expect(tokenStore.getAccessToken()).toBeNull();
     expect(tokenStore.getRefreshToken()).toBeNull();
   });
 
   it("clears tokens even when the API 500s, and still throws", async () => {
-    tokenStore.setTokens(mockAuthTokens);
+    tokenStore.setTokens(mockLoginResult);
     server.use(authErrorHandlers.logoutServerError());
     await expect(authService.logout()).rejects.toMatchObject({ response: { status: 500 } });
     expect(tokenStore.getAccessToken()).toBeNull();

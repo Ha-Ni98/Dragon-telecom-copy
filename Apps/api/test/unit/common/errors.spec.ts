@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ErrorCode } from '@your-app/contract';
+import { ErrorCode } from '@dragon-telecom/contract';
 import {
   AppError,
   AuthError,

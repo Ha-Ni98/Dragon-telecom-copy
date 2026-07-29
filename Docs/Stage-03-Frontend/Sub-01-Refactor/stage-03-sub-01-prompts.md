@@ -13,7 +13,8 @@ Read and follow strictly:
 - **Contract:** `Apps/contract`
 
 Constraints: no code (audit/plan only); do not invent features — standardize the existing code; output `codebase-map.md` and `plan.md` under /docs/stage-03-frontend/sub-01-refactor/results.
-
+Don't get any code related to the mock data, replace it with what found in front end rules. Also the code already existed of the front end it's just a template you can remove any content that not suits our project
+from the mvp code you can get reusable components, thems, UI/UX Designs.
 ---
 
 ## Phase 2 — Sprints
@@ -36,4 +37,4 @@ Read and follow strictly:
 - **Sprints:** /docs/stage-03-frontend/sub-01-refactor/results/sprints.md
 - **Rules:** front-end-rules.md
 
-Constraints: extracted Hooks/Services return **typed empty defaults** so components still render; enforce Component→Hook→Service and `useTranslation` (no inline strings); check `Apps/contract` before creating any type. Take the first sprint not ✅, validate (`tsc`, build), commit on green, update docs, stop and wait for `next`.
+Constraints: extracted Hooks/Services return **typed empty defaults** so components still render; enforce Component→Hook→Service and `useTranslation` (no inline strings); check `Apps/contract` before creating any type. Take the first sprint not ✅, validate (`tsc`, build),  update docs, commit on green, stop and wait for `next`.

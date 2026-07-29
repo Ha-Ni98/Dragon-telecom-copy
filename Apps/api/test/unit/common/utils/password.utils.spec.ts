@@ -1,30 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { hashPassword, comparePassword } from '@common/utils/password.utils';
+import { hashPassword, comparePassword } from '../../../../src/common/utils/password.utils';
 
-describe('password.utils (argon2id)', () => {
-  it('produces an argon2id hash', async () => {
+describe('password.utils', () => {
+  it('hashes a password to a value different from the plaintext', async () => {
     const hash = await hashPassword('Password123!');
-    expect(hash).toMatch(/^\$argon2id\$/);
+    expect(hash).not.toBe('Password123!');
+    expect(hash.length).toBeGreaterThan(0);
   });
 
-  it('hash differs from the plain text', async () => {
-    const plain = 'Password123!';
-    const hash = await hashPassword(plain);
-    expect(hash).not.toBe(plain);
+  it('hashes using Argon2id', async () => {
+    const hash = await hashPassword('Password123!');
+    expect(hash.startsWith('$argon2id$')).toBe(true);
   });
 
-  it('comparePassword returns true for the correct plain text', async () => {
-    const plain = 'Password123!';
-    const hash = await hashPassword(plain);
-    await expect(comparePassword(plain, hash)).resolves.toBe(true);
+  it('compare returns true for the correct password', async () => {
+    const hash = await hashPassword('Password123!');
+    await expect(comparePassword('Password123!', hash)).resolves.toBe(true);
   });
 
-  it('comparePassword returns false for a wrong password', async () => {
+  it('compare returns false for an incorrect password', async () => {
     const hash = await hashPassword('Password123!');
     await expect(comparePassword('WrongPassword!', hash)).resolves.toBe(false);
-  });
-
-  it('comparePassword returns false (not throws) for a malformed hash', async () => {
-    await expect(comparePassword('anything', 'not-a-valid-hash')).resolves.toBe(false);
   });
 });

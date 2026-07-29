@@ -13,7 +13,7 @@ Execute the page's `sprints.md` to deliver a production-ready, responsive page a
 ## Context & Inputs
 - **Sprints & plan:** `/Docs/stage-03-frontend/sub-03-pages/results/[page-set-name]/sprints.md`, `plan.md`.
 - **Rules:** `front-end-rules.md`, `front-end-test-rules.md`, `front-end-best-practices.md`.
-- **Contract:** `@app-template/contract`. **Codebase:** `Apps/web/src` (`components`, `pages`, `hooks`, `config`), `Apps/web/tests/unit`.
+- **Contract:** `@dragon-telecom/contract`. **Codebase:** `Apps/web/src` (`components`, `pages`, `hooks`, `config`), `Apps/web/tests/unit`.
 
 ---
 
@@ -28,7 +28,7 @@ First sprint not ✅. Re-read layout/responsive rules (admin desktop-first, publ
 ### Step 2 — Implement & Test
 - **Wire real hooks:** connect the Sub-02 `use[Name]` hooks; **no `useEffect` fetching**.
 - **Granular states:** every hook gets an `isLoading` Skeleton and a local `isError` fallback — the global layout never unmounts.
-- **Forms:** Zod schema (`[name].schema.ts`, aligned to the contract) wired via React Hook Form `zodResolver`.
+- **Forms:** Zod schema (`[name].schema.ts`, aligned to the contract) wired via React Hook Form `zodResolver`. Only if not found in `Apps/contract`
 - **i18n:** add text to `config/translations.json`; render via `useTranslation`.
 - **Unit tests:** `/tests/unit/pages/[page]/` with Vitest + RTL; `vi.mock()` the hooks to force `isLoading`/`isError`/`isSuccess` and verify Skeletons, error fallbacks, and Zod validation render correctly.
 
