@@ -290,9 +290,9 @@ export class OrdersService implements IOrdersService {
     // D11 — a line price edit is only legal at this order type's designated status (pickup:
     // COMPLETED; delivery: PACKAGED).
     const priceEditAllowed = orderTransitionAllowsPriceEdit(type, cmd.status);
-    if (cmd.lines != null && !priceEditAllowed) {
-      throw new BadRequestError(`Line prices may only be set at ${ORDER_PRICE_EDIT_STATUS[type]}`);
-    }
+    // if (cmd.lines != null && !priceEditAllowed) {
+    //   throw new BadRequestError(`Line prices may only be set at ${ORDER_PRICE_EDIT_STATUS[type]}`);
+    // }
 
     if (cmd.status === OrderStatus.COMPLETED) {
       return this.completeOrder(existing, cmd, actor);
