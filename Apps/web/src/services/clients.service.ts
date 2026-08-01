@@ -4,7 +4,7 @@
 // use-admin-clients*/use-modify-client.ts stub hooks) were removed set-04 Sprint 9 once
 // AdminClients.tsx/AdminClientDetail.tsx were confirmed fully rewired onto the real hooks below
 // (useClientDirectory.ts, usePosClients.ts) with zero remaining stub consumers.
-import { api } from "@/lib/axios";
+import { api, baseURL } from "@/lib/axios";
 import { apiPath, withParams } from "@/lib/api-path";
 import {
   CLIENT_ROUTES,
@@ -78,6 +78,10 @@ export async function changeMyPassword(command: ChangeMyPasswordCommand): Promis
 export async function getCart(): Promise<CartItemDto[]> {
   const res = await api.get<ApiResponse<CartItemDto[]>>(apiPath(CLIENT_ROUTES.CART));
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  for (const image of res.data.data.flatMap((p) => p.product.images)) {
+      // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
+      image.url = `${baseURL}${image.url}`;
+    }
   return res.data.data;
 }
 
