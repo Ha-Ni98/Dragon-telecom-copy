@@ -1,6 +1,3 @@
-import { mkdirSync } from 'node:fs';
-import { extname } from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import multer from 'multer';
 import { prisma } from '@common/db/prisma';
@@ -62,15 +59,13 @@ export const catalogPricingService = productService;
 // plan §7.4-recommended choice pending an owner decision on the real storage backend (local/S3).
 // `PRODUCT_UPLOAD_DIR` is shared with app.ts's express.static mount and catalog.service.ts's
 // deleteImage (S3) — kept under this local name so the rest of this file is untouched.
-const UPLOAD_DIR = PRODUCT_UPLOAD_DIR;
-mkdirSync(UPLOAD_DIR, { recursive: true });
 const uploadImages = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-    filename: (_req, file, cb) => cb(null, `${randomUUID()}${extname(file.originalname)}`),
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, cb) =>
+    cb(null, file.mimetype.startsWith('image/')),
 });
 
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
