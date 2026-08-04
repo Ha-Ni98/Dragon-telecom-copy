@@ -88,7 +88,7 @@ export async function listProducts(
 
   for (const image of res.data.data.items.flatMap((p) => p.images)) {
     // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
-    image.url = `${baseURL}${image.url}`;
+    image.url = `${image.url}`;
   }
   return res.data.data;
 }
@@ -100,7 +100,7 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   for (const image of res.data.data.images) {
     // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
-    image.url = `${baseURL}${image.url}`;
+    image.url = `${image.url}`;
   }
   return res.data.data;
 }
@@ -150,7 +150,7 @@ export async function getAdminProduct(id: string): Promise<AdminProductDto> {
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   for (const image of res.data.data.images) {
     // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
-    image.url = `${baseURL}${image.url}`;
+    image.url = `${image.url}`;
   }
   return res.data.data;
 }

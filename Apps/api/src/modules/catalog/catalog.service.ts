@@ -1,12 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { unlink } from 'node:fs/promises';
-import { basename, join } from 'node:path';
 import type { ClientCategory, PrismaClient, Product } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import {
   AdminProductResponseSchema,
   MovementType,
-  PRODUCT_UPLOAD_DIR,
   ProductSort,
   ProductWithPricingResponseSchema,
   StaffProductResponseSchema,
@@ -51,6 +48,7 @@ import type {
   IInventoryPort,
   Viewer,
 } from './catalog.interface';
+import { storageService } from '@common/storage/storage.service';
 
 const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaClientKnownRequestError =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
@@ -615,10 +613,24 @@ export class CatalogProductService implements ICatalogProductService {
         }
 
         if (images.length > 0) {
+          const uploadedImages = await Promise.all(
+            images.map((file) =>
+              storageService.upload(
+                {
+                  buffer: file.buffer,
+                  originalname: file.originalname,
+                  mimetype: file.mimetype,
+                },
+                "products",
+              ),
+            ),
+          );
+
           await tx.productImage.createMany({
-            data: images.map((file, index) => ({
+            data: uploadedImages.map((image, index) => ({
               productId: product.id,
-              url: `/uploads/${file.filename}`,
+              url: image.url,
+              key: image.key,
               position: index,
               isPrimary: index === 0,
             })),
@@ -705,12 +717,31 @@ export class CatalogProductService implements ICatalogProductService {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundError('Product');
 
+    const uploadedImages = await Promise.all(
+      files.map((file) =>
+        storageService.upload(
+          {
+            buffer: file.buffer,
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+          },
+          "products",
+        ),
+      ),
+    );
+
     await this.prisma.productImage.createMany({
       data: cmd.images.map((meta, index) => ({
         productId: id,
-        url: `/uploads/${files[index]!.filename}`,
+
+        url: uploadedImages[index]!.url,
+
+        key: uploadedImages[index]!.key,
+
         ...(meta.alt != null ? { alt: meta.alt } : {}),
+
         position: meta.position ?? index,
+
         isPrimary: meta.isPrimary ?? false,
       })),
     });
@@ -750,6 +781,7 @@ export class CatalogProductService implements ICatalogProductService {
 
     const image = await this.prisma.productImage.findUnique({ where: { id: imageId } });
     if (!image || image.productId !== id) throw new NotFoundError('ProductImage');
+    const imageCount = await this.prisma.productImage.count({ where: { url: image.url } });
 
     await this.prisma.productImage.delete({ where: { id: imageId } });
 
@@ -765,10 +797,12 @@ export class CatalogProductService implements ICatalogProductService {
       }
     }
 
-    try {
-      await unlink(join(process.cwd(), PRODUCT_UPLOAD_DIR, basename(image.url)));
-    } catch {
-      // File already absent — the row is gone, which is what the caller asked for.
+    if (imageCount == 1) {
+      try {
+        await storageService.delete(image.key);
+      } catch {
+        // File already absent — the row is gone, which is what the caller asked for.
+      }
     }
 
     return this.getAdminProduct(id);
