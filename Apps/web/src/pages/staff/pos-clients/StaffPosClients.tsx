@@ -8,14 +8,16 @@ import { AddPosClientDialog } from "@/pages/admin/pos-clients/components/add-pos
 import { EditPosClientDialog } from "@/pages/admin/pos-clients/components/edit-pos-client-dialog";
 import { PosClientDetailDrawer } from "@/pages/admin/pos-clients/components/pos-client-detail-drawer";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
-import type { PosClientDto } from "@dragon-telecom/contract";
+import type { AdminClientDto, PosClientDto } from "@dragon-telecom/contract";
+import type { RecordClientPaymentFormValues } from "@/pages/staff/invoices/record-client-payment.schema";
+import { RecordPaymentDialog } from "@/pages/staff/invoices/components/RecordPaymentDialog";
 import type {
   CreatePosClientFormValues,
   UpdatePosClientFormValues,
 } from "@/pages/admin/pos-clients/components/pos-client.schema";
 import { usePosClientsList, useCreatePosClient, useUpdatePosClient } from "@/hooks/usePosClients";
 import { useSales } from "@/hooks/useSales";
-import { useClientPayments } from "@/hooks/useBilling";
+import { useClientPayments, useCreateClientPayment } from "@/hooks/useBilling";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -36,17 +38,33 @@ export default function StaffPosClients({ scope = "staff" }: Props) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<PosClientDto | null>(null);
   const [detailClient, setDetailClient] = useState<PosClientDto | null>(null);
+  const [paymentTarget, setPaymentTarget] = useState<PosClientDto | null>(null);
 
   const clientsQuery = useMemo(() => ({ page: currentPage, limit: 10 }), [currentPage]);
   const clients = usePosClientsList(scope, clientsQuery);
   const categories = useCatalogClientCategories();
   const createPosClient = useCreatePosClient();
+  const [paymentAmount, setPaymentAmount] = useState(0);
   const updatePosClient = useUpdatePosClient();
+  const createClientPayment = useCreateClientPayment();
 
   const categoryOptions: AutocompleteOption[] = useMemo(
     () => (categories.data ?? []).map((c) => ({ value: c.id, label: c.name })),
     [categories.data],
   );
+
+  const handleRecordPaymentSubmit = (values: RecordClientPaymentFormValues) => {
+      createClientPayment.mutate(
+        { scope: "admin", command: values },
+        {
+          onSuccess: () => {
+            toast.success(t("admin.clients.recordPayment.success"));
+            setPaymentTarget(null);
+            setPaymentAmount(0);
+          },
+        },
+      );
+    };
 
   const detailQuery = useMemo(
     () => ({ posClientId: detailClient?.id, page: 1, limit: 50 }),
@@ -125,6 +143,7 @@ export default function StaffPosClients({ scope = "staff" }: Props) {
         onRowClick={setDetailClient}
         onEdit={setEditingClient}
         onPageChange={setCurrentPage}
+        onRecordPayment={setPaymentTarget}
         scope={scope}
       />
 
@@ -157,6 +176,20 @@ export default function StaffPosClients({ scope = "staff" }: Props) {
         paymentsError={payments.isError}
         creditHistory={creditHistory}
       />
+
+      {paymentTarget?.id && (
+        <RecordPaymentDialog
+          key={paymentTarget.id}
+          open={!!paymentTarget}
+          onOpenChange={(open) => !open && setPaymentTarget(null)}
+          posClientId={paymentTarget.id}
+          previousCredit={paymentTarget?.credit ?? 0}
+          amount={paymentAmount}
+          onAmountChange={setPaymentAmount}
+          onSubmit={handleRecordPaymentSubmit}
+          isSubmitting={createClientPayment.isPending}
+        />
+      )}
     </div>
   );
 }
