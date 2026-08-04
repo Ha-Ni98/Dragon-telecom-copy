@@ -7,9 +7,10 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { EnabledBadge } from "@/components/shared/StatusBadge";
 import { SimplePagination } from "@/components/shared/SimplePagination";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Users, Pencil, ArrowUpRight } from "lucide-react";
-import type { PaginatedResult, PosClientDto } from "@dragon-telecom/contract";
+import { Users, Pencil, ArrowUpRight, CreditCard } from "lucide-react";
+import type { PaginatedResult, PosClientDto, AdminClientDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface PosClientsTableProps {
@@ -20,6 +21,7 @@ interface PosClientsTableProps {
   onRowClick: (client: PosClientDto) => void;
   onEdit?: (client: PosClientDto) => void;
   onPageChange: (page: number) => void;
+  onRecordPayment: (client: PosClientDto) => void;
   /** S18/D-5 — the linked-account arrow opens `/admin/clients/:id`, which has no staff twin;
    *  shown only in admin scope. */
   scope?: "staff" | "admin";
@@ -39,6 +41,7 @@ export function PosClientsTable({
   onRowClick,
   onEdit,
   onPageChange,
+  onRecordPayment,
   scope = "admin",
 }: PosClientsTableProps) {
   const { t } = useTranslation();
@@ -98,9 +101,9 @@ export function PosClientsTable({
       },
       {
         id: "actions",
-        header: "",
+        header: () => <div className="text-center">{t("admin.clients.table.actions")}</div>,
         cell: ({ row }) => (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-center gap-1">
             <Button variant="ghost" size="sm" onClick={() => onRowClick(row.original)}>
               {t("common.view")}
             </Button>
@@ -116,11 +119,35 @@ export function PosClientsTable({
                 <Pencil className="h-4 w-4" />
               </Button>
             )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={!row.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRecordPayment(row.original);
+                      }}
+                      aria-label={t("admin.clients.recordPayment.action")}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!row.original.id && (
+                  <TooltipContent>{t("admin.clients.recordPayment.needsApproval")}</TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
         ),
       },
     ],
-    [t, onRowClick, onEdit, scope],
+    [t, onRowClick, onEdit, onRecordPayment, scope],
   );
 
   const renderMobileRow = (client: PosClientDto) => (
