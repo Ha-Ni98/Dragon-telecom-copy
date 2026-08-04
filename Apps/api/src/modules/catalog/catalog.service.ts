@@ -389,14 +389,43 @@ export class CatalogProductService implements ICatalogProductService {
   // S15 — search widened to name-or-barcode (same pair staffAdminWhere uses); `ids` lets the
   // settings-driven featured strip ask for an exact product list.
   async listProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<ProductWithPricingDto>> {
+    
+    // divide the search by tokens to enable search by part of the word
+    const tokens = query.search
+                        ?.trim()
+                        .split(/\s+/)
+                        .filter(Boolean);
+    
+    const nameSearch = tokens && tokens.length > 0
+                      ? {
+                          AND: tokens.map((token) => ({
+                            OR: [
+                              {
+                                name: {
+                                  startsWith: token,
+                                  mode: "insensitive" as const,
+                                },
+                              },
+                              {
+                                name: {
+                                  contains: ` ${token}`,
+                                  mode: "insensitive" as const,
+                                },
+                              },
+                            ],
+                          })),
+                        }
+                      : undefined;  
+
     const where: Prisma.ProductWhereInput = {
       isEnabled: true,
       isPublished: true,
       ...(query.search
         ? {
             OR: [
-              { name: { contains: query.search, mode: 'insensitive' as const } },
-              { barcode: { startsWith: query.search } },
+              // { name: { contains: query.search, mode: 'insensitive' as const } },
+              { barcode: { startsWith: query.search, mode: 'insensitive' as const } },
+              ...(nameSearch ? [nameSearch] : []),
             ],
           }
         : {}),
@@ -902,16 +931,44 @@ export class CatalogProductService implements ICatalogProductService {
   }
 
   private staffAdminWhere(query: ProductListQuery, extra: Prisma.ProductWhereInput = {}): Prisma.ProductWhereInput {
+    
+    const tokens = query.search
+                        ?.trim()
+                        .split(/\s+/)
+                        .filter(Boolean);
+    
+    const nameSearch = tokens && tokens.length > 0
+                      ? {
+                          AND: tokens.map((token) => ({
+                            OR: [
+                              {
+                                name: {
+                                  startsWith: token,
+                                  mode: "insensitive" as const,
+                                },
+                              },
+                              {
+                                name: {
+                                  contains: ` ${token}`,
+                                  mode: "insensitive" as const,
+                                },
+                              },
+                            ],
+                          })),
+                        }
+                      : undefined;  
     return {
       ...extra,
+      isEnabled: true,
       // Name is a case-insensitive substring match; barcode is a prefix match so it can use the
       // `Product.barcode @unique` btree index (S1 finding F1 — a `contains` predicate could not).
       // A scanner emits a whole barcode, so `startsWith` also covers the exact-scan case.
       ...(query.search
         ? {
             OR: [
-              { name: { contains: query.search, mode: 'insensitive' as const } },
-              { barcode: { startsWith: query.search } },
+             // { name: { contains: query.search, mode: 'insensitive' as const } },
+              { barcode: { startsWith: query.search, mode: 'insensitive' as const } },
+              ...(nameSearch ? [nameSearch] : []),
             ],
           }
         : {}),
