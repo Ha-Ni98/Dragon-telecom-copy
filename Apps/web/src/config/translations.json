@@ -14030,8 +14030,8 @@
     "ar": ""
   },
   "admin.settings.hierarchy.disableOnly": {
-    "en": "Models/brands/families are disabled, not deleted, to keep product references intact",
-    "fr": "Les modèles/marques/familles sont désactivés, pas supprimés, afin de conserver les références produit",
+    "en": "Models/brands/families are disabled, not deleted, to keep product references intact — re-enable them here at any time.",
+    "fr": "Les modèles/marques/familles sont désactivés, pas supprimés, afin de conserver les références produit — réactivez-les ici à tout moment.",
     "ar": ""
   },
   "admin.settings.invoicing.title": {
@@ -14289,6 +14289,16 @@
     "fr": "Désactivé avec succès",
     "ar": ""
   },
+  "admin.settings.hierarchy.enableSuccess": {
+    "en": "Enabled successfully",
+    "fr": "Activé avec succès",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.parentStillDisabled": {
+    "en": "Its parent family {name} is still disabled.",
+    "fr": "Sa famille parente {name} est toujours désactivée.",
+    "ar": ""
+  },
   "admin.logs.entity": {
     "en": "Entity",
     "fr": "Entité",
@@ -14307,6 +14317,36 @@
   "admin.settings.tabs.hierarchy": {
     "en": "Hierarchy",
     "fr": "Hiérarchie",
+    "ar": ""
+  },
+  "admin.settings.tabs.disabledProducts": {
+    "en": "Disabled products",
+    "fr": "Produits désactivés",
+    "ar": ""
+  },
+  "admin.settings.disabledProducts.helper": {
+    "en": "Products disabled from the products page. Re-enable one to put it back in the catalog.",
+    "fr": "Produits désactivés depuis la page produits. Réactivez-en un pour le remettre au catalogue.",
+    "ar": ""
+  },
+  "admin.settings.disabledProducts.empty": {
+    "en": "No disabled products",
+    "fr": "Aucun produit désactivé",
+    "ar": ""
+  },
+  "admin.settings.disabledProducts.enableSuccess": {
+    "en": "Product enabled",
+    "fr": "Produit activé",
+    "ar": ""
+  },
+  "admin.settings.disabledProducts.parentDisabled": {
+    "en": "{names} still disabled",
+    "fr": "{names} toujours désactivé",
+    "ar": ""
+  },
+  "admin.settings.disabledProducts.parentDisabledToast": {
+    "en": "The product is back in the catalog, but {names} is still disabled and won't appear in the storefront filters.",
+    "fr": "Le produit est de retour au catalogue, mais {names} est toujours désactivé et n'apparaîtra pas dans les filtres de la vitrine.",
     "ar": ""
   },
   "admin.settings.tabs.storefront": {

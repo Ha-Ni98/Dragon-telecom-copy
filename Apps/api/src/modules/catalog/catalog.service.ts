@@ -9,6 +9,7 @@ import {
   BARCODE_PREFIX_PAD_CHAR,
   CATALOG_ERROR,
   MovementType,
+  ProductEnabledFilter,
   ProductSort,
   ProductWithPricingResponseSchema,
   StaffProductResponseSchema,
@@ -524,7 +525,10 @@ export class CatalogProductService implements ICatalogProductService {
   // filtering — staff serve any client), so the 4 sale prices come from a plain join, not the
   // storefront resolver.
   async listStaffProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<StaffProductDto>> {
-    const where = this.staffAdminWhere(query, { isEnabled: true });
+    // Staff never see disabled products, whatever the client sends — the enabledStatus filter is
+    // an admin affordance (S21). This used to pass `{ isEnabled: true }` as `extra`, which the old
+    // hardcoded flag overrode anyway.
+    const where = this.staffAdminWhere(query, ProductEnabledFilter.ENABLED);
 
     const [total, products] = await this.prisma.$transaction([
       this.prisma.product.count({ where }),
@@ -557,7 +561,7 @@ export class CatalogProductService implements ICatalogProductService {
   }
 
   async listAdminProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<AdminProductDto>> {
-    const where = this.staffAdminWhere(query);
+    const where = this.staffAdminWhere(query, query.enabledStatus ?? ProductEnabledFilter.ENABLED);
 
     const [total, products] = await this.prisma.$transaction([
       this.prisma.product.count({ where }),
@@ -1028,8 +1032,26 @@ export class CatalogProductService implements ICatalogProductService {
     });
   }
 
-  private staffAdminWhere(query: ProductListQuery, extra: Prisma.ProductWhereInput = {}): Prisma.ProductWhereInput {
-    
+  // S21 — translates the admin visibility filter into a Prisma predicate. `ALL` contributes no
+  // clause at all, which is what lets the Settings tab and the main products list share one query
+  // path (owner decision Q3).
+  private enabledWhere(filter: ProductEnabledFilter): Prisma.ProductWhereInput {
+    switch (filter) {
+      case ProductEnabledFilter.ALL:
+        return {};
+      case ProductEnabledFilter.DISABLED:
+        return { isEnabled: false };
+      case ProductEnabledFilter.ENABLED:
+      default:
+        return { isEnabled: true };
+    }
+  }
+
+  private staffAdminWhere(
+    query: ProductListQuery,
+    enabledFilter: ProductEnabledFilter,
+  ): Prisma.ProductWhereInput {
+
     const tokens = query.search
                         ?.trim()
                         .split(/\s+/)
@@ -1056,8 +1078,10 @@ export class CatalogProductService implements ICatalogProductService {
                         }
                       : undefined;  
     return {
-      ...extra,
-      isEnabled: true,
+      // S21 — the enabled predicate is now the caller's decision, not a constant. It used to be a
+      // hardcoded `isEnabled: true` placed *after* the spread of an `extra` argument, which made
+      // that argument dead and made disabled products permanently unlistable.
+      ...this.enabledWhere(enabledFilter),
       // Name is a case-insensitive substring match; barcode is a prefix match so it can use the
       // `Product.barcode @unique` btree index (S1 finding F1 — a `contains` predicate could not).
       // A scanner emits a whole barcode, so `startsWith` also covers the exact-scan case.
