@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useState } from "react";
 import { Search, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,51 +21,38 @@ import {
   type DeviceModelDto,
 } from "@dragon-telecom/contract";
 
-/** Sentinel for "no explicit sort" — Radix `Select` rejects an empty-string item value. */
-const SORT_DEFAULT = "default";
+// Radix `Select` rejects an empty-string item value, so "no filter" needs a sentinel. It is
+// internal to this component: props carry `string | undefined` and the page never sees these
+// values. Same constant, same name, same reason as admin-products-filters.tsx and
+// StaffProductFilters.tsx — deliberately duplicated rather than shared, so each filter bar reads
+// standalone (three copies is the existing convention; extracting it is a separate cleanup).
+const ALL = "__all__";
+const SORT_DEFAULT = "__default__";
 
 /**
  * ProductFilters component props
  */
 interface ProductFiltersProps {
-  /** Current search query */
-  searchQuery: string;
-  /** Callback when search query changes */
-  onSearchChange: (query: string) => void;
-  /** Currently selected brand id ('all' or a uuid) */
-  selectedBrand: string;
-  /** Callback when brand selection changes */
-  onBrandChange: (brand: string) => void;
-  /** Currently selected category (family) id ('all' or a uuid) */
-  selectedCategory: string;
-  /** Callback when category selection changes */
-  onCategoryChange: (category: string) => void;
-  /** Currently selected model id ('all' or a uuid) */
-  selectedModel: string;
-  /** Callback when model selection changes */
-  onModelChange: (model: string) => void;
-  /** In-stock-only toggle (ProductListQuery.inStock) */
-  inStock: boolean;
-  /** Callback when the in-stock toggle changes */
-  onInStockChange: (inStock: boolean) => void;
-  /** Current sort ('default' or a ProductSort value) */
-  sort: string;
-  /** Callback when sort changes */
-  onSortChange: (sort: string) => void;
-  /** Available brands for filtering */
+  search: string;
+  onSearchChange: (value: string) => void;
+  families: FamilyDto[];
+  familyId?: string;
+  onFamilyChange: (id: string | undefined) => void;
   brands: BrandDto[];
-  /** Available categories (families) for filtering */
-  categories: FamilyDto[];
-  /** Available models for filtering */
+  brandId?: string;
+  onBrandChange: (id: string | undefined) => void;
+  /** Pre-scoped to the selected brand by the page (empty when no brand is selected) — this
+   *  component never filters the list itself. */
   models: DeviceModelDto[];
-  /** Whether the component is in loading state */
+  modelId?: string;
+  onModelChange: (id: string | undefined) => void;
+  inStock: boolean;
+  onInStockChange: (inStock: boolean) => void;
+  sort?: ProductSort;
+  onSortChange: (sort: ProductSort | undefined) => void;
   isLoading?: boolean;
-  /** Custom className for styling */
   className?: string;
-  /** Whether to show the clear filters button */
-  showClearFilters?: boolean;
-  /** Callback when clear filters is clicked */
-  onClearFilters?: () => void;
+  onClearFilters: () => void;
 }
 
 /**
@@ -74,55 +61,36 @@ interface ProductFiltersProps {
  * On mobile (< sm) the filter controls live behind a `Sheet` trigger (PUB-02: "drawer on
  * mobile") — the search input and active-filter chips stay visible inline on every breakpoint.
  */
-export const ProductFilters: React.FC<ProductFiltersProps> = ({
-  searchQuery,
+export function ProductFilters({
+  search,
   onSearchChange,
-  selectedBrand,
+  families,
+  familyId,
+  onFamilyChange,
+  brands,
+  brandId,
   onBrandChange,
-  selectedCategory,
-  onCategoryChange,
-  selectedModel,
+  models,
+  modelId,
   onModelChange,
   inStock,
   onInStockChange,
   sort,
   onSortChange,
-  brands,
-  categories,
-  models,
   isLoading = false,
   className = "",
-  showClearFilters = true,
   onClearFilters,
-}) => {
+}: ProductFiltersProps) {
   const { t } = useTranslation();
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  /**
-   * Check if any filters are active
-   */
   const hasActiveFilters =
-    selectedBrand !== "all" ||
-    selectedCategory !== "all" ||
-    selectedModel !== "all" ||
-    searchQuery.trim() !== "" ||
+    familyId !== undefined ||
+    brandId !== undefined ||
+    modelId !== undefined ||
+    search.trim() !== "" ||
     inStock ||
-    sort !== SORT_DEFAULT;
-
-  /**
-   * Models scoped to the selected brand/category — recomputed on every keystroke of the search
-   * input (a sibling control re-renders this component), so it's worth memoizing.
-   */
-  const filteredModels = useMemo(
-    () =>
-      models.filter((model) => {
-        const brandMatch = selectedBrand === "all" || model.brandId === selectedBrand;
-        const categoryMatch =
-          selectedCategory === "all" || model.familyIds.includes(selectedCategory);
-        return brandMatch && categoryMatch;
-      }),
-    [models, selectedBrand, selectedCategory],
-  );
+    sort !== undefined;
 
   const sortOptions: Array<{ value: string; label: string }> = [
     { value: SORT_DEFAULT, label: t("products.filters.sortDefault") },
@@ -132,48 +100,15 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
     { value: ProductSort.NAME, label: t("products.filters.sortName") },
   ];
 
-  /**
-   * Handle clear filters
-   */
   const handleClearFilters = () => {
-    onSearchChange("");
-    onBrandChange("all");
-    onCategoryChange("all");
-    onModelChange("all");
-    onInStockChange(false);
-    onSortChange(SORT_DEFAULT);
-    onClearFilters?.();
+    onClearFilters();
     setSheetOpen(false);
   };
 
-  /**
-   * Get brand name by ID
-   */
-  const getBrandName = (brandId: string): string => {
-    if (brandId === "all") return t("products.filters.all");
-    const brand = brands.find((b) => b.id === brandId);
-    return brand?.name || "";
-  };
-
-  /**
-   * Get category name by ID
-   */
-  const getCategoryName = (categoryId: string): string => {
-    if (categoryId === "all") return t("products.filters.all");
-    const category = categories.find((c) => c.id === categoryId);
-    return category?.name || "";
-  };
-
-  /**
-   * Get model name by ID
-   */
-  const getModelName = (modelId: string): string => {
-    if (modelId === "all") return t("products.filters.all");
-    const model = models.find((m) => m.id === modelId);
-    return model?.name || "";
-  };
-
-  const getSortLabel = (value: string): string =>
+  const brandName = (id: string): string => brands.find((b) => b.id === id)?.name ?? "";
+  const familyName = (id: string): string => families.find((f) => f.id === id)?.name ?? "";
+  const modelName = (id: string): string => models.find((m) => m.id === id)?.name ?? "";
+  const sortLabel = (value: ProductSort): string =>
     sortOptions.find((option) => option.value === value)?.label ?? "";
 
   // Shared by the always-visible desktop panel and the mobile Sheet — one set of controls, two
@@ -182,12 +117,17 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
     <div className="space-y-4">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        {/* Never `disabled={isLoading}`: every settled keystroke writes the URL, which produces a
+            new query key and flips `isLoading` back to true mid-typing. The browser blurs a focused
+            element the moment it becomes disabled, and React does not restore focus when it is
+            re-enabled — so the caret was being thrown out of the box on every debounce. A debounced
+            search must stay typable while its results load (same as StaffProductFilters and
+            admin-products-filters, neither of which disables its search input). */}
         <Input
           placeholder={t("products.filters.search")}
-          value={searchQuery}
+          value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-10"
-          disabled={isLoading}
           aria-label={t("products.filters.search")}
         />
       </div>
@@ -198,13 +138,17 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
           <label htmlFor="category-filter" className="text-sm font-medium">
             {t("products.filters.category")}
           </label>
-          <Select value={selectedCategory} onValueChange={onCategoryChange} disabled={isLoading}>
+          <Select
+            value={familyId ?? ALL}
+            onValueChange={(v) => onFamilyChange(v === ALL ? undefined : v)}
+            disabled={isLoading}
+          >
             <SelectTrigger id="category-filter" aria-label={t("products.filters.category")}>
               <SelectValue placeholder={t("products.filters.category")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("products.filters.all")}</SelectItem>
-              {categories.map((category) => (
+              <SelectItem value={ALL}>{t("products.filters.all")}</SelectItem>
+              {families.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
                 </SelectItem>
@@ -218,12 +162,16 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
           <label htmlFor="brand-filter" className="text-sm font-medium">
             {t("products.filters.brand")}
           </label>
-          <Select value={selectedBrand} onValueChange={onBrandChange} disabled={isLoading}>
+          <Select
+            value={brandId ?? ALL}
+            onValueChange={(v) => onBrandChange(v === ALL ? undefined : v)}
+            disabled={isLoading}
+          >
             <SelectTrigger id="brand-filter" aria-label={t("products.filters.brand")}>
               <SelectValue placeholder={t("products.filters.brand")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("products.filters.all")}</SelectItem>
+              <SelectItem value={ALL}>{t("products.filters.all")}</SelectItem>
               {brands.map((brand) => (
                 <SelectItem key={brand.id} value={brand.id}>
                   {brand.name}
@@ -239,16 +187,16 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             {t("products.filters.model")}
           </label>
           <Select
-            value={selectedModel}
-            onValueChange={onModelChange}
-            disabled={isLoading || filteredModels.length === 0}
+            value={modelId ?? ALL}
+            onValueChange={(v) => onModelChange(v === ALL ? undefined : v)}
+            disabled={isLoading || !brandId}
           >
             <SelectTrigger id="model-filter" aria-label={t("products.filters.model")}>
               <SelectValue placeholder={t("products.filters.model")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("products.filters.all")}</SelectItem>
-              {filteredModels.map((model) => (
+              <SelectItem value={ALL}>{t("products.filters.all")}</SelectItem>
+              {models.map((model) => (
                 <SelectItem key={model.id} value={model.id}>
                   {model.name}
                 </SelectItem>
@@ -264,7 +212,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
           <label htmlFor="sort-filter" className="text-sm font-medium">
             {t("products.filters.sort")}
           </label>
-          <Select value={sort} onValueChange={onSortChange} disabled={isLoading}>
+          <Select
+            value={sort ?? SORT_DEFAULT}
+            onValueChange={(v) => onSortChange(v === SORT_DEFAULT ? undefined : (v as ProductSort))}
+            disabled={isLoading}
+          >
             <SelectTrigger id="sort-filter" aria-label={t("products.filters.sort")}>
               <SelectValue placeholder={t("products.filters.sort")} />
             </SelectTrigger>
@@ -309,7 +261,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {showClearFilters && hasActiveFilters && (
+          {hasActiveFilters && (
             <Button
               variant="outline"
               size="sm"
@@ -357,9 +309,9 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             {t("products.filters.activeFilters")}:
           </span>
 
-          {searchQuery.trim() && (
+          {search.trim() && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t("common.labels.search")}: "{searchQuery}"
+              {t("common.labels.search")}: "{search}"
               <button
                 onClick={() => onSearchChange("")}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
@@ -370,11 +322,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             </Badge>
           )}
 
-          {selectedBrand !== "all" && (
+          {brandId !== undefined && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t("products.filters.brand")}: {getBrandName(selectedBrand)}
+              {t("products.filters.brand")}: {brandName(brandId)}
               <button
-                onClick={() => onBrandChange("all")}
+                onClick={() => onBrandChange(undefined)}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
                 aria-label={t("products.filters.removeBrand")}
               >
@@ -383,11 +335,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             </Badge>
           )}
 
-          {selectedCategory !== "all" && (
+          {familyId !== undefined && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t("products.filters.category")}: {getCategoryName(selectedCategory)}
+              {t("products.filters.category")}: {familyName(familyId)}
               <button
-                onClick={() => onCategoryChange("all")}
+                onClick={() => onFamilyChange(undefined)}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
                 aria-label={t("products.filters.removeCategory")}
               >
@@ -396,11 +348,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             </Badge>
           )}
 
-          {selectedModel !== "all" && (
+          {modelId !== undefined && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t("products.filters.model")}: {getModelName(selectedModel)}
+              {t("products.filters.model")}: {modelName(modelId)}
               <button
-                onClick={() => onModelChange("all")}
+                onClick={() => onModelChange(undefined)}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
                 aria-label={t("products.filters.removeModel")}
               >
@@ -422,11 +374,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             </Badge>
           )}
 
-          {sort !== SORT_DEFAULT && (
+          {sort !== undefined && (
             <Badge variant="outline" className="flex items-center gap-1">
-              {t("products.filters.sort")}: {getSortLabel(sort)}
+              {t("products.filters.sort")}: {sortLabel(sort)}
               <button
-                onClick={() => onSortChange(SORT_DEFAULT)}
+                onClick={() => onSortChange(undefined)}
                 className="ml-1 hover:bg-muted rounded-full p-0.5"
                 aria-label={t("products.filters.removeSort")}
               >
@@ -438,6 +390,4 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
       )}
     </div>
   );
-};
-
-export default ProductFilters;
+}

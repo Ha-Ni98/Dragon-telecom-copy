@@ -17,6 +17,7 @@ import {
   Receipt,
   Layers,
   Star,
+  PackageX,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import { DeliveryFeesSection } from "@/pages/admin/settings/components/delivery-
 import { StoreSettingsForm } from "@/pages/admin/settings/components/store-settings-form";
 import { InvoicingSettingsForm } from "@/pages/admin/settings/components/invoicing-settings-form";
 import { HierarchyPanel } from "@/pages/admin/settings/components/hierarchy-panel";
+import { DisabledProductsPanel } from "@/pages/admin/settings/components/disabled-products-panel";
 import { StorefrontSettings } from "@/pages/admin/settings/components/storefront-settings";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { NotFoundState } from "@/components/shared/NotFoundState";
@@ -58,7 +60,8 @@ import {
   useUpdateCatalogModel,
   useSetModelFamilies,
 } from "@/hooks/useCatalogTaxonomy";
-import { useAdminCatalogProducts } from "@/hooks/useCatalogProducts";
+import { useAdminCatalogProducts, useUpdateProduct } from "@/hooks/useCatalogProducts";
+import { ProductEnabledFilter, type AdminProductDto } from "@dragon-telecom/contract";
 
 // ADM-17 — Sprint 3 retyped the tabs whose existing component was structurally compatible with
 // the real DTOs (Categories -> ClientCategoryDto; Delivery fees -> AdminFeesDto). Sprint 4 added
@@ -75,6 +78,12 @@ import { useAdminCatalogProducts } from "@/hooks/useCatalogProducts";
 // (StorefrontSettingsInputSchema's own `.max(6)`, mirrored client-side). Both lists are draft
 // state batched into one real PATCH on Save — the old Save button only fired a toast; every
 // actual write happened one PATCH per chip via onAdd/onRemove.
+//
+// S21 added the Disabled Products tab, driven by `useAdminCatalogProducts` with the new
+// `enabledStatus: DISABLED` filter — `listAdminProducts` used to hardcode `isEnabled: true`, so a
+// product disabled from /admin/products' row switch was unreachable again once it left that page.
+// Families/brands/models needed no new tab: the Hierarchy tab already listed disabled rows (the
+// admin taxonomy routes already passed includeDisabled); it only gained an Enable button.
 export default function AdminSettings() {
   const { t } = useTranslation();
 
@@ -98,6 +107,17 @@ export default function AdminSettings() {
   const updateModel = useUpdateCatalogModel();
   const setModelFamilies = useSetModelFamilies();
   const hierarchyLoading = families.isLoading || brands.isLoading || models.isLoading;
+
+  // S21 — the disabled-products list is its own paginated query; `enabledStatus` is part of the
+  // ProductListQuery, so `qk.catalog.adminProducts.list(query)` already gives it a cache entry
+  // distinct from /admin/products' own enabled-only list. No new query key is needed.
+  const [disabledPage, setDisabledPage] = useState(1);
+  const disabledProducts = useAdminCatalogProducts({
+    enabledStatus: ProductEnabledFilter.DISABLED,
+    page: disabledPage,
+    limit: 15,
+  });
+  const updateProduct = useUpdateProduct();
 
   // --- Storefront tab (S17) ---
   // Draft state: the tab batches both lists into one PATCH instead of one PATCH per chip (the
@@ -263,6 +283,61 @@ export default function AdminSettings() {
       { onSuccess: () => toast.success(t("admin.settings.hierarchy.disableSuccess")) },
     );
   };
+  const handleEnableFamily = (id: string) => {
+    updateFamily.mutate(
+      { id, command: { isEnabled: true } },
+      {
+        onSuccess: (family) => {
+          toast.success(t("admin.settings.hierarchy.enableSuccess"));
+          // Q5 — warn only, never block. A disabled parent does not hide anything (the storefront
+          // filters on the product row alone), but the child family will not surface under it in
+          // the family pickers until the parent is back.
+          const parent = family.parentId
+            ? (families.data ?? []).find((f) => f.id === family.parentId)
+            : undefined;
+          if (parent && !parent.isEnabled) {
+            toast.warning(t("admin.settings.hierarchy.parentStillDisabled", { name: parent.name }));
+          }
+        },
+      },
+    );
+  };
+  const handleEnableBrand = (id: string) => {
+    updateBrand.mutate(
+      { id, command: { isEnabled: true } },
+      { onSuccess: () => toast.success(t("admin.settings.hierarchy.enableSuccess")) },
+    );
+  };
+  const handleEnableModel = (id: string) => {
+    updateModel.mutate(
+      { id, command: { isEnabled: true } },
+      { onSuccess: () => toast.success(t("admin.settings.hierarchy.enableSuccess")) },
+    );
+  };
+
+  const handleEnableProduct = (product: AdminProductDto) => {
+    updateProduct.mutate(
+      { id: product.id, command: { isEnabled: true } },
+      {
+        onSuccess: () => {
+          toast.success(t("admin.settings.disabledProducts.enableSuccess"));
+          // Q5 — warn only. The product is live on the storefront immediately regardless; the
+          // parent merely stays out of the filter dropdowns until it is re-enabled too.
+          const stillDisabled = [
+            !product.family.isEnabled ? product.family.name : null,
+            !product.brand.isEnabled ? product.brand.name : null,
+          ].filter(Boolean);
+          if (stillDisabled.length > 0) {
+            toast.warning(
+              t("admin.settings.disabledProducts.parentDisabledToast", {
+                names: stillDisabled.join(", "),
+              }),
+            );
+          }
+        },
+      },
+    );
+  };
 
   const handleSaveStorefront = () => {
     updateSettings.mutate(
@@ -285,7 +360,7 @@ export default function AdminSettings() {
       {/* Settings Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList
-          className={`grid w-full grid-cols-2 ${SHOW_GENERAL_SETTINGS ? "lg:grid-cols-7" : "lg:grid-cols-6"}`}
+          className={`grid w-full grid-cols-2 ${SHOW_GENERAL_SETTINGS ? "lg:grid-cols-8" : "lg:grid-cols-7"}`}
         >
           {SHOW_GENERAL_SETTINGS && (
             <TabsTrigger value="general" className="flex items-center gap-2">
@@ -312,6 +387,10 @@ export default function AdminSettings() {
           <TabsTrigger value="hierarchy" className="flex items-center gap-2">
             <Layers className="h-4 w-4" />
             <span className="hidden sm:inline">{t("admin.settings.tabs.hierarchy")}</span>
+          </TabsTrigger>
+          <TabsTrigger value="disabled-products" className="flex items-center gap-2">
+            <PackageX className="h-4 w-4" />
+            <span className="hidden sm:inline">{t("admin.settings.tabs.disabledProducts")}</span>
           </TabsTrigger>
           <TabsTrigger value="storefront" className="flex items-center gap-2">
             <Star className="h-4 w-4" />
@@ -590,6 +669,22 @@ export default function AdminSettings() {
             onDisableFamily={handleDisableFamily}
             onDisableBrand={handleDisableBrand}
             onDisableModel={handleDisableModel}
+            onEnableFamily={handleEnableFamily}
+            onEnableBrand={handleEnableBrand}
+            onEnableModel={handleEnableModel}
+          />
+        </TabsContent>
+
+        {/* Disabled Products Tab */}
+        <TabsContent value="disabled-products">
+          <DisabledProductsPanel
+            products={disabledProducts.data?.items ?? []}
+            isLoading={disabledProducts.isLoading}
+            page={disabledProducts.data?.meta.page ?? 1}
+            totalPages={disabledProducts.data?.meta.totalPages ?? 1}
+            onPageChange={setDisabledPage}
+            onEnable={handleEnableProduct}
+            isEnabling={updateProduct.isPending}
           />
         </TabsContent>
 

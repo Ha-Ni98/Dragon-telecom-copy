@@ -29,7 +29,9 @@ import {
   useCreateCatalogModel,
 } from "@/hooks/useCatalogTaxonomy";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
-import { useCreateProduct } from "@/hooks/useCatalogProducts";
+import { useCreateProduct, useGenerateBarcode } from "@/hooks/useCatalogProducts";
+import { CATALOG_ERROR } from "@dragon-telecom/contract";
+import { apiErrorMessage } from "@/lib/query-client";
 import {
   productsAddSchema,
   type ProductsAddFormValues,
@@ -62,6 +64,9 @@ const optionalNumber = (raw: string) => (raw === "" ? undefined : Number(raw));
 // On a successful create, the form is fully reset (S3 F4) — a same-path navigate() does not
 // remount this route element, so without an explicit reset every field, staged image and the
 // manual-name flag would survive into the "next" product.
+// S19: the barcode field's "Auto-generate" now calls the real catalog generator
+// (useGenerateBarcode) instead of the old BC+timestamp string it produced locally; the field
+// itself stays freely editable and optional, and a duplicate is reported on the field.
 export default function AdminProductsAdd() {
   const navigate = useNavigate();
   const { t, language } = useTranslation();
@@ -92,6 +97,8 @@ export default function AdminProductsAdd() {
     setValue,
     getValues,
     reset,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<ProductsAddFormValues>({
     resolver: zodResolver(productsAddSchema(t)),
@@ -117,12 +124,28 @@ export default function AdminProductsAdd() {
     if (parts.length) setValue("name", parts.join(" "));
   };
 
-  const generateBarcode = () => {
-    const timestamp = Date.now().toString().slice(-8);
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0");
-    setValue("barcode", `BC${timestamp}${random}`);
+  const generateBarcode = useGenerateBarcode();
+
+  // The barcode prefix is derived from the family and brand names, so both must be chosen before a
+  // request is worth making — a guard, not a validation error: the field itself stays optional and
+  // freely editable, and the generated value is only ever a suggestion.
+  const handleGenerateBarcode = () => {
+    const currentFamilyId = getValues("familyId");
+    const currentBrandId = getValues("brandId");
+    if (!currentFamilyId || !currentBrandId) {
+      toast.error(t("admin.productsAdd.barcodeNeedsFamilyBrand"));
+      return;
+    }
+    clearErrors("barcode");
+    generateBarcode.mutate(
+      { familyId: currentFamilyId, brandId: currentBrandId },
+      {
+        // Overwrites whatever is in the field — the admin asked for a new one by clicking. Failures
+        // (including the bounded-retry 409) surface through query-client.ts's generic toast, which
+        // now renders the translated sentinel rather than the raw token.
+        onSuccess: ({ barcode }) => setValue("barcode", barcode, { shouldDirty: true }),
+      },
+    );
   };
 
   const pricingUnlocked = (initialQuantity ?? 0) > 0;
@@ -159,6 +182,7 @@ export default function AdminProductsAdd() {
   const onSubmit = () => setShowConfirm(true);
 
   const confirmSubmit = () => {
+    clearErrors("barcode");
     const values = getValues();
     createProduct.mutate(
       { command: values, images: images.map((img) => img.file) },
@@ -175,7 +199,15 @@ export default function AdminProductsAdd() {
           setSelectedBrandId(undefined);
           reset({ name: "", initialQuantity: 0 });
         },
-        onError: () => setShowConfirm(false),
+        onError: (err) => {
+          setShowConfirm(false);
+          // A duplicate barcode is a field problem, not a page-level one — the confirm dialog
+          // closes so the admin is looking at the form when the message appears under the input.
+          // Every other failure keeps the generic mutationCache toast as its only surface.
+          if (apiErrorMessage(err) === CATALOG_ERROR.BARCODE_TAKEN) {
+            setError("barcode", { type: "server", message: t("admin.productsAdd.barcodeTaken") });
+          }
+        },
       },
     );
   };
@@ -308,11 +340,22 @@ export default function AdminProductsAdd() {
               <Label htmlFor="add-barcode">{t("admin.productsAdd.barcodeLabel")}</Label>
               <div className="flex gap-2">
                 <Input id="add-barcode" {...register("barcode")} />
-                <Button type="button" variant="outline" onClick={generateBarcode}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGenerateBarcode}
+                  disabled={generateBarcode.isPending}
+                >
                   <Wand2 className="mr-1 h-4 w-4" />
                   {t("admin.productsAdd.autoGenerateBarcode")}
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                {t("admin.productsAdd.barcodeHelper")}
+              </p>
+              {errors.barcode && (
+                <p className="text-sm text-destructive">{errors.barcode.message}</p>
+              )}
             </div>
           </CardContent>
         </Card>

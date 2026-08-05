@@ -18,6 +18,7 @@ import {
   CreateProductSchema,
   FamiliesQuerySchema,
   FamilyIdParamsSchema,
+  GenerateBarcodeSchema,
   ModelIdParamsSchema,
   ModelsQuerySchema,
   ProductIdParamsSchema,
@@ -135,6 +136,15 @@ router.post(
 // PRODUCT_STATS ("/admin/products/stats") must be registered before ADMIN_PRODUCT_BY_ID
 // ("/admin/products/:id"), or Express would match `:id === "stats"`.
 router.get(CATALOG_ROUTES.PRODUCT_STATS, adminOnly, controller.productStats);
+// GENERATE_BARCODE ("/admin/products/barcode") shares PRODUCT_STATS's constraint: a literal
+// segment under "/admin/products" must be registered before ADMIN_PRODUCT_BY_ID
+// ("/admin/products/:id"), or Express would match `:id === "barcode"`.
+router.post(
+  CATALOG_ROUTES.GENERATE_BARCODE,
+  adminOnly,
+  validateRequest({ body: GenerateBarcodeSchema }),
+  controller.generateBarcode,
+);
 router.get(
   CATALOG_ROUTES.ADMIN_PRODUCTS,
   adminOnly,

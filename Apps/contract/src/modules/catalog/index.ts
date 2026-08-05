@@ -1,3 +1,4 @@
+export * from './catalog.constants';
 export * from './catalog.enums';
 export * from './catalog.routes';
 export * from './catalog.command';

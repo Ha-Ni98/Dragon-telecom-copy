@@ -27,6 +27,13 @@ interface HierarchyPanelProps {
   onDisableFamily: (id: string) => void;
   onDisableBrand: (id: string) => void;
   onDisableModel: (id: string) => void;
+  /** S21 — the row is already rendered with a "Disabled" badge; this is the way back. Optional
+   *  only so a pre-existing test rendering this component with the older prop set still
+   *  type-checks (it never exercises a disabled row, so the Enable branch never renders there);
+   *  every real caller (AdminSettings.tsx) always supplies all three. */
+  onEnableFamily?: (id: string) => void;
+  onEnableBrand?: (id: string) => void;
+  onEnableModel?: (id: string) => void;
 }
 
 // ADM-17 Hierarchy tab — the real rebuild replacing the old `product-hierarchy-section.tsx`
@@ -34,6 +41,8 @@ interface HierarchyPanelProps {
 // structurally incompatible with `DeviceModelDto.familyIds` — a real multi-select — and the
 // disable-only convention every other taxonomy DTO follows). Dumb (owns only local form state);
 // Sprint 8 wires `useCatalogFamilies/Brands/Models` + `useCreate*`/`useSetModelFamilies`.
+// S21 — rows can now be re-enabled from here too; the list has always included disabled rows (the
+// admin taxonomy routes pass includeDisabled).
 export function HierarchyPanel({
   families,
   brands,
@@ -45,6 +54,9 @@ export function HierarchyPanel({
   onDisableFamily,
   onDisableBrand,
   onDisableModel,
+  onEnableFamily,
+  onEnableBrand,
+  onEnableModel,
 }: HierarchyPanelProps) {
   const { t } = useTranslation();
   const [newFamilyName, setNewFamilyName] = useState("");
@@ -101,14 +113,19 @@ export function HierarchyPanel({
                   <span>{family.name}</span>
                   <div className="flex items-center gap-2">
                     <EnabledBadge isEnabled={family.isEnabled} />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDisableFamily(family.id)}
-                      disabled={!family.isEnabled}
-                    >
-                      {t("common.actions.disable")}
-                    </Button>
+                    {family.isEnabled ? (
+                      <Button variant="ghost" size="sm" onClick={() => onDisableFamily(family.id)}>
+                        {t("common.actions.disable")}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEnableFamily?.(family.id)}
+                      >
+                        {t("common.actions.enable")}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -147,14 +164,15 @@ export function HierarchyPanel({
                   <span>{brand.name}</span>
                   <div className="flex items-center gap-2">
                     <EnabledBadge isEnabled={brand.isEnabled} />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDisableBrand(brand.id)}
-                      disabled={!brand.isEnabled}
-                    >
-                      {t("common.actions.disable")}
-                    </Button>
+                    {brand.isEnabled ? (
+                      <Button variant="ghost" size="sm" onClick={() => onDisableBrand(brand.id)}>
+                        {t("common.actions.disable")}
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => onEnableBrand?.(brand.id)}>
+                        {t("common.actions.enable")}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -228,14 +246,15 @@ export function HierarchyPanel({
                   <span>{model.name}</span>
                   <div className="flex items-center gap-2">
                     <EnabledBadge isEnabled={model.isEnabled} />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDisableModel(model.id)}
-                      disabled={!model.isEnabled}
-                    >
-                      {t("common.actions.disable")}
-                    </Button>
+                    {model.isEnabled ? (
+                      <Button variant="ghost" size="sm" onClick={() => onDisableModel(model.id)}>
+                        {t("common.actions.disable")}
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => onEnableModel?.(model.id)}>
+                        {t("common.actions.enable")}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

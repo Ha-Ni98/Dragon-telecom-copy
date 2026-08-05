@@ -9,6 +9,7 @@ import { AdminProductsStatsCards } from "@/pages/admin/products/components/admin
 import { AdminProductsFilters } from "@/pages/admin/products/components/admin-products-filters";
 import { AdminProductsTable } from "@/pages/admin/products/components/admin-products-table";
 import { AdminProductPricesTable } from "@/pages/admin/products/components/admin-product-prices-table";
+import { BarcodeLabelDialog } from "@/pages/admin/products/components/barcode-label-dialog";
 import {
   useAdminCatalogProducts,
   useProductStats,
@@ -135,6 +136,10 @@ export default function AdminProducts() {
   >({});
   const updateProduct = useUpdateProduct();
 
+  // S19 — which row's labels are being printed; null closes the dialog. Lives on the page, not the
+  // table, so both the stock tab's table and the dialog read one source of truth.
+  const [labelProduct, setLabelProduct] = useState<AdminProductDto | null>(null);
+
   const applyToggle = useCallback(
     (
       product: AdminProductDto,
@@ -211,6 +216,7 @@ export default function AdminProducts() {
             optimisticOverrides={optimisticOverrides}
             onTogglePublished={(product, isPublished) => applyToggle(product, { isPublished })}
             onToggleEnabled={(product, isEnabled) => applyToggle(product, { isEnabled })}
+            onPrintBarcode={setLabelProduct}
           />
         </TabsContent>
         <TabsContent value="prices">
@@ -231,6 +237,12 @@ export default function AdminProducts() {
           onPageChange={handlePageChange}
         />
       )}
+
+      <BarcodeLabelDialog
+        product={labelProduct}
+        open={!!labelProduct}
+        onOpenChange={(open) => !open && setLabelProduct(null)}
+      />
     </div>
   );
 }

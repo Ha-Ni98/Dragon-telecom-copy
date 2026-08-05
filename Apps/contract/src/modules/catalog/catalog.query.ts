@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BooleanQuerySchema } from '../../common/types';
-import { ProductSort } from './catalog.enums';
+import { ProductEnabledFilter, ProductSort } from './catalog.enums';
 
 export const ProductListQuerySchema = z.object({
   search: z.string().optional(),
@@ -21,6 +21,13 @@ export const ProductListQuerySchema = z.object({
   modelId: z.uuid().optional(),
   inStock: BooleanQuerySchema.optional(),
   featured: BooleanQuerySchema.optional(),
+  // S21 — honoured by `listAdminProducts` ONLY. The public `listProducts` and the staff
+  // `listStaffProducts` both pin their own enabled predicate and ignore this field, so a guest
+  // sending `?enabledStatus=disabled` still gets enabled+published rows only. Optional (not
+  // `.default()`): a `.default()` field is required in `z.infer`'s *output* type, which would have
+  // forced every existing `ProductListQuery` literal across the app (POS, repairs, staff products,
+  // admin inventory, supplier invoices…) to start passing it. The service falls back to ENABLED.
+  enabledStatus: z.enum(ProductEnabledFilter).optional(),
   sort: z.enum(ProductSort).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(15),

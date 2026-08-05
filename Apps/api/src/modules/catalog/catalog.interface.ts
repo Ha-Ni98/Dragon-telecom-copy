@@ -12,6 +12,8 @@ import type {
   DeviceModelDto,
   FamiliesQuery,
   FamilyDto,
+  GenerateBarcodeCommand,
+  GeneratedBarcodeDto,
   JWTPayload,
   ModelsQuery,
   PaginatedResult,
@@ -48,6 +50,7 @@ export interface ICatalogProductService {
   updateImages(id: string, cmd: UpdateProductImagesCommand): Promise<AdminProductDto>;
   deleteImage(id: string, imageId: string): Promise<AdminProductDto>;
   productStats(): Promise<ProductStatsDto>;
+  generateBarcode(cmd: GenerateBarcodeCommand): Promise<GeneratedBarcodeDto>;
 }
 
 export interface ICatalogTaxonomyService {

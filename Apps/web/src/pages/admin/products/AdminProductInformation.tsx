@@ -83,6 +83,8 @@ export default function AdminProductInformation() {
           isEditMode={editMode.isEditMode}
           register={editMode.detailsForm.register}
           errors={editMode.detailsForm.formState.errors}
+          onGenerateBarcode={editMode.generateBarcode}
+          isGeneratingBarcode={editMode.isGeneratingBarcode}
         />
         <ProductImagesSection product={product} />
       </div>

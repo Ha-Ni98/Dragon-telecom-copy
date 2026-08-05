@@ -6,6 +6,7 @@ import type {
   UpdatePricingCommand,
   AddProductImagesCommand,
   UpdateProductImagesCommand,
+  GenerateBarcodeCommand,
 } from "@dragon-telecom/contract";
 import * as catalogService from "@/services/catalog.service";
 import { qk } from "@/lib/query-keys";
@@ -154,5 +155,15 @@ export function useDeleteProductImage() {
       queryClient.invalidateQueries({ queryKey: qk.catalog.adminProducts.all() });
       queryClient.invalidateQueries({ queryKey: qk.catalog.products.all() });
     },
+  });
+}
+
+// A mutation, not a query (S19): every click must produce a *fresh* candidate, and a `useQuery`
+// keyed on {familyId, brandId} would hand the same barcode to two consecutive products from cache.
+// Nothing is written server-side, so there is no cache to invalidate and no query key to define —
+// which is also why this hook takes no queryClient.
+export function useGenerateBarcode() {
+  return useMutation({
+    mutationFn: (command: GenerateBarcodeCommand) => catalogService.generateBarcode(command),
   });
 }
