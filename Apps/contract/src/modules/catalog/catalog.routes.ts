@@ -12,6 +12,11 @@ export const CATALOG_ROUTES = {
   IMAGE_BY_ID: '/admin/products/:id/images/:imageId',
   IMAGE: '/uploads/:id',
   PRODUCT_STATS: '/admin/products/stats',
+  // S19 — barcode generation. A POST (not a GET) because each call must yield a *fresh* value:
+  // nothing is written, but the response is deliberately non-idempotent and must never be cached
+  // by a browser or a proxy. Registered before ADMIN_PRODUCT_BY_ID for the same reason
+  // PRODUCT_STATS is (see catalog.routes.ts in the api).
+  GENERATE_BARCODE: '/admin/products/barcode',
   ADMIN_BRANDS: '/admin/brands',
   ADMIN_BRAND_BY_ID: '/admin/brands/:id',
   ADMIN_FAMILIES: '/admin/families',

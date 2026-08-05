@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Package, Pencil } from "lucide-react";
+import { Package, Pencil, Printer } from "lucide-react";
 import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -37,6 +37,10 @@ interface AdminProductsTableProps {
   optimisticOverrides?: Record<string, Partial<Pick<AdminProductDto, "isPublished" | "isEnabled">>>;
   onTogglePublished: (product: AdminProductDto, isPublished: boolean) => void;
   onToggleEnabled: (product: AdminProductDto, isEnabled: boolean) => void;
+  /** S19 — the page owns the dialog (the table stays dumb); this only reports which row was
+   *  picked. Rows whose product has no barcode render the action disabled rather than hidden, so
+   *  the column width never jumps between rows. */
+  onPrintBarcode: (product: AdminProductDto) => void;
 }
 
 // Set-03 Sprint 5 rewire — was numeric-id AdminProductWithDetails w/ delete + "add stock"
@@ -45,6 +49,8 @@ interface AdminProductsTableProps {
 // S3: dropped the "image" column — it rendered a static placeholder icon on every row and
 // carried no real data, and removing it gives the other columns (notably the stock-status
 // pill) back the width they needed.
+// S19: a second row action — print barcode labels — sits beside Edit; it is disabled (not hidden)
+// on a product with no barcode, with the reason in its tooltip.
 export function AdminProductsTable({
   products,
   isLoading,
@@ -54,6 +60,7 @@ export function AdminProductsTable({
   optimisticOverrides = {},
   onTogglePublished,
   onToggleEnabled,
+  onPrintBarcode,
 }: AdminProductsTableProps) {
   const { t, language } = useTranslation();
 
@@ -127,20 +134,36 @@ export function AdminProductsTable({
       },
       {
         id: "actions",
-        header: t("admin.productsList.table.edit"),
+        header: t("admin.productsList.table.actions"),
         cell: ({ row }) => (
-          <Button variant="ghost" size="sm" asChild>
-            <Link
-              to={`/admin/products/${row.original.id}`}
-              aria-label={t("admin.productsList.table.edit")}
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" asChild>
+              <Link
+                to={`/admin/products/${row.original.id}`}
+                aria-label={t("admin.productsList.table.edit")}
+              >
+                <Pencil className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!row.original.barcode}
+              onClick={() => onPrintBarcode(row.original)}
+              aria-label={t("admin.productsList.table.printLabels")}
+              title={
+                row.original.barcode
+                  ? t("admin.productsList.table.printLabels")
+                  : t("admin.productsList.table.printLabelsNoBarcode")
+              }
             >
-              <Pencil className="h-4 w-4" />
-            </Link>
-          </Button>
+              <Printer className="h-4 w-4" />
+            </Button>
+          </div>
         ),
       },
     ],
-    [t, language, onTogglePublished, onToggleEnabled],
+    [t, language, onTogglePublished, onToggleEnabled, onPrintBarcode],
   );
 
   const renderMobileRow = (product: AdminProductDto) => (
@@ -154,9 +177,16 @@ export function AdminProductsTable({
       </div>
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{formatDZD(product.avgStockPrice, language)}</span>
-        <Link to={`/admin/products/${product.id}`} className="text-primary">
-          {t("admin.productsList.table.edit")}
-        </Link>
+        <div className="flex items-center gap-3">
+          {product.barcode && (
+            <button type="button" className="text-primary" onClick={() => onPrintBarcode(product)}>
+              {t("admin.productsList.table.printLabels")}
+            </button>
+          )}
+          <Link to={`/admin/products/${product.id}`} className="text-primary">
+            {t("admin.productsList.table.edit")}
+          </Link>
+        </div>
       </div>
     </div>
   );

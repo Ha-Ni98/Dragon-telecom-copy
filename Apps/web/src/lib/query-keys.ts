@@ -56,19 +56,21 @@ export const qk = {
     },
     productStats: () => ["catalog", "product-stats"] as const,
     // `.all()` on each of these three exists so a create/update mutation can invalidate every
-    // variant (public + admin) in one call — the two are separate cache entries (`admin` is
-    // part of the key), not a filtered view of the same query.
+    // variant (public + admin) in one call — the two really are separate cache entries, because
+    // `admin` is part of every `list(...)` key. S21 added it to `families` and `models`, which had
+    // been omitting it: the storefront's enabled-only list and Settings' includes-disabled list
+    // were colliding on one key, so whichever mounted first decided what the other saw.
     brands: {
       all: () => ["catalog", "brands"] as const,
       list: (admin = false) => ["catalog", "brands", admin] as const,
     },
     families: {
       all: () => ["catalog", "families"] as const,
-      list: (query?: unknown) => ["catalog", "families", query] as const,
+      list: (query?: unknown, admin = false) => ["catalog", "families", query, admin] as const,
     },
     models: {
       all: () => ["catalog", "models"] as const,
-      list: (query?: unknown) => ["catalog", "models", query] as const,
+      list: (query?: unknown, admin = false) => ["catalog", "models", query, admin] as const,
     },
     categories: () => ["catalog", "categories"] as const,
   },

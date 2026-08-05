@@ -1,5 +1,7 @@
 import type { UseFormRegister, FieldErrors } from "react-hook-form";
+import { Wand2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +20,10 @@ interface ProductDetailsSectionProps {
   isEditMode: boolean;
   register: UseFormRegister<ProductDetailsFormValues>;
   errors: FieldErrors<ProductDetailsFormValues>;
+  /** S19 — owned by use-edit-mode.ts (which holds the form the generated value is written into);
+   *  this component only renders the trigger, exactly like it only renders the inputs. */
+  onGenerateBarcode: () => void;
+  isGeneratingBarcode: boolean;
 }
 
 // Set-03 Sprint 5 rewire — dumb, form-bound to the page's shared detailsForm (use-edit-mode.ts)
@@ -29,6 +35,8 @@ export function ProductDetailsSection({
   isEditMode,
   register,
   errors,
+  onGenerateBarcode,
+  isGeneratingBarcode,
 }: ProductDetailsSectionProps) {
   const { t } = useTranslation();
 
@@ -53,7 +61,26 @@ export function ProductDetailsSection({
         <div className="space-y-1">
           <Label htmlFor="details-barcode">{t("admin.productsAdd.barcodeLabel")}</Label>
           {isEditMode ? (
-            <Input id="details-barcode" {...register("barcode")} />
+            <>
+              <div className="flex gap-2">
+                <Input id="details-barcode" {...register("barcode")} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onGenerateBarcode}
+                  disabled={isGeneratingBarcode}
+                >
+                  <Wand2 className="mr-1 h-4 w-4" />
+                  {t("admin.productsAdd.autoGenerateBarcode")}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("admin.productsAdd.barcodeHelper")}
+              </p>
+              {errors.barcode && (
+                <p className="text-sm text-destructive">{errors.barcode.message}</p>
+              )}
+            </>
           ) : (
             <p className="text-sm">{product.barcode ?? "—"}</p>
           )}

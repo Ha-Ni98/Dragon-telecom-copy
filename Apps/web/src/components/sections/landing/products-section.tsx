@@ -123,14 +123,13 @@ export function ProductsSection() {
         <ProductGrid
           products={products}
           isLoading={isLoading}
-          error={isError ? t("products.errorLoadingBody") : undefined}
+          isError={isError}
           onRetry={() => refetch()}
           columns={
             viewMode === "grid"
               ? { mobile: 1, tablet: 2, desktop: 4 }
               : { mobile: 1, tablet: 1, desktop: 1 }
           }
-          enablePagination={false}
           showSkeletons
           skeletonCount={8}
         />

@@ -3,9 +3,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useUpdateProduct, useUpdatePricing } from "@/hooks/useCatalogProducts";
+import { useUpdateProduct, useUpdatePricing, useGenerateBarcode } from "@/hooks/useCatalogProducts";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
-import type { AdminProductDto } from "@dragon-telecom/contract";
+import { CATALOG_ERROR, type AdminProductDto } from "@dragon-telecom/contract";
+import { apiErrorMessage } from "@/lib/query-client";
 import {
   productDetailsSchema,
   type ProductDetailsFormValues,
@@ -33,6 +34,22 @@ export function useEditMode(product: AdminProductDto | undefined) {
   const pricingForm = useForm<ProductPricingInput, unknown, ProductPricingFormValues>({
     resolver: zodResolver(productPricingSchema(t)),
   });
+  const generateBarcodeMutation = useGenerateBarcode();
+
+  // ADM-04's barcode is editable in edit mode (S19) and a generated value is only a suggestion: it
+  // lands in the form, not the database, until Save runs. Unlike ADM-03 there is no "choose a
+  // family and brand first" guard — UpdateProductCommand cannot change taxonomy (catalog spec
+  // Business Logic #6), so an existing product always has both.
+  const generateBarcode = () => {
+    if (!product) return;
+    detailsForm.clearErrors("barcode");
+    generateBarcodeMutation.mutate(
+      { familyId: product.family.id, brandId: product.brand.id },
+      {
+        onSuccess: ({ barcode }) => detailsForm.setValue("barcode", barcode, { shouldDirty: true }),
+      },
+    );
+  };
 
   const resetFromProduct = () => {
     if (!product) return;
@@ -72,22 +89,40 @@ export function useEditMode(product: AdminProductDto | undefined) {
   };
 
   // Both handleSubmit calls resolve after validation regardless of outcome, so success is tracked
-  // by a flag set inside each valid-callback. Previously setIsEditMode(false) ran unconditionally
-  // and synchronously: an invalid form silently dropped out of edit mode having saved nothing and
-  // shown nothing (S3 finding F2) — which is what made the guest-price bug look like a no-op.
+  // by a flag — but the flag is now set only after the request itself resolves (S19), not merely
+  // after validation passes. Previously the success toast fired and edit mode closed before the
+  // server answered, which left a server-side rejection (a duplicate barcode) with nowhere visible
+  // to land. Falling out of edit mode having saved nothing and shown nothing was S3 finding F2.
   const save = async () => {
     if (!product) return;
     let detailsOk = false;
     let pricingOk = false;
+    detailsForm.clearErrors("barcode");
 
     await Promise.all([
-      detailsForm.handleSubmit((values) => {
-        detailsOk = true;
-        updateProduct.mutate({ id: product.id, command: values });
+      detailsForm.handleSubmit(async (values) => {
+        try {
+          await updateProduct.mutateAsync({ id: product.id, command: values });
+          detailsOk = true;
+        } catch (err) {
+          // S19 — a duplicate barcode is a field problem: keep edit mode open and put the message
+          // under the barcode input. Every other failure is already reported by query-client.ts's
+          // generic mutationCache toast; `detailsOk` staying false is what holds edit mode open.
+          if (apiErrorMessage(err) === CATALOG_ERROR.BARCODE_TAKEN) {
+            detailsForm.setError("barcode", {
+              type: "server",
+              message: t("admin.productsAdd.barcodeTaken"),
+            });
+          }
+        }
       })(),
-      pricingForm.handleSubmit((values) => {
-        pricingOk = true;
-        updatePricing.mutate({ id: product.id, command: values });
+      pricingForm.handleSubmit(async (values) => {
+        try {
+          await updatePricing.mutateAsync({ id: product.id, command: values });
+          pricingOk = true;
+        } catch {
+          // Surfaced by the generic mutationCache toast; the flag staying false holds edit mode.
+        }
       })(),
     ]);
 
@@ -105,6 +140,8 @@ export function useEditMode(product: AdminProductDto | undefined) {
     toggle,
     save,
     cancel,
+    generateBarcode,
+    isGeneratingBarcode: generateBarcodeMutation.isPending,
     detailsForm,
     pricingForm,
   };

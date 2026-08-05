@@ -87,6 +87,14 @@ export const UpdatePricingSchema = z.object({
 });
 export type UpdatePricingCommand = z.infer<typeof UpdatePricingSchema>;
 
+// S19 — the generator needs the two names its prefix is built from; ids, not names, so the caller
+// cannot influence the prefix and the service reads the authoritative rows itself.
+export const GenerateBarcodeSchema = z.object({
+  familyId: z.uuid(),
+  brandId: z.uuid(),
+});
+export type GenerateBarcodeCommand = z.infer<typeof GenerateBarcodeSchema>;
+
 export const CreateBrandSchema = z.object({
   name: z.string(),
   logoUrl: z.string().optional(),

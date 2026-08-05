@@ -23,6 +23,8 @@ import {
   type AddProductImagesCommand,
   type UpdateProductImagesCommand,
   type ProductStatsDto,
+  type GenerateBarcodeCommand,
+  type GeneratedBarcodeDto,
   type BrandDto,
   type CreateBrandCommand,
   type UpdateBrandCommand,
@@ -214,6 +216,17 @@ export async function deleteImage(id: string, imageId: string): Promise<AdminPro
 
 export async function productStats(): Promise<ProductStatsDto> {
   const res = await api.get<ApiResponse<ProductStatsDto>>(apiPath(CATALOG_ROUTES.PRODUCT_STATS));
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+export async function generateBarcode(
+  command: GenerateBarcodeCommand,
+): Promise<GeneratedBarcodeDto> {
+  const res = await api.post<ApiResponse<GeneratedBarcodeDto>>(
+    apiPath(CATALOG_ROUTES.GENERATE_BARCODE),
+    command,
+  );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

@@ -12,3 +12,12 @@ export enum ProductSort {
   PRICE_DESC = 'price_desc',
   NAME = 'name',
 }
+
+// S21 — admin-only visibility filter for the product list. Disabled products are otherwise
+// unreachable: `/admin/products` can disable a row but never list it again. `ENABLED` is the
+// default so every existing caller keeps today's behavior.
+export enum ProductEnabledFilter {
+  ENABLED = 'enabled',
+  DISABLED = 'disabled',
+  ALL = 'all',
+}

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { StockStatus } from './catalog.enums';
+import { BARCODE_LENGTH } from './catalog.constants';
 
 export const ProductImageResponseSchema = z.object({
   id: z.uuid(),
@@ -59,14 +60,19 @@ export type StaffProductDto = z.infer<typeof StaffProductResponseSchema>;
 // already does. `images` (set-03 Sprint 5 finding) — ADM-04's images card needs these too; only
 // the public ProductWithPricingResponseSchema carried them before, even though the backend's
 // PRODUCT_INCLUDE already fetches this relation for every admin query.
+// S21 — `family.isEnabled`/`brand.isEnabled`: re-enabling a product whose family or brand is still
+// disabled is allowed (owner decision Q5 — a disabled family does NOT hide its products, since the
+// storefront query filters on the product only), but the admin is warned that the parent will not
+// appear in the storefront's filter dropdowns. Carrying the flags here keeps that warning correct
+// wherever an AdminProductDto is rendered.
 export const AdminProductResponseSchema = z.object({
   id: z.uuid(),
   sku: z.string(),
   barcode: z.string().optional(),
   name: z.string(),
   description: z.string().optional(),
-  family: z.object({ id: z.uuid(), name: z.string() }),
-  brand: z.object({ id: z.uuid(), name: z.string() }),
+  family: z.object({ id: z.uuid(), name: z.string(), isEnabled: z.boolean() }),
+  brand: z.object({ id: z.uuid(), name: z.string(), isEnabled: z.boolean() }),
   model: z.object({ id: z.uuid(), name: z.string() }).optional(),
   guestPrice: z.number().optional(),
   defaultSalePrice: z.number().optional(),
@@ -138,3 +144,10 @@ export const ProductStatsResponseSchema = z.object({
   outOfStock: z.number().int().min(0),
 });
 export type ProductStatsDto = z.infer<typeof ProductStatsResponseSchema>;
+
+// S19 — a suggestion, not a reservation: nothing is written when this is returned, and the admin
+// may overwrite or clear it before saving. `Product.barcode @unique` stays the real guard.
+export const GeneratedBarcodeResponseSchema = z.object({
+  barcode: z.string().length(BARCODE_LENGTH),
+});
+export type GeneratedBarcodeDto = z.infer<typeof GeneratedBarcodeResponseSchema>;

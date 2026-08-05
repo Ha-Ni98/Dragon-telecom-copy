@@ -126,8 +126,8 @@ export class CatalogMapper {
       ...(product.barcode != null ? { barcode: product.barcode } : {}),
       name: product.name,
       ...(product.description != null ? { description: product.description } : {}),
-      family: { id: product.family.id, name: product.family.name },
-      brand: { id: product.brand.id, name: product.brand.name },
+      family: { id: product.family.id, name: product.family.name, isEnabled: product.family.isEnabled },
+      brand: { id: product.brand.id, name: product.brand.name, isEnabled: product.brand.isEnabled },
       ...(product.deviceModel != null ? { model: { id: product.deviceModel.id, name: product.deviceModel.name } } : {}),
       ...(product.guestPrice != null ? { guestPrice: CatalogMapper.toMoney(product.guestPrice) } : {}),
       ...(product.defaultSalePrice != null

@@ -3,7 +3,13 @@ import type { ClientCategory, PrismaClient, Product } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import {
   AdminProductResponseSchema,
+  BARCODE_DIGITS,
+  BARCODE_GENERATION_MAX_ATTEMPTS,
+  BARCODE_PREFIX_CHARS,
+  BARCODE_PREFIX_PAD_CHAR,
+  CATALOG_ERROR,
   MovementType,
+  ProductEnabledFilter,
   ProductSort,
   ProductWithPricingResponseSchema,
   StaffProductResponseSchema,
@@ -22,6 +28,8 @@ import {
   type DeviceModelDto,
   type FamiliesQuery,
   type FamilyDto,
+  type GenerateBarcodeCommand,
+  type GeneratedBarcodeDto,
   type ModelsQuery,
   type PaginatedResult,
   type ProductDetailDto,
@@ -64,6 +72,27 @@ const PRODUCT_INCLUDE = {
 
 function generateSku(): string {
   return `SKU-${randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`;
+}
+
+// S19 — the two-character half of a generated barcode prefix (owner decision Q1). NFD splits an
+// accented letter into base + combining mark, the mark class is dropped, and everything that is
+// not A-Z or 0-9 goes with it: "Écrans" -> EC, "3M" -> 3M, "K" -> KX, "شاشة" -> XX. Right-padding
+// guarantees a fixed width, so the total barcode length is constant and BARCODE_LENGTH holds.
+function barcodePrefix(name: string): string {
+  const normalized = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip the combining marks NFD just split off
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+  return normalized.slice(0, BARCODE_PREFIX_CHARS).padEnd(BARCODE_PREFIX_CHARS, BARCODE_PREFIX_PAD_CHAR);
+}
+
+// Zero-padded to exactly BARCODE_DIGITS characters — "42" must render as "00042", or two barcodes
+// of different lengths could share a prefix and read ambiguously off a scanner.
+function randomBarcodeDigits(): string {
+  return Math.floor(Math.random() * 10 ** BARCODE_DIGITS)
+    .toString()
+    .padStart(BARCODE_DIGITS, '0');
 }
 
 // No slug column is client-supplied anywhere in the contract — generated here from `name`.
@@ -496,7 +525,10 @@ export class CatalogProductService implements ICatalogProductService {
   // filtering — staff serve any client), so the 4 sale prices come from a plain join, not the
   // storefront resolver.
   async listStaffProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<StaffProductDto>> {
-    const where = this.staffAdminWhere(query, { isEnabled: true });
+    // Staff never see disabled products, whatever the client sends — the enabledStatus filter is
+    // an admin affordance (S21). This used to pass `{ isEnabled: true }` as `extra`, which the old
+    // hardcoded flag overrode anyway.
+    const where = this.staffAdminWhere(query, ProductEnabledFilter.ENABLED);
 
     const [total, products] = await this.prisma.$transaction([
       this.prisma.product.count({ where }),
@@ -529,7 +561,7 @@ export class CatalogProductService implements ICatalogProductService {
   }
 
   async listAdminProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<AdminProductDto>> {
-    const where = this.staffAdminWhere(query);
+    const where = this.staffAdminWhere(query, query.enabledStatus ?? ProductEnabledFilter.ENABLED);
 
     const [total, products] = await this.prisma.$transaction([
       this.prisma.product.count({ where }),
@@ -579,7 +611,9 @@ export class CatalogProductService implements ICatalogProductService {
         const product = await tx.product.create({
           data: {
             sku: generateSku(),
-            ...(cmd.barcode != null && cmd.barcode.trim() !== '' ? { barcode: cmd.barcode } : {}),
+            ...(cmd.barcode != null && cmd.barcode.trim() !== ''
+              ? { barcode: cmd.barcode.trim() }
+              : {}),
             name: cmd.name,
             ...(cmd.description != null ? { description: cmd.description } : {}),
             familyId,
@@ -643,7 +677,7 @@ export class CatalogProductService implements ICatalogProductService {
       eventBus.emit('product.created', { productId, name: cmd.name });
       return this.getAdminProduct(productId);
     } catch (err) {
-      if (isKnownRequestError(err, 'P2002')) throw new ConflictError('Barcode already in use');
+      if (isKnownRequestError(err, 'P2002')) throw new ConflictError(CATALOG_ERROR.BARCODE_TAKEN);
       throw err;
     }
   }
@@ -655,7 +689,12 @@ export class CatalogProductService implements ICatalogProductService {
       await this.prisma.product.update({
         where: { id },
         data: {
-          ...(cmd.barcode != null ? { barcode: cmd.barcode } : {}),
+          // S19 — the field is freely editable and may be *cleared*; an empty string would be
+          // stored and then collide with the next cleared product under `barcode @unique`, so
+          // blank maps to NULL. Trimmed for the same reason a scanned value must match exactly.
+          ...(cmd.barcode != null
+            ? { barcode: cmd.barcode.trim() === '' ? null : cmd.barcode.trim() }
+            : {}),
           ...(cmd.name != null ? { name: cmd.name } : {}),
           ...(cmd.description != null ? { description: cmd.description } : {}),
           ...(cmd.reorderThreshold != null ? { reorderThreshold: cmd.reorderThreshold } : {}),
@@ -665,7 +704,7 @@ export class CatalogProductService implements ICatalogProductService {
       });
     } catch (err) {
       if (isKnownRequestError(err, 'P2025')) throw new NotFoundError('Product');
-      if (isKnownRequestError(err, 'P2002')) throw new ConflictError('Barcode already in use');
+      if (isKnownRequestError(err, 'P2002')) throw new ConflictError(CATALOG_ERROR.BARCODE_TAKEN);
       throw err;
     }
     return this.getAdminProduct(id);
@@ -832,6 +871,35 @@ export class CatalogProductService implements ICatalogProductService {
     return CatalogMapper.toProductStatsDto(counts);
   }
 
+  // S19 — a read-only probe: no row is written, so no transaction and no lock. Two admins
+  // generating at the same instant can still be handed the same candidate; that is deliberate and
+  // harmless, because `Product.barcode @unique` is the real guard and createProduct/updateProduct
+  // already translate its P2002 into a CATALOG_ERROR.BARCODE_TAKEN conflict the forms put on the
+  // barcode field. The returned value is a suggestion the admin may overwrite or clear.
+  async generateBarcode(cmd: GenerateBarcodeCommand): Promise<GeneratedBarcodeDto> {
+    const [family, brand] = await Promise.all([
+      this.prisma.family.findUnique({ where: { id: cmd.familyId }, select: { name: true } }),
+      this.prisma.brand.findUnique({ where: { id: cmd.brandId }, select: { name: true } }),
+    ]);
+    if (!family) throw new NotFoundError('Family');
+    if (!brand) throw new NotFoundError('Brand');
+
+    const prefix = `${barcodePrefix(family.name)}${barcodePrefix(brand.name)}`;
+
+    // Only the digits are regenerated on collision (the prefix is derived, not random), bounded by
+    // BARCODE_GENERATION_MAX_ATTEMPTS so the loop always terminates (owner decision Q2).
+    for (let attempt = 0; attempt < BARCODE_GENERATION_MAX_ATTEMPTS; attempt += 1) {
+      const candidate = `${prefix}${randomBarcodeDigits()}`;
+      const taken = await this.prisma.product.findUnique({
+        where: { barcode: candidate },
+        select: { id: true },
+      });
+      if (!taken) return { barcode: candidate };
+    }
+
+    throw new ConflictError(CATALOG_ERROR.BARCODE_GENERATION_EXHAUSTED);
+  }
+
   // Read port for clients' cart hydration (plan §C-3, §I.5) — an id-set counterpart to
   // listProducts' pagination-shaped query, reusing the exact same viewer-pricing resolution
   // (no separate price-matrix logic to keep in sync). No isEnabled/isPublished filter: a
@@ -964,8 +1032,26 @@ export class CatalogProductService implements ICatalogProductService {
     });
   }
 
-  private staffAdminWhere(query: ProductListQuery, extra: Prisma.ProductWhereInput = {}): Prisma.ProductWhereInput {
-    
+  // S21 — translates the admin visibility filter into a Prisma predicate. `ALL` contributes no
+  // clause at all, which is what lets the Settings tab and the main products list share one query
+  // path (owner decision Q3).
+  private enabledWhere(filter: ProductEnabledFilter): Prisma.ProductWhereInput {
+    switch (filter) {
+      case ProductEnabledFilter.ALL:
+        return {};
+      case ProductEnabledFilter.DISABLED:
+        return { isEnabled: false };
+      case ProductEnabledFilter.ENABLED:
+      default:
+        return { isEnabled: true };
+    }
+  }
+
+  private staffAdminWhere(
+    query: ProductListQuery,
+    enabledFilter: ProductEnabledFilter,
+  ): Prisma.ProductWhereInput {
+
     const tokens = query.search
                         ?.trim()
                         .split(/\s+/)
@@ -992,8 +1078,10 @@ export class CatalogProductService implements ICatalogProductService {
                         }
                       : undefined;  
     return {
-      ...extra,
-      isEnabled: true,
+      // S21 — the enabled predicate is now the caller's decision, not a constant. It used to be a
+      // hardcoded `isEnabled: true` placed *after* the spread of an `extra` argument, which made
+      // that argument dead and made disabled products permanently unlistable.
+      ...this.enabledWhere(enabledFilter),
       // Name is a case-insensitive substring match; barcode is a prefix match so it can use the
       // `Product.barcode @unique` btree index (S1 finding F1 — a `contains` predicate could not).
       // A scanner emits a whole barcode, so `startsWith` also covers the exact-scan case.
