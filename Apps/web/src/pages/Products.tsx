@@ -6,9 +6,9 @@ import { useCatalogFamilies, useCatalogBrands, useCatalogModels } from "@/hooks/
 import { useSendClientActivity } from "@/hooks/useObservability";
 import { useSession } from "@/hooks/useSession";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { ProductFilters } from "@/components/shared/ProductFilters";
+import { ProductFilters } from "@/pages/products/components/ProductFilters";
+import { ProductListHeader } from "@/pages/products/components/ProductListHeader";
 import { ProductGrid } from "@/components/shared/ProductGrid";
-import { ProductListHeader } from "@/components/shared/ProductListHeader";
 import { SimplePagination } from "@/components/shared/SimplePagination";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import {
@@ -16,11 +16,14 @@ import {
   ClientActivityType,
   UserType,
   type ProductListQuery,
+  type ProductSort,
 } from "@dragon-telecom/contract";
 
 /**
  * Products (Catalog) page — PUB-02. The URL is the single source of truth for every filter;
  * this page never mirrors it into local state (beyond the debounced search input buffer).
+ * S20: filter components own their own "no selection" sentinel, so every handler here passes
+ * `undefined` straight through to the URL writer — the page never compares against "all".
  */
 export default function Products() {
   const { t } = useTranslation();
@@ -59,35 +62,43 @@ export default function Products() {
   // settles, so the grid doesn't refetch on every keystroke.
   const [searchInput, setSearchInput] = useState(filters.search ?? "");
   const debouncedSearch = useDebouncedValue(searchInput, 300);
+  // Records what this page last pushed into the URL, so the re-sync effect below can tell its own
+  // echo apart from a genuinely external URL change.
+  const lastWrittenSearch = useRef<string | null>(null);
   useEffect(() => {
     if (debouncedSearch !== (filters.search ?? "")) {
+      lastWrittenSearch.current = debouncedSearch;
       updateParams({ search: debouncedSearch || undefined, page: undefined });
     }
     // Only the settled debounced value should trigger a URL write.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
-  // Re-sync the local buffer when the URL changes from elsewhere (back/forward navigation).
+  // Re-sync the local buffer when the URL changes from elsewhere (back/forward navigation, a
+  // cleared filter). The echo of our *own* write is skipped: the debounced value lands in the URL
+  // a render after it settles, and adopting it unconditionally would revert any character typed in
+  // between — the input would silently drop keystrokes instead of losing focus.
   useEffect(() => {
-    setSearchInput(filters.search ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const urlSearch = filters.search ?? "";
+    if (urlSearch === lastWrittenSearch.current) {
+      lastWrittenSearch.current = null;
+      return;
+    }
+    setSearchInput(urlSearch);
   }, [filters.search]);
 
   const {
     data: productsResult,
     isLoading: productsLoading,
     isError: productsIsError,
-    error: productsError,
     refetch: refetchProducts,
   } = useCatalogProducts(filters);
   const { data: familiesData } = useCatalogFamilies();
   const { data: brandsData } = useCatalogBrands();
-  const { data: modelsData } = useCatalogModels(
-    { brandId: filters.brandId },
-    false,
-    { enabled: !!filters.brandId },
-  );
+  const { data: modelsData } = useCatalogModels({ brandId: filters.brandId }, false, {
+    enabled: !!filters.brandId,
+  });
 
-  const products = productsResult?.items ?? [];
+  const products = useMemo(() => productsResult?.items ?? [], [productsResult]);
   const families = familiesData ?? [];
   const brands = brandsData ?? [];
   const models = modelsData ?? [];
@@ -114,29 +125,19 @@ export default function Products() {
   }, []);
 
   // Event handlers — every filter writes the URL directly (PUB-02).
-  const handleSearchChange = useCallback((query: string) => {
-    setSearchInput(query);
-  }, []);
-
-  const handleBrandChange = useCallback(
-    (brandId: string) => {
-      // Brand change resets model (PUB-02).
-      updateParams({ brandId: brandId === "all" ? undefined : brandId, modelId: undefined, page: undefined });
-    },
+  const handleFamilyChange = useCallback(
+    (familyId: string | undefined) => updateParams({ familyId, page: undefined }),
     [updateParams],
   );
 
-  const handleCategoryChange = useCallback(
-    (familyId: string) => {
-      updateParams({ familyId: familyId === "all" ? undefined : familyId, page: undefined });
-    },
+  const handleBrandChange = useCallback(
+    // Brand change resets model (PUB-02).
+    (brandId: string | undefined) => updateParams({ brandId, modelId: undefined, page: undefined }),
     [updateParams],
   );
 
   const handleModelChange = useCallback(
-    (modelId: string) => {
-      updateParams({ modelId: modelId === "all" ? undefined : modelId, page: undefined });
-    },
+    (modelId: string | undefined) => updateParams({ modelId, page: undefined }),
     [updateParams],
   );
 
@@ -148,9 +149,7 @@ export default function Products() {
   );
 
   const handleSortChange = useCallback(
-    (sort: string) => {
-      updateParams({ sort: sort === "default" ? undefined : sort, page: undefined });
-    },
+    (sort: ProductSort | undefined) => updateParams({ sort, page: undefined }),
     [updateParams],
   );
 
@@ -161,7 +160,7 @@ export default function Products() {
 
   const handlePageChange = useCallback(
     (page: number) => {
-      updateParams({ page: page === 1 ? undefined : String(page) });
+      updateParams({ page: page <= 1 ? undefined : String(page) });
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
     [updateParams],
@@ -176,12 +175,10 @@ export default function Products() {
           <ErrorBoundary>
             {/* Page Header */}
             <ProductListHeader
-              title={t('products.page.title')}
-              description={t('products.page.description')}
-              totalProducts={meta?.total ?? 0}
-              filteredCount={meta?.total ?? 0}
+              title={t("products.page.title")}
+              description={t("products.page.description")}
+              count={meta?.total ?? 0}
               isLoading={productsLoading}
-              showStats={true}
             />
           </ErrorBoundary>
 
@@ -189,23 +186,22 @@ export default function Products() {
             {/* Filters */}
             <div className="mb-8">
               <ProductFilters
-                searchQuery={searchInput}
-                onSearchChange={handleSearchChange}
-                selectedBrand={filters.brandId ?? "all"}
+                search={searchInput}
+                onSearchChange={setSearchInput}
+                families={families}
+                familyId={filters.familyId}
+                onFamilyChange={handleFamilyChange}
+                brands={brands}
+                brandId={filters.brandId}
                 onBrandChange={handleBrandChange}
-                selectedCategory={filters.familyId ?? "all"}
-                onCategoryChange={handleCategoryChange}
-                selectedModel={filters.modelId ?? "all"}
+                models={models}
+                modelId={filters.modelId}
                 onModelChange={handleModelChange}
                 inStock={filters.inStock ?? false}
                 onInStockChange={handleInStockChange}
-                sort={filters.sort ?? "default"}
+                sort={filters.sort}
                 onSortChange={handleSortChange}
-                brands={brands}
-                categories={families}
-                models={models}
                 isLoading={productsLoading}
-                showClearFilters={true}
                 onClearFilters={handleClearFilters}
               />
             </div>
@@ -216,21 +212,19 @@ export default function Products() {
             <ProductGrid
               products={products}
               isLoading={productsLoading}
-              error={productsIsError ? (productsError?.message ?? undefined) : undefined}
+              isError={productsIsError}
               onRetry={() => refetchProducts()}
               onClearFilters={handleClearFilters}
               columns={{
                 mobile: 1,
                 tablet: 2,
-                desktop: 4
+                desktop: 4,
               }}
               showSkeletons={true}
               skeletonCount={15}
-              enablePagination={false}
             />
 
-            {/* Server-side pagination — the grid's own internal pagination is disabled above
-                since useCatalogProducts already returns one page at a time. */}
+            {/* Server-side pagination — useCatalogProducts already returns one page at a time. */}
             {meta && meta.totalPages > 1 && (
               <div className="flex justify-center mt-8">
                 <SimplePagination

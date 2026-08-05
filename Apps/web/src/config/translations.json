@@ -6779,11 +6779,6 @@
     "fr": "Produit introuvable",
     "ar": ""
   },
-  "products.results.count": {
-    "en": "Showing {count} of {total} products",
-    "fr": "Affichage de {count} sur {total} produits",
-    "ar": ""
-  },
   "products.results.none": {
     "en": "No products found matching your criteria",
     "fr": "Aucun produit trouvé correspondant à vos critères",
@@ -6792,21 +6787,6 @@
   "products.results.available": {
     "en": "{count} products available",
     "fr": "{count} produits disponibles",
-    "ar": ""
-  },
-  "products.stats.filteredOf": {
-    "en": "{count} of {total}",
-    "fr": "{count} sur {total}",
-    "ar": ""
-  },
-  "products.stats.featured": {
-    "en": "{count} Featured",
-    "fr": "{count} en vedette",
-    "ar": ""
-  },
-  "products.stats.avgRating": {
-    "en": "Avg Rating",
-    "fr": "Note moyenne",
     "ar": ""
   },
   "products.reviews": {
@@ -7224,11 +7204,6 @@
     "fr": "Sélectionner une catégorie",
     "ar": ""
   },
-  "public.products.showingCount": {
-    "en": "Showing {shown} of {total} products",
-    "fr": "Affichage de {shown} sur {total} produits",
-    "ar": ""
-  },
   "public.products.noProductsFound": {
     "en": "No products found matching your criteria.",
     "fr": "Aucun produit ne correspond à vos critères.",
@@ -7407,16 +7382,6 @@
   "products.filters.removeModel": {
     "en": "Remove model filter",
     "fr": "Supprimer le filtre de modèle",
-    "ar": ""
-  },
-  "products.filters.applied": {
-    "en": "Filters applied",
-    "fr": "Filtres appliqués",
-    "ar": ""
-  },
-  "products.filters.clearToSeeAll": {
-    "en": "Clear filters to see all products.",
-    "fr": "Effacez les filtres pour voir tous les produits.",
     "ar": ""
   },
   "products.filters.inStock": {
