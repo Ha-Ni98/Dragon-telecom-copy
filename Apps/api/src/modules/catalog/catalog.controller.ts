@@ -12,6 +12,7 @@ import type {
   CreateProductCommand,
   FamiliesQuery,
   FamilyIdParams,
+  GenerateBarcodeCommand,
   ModelIdParams,
   ModelsQuery,
   ProductIdParams,
@@ -181,6 +182,14 @@ export class CatalogController {
   productStats = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       sendSuccess(res, await this.products.productStats());
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  generateBarcode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.products.generateBarcode(req.validated.body as GenerateBarcodeCommand));
     } catch (error) {
       next(error);
     }

@@ -1,13 +1,24 @@
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "sonner";
-import type { ApiResponse } from "@dragon-telecom/contract";
+import { CATALOG_ERROR, type ApiResponse } from "@dragon-telecom/contract";
 import { translate, getLanguage } from "@/lib/i18n";
+
+// Business-rule sentinels travel as the error *message* (see apiErrorMessage below). When one
+// reaches this generic toast it must not surface as a raw SCREAMING_SNAKE token — map the ones
+// this app raises to a translated sentence. Anything unmapped falls through unchanged.
+const SENTINEL_TRANSLATION_KEYS: Record<string, string> = {
+  [CATALOG_ERROR.BARCODE_TAKEN]: "common.errors.sentinel.barcodeTaken",
+  [CATALOG_ERROR.BARCODE_GENERATION_EXHAUSTED]: "common.errors.sentinel.barcodeGenerationExhausted",
+};
 
 export const message = (err: unknown): string => {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as ApiResponse<unknown> | undefined;
-    if (data && !data.success) return data.error.message;
+    if (data && !data.success) {
+      const key = SENTINEL_TRANSLATION_KEYS[data.error.message];
+      return key ? translate(key, getLanguage()) : data.error.message;
+    }
   }
   return translate("common.errors.crashTitle", getLanguage());
 };

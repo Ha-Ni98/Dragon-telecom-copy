@@ -3,6 +3,11 @@ import type { ClientCategory, PrismaClient, Product } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import {
   AdminProductResponseSchema,
+  BARCODE_DIGITS,
+  BARCODE_GENERATION_MAX_ATTEMPTS,
+  BARCODE_PREFIX_CHARS,
+  BARCODE_PREFIX_PAD_CHAR,
+  CATALOG_ERROR,
   MovementType,
   ProductSort,
   ProductWithPricingResponseSchema,
@@ -22,6 +27,8 @@ import {
   type DeviceModelDto,
   type FamiliesQuery,
   type FamilyDto,
+  type GenerateBarcodeCommand,
+  type GeneratedBarcodeDto,
   type ModelsQuery,
   type PaginatedResult,
   type ProductDetailDto,
@@ -64,6 +71,27 @@ const PRODUCT_INCLUDE = {
 
 function generateSku(): string {
   return `SKU-${randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`;
+}
+
+// S19 — the two-character half of a generated barcode prefix (owner decision Q1). NFD splits an
+// accented letter into base + combining mark, the mark class is dropped, and everything that is
+// not A-Z or 0-9 goes with it: "Écrans" -> EC, "3M" -> 3M, "K" -> KX, "شاشة" -> XX. Right-padding
+// guarantees a fixed width, so the total barcode length is constant and BARCODE_LENGTH holds.
+function barcodePrefix(name: string): string {
+  const normalized = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip the combining marks NFD just split off
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+  return normalized.slice(0, BARCODE_PREFIX_CHARS).padEnd(BARCODE_PREFIX_CHARS, BARCODE_PREFIX_PAD_CHAR);
+}
+
+// Zero-padded to exactly BARCODE_DIGITS characters — "42" must render as "00042", or two barcodes
+// of different lengths could share a prefix and read ambiguously off a scanner.
+function randomBarcodeDigits(): string {
+  return Math.floor(Math.random() * 10 ** BARCODE_DIGITS)
+    .toString()
+    .padStart(BARCODE_DIGITS, '0');
 }
 
 // No slug column is client-supplied anywhere in the contract — generated here from `name`.
@@ -579,7 +607,9 @@ export class CatalogProductService implements ICatalogProductService {
         const product = await tx.product.create({
           data: {
             sku: generateSku(),
-            ...(cmd.barcode != null && cmd.barcode.trim() !== '' ? { barcode: cmd.barcode } : {}),
+            ...(cmd.barcode != null && cmd.barcode.trim() !== ''
+              ? { barcode: cmd.barcode.trim() }
+              : {}),
             name: cmd.name,
             ...(cmd.description != null ? { description: cmd.description } : {}),
             familyId,
@@ -643,7 +673,7 @@ export class CatalogProductService implements ICatalogProductService {
       eventBus.emit('product.created', { productId, name: cmd.name });
       return this.getAdminProduct(productId);
     } catch (err) {
-      if (isKnownRequestError(err, 'P2002')) throw new ConflictError('Barcode already in use');
+      if (isKnownRequestError(err, 'P2002')) throw new ConflictError(CATALOG_ERROR.BARCODE_TAKEN);
       throw err;
     }
   }
@@ -655,7 +685,12 @@ export class CatalogProductService implements ICatalogProductService {
       await this.prisma.product.update({
         where: { id },
         data: {
-          ...(cmd.barcode != null ? { barcode: cmd.barcode } : {}),
+          // S19 — the field is freely editable and may be *cleared*; an empty string would be
+          // stored and then collide with the next cleared product under `barcode @unique`, so
+          // blank maps to NULL. Trimmed for the same reason a scanned value must match exactly.
+          ...(cmd.barcode != null
+            ? { barcode: cmd.barcode.trim() === '' ? null : cmd.barcode.trim() }
+            : {}),
           ...(cmd.name != null ? { name: cmd.name } : {}),
           ...(cmd.description != null ? { description: cmd.description } : {}),
           ...(cmd.reorderThreshold != null ? { reorderThreshold: cmd.reorderThreshold } : {}),
@@ -665,7 +700,7 @@ export class CatalogProductService implements ICatalogProductService {
       });
     } catch (err) {
       if (isKnownRequestError(err, 'P2025')) throw new NotFoundError('Product');
-      if (isKnownRequestError(err, 'P2002')) throw new ConflictError('Barcode already in use');
+      if (isKnownRequestError(err, 'P2002')) throw new ConflictError(CATALOG_ERROR.BARCODE_TAKEN);
       throw err;
     }
     return this.getAdminProduct(id);
@@ -830,6 +865,35 @@ export class CatalogProductService implements ICatalogProductService {
     );
 
     return CatalogMapper.toProductStatsDto(counts);
+  }
+
+  // S19 — a read-only probe: no row is written, so no transaction and no lock. Two admins
+  // generating at the same instant can still be handed the same candidate; that is deliberate and
+  // harmless, because `Product.barcode @unique` is the real guard and createProduct/updateProduct
+  // already translate its P2002 into a CATALOG_ERROR.BARCODE_TAKEN conflict the forms put on the
+  // barcode field. The returned value is a suggestion the admin may overwrite or clear.
+  async generateBarcode(cmd: GenerateBarcodeCommand): Promise<GeneratedBarcodeDto> {
+    const [family, brand] = await Promise.all([
+      this.prisma.family.findUnique({ where: { id: cmd.familyId }, select: { name: true } }),
+      this.prisma.brand.findUnique({ where: { id: cmd.brandId }, select: { name: true } }),
+    ]);
+    if (!family) throw new NotFoundError('Family');
+    if (!brand) throw new NotFoundError('Brand');
+
+    const prefix = `${barcodePrefix(family.name)}${barcodePrefix(brand.name)}`;
+
+    // Only the digits are regenerated on collision (the prefix is derived, not random), bounded by
+    // BARCODE_GENERATION_MAX_ATTEMPTS so the loop always terminates (owner decision Q2).
+    for (let attempt = 0; attempt < BARCODE_GENERATION_MAX_ATTEMPTS; attempt += 1) {
+      const candidate = `${prefix}${randomBarcodeDigits()}`;
+      const taken = await this.prisma.product.findUnique({
+        where: { barcode: candidate },
+        select: { id: true },
+      });
+      if (!taken) return { barcode: candidate };
+    }
+
+    throw new ConflictError(CATALOG_ERROR.BARCODE_GENERATION_EXHAUSTED);
   }
 
   // Read port for clients' cart hydration (plan §C-3, §I.5) — an id-set counterpart to

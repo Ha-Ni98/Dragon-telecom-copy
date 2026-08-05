@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { StockStatus } from './catalog.enums';
+import { BARCODE_LENGTH } from './catalog.constants';
 
 export const ProductImageResponseSchema = z.object({
   id: z.uuid(),
@@ -138,3 +139,10 @@ export const ProductStatsResponseSchema = z.object({
   outOfStock: z.number().int().min(0),
 });
 export type ProductStatsDto = z.infer<typeof ProductStatsResponseSchema>;
+
+// S19 — a suggestion, not a reservation: nothing is written when this is returned, and the admin
+// may overwrite or clear it before saving. `Product.barcode @unique` stays the real guard.
+export const GeneratedBarcodeResponseSchema = z.object({
+  barcode: z.string().length(BARCODE_LENGTH),
+});
+export type GeneratedBarcodeDto = z.infer<typeof GeneratedBarcodeResponseSchema>;

@@ -12009,6 +12009,46 @@
     "fr": "Modifier",
     "ar": ""
   },
+  "admin.productsList.table.actions": {
+    "en": "Actions",
+    "fr": "Actions",
+    "ar": ""
+  },
+  "admin.productsList.table.printLabels": {
+    "en": "Print labels",
+    "fr": "Imprimer les étiquettes",
+    "ar": ""
+  },
+  "admin.productsList.table.printLabelsNoBarcode": {
+    "en": "This product has no barcode yet",
+    "fr": "Ce produit n'a pas encore de code-barres",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.title": {
+    "en": "Print barcode labels",
+    "fr": "Imprimer les étiquettes de code-barres",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.preview": {
+    "en": "Preview",
+    "fr": "Aperçu",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.quantityLabel": {
+    "en": "Number of labels",
+    "fr": "Nombre d'étiquettes",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.quantityHelper": {
+    "en": "Defaults to the quantity on hand. Maximum {max}.",
+    "fr": "Par défaut, la quantité en stock. Maximum {max}.",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.print": {
+    "en": "Print",
+    "fr": "Imprimer",
+    "ar": ""
+  },
   "admin.productsList.table.empty": {
     "en": "No products match these filters",
     "fr": "Aucun produit ne correspond à ces filtres",
@@ -12062,6 +12102,21 @@
   "admin.productsAdd.autoGenerateBarcode": {
     "en": "Auto-generate",
     "fr": "Générer automatiquement",
+    "ar": ""
+  },
+  "admin.productsAdd.barcodeHelper": {
+    "en": "Optional — generate one or type your own",
+    "fr": "Facultatif — générez-en un ou saisissez le vôtre",
+    "ar": ""
+  },
+  "admin.productsAdd.barcodeNeedsFamilyBrand": {
+    "en": "Select a family and a brand first",
+    "fr": "Sélectionnez d'abord une famille et une marque",
+    "ar": ""
+  },
+  "admin.productsAdd.barcodeTaken": {
+    "en": "This barcode is already used by another product",
+    "fr": "Ce code-barres est déjà utilisé par un autre produit",
     "ar": ""
   },
   "admin.productsAdd.nameLabel": {
@@ -12347,6 +12402,16 @@
   "common.errors.pricingRequiresStock": {
     "en": "Pricing requires initial stock",
     "fr": "La tarification nécessite un stock initial",
+    "ar": ""
+  },
+  "common.errors.sentinel.barcodeTaken": {
+    "en": "This barcode is already used by another product",
+    "fr": "Ce code-barres est déjà utilisé par un autre produit",
+    "ar": ""
+  },
+  "common.errors.sentinel.barcodeGenerationExhausted": {
+    "en": "Couldn't generate a unique barcode — enter one manually",
+    "fr": "Impossible de générer un code-barres unique — saisissez-en un manuellement",
     "ar": ""
   },
   "admin.nav.pos": {
