@@ -36,6 +36,6 @@ Stop and ask the owner when an issue would change the meaning of an existing mon
 One file per set: `Docs/Stage-04-Fixes/plans/plan-S<NN-<slug.md`.
 
 ## Execution protocol (state this at the end of every plan)
-Sets execute **one at a time**. After finishing a set the executing agent writes `Docs/Stage-04-Fixes/results/report-S<NN.md` describing what changed, ending with the **verification checklist**. The owner reviews and approves before the next set begins.
+all your decision are confirmed, now start Set execute. After finishing a set the executing agent writes `Docs/Stage-04-Fixes/results/report-S<NN.md` describing what changed, ending with the **verification checklist**. I reviews and approves before the next set begins.
 
 ---
