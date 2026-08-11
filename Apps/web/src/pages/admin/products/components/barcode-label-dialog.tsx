@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { Printer } from "lucide-react";
 import { BARCODE_LABEL_MAX_QUANTITY, type AdminProductDto } from "@dragon-telecom/contract";
 import {
@@ -13,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/hooks/useTranslation";
+import { usePrintBarcodeLabels } from "@/hooks/useCatalogProducts";
+import { downloadBlob } from "@/lib/utils";
 import { BarcodeLabel } from "@/pages/admin/products/components/barcode-label";
 
 interface BarcodeLabelDialogProps {
@@ -28,14 +29,15 @@ interface BarcodeLabelDialogProps {
 const clampQuantity = (raw: number): number =>
   Number.isFinite(raw) ? Math.min(Math.max(Math.trunc(raw), 1), BARCODE_LABEL_MAX_QUANTITY) : 1;
 
-// S19 — the print sheet is portalled to <body> as #barcode-print-root and is display:none on
-// screen; the `@media print` rule in index.css hides every *other* direct child of <body> (the app
-// root, and Radix's dialog portals, which are body children too) and shows only the sheet. That is
-// why the sheet lives outside <DialogContent>: nested inside it, the dialog's own fixed positioning
-// and max-height would clip the page at one screenful of labels.
+// S22 — the sheet is a server-side PDF now (POST /admin/products/barcode-labels, PDFKit + bwip-js),
+// not a hidden print portal: both this dialog and the supplier-invoice one post to the same
+// endpoint, so the two entry points cannot produce different labels. The on-screen <BarcodeLabel>
+// below is a preview only — it renders through jsbarcode in the browser and never reaches the PDF.
+// Confirming downloads the file, matching every other PDF in the app (InvoiceDetail.tsx).
 export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabelDialogProps) {
   const { t } = useTranslation();
   const [quantity, setQuantity] = useState(1);
+  const printLabels = usePrintBarcodeLabels();
 
   // Re-seed from the product's on-hand stock each time the dialog opens — one label per unit in
   // stock is the common case. A product with zero stock still gets a printable single label rather
@@ -49,65 +51,66 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
   if (!product?.barcode) return null;
   const barcode = product.barcode;
 
+  const handlePrint = () => {
+    if (!product) return;
+    printLabels.mutate(
+      { items: [{ productId: product.id, quantity }] },
+      {
+        onSuccess: (blob) => {
+          downloadBlob(`labels-${barcode}.pdf`, blob);
+          onOpenChange(false);
+        },
+      },
+    );
+  };
+
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("admin.productsList.printLabels.title")}</DialogTitle>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("admin.productsList.printLabels.title")}</DialogTitle>
+        </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <Label>{t("admin.productsList.printLabels.preview")}</Label>
-              <div className="flex justify-center">
-                <BarcodeLabel value={barcode} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="label-quantity">
-                {t("admin.productsList.printLabels.quantityLabel")}
-              </Label>
-              <Input
-                id="label-quantity"
-                type="number"
-                min={1}
-                max={BARCODE_LABEL_MAX_QUANTITY}
-                value={quantity}
-                onChange={(event) => setQuantity(clampQuantity(Number(event.target.value)))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("admin.productsList.printLabels.quantityHelper", {
-                  max: BARCODE_LABEL_MAX_QUANTITY,
-                })}
-              </p>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label>{t("admin.productsList.printLabels.preview")}</Label>
+            <div className="flex justify-center">
+              <BarcodeLabel value={barcode} />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              {t("common.actions.cancel")}
-            </Button>
-            <Button onClick={() => window.print()}>
-              <Printer className="mr-2 h-4 w-4" />
-              {t("admin.productsList.printLabels.print")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="space-y-1">
+            <Label htmlFor="label-quantity">
+              {t("admin.productsList.printLabels.quantityLabel")}
+            </Label>
+            <Input
+              id="label-quantity"
+              type="number"
+              min={1}
+              max={BARCODE_LABEL_MAX_QUANTITY}
+              value={quantity}
+              onChange={(event) => setQuantity(clampQuantity(Number(event.target.value)))}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("admin.productsList.printLabels.quantityHelper", {
+                max: BARCODE_LABEL_MAX_QUANTITY,
+              })}
+            </p>
+          </div>
+        </div>
 
-      {open &&
-        createPortal(
-          <div id="barcode-print-root" className="hidden">
-            <div className="flex flex-wrap gap-[2mm]">
-              {Array.from({ length: quantity }, (_, index) => (
-                <BarcodeLabel key={index} value={barcode} />
-              ))}
-            </div>
-          </div>,
-          document.body,
-        )}
-    </>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t("common.actions.cancel")}
+          </Button>
+          <Button onClick={handlePrint} disabled={printLabels.isPending}>
+            <Printer className="mr-2 h-4 w-4" />
+            {printLabels.isPending
+              ? t("admin.productsList.printLabels.generating")
+              : t("admin.productsList.printLabels.print")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -17,6 +17,12 @@ export const CATALOG_ROUTES = {
   // by a browser or a proxy. Registered before ADMIN_PRODUCT_BY_ID for the same reason
   // PRODUCT_STATS is (see catalog.routes.ts in the api).
   GENERATE_BARCODE: '/admin/products/barcode',
+  // S22 — barcode label printing. Both are POSTs: BARCODE_LOOKUP takes an id array (too long for a
+  // query string) and BARCODE_LABELS takes a per-line quantity map. Both are literal segments
+  // under "/admin/products" and must be registered before ADMIN_PRODUCT_BY_ID for the same reason
+  // PRODUCT_STATS and GENERATE_BARCODE are (see catalog.routes.ts in the api).
+  BARCODE_LOOKUP: '/admin/products/barcode-lookup',
+  BARCODE_LABELS: '/admin/products/barcode-labels',
   ADMIN_BRANDS: '/admin/brands',
   ADMIN_BRAND_BY_ID: '/admin/brands/:id',
   ADMIN_FAMILIES: '/admin/families',

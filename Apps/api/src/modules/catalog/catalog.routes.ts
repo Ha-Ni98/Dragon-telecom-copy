@@ -9,6 +9,8 @@ import {
   PRODUCT_UPLOAD_DIR,
   UserType,
   AddProductImagesSchema,
+  BarcodeLabelSheetSchema,
+  BarcodeLookupSchema,
   BrandIdParamsSchema,
   CategoryIdParamsSchema,
   CreateBrandSchema,
@@ -144,6 +146,22 @@ router.post(
   adminOnly,
   validateRequest({ body: GenerateBarcodeSchema }),
   controller.generateBarcode,
+);
+// S22 — BARCODE_LOOKUP and BARCODE_LABELS are literal segments under "/admin/products" and follow
+// the same registration rule as PRODUCT_STATS and GENERATE_BARCODE above: literal before
+// ADMIN_PRODUCT_BY_ID ("/admin/products/:id"). adminOnly on both — there is no staff supplier-
+// invoices page and the staff products list is read-only with no row actions (S18 parity work).
+router.post(
+  CATALOG_ROUTES.BARCODE_LOOKUP,
+  adminOnly,
+  validateRequest({ body: BarcodeLookupSchema }),
+  controller.lookupBarcodes,
+);
+router.post(
+  CATALOG_ROUTES.BARCODE_LABELS,
+  adminOnly,
+  validateRequest({ body: BarcodeLabelSheetSchema }),
+  controller.renderBarcodeLabels,
 );
 router.get(
   CATALOG_ROUTES.ADMIN_PRODUCTS,

@@ -10,6 +10,8 @@ import { translate, getLanguage } from "@/lib/i18n";
 const SENTINEL_TRANSLATION_KEYS: Record<string, string> = {
   [CATALOG_ERROR.BARCODE_TAKEN]: "common.errors.sentinel.barcodeTaken",
   [CATALOG_ERROR.BARCODE_GENERATION_EXHAUSTED]: "common.errors.sentinel.barcodeGenerationExhausted",
+  [CATALOG_ERROR.BARCODE_LABELS_EMPTY]: "common.errors.sentinel.barcodeLabelsEmpty",
+  [CATALOG_ERROR.BARCODE_LABEL_TOTAL_EXCEEDED]: "common.errors.sentinel.barcodeLabelTotalExceeded",
 };
 
 export const message = (err: unknown): string => {

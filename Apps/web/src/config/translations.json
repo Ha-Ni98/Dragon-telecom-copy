@@ -12014,6 +12014,16 @@
     "fr": "Imprimer",
     "ar": ""
   },
+  "admin.productsList.printLabels.generating": {
+    "en": "Generating…",
+    "fr": "Génération…",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.tooMany": {
+    "en": "Reduce the quantities — one sheet holds at most {max} labels.",
+    "fr": "Réduisez les quantités — une planche contient au maximum {max} étiquettes.",
+    "ar": ""
+  },
   "admin.productsList.table.empty": {
     "en": "No products match these filters",
     "fr": "Aucun produit ne correspond à ces filtres",
@@ -12377,6 +12387,16 @@
   "common.errors.sentinel.barcodeGenerationExhausted": {
     "en": "Couldn't generate a unique barcode — enter one manually",
     "fr": "Impossible de générer un code-barres unique — saisissez-en un manuellement",
+    "ar": ""
+  },
+  "common.errors.sentinel.barcodeLabelsEmpty": {
+    "en": "None of the selected products has a printable barcode",
+    "fr": "Aucun des produits sélectionnés n'a de code-barres imprimable",
+    "ar": ""
+  },
+  "common.errors.sentinel.barcodeLabelTotalExceeded": {
+    "en": "Too many labels in one run — reduce the quantities",
+    "fr": "Trop d'étiquettes en une fois — réduisez les quantités",
     "ar": ""
   },
   "admin.nav.pos": {
@@ -13037,6 +13057,56 @@
   "admin.supplierInvoices.payment.success": {
     "en": "Payment recorded successfully",
     "fr": "Paiement enregistré avec succès",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.action": {
+    "en": "Print barcodes",
+    "fr": "Imprimer les codes-barres",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.title": {
+    "en": "Print barcode labels",
+    "fr": "Imprimer les étiquettes de code-barres",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.description": {
+    "en": "One row per invoice line. Each quantity defaults to the quantity received.",
+    "fr": "Une ligne par ligne de facture. Chaque quantité correspond par défaut à la quantité reçue.",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.columnProduct": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.columnBarcode": {
+    "en": "Barcode",
+    "fr": "Code-barres",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.columnQuantity": {
+    "en": "Labels",
+    "fr": "Étiquettes",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.skipped": {
+    "en": "{count} line(s) skipped — those products have no barcode yet.",
+    "fr": "{count} ligne(s) ignorée(s) — ces produits n'ont pas encore de code-barres.",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.none": {
+    "en": "No line on this invoice has a printable barcode.",
+    "fr": "Aucune ligne de cette facture n'a de code-barres imprimable.",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.total": {
+    "en": "{count} labels in total",
+    "fr": "{count} étiquettes au total",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.loadError": {
+    "en": "Couldn't load the barcodes for this invoice",
+    "fr": "Impossible de charger les codes-barres de cette facture",
     "ar": ""
   },
   "admin.posClients.title": {

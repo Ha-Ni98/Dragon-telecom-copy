@@ -168,24 +168,3 @@
      just appears at its final size/opacity instead of animating in. */
   .animate-pop-in { animation: none; }
 }
-
-/* S19 — barcode label printing. #barcode-print-root is portalled to <body> by
-   barcode-label-dialog.tsx and is display:none on screen; at print time every other direct child of
-   <body> is hidden (that covers the app root *and* Radix's dialog portals, which are also body
-   children) and only the label sheet is laid out, so the browser's print preview shows the labels
-   alone. Written as plain CSS rather than Tailwind `print:` utilities because the `body > *` sibling
-   selector has no utility equivalent. */
-@media print {
-  @page {
-    size: A4;
-    margin: 8mm;
-  }
-
-  body > *:not(#barcode-print-root) {
-    display: none !important;
-  }
-
-  #barcode-print-root {
-    display: block !important;
-  }
-}

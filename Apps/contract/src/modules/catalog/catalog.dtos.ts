@@ -151,3 +151,18 @@ export const GeneratedBarcodeResponseSchema = z.object({
   barcode: z.string().length(BARCODE_LENGTH),
 });
 export type GeneratedBarcodeDto = z.infer<typeof GeneratedBarcodeResponseSchema>;
+
+// S22 — the answer to BarcodeLookupSchema. Only products with a printable barcode appear, so
+// `barcode` is required here (unlike Product.barcode, which is nullable). `name` is the current
+// catalog name; the supplier-invoice dialog still shows its own productNameSnapshot, and only
+// falls back to this.
+export const BarcodeLookupResponseSchema = z.object({
+  items: z.array(
+    z.object({
+      productId: z.uuid(),
+      name: z.string(),
+      barcode: z.string(),
+    }),
+  ),
+});
+export type BarcodeLookupDto = z.infer<typeof BarcodeLookupResponseSchema>;
