@@ -36,20 +36,31 @@ import {
   UpdateProductSchema,
 } from '@dragon-telecom/contract';
 import { CatalogProductService, CatalogTaxonomyService, CatalogCategoryService } from './catalog.service';
-import { InventoryPortStub } from './inventory.port.stub';
+import type { IInventoryPort } from './catalog.interface';
 import { CatalogController } from './catalog.controller';
 
 const router = Router();
 
 // 1. Manual DI
-const inventory = new InventoryPortStub();
+// The real FIFO engine is injected by registerModules() (modules/index.ts) at module-load time,
+// before any request is served. This placeholder exists only to satisfy the constructor at that
+// ordering. If it is ever actually called the wiring is broken, and it must fail loudly rather
+// than write inventory-owned columns behind the FIFO ledger's back (S23 F5 — the stub it replaces
+// did exactly that, overwriting avgStockPrice and creating no movement row).
+const inventory: IInventoryPort = {
+  addLayer: () => {
+    throw new Error(
+      'CatalogProductService.inventory was never wired — registerModules() must call useInventory() before serving requests',
+    );
+  },
+};
 const productService = new CatalogProductService(prisma, inventory);
 const taxonomyService = new CatalogTaxonomyService(prisma);
 const categoryService = new CatalogCategoryService(prisma);
 const controller = new CatalogController(productService, taxonomyService, categoryService);
 
 // Exported for the aggregator (modules/index.ts) to inject the real inventory port once it's
-// constructed, replacing the InventoryPortStub above (inventory plan §6, §8 #5).
+// constructed, replacing the placeholder above (inventory plan §6, §8 #5).
 export const catalogProductService = productService;
 // Exposes CatalogProductService.applyPricing as the ICatalogPricingPort shape inventory's
 // adjustment flow needs — structural typing means no import of inventory's interface here

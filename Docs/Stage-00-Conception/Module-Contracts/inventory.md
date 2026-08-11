@@ -1,5 +1,5 @@
 # Module: inventory
-The FIFO ledger: movements, layers, reserve/release/consume engine, adjustments. **Owns Product.quantityOnHand / quantityReserved / averageCost.**
+The FIFO ledger: movements, layers, reserve/release/consume engine, adjustments. **Owns Product.quantityOnHand / quantityReserved / avgStockPrice / avgPrice.**
 
 ## Shared Conventions (self-contained — no other file needed)
 - Every response: `ApiResponse<T>` (`sendSuccess` wraps; frontend unwraps `data`). Zod 4; types via `z.infer`; dates as ISO strings. Inputs `XxxCommand`/`XxxQuery`, outputs `XxxDto`, routes `[MODULE]_ROUTES` with UPPERCASE keys. Lists use `PaginationInfo`.
@@ -20,7 +20,7 @@ The FIFO ledger: movements, layers, reserve/release/consume engine, adjustments.
 
 ```
 StockRowDto { productId; name; barcode?; quantityOnHand; quantityReserved; availableQuantity;
-              averageCost; stockValue; reorderThreshold; isLow }
+              avgStockPrice; stockValue; reorderThreshold; isLow }
 MovementDto { id; productId; productName; direction: 'IN'|'OUT'|'PENDING'; type: MovementType;
   quantity; unitCost?; remainingQuantity?;            // IN rows (live FIFO layer)
   costOfGoods?; profit?;                              // OUT rows
@@ -39,8 +39,8 @@ AdjustmentResultDto { reference; lines: { productId; delta; movementId }[] }
 InventoryService {
   reserve(tx, productId, qty, ref)                          // PENDING_ORDER / PENDING_REPAIR
   release(tx, productId, qty, ref)                          // PENDING_RELEASE
-  addLayer(tx, productId, qty, unitCost, type, ref) → { movementId }   // IN + avgCost recompute
-  consumeFifo(tx, productId, qty, revenue|null, type, ref)
+  addLayer(tx, productId, qty, unitCost, type, ref) → { movementId }   // IN + avgStockPrice recompute
+  consumeFifo(tx, productId, qty, revenue|null, type, ref)             // OUT + avgStockPrice recompute
       → { movementId; costOfGoods; profit|null; consumptions: {inMovementId; qty; unitCost}[] }
   returnIn(tx, originalConsumptions, qty, ref) → { movementId }        // RETURN_IN at consumed cost
 }
@@ -52,11 +52,11 @@ Callers: catalog (INITIAL_STOCK) · purchasing (addLayer per line) · orders (re
 - Listens: **nothing** — state changes arrive only through the injected service (events can't return FIFO results, and splitting the transaction could leave a sale without its movement).
 
 ## Business Logic [BACKEND]
-1. Every call writes movement rows **and** the product's quantity/averageCost columns inside the caller's transaction; `balanceAfter` on each row.
+1. Every call writes movement rows **and** the product's quantity/avgStockPrice/avgPrice columns inside the caller's transaction; `balanceAfter` on each row.
 2. `consumeFifo` drains oldest layers with `remainingQuantity > 0`, writes StockMovementConsumption rows, rejects `INSUFFICIENT_STOCK { productId, requested, available }` when qty > onHand − reserved.
-3. avgCost on IN only: `(oldQty×oldAvg + inQty×unitCost)/(oldQty+inQty)`.
-4. Adjustments: IN deltas take `unitCost` (default = current avgCost) and may carry a reprice payload applied through the catalog pricing service in the same transaction; OUT deltas consume FIFO with `profit = null`. Note optional.
+3. `avgStockPrice` on IN: `(oldQty×oldAvg + inQty×unitCost)/(oldQty+inQty)`. On OUT: `Σ(remaining layer qty × layer cost) ÷ Σ(remaining qty)` — equivalently `(oldAvg×onHandBefore − costOfGoods) ÷ onHandAfter`, computed from the layers so the `Decimal(12,2)` residual cannot accumulate. Quantity is always `quantityOnHand`, never `onHand − reserved`. PENDING movements never touch it. At `onHandAfter = 0` the last value is kept. `avgPrice` (unweighted purchase-receipt mean) is maintained only from `SUPPLIER_INVOICE` + `INITIAL_STOCK` and is untouched by all of this.
+4. Adjustments: IN deltas take `unitCost` (default = current avgStockPrice) and may carry a reprice payload applied through the catalog pricing service in the same transaction; OUT deltas consume FIFO with `profit = null`. Note optional.
 5. Low-stock check after every change; emit when available crosses ≤ threshold. Sequence via `SequenceService('ADJUSTMENT')`.
 
 ## Test Scenarios [BACKEND]
-Layers 10@100 + 10@150, consume 15 ⇒ COGS 1750, layer 5@150 remains. Over-consume → 409, zero rows. reserve→release restores available. returnIn at 150 (not avg). balanceAfter chain under interleaving. Invariants: onHand = Σ movements; Σ remaining = onHand; reserved = Σ PENDING. Adjustment reprice atomic. ADJUSTMENT_OUT profit null.
+Layers 10@100 + 10@150, consume 15 ⇒ COGS 1750, layer 5@150 remains ⇒ `avgStockPrice` 150 (was 125 before the OUT). Over-consume → 409, zero rows. reserve→release restores available. returnIn at 150 (not avg). balanceAfter chain under interleaving. Invariants: onHand = Σ movements; Σ remaining = onHand; reserved = Σ PENDING. Adjustment reprice atomic. ADJUSTMENT_OUT profit null.

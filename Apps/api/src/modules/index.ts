@@ -36,9 +36,9 @@ const inventoryPortAdapter: IInventoryPort = {
 // Aggregates every module router into one mount call at app.ts's extension point, so app.ts
 // stays stable as later modules (clients, ...) are added here.
 export const registerModules = (apiRouter: Router): void => {
-  // Replaces catalog's InventoryPortStub with the real inventory engine, now that it exists
-  // (inventory plan §6) — must run before any request is served, which module-load-time wiring
-  // here guarantees.
+  // Replaces catalog's throwing placeholder port with the real inventory engine, now that it
+  // exists (inventory plan §6) — must run before any request is served, which module-load-time
+  // wiring here guarantees.
   catalogProductService.useInventory(inventoryPortAdapter);
 
   apiRouter.use(identityRouter);

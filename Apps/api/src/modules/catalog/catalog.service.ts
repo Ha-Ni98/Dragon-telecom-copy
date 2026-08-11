@@ -418,8 +418,8 @@ export class CatalogProductService implements ICatalogProductService {
     private inventory: IInventoryPort,
   ) {}
 
-  // Composition-root wiring only (inventory plan §6, §8 #5) — swaps the placeholder
-  // InventoryPortStub for the real inventory module's engine once it's constructed. Not on
+  // Composition-root wiring only (inventory plan §6, §8 #5) — swaps the throwing placeholder
+  // port for the real inventory module's engine once it's constructed. Not on
   // ICatalogProductService: controllers never call this, only modules/index.ts does.
   useInventory(port: IInventoryPort): void {
     this.inventory = port;

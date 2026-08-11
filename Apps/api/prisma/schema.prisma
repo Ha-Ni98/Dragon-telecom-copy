@@ -460,8 +460,11 @@ model Product {
   deviceModelId    String? // null = not pinned to a specific model within the brand
   guestPrice       Decimal? @db.Decimal(12, 2) // null => hidden from guests
   defaultSalePrice Decimal? @db.Decimal(12, 2) // null until first stock; POS fallback price
-  avgStockPrice    Decimal  @default(0) @db.Decimal(12, 2) // quantity-weighted moving average (D10):
-  //   margins, adjustment defaults, stock valuation. Profit is still FIFO, never this figure.
+  avgStockPrice    Decimal  @default(0) @db.Decimal(12, 2) // average cost of the layers still on
+  //   hand (D10): margins, adjustment defaults, stock valuation. Maintained on IN (weighted) and
+  //   on OUT (S23: from the remaining-layer identity, since a FIFO OUT drains specific layers
+  //   whose cost is not the average); untouched by the three PENDING types; last value kept at
+  //   zero quantity. Profit is still FIFO from the movement's own costOfGoods, never this figure.
   avgPrice         Decimal  @default(0) @db.Decimal(12, 2) // unweighted mean of purchase unit costs
   //   across SUPPLIER_INVOICE + INITIAL_STOCK receipts (D10). Supplier-invoice context only.
   quantityOnHand   Int      @default(0) // owned by inventory module

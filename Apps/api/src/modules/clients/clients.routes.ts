@@ -28,8 +28,9 @@ import {
 // Direct sibling-module imports — clients depends one-directionally on identity/catalog/platform
 // (no reverse dependency), the exact same shape inventory.routes.ts already uses for
 // sequenceService/catalogPricingService. No stub+swap adapter is needed here (unlike catalog's
-// InventoryPortStub): both singletons are fully built and exported before clients.routes.ts is
-// ever imported, since modules/index.ts imports identity/catalog ahead of clients.
+// placeholder inventory port): both singletons are fully built and exported before
+// clients.routes.ts is ever imported, since modules/index.ts imports identity/catalog ahead of
+// clients.
 import { sequenceService } from '../platform/platform.routes';
 import { catalogProductService } from '../catalog/catalog.routes';
 import { identityService } from '../identity/identity.routes';

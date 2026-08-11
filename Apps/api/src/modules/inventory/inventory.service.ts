@@ -175,6 +175,21 @@ export class InventoryService implements IInventoryService {
     const newOnHand = product.quantityOnHand - qty;
     const profit = revenue != null ? revenue - costOfGoods : null;
 
+    // S23 — a FIFO OUT changes the average cost of what is LEFT: the layers this movement drained
+    // are not priced at the average, so removing them shifts it. Computed as the identity
+    // Σ(remaining layer qty × layer cost) ÷ Σ(remaining qty) rather than the incremental
+    // (oldAvg × onHandBefore − costOfGoods) ÷ onHandAfter: the stored column is Decimal(12,2), and
+    // feeding a rounded average back in amplifies its residual by onHandBefore/onHandAfter at
+    // every OUT. `layers` (loaded above, before any write) is every live layer, and `costOfGoods`
+    // is exactly what this movement takes out of them — so the subtraction below IS the identity,
+    // at zero extra queries. `unitCost` is non-null on every IN row by construction (addLayerCore
+    // always writes it); the same assumption the drain loop above already makes.
+    const layerValueBefore = layers.reduce(
+      (sum, layer) => sum + (layer.remainingQuantity ?? 0) * layer.unitCost!.toNumber(),
+      0,
+    );
+    const layerValueAfter = layerValueBefore - costOfGoods;
+
     const movement = await tx.stockMovement.create({
       data: {
         productId,
@@ -208,7 +223,17 @@ export class InventoryService implements IInventoryService {
       consumptions.push({ inMovementId: drain.layerId, qty: drain.drainQty, unitCost: drain.unitCost });
     }
 
-    await tx.product.update({ where: { id: productId }, data: { quantityOnHand: newOnHand } });
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        quantityOnHand: newOnHand,
+        // Zero on hand → keep the last average (S23 rule), never reset and never divide by zero:
+        // it keeps margin displays and the adjustment default meaningful for a temporarily
+        // out-of-stock product, and the next IN overwrites it anyway. Omitting the key leaves the
+        // column untouched.
+        ...(newOnHand > 0 ? { avgStockPrice: layerValueAfter / newOnHand } : {}),
+      },
+    });
 
     const postAvailable = InventoryMapper.availableQuantity({ quantityOnHand: newOnHand, quantityReserved: product.quantityReserved });
     this.checkAndBufferLowStock(tx, productId, preAvailable, postAvailable, product.reorderThreshold);
@@ -265,9 +290,11 @@ export class InventoryService implements IInventoryService {
   }
 
   // Shared by public addLayer and returnIn's per-cost-group loop — both are IN-direction writes
-  // that recompute avgStockPrice the same way (spec BL#3 applies to every IN movement, RETURN_IN
-  // included). avgPrice (D10) only moves for purchase-receipt types (PURCHASE_RECEIPT_TYPES) —
-  // RETURN_IN and ADJUSTMENT_IN never touch it.
+  // that recompute avgStockPrice the same way, for every IN type including RETURN_IN (which
+  // re-enters at the ORIGINAL consumed cost, not the current average). Since S23 the OUT side
+  // recomputes too, from the layer identity in consumeFifo — the column is maintained on IN *and*
+  // OUT, and left alone by the three PENDING types. avgPrice (D10) only moves for purchase-receipt
+  // types (PURCHASE_RECEIPT_TYPES) — RETURN_IN and ADJUSTMENT_IN never touch it.
   private async addLayerCore(
     tx: Prisma.TransactionClient,
     productId: string,
@@ -280,7 +307,11 @@ export class InventoryService implements IInventoryService {
     const preAvailable = InventoryMapper.availableQuantity(product);
     const newOnHand = product.quantityOnHand + qty;
     const oldAvgStockPrice = product.avgStockPrice.toNumber();
-    const newAvgStockPrice = newOnHand === 0 ? 0 : (product.quantityOnHand * oldAvgStockPrice + qty * unitCost) / newOnHand;
+    // Weighted by quantityOnHand — physical layers, never onHand − reserved. The zero guard can
+    // only fire on a broken invariant (every caller passes qty > 0 and onHand is never negative);
+    // it keeps the last average rather than resetting, matching consumeFifo's zero rule (S23).
+    const newAvgStockPrice =
+      newOnHand === 0 ? oldAvgStockPrice : (product.quantityOnHand * oldAvgStockPrice + qty * unitCost) / newOnHand;
 
     const movement = await tx.stockMovement.create({
       data: {
