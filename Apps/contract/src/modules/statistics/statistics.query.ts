@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { ChartType, ReportFormat, ReportType } from './statistics.enums';
+import { ChartType, ReportFormat, ReportType, RevenueSource } from './statistics.enums';
 
 export const FilteredQuerySchema = z.object({
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   familyId: z.uuid().optional(),
+  source: z.enum(RevenueSource).optional(), // S24 — omitted means ALL
 });
 export type FilteredQuery = z.infer<typeof FilteredQuerySchema>;
 
@@ -12,6 +13,7 @@ export const ChartsQuerySchema = z.object({
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   familyId: z.uuid().optional(),
+  source: z.enum(RevenueSource).optional(), // S24 — omitted means ALL
 });
 export type ChartsQuery = z.infer<typeof ChartsQuerySchema>;
 

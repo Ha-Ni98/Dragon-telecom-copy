@@ -24,3 +24,13 @@ export enum ReportFormat {
   TABLE = 'table',
   CSV = 'csv',
 }
+
+// S24 — the statistics page's revenue-source filter. PRODUCTS = sales + orders (goods sold);
+// REPAIRS = repairs, whose revenue is parts + labour (owner decision Q3). Labour has no product
+// and therefore no family, so a REPAIRS/ALL figure combined with a familyId filter necessarily
+// excludes it.
+export enum RevenueSource {
+  ALL = 'all',
+  PRODUCTS = 'products',
+  REPAIRS = 'repairs',
+}

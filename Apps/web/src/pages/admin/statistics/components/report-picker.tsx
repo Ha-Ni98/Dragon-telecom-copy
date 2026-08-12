@@ -19,9 +19,10 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { ReportType } from "@dragon-telecom/contract";
 import { useReport, useExportReportCsv } from "@/hooks/useStatistics";
 import { useTranslation } from "@/hooks/useTranslation";
-import { downloadBlob } from "@/lib/utils";
+import { downloadBlob, formatDZD } from "@/lib/utils";
+import type { Language } from "@/lib/i18n";
 import { useChartTheme } from "@/lib/chart-theme";
-import { REPORT_COLUMN_KEY } from "@/pages/admin/statistics/report-columns";
+import { REPORT_COLUMN_KEY, REPORT_MONEY_KEYS } from "@/pages/admin/statistics/report-columns";
 
 interface ReportPickerProps {
   from?: string;
@@ -41,9 +42,14 @@ const DRILL_ROUTES: Record<string, (id: string) => string> = {
 
 const REPORT_TYPES = Object.values(ReportType);
 
-function formatCellValue(value: unknown): string {
+// S24 (A8) — key-aware: money columns render through formatDZD(value, language), matching every
+// other money render in the app (was a bare `value.toLocaleString()` with no currency and no
+// locale argument, so it silently followed the browser's locale rather than the app's language).
+function formatReportValue(key: string, value: unknown, language: Language): string {
   if (value === null || value === undefined) return "—";
-  if (typeof value === "number") return value.toLocaleString();
+  if (typeof value === "number") {
+    return REPORT_MONEY_KEYS.has(key) ? formatDZD(value, language) : value.toLocaleString(language);
+  }
   return String(value);
 }
 
@@ -55,7 +61,7 @@ function formatCellValue(value: unknown): string {
 // the contract schema and service signature are untouched (same "remove from the UI only"
 // precedent S7 applied to save-draft).
 export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const chart = useChartTheme();
   const [type, setType] = useState<ReportType>(ReportType.SALES_BY_PRODUCT);
 
@@ -66,10 +72,15 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
   const rows = useMemo(() => report.data?.rows ?? [], [report.data]);
   const drill = report.data?.drill;
 
+  // S24 (A9) — client-browsing returns two row shapes ({kind:'search',query,count} and
+  // {kind:'viewedNoPurchase',productId,productName,viewCount}). Deriving columns from rows[0]
+  // alone rendered whichever shape came first and left the other group's cells blank. Columns are
+  // now the union of every row's own keys, first-seen order.
   const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
     if (rows.length === 0) return [];
     const buildRoute = drill ? DRILL_ROUTES[drill.entity] : undefined;
-    return Object.keys(rows[0]).map((key) => ({
+    const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+    return keys.map((key) => ({
       accessorKey: key,
       header: t(REPORT_COLUMN_KEY[key] ?? key),
       cell: ({ row }) => {
@@ -81,10 +92,10 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
             </Link>
           );
         }
-        return formatCellValue(value);
+        return formatReportValue(key, value, language);
       },
     }));
-  }, [rows, drill, t]);
+  }, [rows, drill, t, language]);
 
   const handleExport = () => {
     exportCsv.mutate(
@@ -128,6 +139,14 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
             ))}
           </SelectContent>
         </Select>
+
+        {/* S24 (A11) — ageing is a point-in-time snapshot (reportAgeing takes no range at all);
+            the date filter above this card cannot affect it, which previously went unstated. */}
+        {type === ReportType.AGEING && (
+          <p className="text-xs text-muted-foreground">
+            {t("admin.statistics.reports.ageingSnapshotNote")}
+          </p>
+        )}
 
         {report.isLoading ? (
           <TableSkeleton rows={5} columns={4} />
@@ -189,12 +208,28 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
                       <span className="text-muted-foreground">
                         {t(REPORT_COLUMN_KEY[key] ?? key)}
                       </span>
-                      <span>{formatCellValue(value)}</span>
+                      <span>{formatReportValue(key, value, language)}</span>
                     </div>
                   ))}
                 </div>
               )}
             />
+            {/* S24 (A4) — every report computes a `totals` object (the repairs report's
+                recognizedRevenue/Cost/Profit — its only D8-correct money — chief among them) that
+                was never rendered anywhere. */}
+            {report.data && Object.keys(report.data.totals).length > 0 && (
+              <div className="flex flex-wrap gap-4 border-t pt-4">
+                <span className="text-sm font-medium">{t("admin.statistics.reports.totals")}:</span>
+                {Object.entries(report.data.totals).map(([key, value]) => (
+                  <div key={key} className="text-sm">
+                    <span className="text-muted-foreground">
+                      {t(REPORT_COLUMN_KEY[key] ?? key)}:{" "}
+                    </span>
+                    <span className="font-medium">{formatReportValue(key, value, language)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

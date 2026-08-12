@@ -3929,6 +3929,36 @@
     "fr": "Famille de Produits",
     "ar": ""
   },
+  "admin.statistics.filters.source": {
+    "en": "Revenue Source",
+    "fr": "Source de Revenu",
+    "ar": ""
+  },
+  "admin.statistics.filters.selectSource": {
+    "en": "Select a source",
+    "fr": "Sélectionner une source",
+    "ar": ""
+  },
+  "admin.statistics.filters.source.all": {
+    "en": "Products and repairs",
+    "fr": "Produits et réparations",
+    "ar": ""
+  },
+  "admin.statistics.filters.source.products": {
+    "en": "Products only",
+    "fr": "Produits uniquement",
+    "ar": ""
+  },
+  "admin.statistics.filters.source.repairs": {
+    "en": "Repairs only",
+    "fr": "Réparations uniquement",
+    "ar": ""
+  },
+  "admin.statistics.filters.familyExcludesLabourNote": {
+    "en": "Repair labour is not linked to a family and is excluded while a family filter is active.",
+    "fr": "La main-d'œuvre des réparations n'est liée à aucune famille et est exclue lorsqu'un filtre de famille est actif.",
+    "ar": ""
+  },
   "admin.statistics.filters.monthly": {
     "en": "This Month",
     "fr": "Ce Mois",
@@ -4032,6 +4062,11 @@
   "admin.statistics.topProducts.description": {
     "en": "Best-selling products by period",
     "fr": "Produits les plus vendus par période",
+    "ar": ""
+  },
+  "admin.statistics.topProducts.allTimeNote": {
+    "en": "All time — not affected by the filters above.",
+    "fr": "Toutes périodes confondues — non affecté par les filtres ci-dessus.",
     "ar": ""
   },
   "admin.statistics.topProducts.filters.allTime": {
@@ -8984,14 +9019,19 @@
     "fr": "Indicateurs clés et aperçu financier",
     "ar": ""
   },
+  "admin.statistics.overview.allTimeNote": {
+    "en": "All time — not affected by the filters below.",
+    "fr": "Toutes périodes confondues — non affecté par les filtres ci-dessous.",
+    "ar": ""
+  },
   "admin.statistics.overview.descriptions.totalRevenue": {
-    "en": "Total revenue from all sales",
-    "fr": "Revenu total de toutes les ventes",
+    "en": "All-time revenue from sales, orders and repairs",
+    "fr": "Revenu total des ventes, commandes et réparations",
     "ar": ""
   },
   "admin.statistics.overview.descriptions.totalProfit": {
-    "en": "Total profit after costs",
-    "fr": "Bénéfice total après coûts",
+    "en": "All-time profit after costs, net of returns",
+    "fr": "Bénéfice total après coûts, net des retours",
     "ar": ""
   },
   "admin.statistics.overview.descriptions.totalProductValue": {
@@ -13667,6 +13707,81 @@
   "admin.statistics.reports.columns.kind": {
     "en": "Kind",
     "fr": "Type",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.accruedAmount": {
+    "en": "Accrued amount",
+    "fr": "Montant accumulé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalRevenue": {
+    "en": "Total revenue",
+    "fr": "Revenu total",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalDiscount": {
+    "en": "Total discount",
+    "fr": "Remise totale",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalSpend": {
+    "en": "Total spend",
+    "fr": "Dépense totale",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.recognizedRevenue": {
+    "en": "Recognised revenue",
+    "fr": "Revenu comptabilisé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.recognizedCost": {
+    "en": "Recognised cost",
+    "fr": "Coût comptabilisé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.recognizedProfit": {
+    "en": "Recognised profit",
+    "fr": "Bénéfice comptabilisé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalClientOutstanding": {
+    "en": "Total client outstanding",
+    "fr": "Total dû par les clients",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalSupplierOutstanding": {
+    "en": "Total supplier outstanding",
+    "fr": "Total dû aux fournisseurs",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.movementTypeCount": {
+    "en": "Movement types",
+    "fr": "Types de mouvement",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalRepairs": {
+    "en": "Total repairs",
+    "fr": "Réparations totales",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.topSearchCount": {
+    "en": "Top searches",
+    "fr": "Recherches populaires",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.zeroPurchaseProductCount": {
+    "en": "Viewed, never purchased",
+    "fr": "Consulté, jamais acheté",
+    "ar": ""
+  },
+  "admin.statistics.reports.totals": {
+    "en": "Totals",
+    "fr": "Totaux",
+    "ar": ""
+  },
+  "admin.statistics.reports.ageingSnapshotNote": {
+    "en": "Ageing is measured as of today and does not use the selected date range.",
+    "fr": "L'ancienneté est calculée à la date d'aujourd'hui et n'utilise pas la période sélectionnée.",
     "ar": ""
   },
   "admin.statistics.reports.viewDetails": {
