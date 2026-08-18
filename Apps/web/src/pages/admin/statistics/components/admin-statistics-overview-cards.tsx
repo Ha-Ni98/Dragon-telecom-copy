@@ -75,6 +75,12 @@ export function AdminStatisticsOverviewCards({
             {t("admin.statistics.overview")}
           </CardTitle>
           <CardDescription>{t("admin.statistics.overview.subtitle")}</CardDescription>
+          {/* S24 (A13) — this block is all-time (getOverview takes no query) and rendered above
+              the date-range/family/source filters — the note makes explicit that it does not
+              respond to them. */}
+          <p className="text-xs text-muted-foreground">
+            {t("admin.statistics.overview.allTimeNote")}
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -97,6 +103,12 @@ export function AdminStatisticsOverviewCards({
             {t("admin.statistics.overview")}
           </CardTitle>
           <CardDescription>{t("admin.statistics.overview.subtitle")}</CardDescription>
+          {/* S24 (A13) — this block is all-time (getOverview takes no query) and rendered above
+              the date-range/family/source filters — the note makes explicit that it does not
+              respond to them. */}
+          <p className="text-xs text-muted-foreground">
+            {t("admin.statistics.overview.allTimeNote")}
+          </p>
         </CardHeader>
         <CardContent>
           <EmptyState
@@ -117,6 +129,12 @@ export function AdminStatisticsOverviewCards({
           {t("admin.statistics.overview")}
         </CardTitle>
         <CardDescription>{t("admin.statistics.overview.subtitle")}</CardDescription>
+        {/* S24 (A13) — this block is all-time (getOverview takes no query) and rendered above
+            the date-range/family/source filters — the note makes explicit that it does not
+            respond to them. */}
+        <p className="text-xs text-muted-foreground">
+          {t("admin.statistics.overview.allTimeNote")}
+        </p>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

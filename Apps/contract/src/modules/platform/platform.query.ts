@@ -8,6 +8,7 @@ export const FeeQuerySchema = z.object({
 export type FeeQuery = z.infer<typeof FeeQuerySchema>;
 
 export const FeesExportQuerySchema = z.object({
-  format: z.enum(['excel', 'csv', 'json']).optional(),
+  // S25 added "pdf" alongside excel/csv/json.
+  format: z.enum(['excel', 'csv', 'json', 'pdf']).optional(),
 });
 export type FeesExportQuery = z.infer<typeof FeesExportQuerySchema>;

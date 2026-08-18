@@ -322,7 +322,11 @@ export class SalesService implements ISalesService {
   // Admin-only route (contract). Read-only: no transaction, no stock, no money — the return
   // document was fully applied by createReturn (S5's D6/D7 arithmetic).
   async listReturns(query: ReturnListQuery): Promise<PaginatedResult<ReturnDto>> {
+    // S24 — Return is now polymorphic over Sale and Order (orders.service.ts returnOrder also
+    // writes rows here). This route is sales' own returns tab, so it stays scoped to
+    // sale-sourced returns only; an order-return listing is a separate, not-yet-built concern.
     const where: Prisma.ReturnWhereInput = {
+      saleId: { not: null },
       ...(query.saleId != null ? { saleId: query.saleId } : {}),
       ...(query.from != null || query.to != null
         ? {
@@ -369,7 +373,11 @@ export class SalesService implements ISalesService {
     });
     const returnedSoFar = new Map<string, number>();
     for (const returnLine of existingReturnLines) {
-      returnedSoFar.set(returnLine.saleLineId, (returnedSoFar.get(returnLine.saleLineId) ?? 0) + returnLine.quantity);
+      // S24 — saleLineId is nullable at the schema level (Return/ReturnLine are now polymorphic
+      // over Sale and Order), but the query above filters on the `saleLine` relation existing, so
+      // every row reaching this loop is guaranteed to have one.
+      const saleLineId = returnLine.saleLineId!;
+      returnedSoFar.set(saleLineId, (returnedSoFar.get(saleLineId) ?? 0) + returnLine.quantity);
     }
 
     let refundAmount = 0;

@@ -47,10 +47,18 @@ export const SettingsResponseSchema = z.object({
 });
 export type SettingsDto = z.infer<typeof SettingsResponseSchema>;
 
-// SETTINGS_PUBLIC route note: "featured products and families only" — trimmed to the one
-// public-safe section rather than the full SettingsDto (store/invoicing/delivery
-// are internal-only).
+// SETTINGS_PUBLIC route note: "featured products and families only" — plus, since S25, the store
+// header. The POS receipt is printed by a STAFF cashier and must carry the shop's name, address,
+// phone and logo, but GET /platform/settings is adminOnly; these four fields are already printed
+// on every invoice PDF handed to a customer, so exposing them publicly discloses nothing new.
+// `invoicing` (prefixes, next sequence numbers) and `delivery` stay internal — they are not here.
 export const PublicSettingsResponseSchema = z.object({
+  store: z.object({
+    name: z.string(),
+    address: z.string().optional(),
+    phone: z.string().optional(),
+    logoUrl: z.string().optional(),
+  }),
   storefront: z.object({
     featuredProductIds: z.array(z.uuid()),
     featuredFamilyIds: z.array(z.uuid()),

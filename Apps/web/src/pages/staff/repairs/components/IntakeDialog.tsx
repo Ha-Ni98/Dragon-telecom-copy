@@ -31,18 +31,9 @@ import {
   intakeRepairSchema,
   type IntakeRepairFormValues,
 } from "@/pages/staff/repairs/intake-repair.schema";
-
-const ISSUE_LABEL_KEY: Record<ReportedIssue, string> = {
-  [ReportedIssue.CHARGING]: "staff.repairs.intake.issue.charging",
-  [ReportedIssue.DISPLAY]: "staff.repairs.intake.issue.display",
-  [ReportedIssue.BATTERY]: "staff.repairs.intake.issue.battery",
-  [ReportedIssue.CAMERA]: "staff.repairs.intake.issue.camera",
-  [ReportedIssue.SPEAKER]: "staff.repairs.intake.issue.speaker",
-  [ReportedIssue.MICROPHONE]: "staff.repairs.intake.issue.microphone",
-  [ReportedIssue.WATER_DAMAGE]: "staff.repairs.intake.issue.waterDamage",
-  [ReportedIssue.SOFTWARE]: "staff.repairs.intake.issue.software",
-  [ReportedIssue.OTHER]: "staff.repairs.intake.issue.other",
-};
+// S25 — moved to repair-status-labels.ts (this cluster's single source of truth for label-key
+// maps, alongside REPAIR_STATUS_LABEL_KEY) so RepairReceipt.tsx can reuse the same map.
+import { REPORTED_ISSUE_LABEL_KEY as ISSUE_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
 
 interface IntakeDialogProps {
   open: boolean;

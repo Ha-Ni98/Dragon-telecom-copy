@@ -35,7 +35,7 @@ ProductWithPricingDto { id; name; description?; barcode?; createdAt;
   currentPrice?; guestPrice?; priceHidden: boolean; inStock: boolean; inCart: boolean }
 StaffProductDto { id; name; barcode?; family; brand; model?; availableQuantity;
   defaultSalePrice?; categoryPrices: { categoryId; categoryName; price }[] }
-AdminProductDto { ...core; quantityOnHand; quantityReserved; availableQuantity; averageCost;
+AdminProductDto { ...core; quantityOnHand; quantityReserved; availableQuantity; avgStockPrice; avgPrice;
   reorderThreshold; stockStatus: 'in_stock'|'low_stock'|'out_of_stock'; isPublished; isEnabled }
 CreateProductCommand { barcode?; name; description?;
   familyId|newFamilyName; brandId|newBrandName; modelId?|newModelName?;
@@ -57,7 +57,7 @@ BrandDto / FamilyDto (incl. iconUrl, isFeatured) / DeviceModelDto (incl. familyI
 3. `inCart` joined from ClientCart for CLIENT tokens; always false otherwise. Storefront never leaks cost, exact quantities (boolean inStock only), reserved, or margins; staff DTO adds availableQuantity + the 4 sale prices, still no cost.
 4. Taxonomy: names unique (model per brand); slugs generated; one family nesting level; **disable only** — disabled entities vanish from public lists and pickers, products keep references and stay sellable. Featured families capped at 6 enabled. Model↔family PUT replaces the set.
 5. Categories: name unique; disable requires zero enabled POS-client members (`CATEGORY_IN_USE` + count); creating one creates **no** prices; `pricedProductCount` warns of sparse tiers. Nothing assumes three categories — that cap is front-end.
-6. quantity/averageCost columns are **owned by inventory** — this module never writes them.
+6. quantity/avgStockPrice/avgPrice columns are **owned by inventory** — this module never writes them.
 
 ## Test Scenarios [BACKEND]
 Resolution matrix (client+tier / client no-tier / guest priced / guest null). initialQuantity 0 + prices → 400; >0 without cost → 400; >0 creates the layer. Guest DTO leak check. Duplicate model in brand 409. Disabled brand hidden but its products' DTOs resolve. Category disable with members 409. Search emits `product.searched` with userId.

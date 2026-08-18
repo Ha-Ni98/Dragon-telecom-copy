@@ -33,7 +33,7 @@ SupplierInvoiceDto { id; reference; supplierReference?; supplierId; supplierName
 CreateSupplierInvoiceCommand { supplierId; supplierReference?; invoiceDate; dueDate?;
   shippingCost?; amountOnly?; note?;
   lines?: { productId; quantity; unitCost; serialNumbers? }[] }   // amountOnly XOR lines
-ConfirmResultDto { reference; repriceCandidates: { productId; name; averageCost;
+ConfirmResultDto { reference; repriceCandidates: { productId; name; avgStockPrice;
   current: { guestPrice?; defaultSalePrice?; categoryPrices } }[] }
 CreateSupplierPaymentCommand { supplierId; supplierInvoiceReference?; amount: positive; paidAt? }
 SupplierPaymentDto { reference; supplierName; supplierInvoiceReference?; amount;

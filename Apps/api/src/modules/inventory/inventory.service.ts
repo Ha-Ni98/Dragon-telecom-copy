@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient, Product } from '@prisma/client';
-import { DocType, MovementType, ReservationHolderType } from '@dragon-telecom/contract';
+import { DocType, EXPORT_ERROR, EXPORT_MAX_ROWS, MovementType, ReservationHolderType } from '@dragon-telecom/contract';
 import type {
   AdjustmentResultDto,
   CreateAdjustmentCommand,
@@ -11,8 +11,10 @@ import type {
   StockQuery,
   StockRowDto,
 } from '@dragon-telecom/contract';
-import { ConflictError, NotFoundError } from '@common/errors';
+import { BadRequestError, ConflictError, NotFoundError } from '@common/errors';
 import { eventBus } from '@common/events/event-bus';
+import { csvDate, csvMoney, toCsv, CSV_MIME } from '@common/utils/csv.utils';
+import { renderTablePdf } from '@common/utils/pdf.utils';
 import { InventoryMapper, type AdjustmentResultLine, type ReservationGroup } from './inventory.mapper';
 import type {
   AddLayerResult,
@@ -175,6 +177,21 @@ export class InventoryService implements IInventoryService {
     const newOnHand = product.quantityOnHand - qty;
     const profit = revenue != null ? revenue - costOfGoods : null;
 
+    // S23 — a FIFO OUT changes the average cost of what is LEFT: the layers this movement drained
+    // are not priced at the average, so removing them shifts it. Computed as the identity
+    // Σ(remaining layer qty × layer cost) ÷ Σ(remaining qty) rather than the incremental
+    // (oldAvg × onHandBefore − costOfGoods) ÷ onHandAfter: the stored column is Decimal(12,2), and
+    // feeding a rounded average back in amplifies its residual by onHandBefore/onHandAfter at
+    // every OUT. `layers` (loaded above, before any write) is every live layer, and `costOfGoods`
+    // is exactly what this movement takes out of them — so the subtraction below IS the identity,
+    // at zero extra queries. `unitCost` is non-null on every IN row by construction (addLayerCore
+    // always writes it); the same assumption the drain loop above already makes.
+    const layerValueBefore = layers.reduce(
+      (sum, layer) => sum + (layer.remainingQuantity ?? 0) * layer.unitCost!.toNumber(),
+      0,
+    );
+    const layerValueAfter = layerValueBefore - costOfGoods;
+
     const movement = await tx.stockMovement.create({
       data: {
         productId,
@@ -208,7 +225,17 @@ export class InventoryService implements IInventoryService {
       consumptions.push({ inMovementId: drain.layerId, qty: drain.drainQty, unitCost: drain.unitCost });
     }
 
-    await tx.product.update({ where: { id: productId }, data: { quantityOnHand: newOnHand } });
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        quantityOnHand: newOnHand,
+        // Zero on hand → keep the last average (S23 rule), never reset and never divide by zero:
+        // it keeps margin displays and the adjustment default meaningful for a temporarily
+        // out-of-stock product, and the next IN overwrites it anyway. Omitting the key leaves the
+        // column untouched.
+        ...(newOnHand > 0 ? { avgStockPrice: layerValueAfter / newOnHand } : {}),
+      },
+    });
 
     const postAvailable = InventoryMapper.availableQuantity({ quantityOnHand: newOnHand, quantityReserved: product.quantityReserved });
     this.checkAndBufferLowStock(tx, productId, preAvailable, postAvailable, product.reorderThreshold);
@@ -265,9 +292,11 @@ export class InventoryService implements IInventoryService {
   }
 
   // Shared by public addLayer and returnIn's per-cost-group loop — both are IN-direction writes
-  // that recompute avgStockPrice the same way (spec BL#3 applies to every IN movement, RETURN_IN
-  // included). avgPrice (D10) only moves for purchase-receipt types (PURCHASE_RECEIPT_TYPES) —
-  // RETURN_IN and ADJUSTMENT_IN never touch it.
+  // that recompute avgStockPrice the same way, for every IN type including RETURN_IN (which
+  // re-enters at the ORIGINAL consumed cost, not the current average). Since S23 the OUT side
+  // recomputes too, from the layer identity in consumeFifo — the column is maintained on IN *and*
+  // OUT, and left alone by the three PENDING types. avgPrice (D10) only moves for purchase-receipt
+  // types (PURCHASE_RECEIPT_TYPES) — RETURN_IN and ADJUSTMENT_IN never touch it.
   private async addLayerCore(
     tx: Prisma.TransactionClient,
     productId: string,
@@ -280,7 +309,11 @@ export class InventoryService implements IInventoryService {
     const preAvailable = InventoryMapper.availableQuantity(product);
     const newOnHand = product.quantityOnHand + qty;
     const oldAvgStockPrice = product.avgStockPrice.toNumber();
-    const newAvgStockPrice = newOnHand === 0 ? 0 : (product.quantityOnHand * oldAvgStockPrice + qty * unitCost) / newOnHand;
+    // Weighted by quantityOnHand — physical layers, never onHand − reserved. The zero guard can
+    // only fire on a broken invariant (every caller passes qty > 0 and onHand is never negative);
+    // it keeps the last average rather than resetting, matching consumeFifo's zero rule (S23).
+    const newAvgStockPrice =
+      newOnHand === 0 ? oldAvgStockPrice : (product.quantityOnHand * oldAvgStockPrice + qty * unitCost) / newOnHand;
 
     const movement = await tx.stockMovement.create({
       data: {
@@ -383,6 +416,41 @@ const STOCK_ROW_CSV_HEADERS = [
   'isLow',
 ];
 
+const MOVEMENT_ROW_CSV_HEADERS = [
+  'createdAt',
+  'reference',
+  'referenceType',
+  'type',
+  'direction',
+  'productId',
+  'productName',
+  'quantity',
+  'unitCost',
+  'costOfGoods',
+  'profit',
+  'balanceAfter',
+  'staffName',
+  'reason',
+];
+
+// Shared `include` for every listMovements read (paginated and export) so the two branches stay
+// on the identical relation shape — and so toMovementDtos below has one payload type to accept.
+const MOVEMENT_INCLUDE = {
+  product: { select: { name: true } },
+  staff: { select: { firstName: true, lastName: true } },
+} satisfies Prisma.StockMovementInclude;
+type MovementWithRelations = Prisma.StockMovementGetPayload<{ include: typeof MOVEMENT_INCLUDE }>;
+
+// S25 — every export in this module is a single in-memory document, so an unbounded result set
+// would hold the request open while it serialised. Callers ask for EXPORT_MAX_ROWS + 1 rows and
+// hand the count here; the sentinel reaches the user as a translated message via
+// query-client.ts's SENTINEL_TRANSLATION_KEYS, telling them to narrow the filters.
+const assertExportSize = (total: number): void => {
+  if (total > EXPORT_MAX_ROWS) {
+    throw new BadRequestError(EXPORT_ERROR.ROW_LIMIT_EXCEEDED, { limit: EXPORT_MAX_ROWS, total });
+  }
+};
+
 // HTTP-facing read/admin service. Constructor takes the FIFO engine plus the two injected ports
 // `createAdjustment` needs — the engine dependency wasn't listed in the plan's constructor
 // signature, but is required by the very next line of the same task (delta>0/<0 delegate to
@@ -411,31 +479,79 @@ export class InventoryReadService implements IInventoryReadService {
     const rows = products.map((product) => InventoryMapper.toStockRowDto(product));
     const filtered = query.lowStockOnly ? rows.filter((row) => row.isLow) : rows;
 
-    if (query.export === 'csv') {
-      const lines = [
-        STOCK_ROW_CSV_HEADERS.join(','),
-        ...filtered.map((row) =>
-          [
-            row.productId,
-            row.name,
-            row.barcode ?? '',
-            row.quantityOnHand,
-            row.quantityReserved,
-            row.availableQuantity,
-            row.avgStockPrice,
-            row.stockValue,
-            row.reorderThreshold,
-            row.isLow,
-          ].join(','),
-        ),
-      ];
-      return { filename: 'stock.csv', mime: 'text/csv', body: lines.join('\n') };
+    if (query.export) {
+      // S25 — the export now mirrors the table's own query (search/lowStockOnly), fixing the
+      // defect where the export always downloaded the whole catalogue regardless of the active
+      // filters — `filtered` above already applied both.
+      assertExportSize(filtered.length);
+      if (query.export === 'pdf') return this.stockPdf(filtered, query);
+      return this.stockCsv(filtered);
     }
 
     return filtered;
   }
 
-  async listMovements(query: MovementsQuery): Promise<PaginatedResult<MovementDto>> {
+  private stockCsv(rows: StockRowDto[]): ExportResult {
+    return {
+      filename: 'stock.csv',
+      mime: CSV_MIME,
+      body: toCsv(
+        STOCK_ROW_CSV_HEADERS,
+        rows.map((row) => [
+          row.productId,
+          row.name,
+          row.barcode ?? '',
+          row.quantityOnHand,
+          row.quantityReserved,
+          row.availableQuantity,
+          csvMoney(row.avgStockPrice),
+          csvMoney(row.stockValue),
+          row.reorderThreshold,
+          row.isLow,
+        ]),
+      ),
+    };
+  }
+
+  private async stockPdf(rows: StockRowDto[], query: StockQuery): Promise<ExportResult> {
+    const filters: { label: string; value: string }[] = [];
+    if (query.search) filters.push({ label: 'Search', value: query.search });
+    if (query.lowStockOnly) filters.push({ label: 'Low stock only', value: 'Yes' });
+
+    const body = await renderTablePdf({
+      title: 'Stock levels',
+      filters,
+      generatedAt: new Date(),
+      orientation: 'landscape',
+      columns: [
+        { header: 'Product', width: 5 },
+        { header: 'Barcode', width: 3 },
+        { header: 'On hand', width: 2, align: 'right' },
+        { header: 'Reserved', width: 2, align: 'right' },
+        { header: 'Available', width: 2, align: 'right' },
+        // The quantity-weighted figure S23 corrected — never avgPrice, which is
+        // supplier-invoice context only.
+        { header: 'Avg stock price', width: 3, align: 'right' },
+        { header: 'Stock value', width: 3, align: 'right' },
+        { header: 'Threshold', width: 2, align: 'right' },
+        { header: 'Low', width: 1.5 },
+      ],
+      rows: rows.map((row) => [
+        row.name,
+        row.barcode ?? '',
+        String(row.quantityOnHand),
+        String(row.quantityReserved),
+        String(row.availableQuantity),
+        row.avgStockPrice.toFixed(2),
+        row.stockValue.toFixed(2),
+        String(row.reorderThreshold),
+        row.isLow ? 'Yes' : 'No',
+      ]),
+    });
+    return { filename: 'stock.pdf', mime: 'application/pdf', body };
+  }
+
+  async listMovements(query: MovementsQuery): Promise<PaginatedResult<MovementDto> | ExportResult> {
     const toExclusive = query.to ? new Date(new Date(query.to).getTime() + 86_400_000) : undefined;
     const where: Prisma.StockMovementWhereInput = {
       ...(query.productId ? { productId: query.productId } : {}),
@@ -458,21 +574,45 @@ export class InventoryReadService implements IInventoryReadService {
         : {}),
     };
 
+    if (query.export) {
+      // `page`/`limit` carry schema defaults and are ignored here on purpose (contract comment on
+      // MovementsQuerySchema.export): an export of only the page on screen is the defect S25
+      // fixes.
+      const movements = await this.prisma.stockMovement.findMany({
+        where,
+        include: MOVEMENT_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+        take: EXPORT_MAX_ROWS + 1, // one extra row is what makes the ceiling detectable
+      });
+      assertExportSize(movements.length);
+      const items = await this.toMovementDtos(movements);
+      return query.export === 'pdf' ? this.movementsPdf(items, query) : this.movementsCsv(items);
+    }
+
     const [total, movements] = await Promise.all([
       this.prisma.stockMovement.count({ where }),
       this.prisma.stockMovement.findMany({
         where,
-        include: { product: { select: { name: true } }, staff: { select: { firstName: true, lastName: true } } },
+        include: MOVEMENT_INCLUDE,
         orderBy: { createdAt: 'desc' },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
       }),
     ]);
 
+    const items = await this.toMovementDtos(movements);
+
+    return { items, meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) } };
+  }
+
+  // Shared by the paginated branch and the export branch above so both produce identical
+  // MovementDtos — resolveReferenceLabels' RETURN fallback chain (documented on that method) is
+  // exactly the kind of logic that drifts when copied instead of shared.
+  private async toMovementDtos(movements: MovementWithRelations[]): Promise<MovementDto[]> {
     // RC-4: resolve every movement's source document to its human reference.
     const labelsByKey = await this.resolveReferenceLabels(movements);
 
-    const items = movements.map((movement) => {
+    return movements.map((movement) => {
       const resolvedName =
         movement.referenceType === 'PRODUCT'
           ? movement.product.name
@@ -480,8 +620,92 @@ export class InventoryReadService implements IInventoryReadService {
       const referenceLabel = InventoryMapper.resolveReferenceLabel(movement.referenceType, movement.referenceId, resolvedName);
       return InventoryMapper.toMovementDto(movement, movement.product, movement.staff, referenceLabel);
     });
+  }
 
-    return { items, meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) } };
+  private movementsCsv(items: MovementDto[]): ExportResult {
+    return {
+      filename: 'movements.csv',
+      mime: CSV_MIME,
+      body: toCsv(
+        MOVEMENT_ROW_CSV_HEADERS,
+        items.map((item) => [
+          csvDate(item.createdAt),
+          item.referenceLabel,
+          item.referenceType,
+          item.type,
+          item.direction,
+          item.productId,
+          item.productName,
+          item.quantity,
+          item.unitCost != null ? csvMoney(item.unitCost) : '',
+          item.costOfGoods != null ? csvMoney(item.costOfGoods) : '',
+          item.profit != null ? csvMoney(item.profit) : '',
+          item.balanceAfter,
+          item.staffName,
+          item.reason ?? '',
+        ]),
+      ),
+    };
+  }
+
+  private async movementsPdf(items: MovementDto[], query: MovementsQuery): Promise<ExportResult> {
+    // Resolving productId/staffId to names is worth the two extra reads — printing a raw UUID in
+    // the title block is useless. Both are skipped when the filter is unset.
+    const filters: { label: string; value: string }[] = [];
+    if (query.productId) {
+      const product = await this.prisma.product.findUnique({ where: { id: query.productId }, select: { name: true } });
+      if (product) filters.push({ label: 'Product', value: product.name });
+    }
+    if (query.staffId) {
+      const staff = await this.prisma.staff.findUnique({
+        where: { id: query.staffId },
+        select: { firstName: true, lastName: true },
+      });
+      if (staff) filters.push({ label: 'Staff', value: `${staff.firstName} ${staff.lastName}` });
+    }
+    if (query.type) filters.push({ label: 'Type', value: query.type });
+    if (query.from) filters.push({ label: 'From', value: query.from });
+    if (query.to) filters.push({ label: 'To', value: query.to });
+    if (query.search) filters.push({ label: 'Search', value: query.search });
+
+    const body = await renderTablePdf({
+      title: 'Stock movement ledger',
+      filters,
+      generatedAt: new Date(),
+      orientation: 'landscape',
+      columns: [
+        { header: 'Date', width: 3 },
+        { header: 'Reference', width: 3 },
+        { header: 'Type', width: 3 },
+        { header: 'Dir', width: 1.5 },
+        { header: 'Product', width: 4 },
+        { header: 'Qty', width: 1.5, align: 'right' },
+        { header: 'Unit cost', width: 2.5, align: 'right' },
+        { header: 'Cost of goods', width: 2.5, align: 'right' },
+        { header: 'Profit', width: 2.5, align: 'right' },
+        { header: 'Balance', width: 2, align: 'right' },
+        { header: 'Staff', width: 3 },
+        // `reason` is deliberately dropped here: it is free text of unbounded length and would
+        // force wrapping, which pdf.utils.ts's fixed-row-height pagination forbids. The CSV
+        // (movementsCsv above) carries it in full.
+      ],
+      // csvDate is a general UTC date formatter despite the name — reused here for the PDF's Date
+      // column too, so both exports agree on the same timestamp format.
+      rows: items.map((item) => [
+        csvDate(item.createdAt),
+        item.referenceLabel,
+        item.type,
+        item.direction,
+        item.productName,
+        String(item.quantity),
+        item.unitCost != null ? item.unitCost.toFixed(2) : '',
+        item.costOfGoods != null ? item.costOfGoods.toFixed(2) : '',
+        item.profit != null ? item.profit.toFixed(2) : '',
+        String(item.balanceAfter),
+        item.staffName,
+      ]),
+    });
+    return { filename: 'movements.pdf', mime: 'application/pdf', body };
   }
 
   // Resolves each movement/reservation's source document to its human reference (ORD-…, SAL-…,

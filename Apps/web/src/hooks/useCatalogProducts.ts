@@ -7,6 +7,8 @@ import type {
   AddProductImagesCommand,
   UpdateProductImagesCommand,
   GenerateBarcodeCommand,
+  BarcodeLabelSheetCommand,
+  BarcodeLookupCommand,
 } from "@dragon-telecom/contract";
 import * as catalogService from "@/services/catalog.service";
 import { qk } from "@/lib/query-keys";
@@ -165,5 +167,24 @@ export function useDeleteProductImage() {
 export function useGenerateBarcode() {
   return useMutation({
     mutationFn: (command: GenerateBarcodeCommand) => catalogService.generateBarcode(command),
+  });
+}
+
+// S22 — a query, unlike useGenerateBarcode above: the same {invoice lines} genuinely should be
+// served from cache, and the dialog needs it declaratively on open rather than imperatively. A
+// POST only because the id list is too long for a query string.
+export function useBarcodeLookup(productIds: string[], options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: qk.catalog.barcodeLookup(productIds),
+    queryFn: () => catalogService.lookupBarcodes({ productIds }),
+    enabled: (options?.enabled ?? true) && productIds.length > 0,
+  });
+}
+
+// Imperative (triggers a file download) rather than a query — returns a Blob, not cacheable domain
+// data. Same shape as useInvoicePdf (useBilling.ts) and useExportReportCsv.
+export function usePrintBarcodeLabels() {
+  return useMutation({
+    mutationFn: (command: BarcodeLabelSheetCommand) => catalogService.renderBarcodeLabels(command),
   });
 }

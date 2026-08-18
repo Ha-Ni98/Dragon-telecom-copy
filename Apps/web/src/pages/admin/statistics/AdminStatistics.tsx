@@ -11,7 +11,7 @@ import { AdminStatisticsCharts } from "@/pages/admin/statistics/components/admin
 import { AdminTopSellingProducts } from "@/pages/admin/products/components/admin-top-selling-products";
 import { ReportPicker } from "@/pages/admin/statistics/components/report-picker";
 import { generateDateRangeData } from "@/lib/date-utils";
-import { ChartType } from "@dragon-telecom/contract";
+import { ChartType, RevenueSource } from "@dragon-telecom/contract";
 import { useOverview, useFiltered, useChart, useTopProducts } from "@/hooks/useStatistics";
 import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -35,14 +35,19 @@ export default function AdminStatistics() {
   const [selectedFamily, setSelectedFamily] = useState<string>(
     () => searchParams.get("family") || "all",
   );
+  // S24 — revenue-source filter (all / products / repairs), URL-synced like family.
+  const [selectedSource, setSelectedSource] = useState<RevenueSource>(
+    () => (searchParams.get("source") as RevenueSource | null) || RevenueSource.ALL,
+  );
 
   const filterQuery = useMemo(
     () => ({
       from: toISODate(selectedDateRange.startDate),
       to: toISODate(selectedDateRange.endDate),
       familyId: selectedFamily !== "all" ? selectedFamily : undefined,
+      source: selectedSource !== RevenueSource.ALL ? selectedSource : undefined,
     }),
-    [selectedDateRange, selectedFamily],
+    [selectedDateRange, selectedFamily, selectedSource],
   );
 
   const overview = useOverview();
@@ -59,12 +64,14 @@ export default function AdminStatistics() {
   );
 
   const updateURLParams = useCallback(
-    (dateRange: DateRangeFilter, family: string) => {
+    (dateRange: DateRangeFilter, family: string, source: RevenueSource) => {
       const next = new URLSearchParams(searchParams);
       if (dateRange.type !== "monthly") next.set("dateRange", dateRange.type);
       else next.delete("dateRange");
       if (family !== "all") next.set("family", family);
       else next.delete("family");
+      if (source !== RevenueSource.ALL) next.set("source", source);
+      else next.delete("source");
       setSearchParams(next, { replace: true });
     },
     [searchParams, setSearchParams],
@@ -73,16 +80,23 @@ export default function AdminStatistics() {
   const handleDateRangeChange = useCallback(
     (range: DateRangeFilter) => {
       setSelectedDateRange(range);
-      updateURLParams(range, selectedFamily);
+      updateURLParams(range, selectedFamily, selectedSource);
     },
-    [selectedFamily, updateURLParams],
+    [selectedFamily, selectedSource, updateURLParams],
   );
   const handleFamilyChange = useCallback(
     (family: string) => {
       setSelectedFamily(family);
-      updateURLParams(selectedDateRange, family);
+      updateURLParams(selectedDateRange, family, selectedSource);
     },
-    [selectedDateRange, updateURLParams],
+    [selectedDateRange, selectedSource, updateURLParams],
+  );
+  const handleSourceChange = useCallback(
+    (source: RevenueSource) => {
+      setSelectedSource(source);
+      updateURLParams(selectedDateRange, selectedFamily, source);
+    },
+    [selectedDateRange, selectedFamily, updateURLParams],
   );
 
   return (
@@ -100,6 +114,8 @@ export default function AdminStatistics() {
         selectedFamily={selectedFamily}
         onFamilyChange={handleFamilyChange}
         families={familyOptions}
+        selectedSource={selectedSource}
+        onSourceChange={handleSourceChange}
       />
 
       <AdminStatisticsFilteredCards
@@ -119,12 +135,20 @@ export default function AdminStatistics() {
         salesByFamilyLoading={salesByFamilyChart.isLoading}
       />
 
-      <AdminTopSellingProducts
-        products={topProducts.data ?? []}
-        loading={topProducts.isLoading}
-        error={topProducts.isError ? t("admin.statistics.error") : undefined}
-        onRetry={() => topProducts.refetch()}
-      />
+      <div className="space-y-1">
+        <AdminTopSellingProducts
+          products={topProducts.data ?? []}
+          loading={topProducts.isLoading}
+          error={topProducts.isError ? t("admin.statistics.error") : undefined}
+          onRetry={() => topProducts.refetch()}
+        />
+        {/* S24 (A12) — TopProductsQuery carries no from/to/familyId/source, so this widget cannot
+            follow the date-range/family/source filters above it. Called out explicitly rather
+            than left to read as filtered. */}
+        <p className="px-1 text-xs text-muted-foreground">
+          {t("admin.statistics.topProducts.allTimeNote")}
+        </p>
+      </div>
 
       <ReportPicker from={filterQuery.from} to={filterQuery.to} />
     </div>

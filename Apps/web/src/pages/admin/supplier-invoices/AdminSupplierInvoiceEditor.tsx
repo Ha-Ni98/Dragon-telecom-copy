@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Printer } from "lucide-react";
 import {
   SupplierInvoiceStatus,
   type ConfirmResultDto,
@@ -30,6 +30,7 @@ import { QuickAddProductDialog } from "@/pages/admin/supplier-invoices/component
 import type { QuickAddProductFormValues } from "@/pages/admin/supplier-invoices/components/quick-add-product.schema";
 import { SupplierPaymentDialog } from "@/pages/admin/invoices/components/SupplierPaymentDialog";
 import type { RecordSupplierPaymentFormValues } from "@/pages/admin/invoices/components/record-supplier-payment.schema";
+import { BarcodeLabelsDialog } from "@/pages/admin/supplier-invoices/components/barcode-labels-dialog";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
 import {
   usePurchasingInvoiceDetail,
@@ -58,6 +59,9 @@ type RepriceCandidate = ConfirmResultDto["repriceCandidates"][number];
 // (I1: "UI only"). The form's `values` option (not a `useEffect` reset) reactively syncs onto
 // the fetched CONFIRMED DTO once it loads — same reactive-sync convention as
 // EditPosClientDialog (set-04 Sprint 5).
+// S22: a Print-barcodes action sits in the header on every saved invoice regardless of status —
+// it opens a dialog listing the invoice's product lines with an editable label count per line and
+// downloads a server-rendered PDF; lines whose product has no barcode are omitted and counted.
 export default function AdminSupplierInvoiceEditor() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -68,6 +72,9 @@ export default function AdminSupplierInvoiceEditor() {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddLineIndex, setQuickAddLineIndex] = useState<number | null>(null);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  // S22 — the print-barcodes dialog. Unlike the payment button below it is shown on *every* saved
+  // invoice regardless of status: labels are about the goods received, not the money.
+  const [isLabelsOpen, setIsLabelsOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [alreadyConfirmedError, setAlreadyConfirmedError] = useState(false);
   const [repriceCandidates, setRepriceCandidates] = useState<RepriceCandidate[]>([]);
@@ -271,12 +278,20 @@ export default function AdminSupplierInvoiceEditor() {
           title={t("admin.supplierInvoices.editor.title")}
           subtitle={invoice?.reference}
         />
-        {!isCreate && invoice && status !== SupplierInvoiceStatus.DRAFT && (
-          <Button variant="outline" onClick={() => setIsPaymentOpen(true)}>
-            <CreditCard className="mr-2 h-4 w-4" />
-            {t("admin.supplierInvoices.payment.title")}
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {!isCreate && invoice && (
+            <Button variant="outline" onClick={() => setIsLabelsOpen(true)}>
+              <Printer className="mr-2 h-4 w-4" />
+              {t("admin.supplierInvoices.printLabels.action")}
+            </Button>
+          )}
+          {!isCreate && invoice && status !== SupplierInvoiceStatus.DRAFT && (
+            <Button variant="outline" onClick={() => setIsPaymentOpen(true)}>
+              <CreditCard className="mr-2 h-4 w-4" />
+              {t("admin.supplierInvoices.payment.title")}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* I7 — the reprice section sits above the invoice information, not below it. */}
@@ -368,6 +383,16 @@ export default function AdminSupplierInvoiceEditor() {
           onAmountChange={setPaymentAmount}
           onSubmit={handleSubmitPayment}
           isSubmitting={createPayment.isPending}
+        />
+      )}
+
+      {!isCreate && invoice && (
+        <BarcodeLabelsDialog
+          // Fresh mount per invoice, same reason SupplierPaymentDialog is keyed.
+          key={invoice.id}
+          invoice={invoice}
+          open={isLabelsOpen}
+          onOpenChange={setIsLabelsOpen}
         />
       )}
     </div>

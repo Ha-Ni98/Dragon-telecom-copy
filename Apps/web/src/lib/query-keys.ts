@@ -55,6 +55,11 @@ export const qk = {
       detail: (id: string) => ["catalog", "admin-products", "detail", id] as const,
     },
     productStats: () => ["catalog", "product-stats"] as const,
+    // S22 — the supplier-invoice label dialog asks which of an invoice's products have a printable
+    // barcode. Keyed on the id list so reopening the same invoice's dialog is served from cache;
+    // barcodes change only through a product edit, which already invalidates
+    // qk.catalog.adminProducts.all(), so no bespoke invalidation is added here.
+    barcodeLookup: (productIds: string[]) => ["catalog", "barcode-lookup", productIds] as const,
     // `.all()` on each of these three exists so a create/update mutation can invalidate every
     // variant (public + admin) in one call — the two really are separate cache entries, because
     // `admin` is part of every `list(...)` key. S21 added it to `families` and `models`, which had

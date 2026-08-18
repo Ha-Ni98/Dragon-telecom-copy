@@ -24,6 +24,16 @@
     "fr": "Annuler",
     "ar": ""
   },
+  "common.actions.export": {
+    "en": "Export",
+    "fr": "Exporter",
+    "ar": ""
+  },
+  "common.actions.exporting": {
+    "en": "Exporting…",
+    "fr": "Exportation…",
+    "ar": ""
+  },
   "common.actions.confirm": {
     "en": "Confirm",
     "fr": "Confirmer",
@@ -3929,6 +3939,36 @@
     "fr": "Famille de Produits",
     "ar": ""
   },
+  "admin.statistics.filters.source": {
+    "en": "Revenue Source",
+    "fr": "Source de Revenu",
+    "ar": ""
+  },
+  "admin.statistics.filters.selectSource": {
+    "en": "Select a source",
+    "fr": "Sélectionner une source",
+    "ar": ""
+  },
+  "admin.statistics.filters.source.all": {
+    "en": "Products and repairs",
+    "fr": "Produits et réparations",
+    "ar": ""
+  },
+  "admin.statistics.filters.source.products": {
+    "en": "Products only",
+    "fr": "Produits uniquement",
+    "ar": ""
+  },
+  "admin.statistics.filters.source.repairs": {
+    "en": "Repairs only",
+    "fr": "Réparations uniquement",
+    "ar": ""
+  },
+  "admin.statistics.filters.familyExcludesLabourNote": {
+    "en": "Repair labour is not linked to a family and is excluded while a family filter is active.",
+    "fr": "La main-d'œuvre des réparations n'est liée à aucune famille et est exclue lorsqu'un filtre de famille est actif.",
+    "ar": ""
+  },
   "admin.statistics.filters.monthly": {
     "en": "This Month",
     "fr": "Ce Mois",
@@ -4032,6 +4072,11 @@
   "admin.statistics.topProducts.description": {
     "en": "Best-selling products by period",
     "fr": "Produits les plus vendus par période",
+    "ar": ""
+  },
+  "admin.statistics.topProducts.allTimeNote": {
+    "en": "All time — not affected by the filters above.",
+    "fr": "Toutes périodes confondues — non affecté par les filtres ci-dessus.",
     "ar": ""
   },
   "admin.statistics.topProducts.filters.allTime": {
@@ -8984,14 +9029,19 @@
     "fr": "Indicateurs clés et aperçu financier",
     "ar": ""
   },
+  "admin.statistics.overview.allTimeNote": {
+    "en": "All time — not affected by the filters below.",
+    "fr": "Toutes périodes confondues — non affecté par les filtres ci-dessous.",
+    "ar": ""
+  },
   "admin.statistics.overview.descriptions.totalRevenue": {
-    "en": "Total revenue from all sales",
-    "fr": "Revenu total de toutes les ventes",
+    "en": "All-time revenue from sales, orders and repairs",
+    "fr": "Revenu total des ventes, commandes et réparations",
     "ar": ""
   },
   "admin.statistics.overview.descriptions.totalProfit": {
-    "en": "Total profit after costs",
-    "fr": "Bénéfice total après coûts",
+    "en": "All-time profit after costs, net of returns",
+    "fr": "Bénéfice total après coûts, net des retours",
     "ar": ""
   },
   "admin.statistics.overview.descriptions.totalProductValue": {
@@ -9332,6 +9382,16 @@
   "admin.settings.delivery.exportExcel": {
     "en": "Export Excel",
     "fr": "Exporter Excel",
+    "ar": ""
+  },
+  "admin.settings.delivery.exportCsv": {
+    "en": "Export CSV",
+    "fr": "Exporter en CSV",
+    "ar": ""
+  },
+  "admin.settings.delivery.exportPdf": {
+    "en": "Export PDF",
+    "fr": "Exporter en PDF",
     "ar": ""
   },
   "admin.settings.delivery.importExcel": {
@@ -10539,6 +10599,21 @@
     "fr": "Nouvelle vente",
     "ar": ""
   },
+  "staff.pos.receipt.reference": {
+    "en": "Receipt no.",
+    "fr": "Reçu n°",
+    "ar": ""
+  },
+  "staff.pos.receipt.serials": {
+    "en": "Serial no.",
+    "fr": "N° de série",
+    "ar": ""
+  },
+  "staff.pos.receipt.thankYou": {
+    "en": "Thank you for your visit",
+    "fr": "Merci de votre visite",
+    "ar": ""
+  },
   "admin.pos.pageTitle": {
     "en": "POS (all staff)",
     "fr": "Point de vente (tout le personnel)",
@@ -11629,6 +11704,121 @@
     "fr": "Facture",
     "ar": ""
   },
+  "staff.repairs.receipt.print": {
+    "en": "Print receipt",
+    "fr": "Imprimer le reçu",
+    "ar": ""
+  },
+  "staff.repairs.receipt.title": {
+    "en": "Repair ticket",
+    "fr": "Bon de réparation",
+    "ar": ""
+  },
+  "staff.repairs.receipt.reference": {
+    "en": "Ticket no.",
+    "fr": "Bon n°",
+    "ar": ""
+  },
+  "staff.repairs.receipt.intakeAt": {
+    "en": "Received on",
+    "fr": "Reçu le",
+    "ar": ""
+  },
+  "staff.repairs.receipt.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "staff.repairs.receipt.customer": {
+    "en": "Customer",
+    "fr": "Client",
+    "ar": ""
+  },
+  "staff.repairs.receipt.device": {
+    "en": "Device",
+    "fr": "Appareil",
+    "ar": ""
+  },
+  "staff.repairs.receipt.imei": {
+    "en": "IMEI",
+    "fr": "IMEI",
+    "ar": ""
+  },
+  "staff.repairs.receipt.issues": {
+    "en": "Reported issues",
+    "fr": "Pannes signalées",
+    "ar": ""
+  },
+  "staff.repairs.receipt.diagnosis": {
+    "en": "Diagnosis",
+    "fr": "Diagnostic",
+    "ar": ""
+  },
+  "staff.repairs.receipt.technician": {
+    "en": "Technician",
+    "fr": "Technicien",
+    "ar": ""
+  },
+  "staff.repairs.receipt.parts": {
+    "en": "Parts",
+    "fr": "Pièces",
+    "ar": ""
+  },
+  "staff.repairs.receipt.labour": {
+    "en": "Labour",
+    "fr": "Main-d'œuvre",
+    "ar": ""
+  },
+  "staff.repairs.receipt.partsTotal": {
+    "en": "Parts total",
+    "fr": "Total pièces",
+    "ar": ""
+  },
+  "staff.repairs.receipt.total": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.repairs.receipt.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "staff.repairs.receipt.due": {
+    "en": "Amount due",
+    "fr": "Reste à payer",
+    "ar": ""
+  },
+  "staff.repairs.receipt.statusPaid": {
+    "en": "PAID",
+    "fr": "PAYÉ",
+    "ar": ""
+  },
+  "staff.repairs.receipt.statusPartial": {
+    "en": "PARTIALLY PAID",
+    "fr": "PARTIELLEMENT PAYÉ",
+    "ar": ""
+  },
+  "staff.repairs.receipt.statusUnpaid": {
+    "en": "UNPAID",
+    "fr": "NON PAYÉ",
+    "ar": ""
+  },
+  "staff.repairs.receipt.invoiceNumber": {
+    "en": "Invoice no.",
+    "fr": "Facture n°",
+    "ar": ""
+  },
+  "staff.repairs.receipt.serials": {
+    "en": "Serial no.",
+    "fr": "N° de série",
+    "ar": ""
+  },
+  "staff.repairs.receipt.footer": {
+    "en": "Please keep this ticket — it is required to collect your device",
+    "fr": "Conservez ce bon — il est exigé pour retirer votre appareil",
+    "ar": ""
+  },
   "staff.repairs.detail.amountDue": {
     "en": "Amount due",
     "fr": "Montant dû",
@@ -12014,6 +12204,36 @@
     "fr": "Imprimer",
     "ar": ""
   },
+  "admin.productsList.printLabels.generating": {
+    "en": "Generating…",
+    "fr": "Génération…",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.tooMany": {
+    "en": "Reduce the quantities — one sheet holds at most {max} labels.",
+    "fr": "Réduisez les quantités — une planche contient au maximum {max} étiquettes.",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.storeNameLabel": {
+    "en": "Store name (optional)",
+    "fr": "Nom du magasin (facultatif)",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.storeNameHelper": {
+    "en": "Printed vertically down the left of each label. Leave empty to omit it.",
+    "fr": "Imprimé verticalement à gauche de chaque étiquette. Laissez vide pour l'omettre.",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.topTextLabel": {
+    "en": "Text above the barcode (optional)",
+    "fr": "Texte au-dessus du code-barres (facultatif)",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.topTextHelper": {
+    "en": "Defaults to the product's model. Leave empty to omit it.",
+    "fr": "Par défaut, le modèle du produit. Laissez vide pour l'omettre.",
+    "ar": ""
+  },
   "admin.productsList.table.empty": {
     "en": "No products match these filters",
     "fr": "Aucun produit ne correspond à ces filtres",
@@ -12379,6 +12599,21 @@
     "fr": "Impossible de générer un code-barres unique — saisissez-en un manuellement",
     "ar": ""
   },
+  "common.errors.sentinel.barcodeLabelsEmpty": {
+    "en": "None of the selected products has a printable barcode",
+    "fr": "Aucun des produits sélectionnés n'a de code-barres imprimable",
+    "ar": ""
+  },
+  "common.errors.sentinel.barcodeLabelTotalExceeded": {
+    "en": "Too many labels in one run — reduce the quantities",
+    "fr": "Trop d'étiquettes en une fois — réduisez les quantités",
+    "ar": ""
+  },
+  "common.errors.sentinel.exportRowLimitExceeded": {
+    "en": "This export is too large. Narrow the filters and try again.",
+    "fr": "Cet export est trop volumineux. Affinez les filtres et réessayez.",
+    "ar": ""
+  },
   "admin.nav.pos": {
     "en": "POS",
     "fr": "Point de vente",
@@ -12529,6 +12764,11 @@
     "fr": "Exporter en CSV",
     "ar": ""
   },
+  "admin.inventory.stock.exportPdf": {
+    "en": "Export PDF",
+    "fr": "Exporter en PDF",
+    "ar": ""
+  },
   "admin.inventory.movements.table.date": {
     "en": "Date",
     "fr": "Date",
@@ -12567,6 +12807,16 @@
   "admin.inventory.movements.table.staff": {
     "en": "Staff",
     "fr": "Employé",
+    "ar": ""
+  },
+  "admin.inventory.movements.export.csv": {
+    "en": "Export CSV",
+    "fr": "Exporter en CSV",
+    "ar": ""
+  },
+  "admin.inventory.movements.export.pdf": {
+    "en": "Export PDF",
+    "fr": "Exporter en PDF",
     "ar": ""
   },
   "admin.inventory.movements.empty": {
@@ -13039,6 +13289,81 @@
     "fr": "Paiement enregistré avec succès",
     "ar": ""
   },
+  "admin.supplierInvoices.printLabels.action": {
+    "en": "Print barcodes",
+    "fr": "Imprimer les codes-barres",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.title": {
+    "en": "Print barcode labels",
+    "fr": "Imprimer les étiquettes de code-barres",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.description": {
+    "en": "One row per invoice line. Each quantity defaults to the quantity received.",
+    "fr": "Une ligne par ligne de facture. Chaque quantité correspond par défaut à la quantité reçue.",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.columnProduct": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.columnBarcode": {
+    "en": "Barcode",
+    "fr": "Code-barres",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.columnQuantity": {
+    "en": "Labels",
+    "fr": "Étiquettes",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.skipped": {
+    "en": "{count} line(s) skipped — those products have no barcode yet.",
+    "fr": "{count} ligne(s) ignorée(s) — ces produits n'ont pas encore de code-barres.",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.none": {
+    "en": "No line on this invoice has a printable barcode.",
+    "fr": "Aucune ligne de cette facture n'a de code-barres imprimable.",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.total": {
+    "en": "{count} labels in total",
+    "fr": "{count} étiquettes au total",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.loadError": {
+    "en": "Couldn't load the barcodes for this invoice",
+    "fr": "Impossible de charger les codes-barres de cette facture",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.storeNameLabel": {
+    "en": "Store name (optional)",
+    "fr": "Nom du magasin (facultatif)",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.storeNameHelper": {
+    "en": "Applies to every label in this run. Defaults to your store name plus the supplier's initials.",
+    "fr": "S'applique à toutes les étiquettes de cette impression. Par défaut, le nom de votre magasin suivi des initiales du fournisseur.",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.columnTopText": {
+    "en": "Text above",
+    "fr": "Texte au-dessus",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.actions": {
+    "en": "Actions",
+    "fr": "Actions",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.printLabels": {
+    "en": "Print barcodes",
+    "fr": "Imprimer les codes-barres",
+    "ar": ""
+  },
   "admin.posClients.title": {
     "en": "POS clients",
     "fr": "Clients point de vente",
@@ -13444,6 +13769,11 @@
     "fr": "Exporter en CSV",
     "ar": ""
   },
+  "admin.statistics.reports.exportPdf": {
+    "en": "Export PDF",
+    "fr": "Exporter en PDF",
+    "ar": ""
+  },
   "admin.statistics.reports.columns.productId": {
     "en": "Product ID",
     "fr": "ID produit",
@@ -13597,6 +13927,81 @@
   "admin.statistics.reports.columns.kind": {
     "en": "Kind",
     "fr": "Type",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.accruedAmount": {
+    "en": "Accrued amount",
+    "fr": "Montant accumulé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalRevenue": {
+    "en": "Total revenue",
+    "fr": "Revenu total",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalDiscount": {
+    "en": "Total discount",
+    "fr": "Remise totale",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalSpend": {
+    "en": "Total spend",
+    "fr": "Dépense totale",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.recognizedRevenue": {
+    "en": "Recognised revenue",
+    "fr": "Revenu comptabilisé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.recognizedCost": {
+    "en": "Recognised cost",
+    "fr": "Coût comptabilisé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.recognizedProfit": {
+    "en": "Recognised profit",
+    "fr": "Bénéfice comptabilisé",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalClientOutstanding": {
+    "en": "Total client outstanding",
+    "fr": "Total dû par les clients",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalSupplierOutstanding": {
+    "en": "Total supplier outstanding",
+    "fr": "Total dû aux fournisseurs",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.movementTypeCount": {
+    "en": "Movement types",
+    "fr": "Types de mouvement",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.totalRepairs": {
+    "en": "Total repairs",
+    "fr": "Réparations totales",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.topSearchCount": {
+    "en": "Top searches",
+    "fr": "Recherches populaires",
+    "ar": ""
+  },
+  "admin.statistics.reports.columns.zeroPurchaseProductCount": {
+    "en": "Viewed, never purchased",
+    "fr": "Consulté, jamais acheté",
+    "ar": ""
+  },
+  "admin.statistics.reports.totals": {
+    "en": "Totals",
+    "fr": "Totaux",
+    "ar": ""
+  },
+  "admin.statistics.reports.ageingSnapshotNote": {
+    "en": "Ageing is measured as of today and does not use the selected date range.",
+    "fr": "L'ancienneté est calculée à la date d'aujourd'hui et n'utilise pas la période sélectionnée.",
     "ar": ""
   },
   "admin.statistics.reports.viewDetails": {

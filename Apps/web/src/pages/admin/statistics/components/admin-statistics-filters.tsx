@@ -20,6 +20,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { useTranslation } from "@/hooks/useTranslation";
 import { generateDateRangeData } from "@/lib/date-utils";
 import { format } from "date-fns";
+import { RevenueSource } from "@dragon-telecom/contract";
 
 // Page-local UI state — not part of any DTO (the query's `from`/`to`/`familyId`, URL-synced
 // per plan §Page 6, is derived from this at the call site in Sprint 8).
@@ -38,6 +39,9 @@ interface AdminStatisticsFiltersProps {
   /** Real families come from `useCatalogFamilies` (Sprint 8) — `id`/`name`, not the old
    * view-model's numeric `idFamily`/`familyName`. */
   families?: { id: string; name: string }[];
+  /** S24 — revenue-source filter: all / products (sales+orders) / repairs. */
+  selectedSource: RevenueSource;
+  onSourceChange: (source: RevenueSource) => void;
   loading?: boolean;
   className?: string;
 }
@@ -56,6 +60,8 @@ export function AdminStatisticsFilters({
   selectedFamily,
   onFamilyChange,
   families = [],
+  selectedSource,
+  onSourceChange,
   loading = false,
   className = "",
 }: AdminStatisticsFiltersProps) {
@@ -72,7 +78,10 @@ export function AdminStatisticsFilters({
   /**
    * Check if any filters are active
    */
-  const hasActiveFilters = selectedFamily !== "all" || selectedDateRange.type !== "monthly";
+  const hasActiveFilters =
+    selectedFamily !== "all" ||
+    selectedDateRange.type !== "monthly" ||
+    selectedSource !== RevenueSource.ALL;
 
   /**
    * Handle date range preset selection
@@ -128,11 +137,12 @@ export function AdminStatisticsFilters({
     const defaultDateRange = generateDateRangeData("monthly");
     onDateRangeChange(defaultDateRange);
     onFamilyChange("all");
+    onSourceChange(RevenueSource.ALL);
     setCustomDateRange({
       from: defaultDateRange.startDate,
       to: defaultDateRange.endDate,
     });
-  }, [onDateRangeChange, onFamilyChange]);
+  }, [onDateRangeChange, onFamilyChange, onSourceChange]);
 
   /**
    * Get family name by ID
@@ -144,6 +154,14 @@ export function AdminStatisticsFilters({
       return family?.name || "";
     },
     [families, t],
+  );
+
+  /**
+   * Get revenue-source label (S24)
+   */
+  const getSourceLabel = useCallback(
+    (source: RevenueSource): string => t(`admin.statistics.filters.source.${source}`),
+    [t],
   );
 
   /**
@@ -189,7 +207,7 @@ export function AdminStatisticsFilters({
       </CardHeader>
 
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Date Range Filter */}
           <div className="space-y-3">
             <label className="text-sm font-medium">{t("admin.statistics.filters.dateRange")}</label>
@@ -286,7 +304,42 @@ export function AdminStatisticsFilters({
               <div>{getFamilyName(selectedFamily)}</div>
             </div>
           </div>
+
+          {/* Revenue Source Filter (S24) */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium">{t("admin.statistics.filters.source")}</label>
+
+            <Select
+              value={selectedSource}
+              onValueChange={(v) => onSourceChange(v as RevenueSource)}
+              disabled={loading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t("admin.statistics.filters.selectSource")} />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.values(RevenueSource).map((source) => (
+                  <SelectItem key={source} value={source}>
+                    {getSourceLabel(source)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+              <div className="font-medium">{t("admin.statistics.filters.currentSelection")}:</div>
+              <div>{getSourceLabel(selectedSource)}</div>
+            </div>
+          </div>
         </div>
+
+        {/* S24 (Q3) — repair labour has no product/family, so a family filter necessarily
+            excludes it from any REPAIRS/ALL figure. Surfaced rather than left silent. */}
+        {selectedFamily !== "all" && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            {t("admin.statistics.filters.familyExcludesLabourNote")}
+          </p>
+        )}
 
         {/* Filter Summary */}
         {hasActiveFilters && (
@@ -301,6 +354,12 @@ export function AdminStatisticsFilters({
                 <Badge variant="outline" className="flex items-center gap-1">
                   <Filter className="h-3 w-3" />
                   {getFamilyName(selectedFamily)}
+                </Badge>
+              )}
+              {selectedSource !== RevenueSource.ALL && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Filter className="h-3 w-3" />
+                  {getSourceLabel(selectedSource)}
                 </Badge>
               )}
             </div>

@@ -8,20 +8,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { AutocompleteInput } from "@/components/shared/autocomplete-input";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Printer } from "lucide-react";
 import {
   isRepairStatusTerminal,
   type RepairDto,
   type StaffProductDto,
+  type PublicSettingsDto,
 } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD, formatDateTime } from "@/lib/utils";
+import { printReceipt } from "@/lib/print";
 import {
   addRepairPartSchema,
   type AddRepairPartFormValues,
 } from "@/pages/staff/repairs/add-repair-part.schema";
 import { REPAIR_STATUS_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
 import { RecordRepairPaymentDialog } from "@/pages/staff/repairs/components/RecordRepairPaymentDialog";
+import { RepairReceipt } from "@/pages/staff/repairs/components/RepairReceipt";
 import type { RecordRepairPaymentFormValues } from "@/pages/staff/repairs/record-repair-payment.schema";
 
 interface RepairTicketDetailProps {
@@ -40,6 +43,8 @@ interface RepairTicketDetailProps {
   isRecordingPayment?: boolean;
   /** ADM-13 §UI — cost/profit per part is admin-only. */
   scope?: "staff" | "admin";
+  /** S25 — the repair receipt's store header. Optional: the settings query may still be in flight. */
+  store?: PublicSettingsDto["store"];
 }
 
 // Dumb (owns only local form state) — Sprint 7 wires useRepair(scope, id) + the mutations around
@@ -63,6 +68,7 @@ export function RepairTicketDetail({
   onRecordPayment,
   isRecordingPayment,
   scope = "staff",
+  store,
 }: RepairTicketDetailProps) {
   const { t, language } = useTranslation();
   const {
@@ -98,9 +104,17 @@ export function RepairTicketDetail({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>
-              {t("staff.repairs.detail.title")} — {repair.reference}
-            </SheetTitle>
+            <div className="flex items-center justify-between gap-2">
+              <SheetTitle>
+                {t("staff.repairs.detail.title")} — {repair.reference}
+              </SheetTitle>
+              {/* S25 — printable at every status, including PICKED_UP/CANCELLED (read-only), so
+                  this sits outside every `!readOnly` guard in this component. */}
+              <Button variant="outline" size="sm" onClick={printReceipt}>
+                <Printer className="mr-2 h-4 w-4" />
+                {t("staff.repairs.receipt.print")}
+              </Button>
+            </div>
           </SheetHeader>
 
           <div className="mt-4 space-y-4 text-sm">
@@ -310,6 +324,11 @@ export function RepairTicketDetail({
         onSubmit={handleRecordPayment}
         isSubmitting={isRecordingPayment}
       />
+
+      {/* S25 — sibling of <Sheet>, deliberately NOT inside <SheetContent>: Radix animates
+          SheetContent with a transform, which becomes the containing block for the receipt's
+          position:absolute print rule and would print it clipped or off-page (see index.css). */}
+      <RepairReceipt repair={repair} store={store} />
     </>
   );
 }

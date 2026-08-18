@@ -40,7 +40,7 @@ StaffDashboardDto { mySalesToday; myRevenueToday; myDrafts[]; myPendingOrdersCou
 1. Revenue/profit = Σ stored figures over COMPLETED sales (both origins) + CONFIRMED-and-later orders — repair revenue arrives once, as the repair-origin sale; never double-counted with an invoice.
 2. `sales-by-category` / `by-seller` expose the discount column: Σ (resolvedPrice − unitPrice) × qty.
 3. `stock-movements` totals per type; large ADJUSTMENT_OUT flagged (shrinkage signal). `ageing` buckets client + supplier credit by document age. `client-browsing` joins observability: top searches; most-viewed products with zero purchases.
-4. stockValue = Σ quantityOnHand × averageCost. Every report row carries a drill id to its documents. `format=csv` streams the rows.
+4. stockValue = Σ quantityOnHand × avgStockPrice. Every report row carries a drill id to its documents. `format=csv` streams the rows.
 5. Staff dashboard strictly `staffId = me`; nothing global except low stock (read-only alert).
 
 ## Test Scenarios [BACKEND]
