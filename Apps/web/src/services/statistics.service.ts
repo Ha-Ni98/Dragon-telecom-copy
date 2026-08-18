@@ -97,14 +97,16 @@ export async function getReport(type: ReportType, query: ReportQuery): Promise<R
   return res.data.data;
 }
 
-// Binary/text download (format=csv) — deliberately bypasses the ApiResponse envelope (backend
-// controller: streams a Buffer/string body instead), mirrors platform's exportFees.
-export async function exportReportCsv(
+// Binary/text download (format=csv|pdf) — deliberately bypasses the ApiResponse envelope (backend
+// controller: streams a Buffer/string body instead), mirrors platform's exportFees. S25 added the
+// `pdf` format alongside `csv`.
+export async function exportReport(
   type: ReportType,
   query: Omit<ReportQuery, "format">,
+  format: ReportFormat.CSV | ReportFormat.PDF,
 ): Promise<Blob> {
   const res = await api.get<Blob>(withParams(apiPath(STATS_ROUTES.REPORT), { type }), {
-    params: { ...query, format: ReportFormat.CSV },
+    params: { ...query, format },
     responseType: "blob",
   });
   return res.data;

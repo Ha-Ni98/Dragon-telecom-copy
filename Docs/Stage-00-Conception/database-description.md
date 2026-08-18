@@ -3,7 +3,7 @@
 Conceptual model behind `schema.prisma`. Money: `Decimal(12,2)` DZD, cash only (no method columns). Every table has `id` (uuid PK), `createdAt`, `updatedAt` unless stated. No `isArchived` anywhere — `isEnabled` only. Notes, reasons, email: always nullable. Serial numbers are free text on document lines — never inventory state.
 
 **Two structural rules everything obeys**
-1. **Nothing mutates stock without a movement row.** `Product.quantityOnHand` = Σ signed IN/OUT movements; `quantityReserved` = Σ PENDING. IN movements are FIFO layers (`remainingQuantity`); OUT movements consume the oldest layer with remaining > 0 and store `costOfGoods` + `profit`. `averageCost` is a display reference recomputed on IN only.
+1. **Nothing mutates stock without a movement row.** `Product.quantityOnHand` = Σ signed IN/OUT movements; `quantityReserved` = Σ PENDING. IN movements are FIFO layers (`remainingQuantity`); OUT movements consume the oldest layer with remaining > 0 and store `costOfGoods` + `profit`. `avgStockPrice` is the average cost of the layers still on hand: recomputed on IN (quantity-weighted) **and** on OUT (from the remaining layers, since a FIFO OUT drains specific layers whose cost is not the average), untouched by PENDING, last value kept when quantity reaches zero.
 2. **Denormalised-by-decision, verifiable-by-ledger.** `credit` / `totalPaid` / `totalSold` on POS clients, `credit` / `totalPaid` / `totalInvoiced` on suppliers, quantities on products, cost/profit on lines and documents, previous→new credit snapshots on payments and confirmed documents — all stored, never recomputed at read time, all recomputable from their ledgers for conformance checks.
 
 ---
@@ -68,8 +68,8 @@ May exist with no web account (walk-in). Every approved web client has exactly o
 **DeviceModelFamily** — PK (`deviceModelId`,`familyId`) — the many-to-many (an S24 Ultra has camera, battery, screen…).
 
 **Product** —
-`sku` unique · `barcode?` unique (auto-generatable) · `name` (auto "family brand model", editable) · `description?` · `familyId` FK · `deviceModelId?` FK nullable (null = universal) · `guestPrice?` (null ⇒ hidden from guests, guest ordering blocked) · `defaultSalePrice?` (nullable — a product born with 0 stock has no prices; also the POS price with no client attached) · `averageCost` · `quantityOnHand` · `quantityReserved` (available = onHand − reserved, derived) · `reorderThreshold` · `isPublished` · `isEnabled`.
-Quantity + averageCost columns are **owned by the inventory module** — nothing else writes them.
+`sku` unique · `barcode?` unique (auto-generatable) · `name` (auto "family brand model", editable) · `description?` · `familyId` FK · `deviceModelId?` FK nullable (null = universal) · `guestPrice?` (null ⇒ hidden from guests, guest ordering blocked) · `defaultSalePrice?` (nullable — a product born with 0 stock has no prices; also the POS price with no client attached) · `avgStockPrice` · `avgPrice` · `quantityOnHand` · `quantityReserved` (available = onHand − reserved, derived) · `reorderThreshold` · `isPublished` · `isEnabled`.
+Quantity + `avgStockPrice`/`avgPrice` columns are **owned by the inventory module** — nothing else writes them.
 
 **ProductImage** — `productId` FK · `url` · `alt?` · `position` · `isPrimary`. (3-image cap is front-end only.)
 
@@ -180,7 +180,7 @@ COMPLETED consumes parts (FIFO, idempotent; shortfall names the product). CANCEL
 1. `quantityOnHand` = Σ signed IN/OUT; `quantityReserved` = Σ PENDING; Σ IN `remainingQuantity` = onHand.
 2. FIFO drains the oldest layer with remaining > 0; OUT never exceeds available; PENDING never exceeds onHand.
 3. OUT `costOfGoods` = Σ consumption rows; `profit` = revenue − costOfGoods; document totals = Σ lines; `totalSold` on a POS client = Σ his confirmed sale + order totals.
-4. `averageCost` recomputes on IN only — display reference; profit is strictly FIFO. Restocked returns re-enter at consumed cost.
+4. `avgStockPrice` recomputes on IN and OUT, and equals `Σ(remaining layer qty × layer cost) ÷ Σ(remaining qty)` at all times; PENDING never moves it; at zero quantity the last value is kept. It drives stock valuation, margin displays and the adjustment default unit cost — so it is **not** merely a display figure. Profit is still strictly FIFO, from each movement's own stored `costOfGoods`. Restocked returns re-enter at the consumed cost. `avgPrice` is separate: the unweighted mean of purchase unit costs, supplier-invoice context only.
 5. CONFIRMED supplier invoices, COMPLETED sales, ISSUED invoices: immutable. DRAFTs touch no stock, no money. Confirmations and repair completion idempotent.
 6. A PENDING client has no User row and cannot authenticate. Approval atomically creates credentials + category + the linked POS client. Admin password reset overwrites the hash and revokes the client's refresh tokens.
 7. `Client.phone` unique and immutable by the client; registration check answers `registered` vs `pending` from the matching row's status.

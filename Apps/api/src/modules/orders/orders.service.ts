@@ -3,6 +3,7 @@ import {
   InvoiceSource as PrismaInvoiceSource,
   MovementDirection as PrismaMovementDirection,
   OrderStatus as PrismaOrderStatus,
+  ReturnType as PrismaReturnType,
 } from '@prisma/client';
 import {
   DocType,
@@ -644,7 +645,10 @@ export class OrdersService implements IOrdersService {
   // return per order (the order flips to RETURNED), with a quantity per OrderLine. D6/D7 (S10) —
   // the refund is a negative-amount ClientPayment row capped at cash actually collected; a
   // partial return leaves credit untouched, a full return additionally reverses this order's own
-  // credit delta. Mirrors sales.service.ts's createReturn exactly.
+  // credit delta. Mirrors sales.service.ts's createReturn exactly. S24 — also writes Return/
+  // ReturnLine rows (schema extended to make them polymorphic over Sale and Order), so statistics
+  // can net a returned order's lines out of revenue/profit/quantity instead of only ever seeing
+  // the order-level RETURNED status.
   async returnOrder(id: string, cmd: ReturnOrderCommand, actor: JWTPayload): Promise<OrderDto> {
     const existing = await this.prisma.order.findUnique({ where: { id }, include: ORDER_INCLUDE });
     if (!existing) throw new NotFoundError('Order');
@@ -676,12 +680,51 @@ export class OrdersService implements IOrdersService {
     const cashRefundable = existing.paidAmount.toNumber();
     const cashRefunded = Math.min(cmd.refundAmount, cashRefundable);
 
+    // S24 (Q1) — denominator for splitting the one order-level refundAmount across returned
+    // lines proportionally to what each line contributed. Unlike sales (whose CreateReturnCommand
+    // carries a refundAmount per line), ReturnOrderCommand carries a single document-level figure.
+    const returnedGoodsValue = cmd.lines.reduce(
+      (sum, cmdLine) => sum + lineById.get(cmdLine.orderLineId)!.unitPrice.toNumber() * cmdLine.quantity,
+      0,
+    );
+
     const staffId = await this.movementStaffId(actor);
     let capturedTx: Prisma.TransactionClient | undefined;
     let refundPayment: { paymentId: string; previousCredit: number; newCredit: number } | undefined;
 
     await this.prisma.$transaction(async (tx) => {
       capturedTx = tx;
+
+      // S24 — an order return is now a first-class document, exactly like a sale's. Statistics
+      // nets returned lines out of revenue/profit/quantity at read time (owner rule Q1: a
+      // full-price refund makes it as if the product was never bought), and that is impossible
+      // without a per-line record — previously only the negative ClientPayment row survived, and
+      // a credit-only order left no trace of a return at all. ReturnOrderCommand has no `type`/
+      // `reason` field (unlike sales' CreateReturnCommand) — every order return is a REFUND.
+      const returnReference = await this.sequence.nextNumber(tx, DocType.RETURN);
+      await tx.return.create({
+        data: {
+          reference: returnReference,
+          orderId: existing.id,
+          type: PrismaReturnType.REFUND,
+          refundAmount: cmd.refundAmount,
+          staffId,
+          lines: {
+            create: cmd.lines.map((cmdLine) => ({
+              orderLineId: cmdLine.orderLineId,
+              quantity: cmdLine.quantity,
+              // cmd.restock is order-level (one boolean for the whole return, unlike sales' per-
+              // line restock) — every line stores the same value.
+              restock: cmd.restock,
+              refundAmount:
+                returnedGoodsValue > 0
+                  ? (cmd.refundAmount * (lineById.get(cmdLine.orderLineId)!.unitPrice.toNumber() * cmdLine.quantity)) / returnedGoodsValue
+                  : 0,
+            })),
+          },
+        },
+      });
+
       if (cmd.restock) {
         for (const cmdLine of cmd.lines) {
           const line = lineById.get(cmdLine.orderLineId)!;

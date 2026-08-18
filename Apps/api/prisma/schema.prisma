@@ -460,8 +460,11 @@ model Product {
   deviceModelId    String? // null = not pinned to a specific model within the brand
   guestPrice       Decimal? @db.Decimal(12, 2) // null => hidden from guests
   defaultSalePrice Decimal? @db.Decimal(12, 2) // null until first stock; POS fallback price
-  avgStockPrice    Decimal  @default(0) @db.Decimal(12, 2) // quantity-weighted moving average (D10):
-  //   margins, adjustment defaults, stock valuation. Profit is still FIFO, never this figure.
+  avgStockPrice    Decimal  @default(0) @db.Decimal(12, 2) // average cost of the layers still on
+  //   hand (D10): margins, adjustment defaults, stock valuation. Maintained on IN (weighted) and
+  //   on OUT (S23: from the remaining-layer identity, since a FIFO OUT drains specific layers
+  //   whose cost is not the average); untouched by the three PENDING types; last value kept at
+  //   zero quantity. Profit is still FIFO from the movement's own costOfGoods, never this figure.
   avgPrice         Decimal  @default(0) @db.Decimal(12, 2) // unweighted mean of purchase unit costs
   //   across SUPPLIER_INVOICE + INITIAL_STOCK receipts (D10). Supplier-invoice context only.
   quantityOnHand   Int      @default(0) // owned by inventory module
@@ -492,8 +495,8 @@ model Product {
 model ProductImage {
   id        String  @id @default(uuid())
   productId String
-  url       String  
-  key       String  
+  url       String
+  key       String
   alt       String?
   position  Int     @default(0)
   isPrimary Boolean @default(false)
@@ -710,14 +713,16 @@ model SaleLine {
 model Return {
   id           String     @id @default(uuid())
   reference    String     @unique
-  saleId       String
+  saleId       String? // exactly one of saleId / orderId is set (S24 — orders gained a return path)
+  orderId      String?
   type         ReturnType
   reason       String?
   refundAmount Decimal    @db.Decimal(12, 2)
   returnedAt   DateTime   @default(now())
   staffId      String
 
-  sale  Sale         @relation(fields: [saleId], references: [id])
+  sale  Sale?        @relation(fields: [saleId], references: [id])
+  order Order?       @relation(fields: [orderId], references: [id])
   staff Staff        @relation(fields: [staffId], references: [id])
   lines ReturnLine[]
 }
@@ -725,13 +730,15 @@ model Return {
 model ReturnLine {
   id           String  @id @default(uuid())
   returnId     String
-  saleLineId   String
+  saleLineId   String? // exactly one of saleLineId / orderLineId is set (S24)
+  orderLineId  String?
   quantity     Int
   restock      Boolean // true => RETURN_IN at consumed cost
   refundAmount Decimal @db.Decimal(12, 2)
 
-  return   Return   @relation(fields: [returnId], references: [id])
-  saleLine SaleLine @relation(fields: [saleLineId], references: [id])
+  return    Return     @relation(fields: [returnId], references: [id])
+  saleLine  SaleLine?  @relation(fields: [saleLineId], references: [id])
+  orderLine OrderLine? @relation(fields: [orderLineId], references: [id])
 }
 
 // ─────────────────────── Online Orders ───────────────────────
@@ -770,6 +777,7 @@ model Order {
   commune     Commune?    @relation(fields: [communeId], references: [id])
   confirmedBy Staff?      @relation("OrderConfirmedBy", fields: [confirmedByStaffId], references: [id])
   lines       OrderLine[]
+  returns     Return[]
 
   @@index([status, placedAt])
   @@index([clientId])
@@ -788,8 +796,9 @@ model OrderLine {
   lineTotal           Decimal  @db.Decimal(12, 2)
   serialNumbers       String? // comma-joined, same convention as SaleLine
 
-  order   Order   @relation(fields: [orderId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  order       Order        @relation(fields: [orderId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
+  returnLines ReturnLine[]
 
   @@index([orderId])
   @@index([productId])
@@ -921,8 +930,8 @@ model ClientPayment {
   posClientId    String
   invoiceId      String? // null = on account
   repairId       String? // R3/D5 — set on a payment taken before the repair's invoice exists
-                          // (on-account). Re-pointed to `invoiceId` at PICKED_UP; the repairId
-                          // itself is kept so a repair can always list its own payments.
+  // (on-account). Re-pointed to `invoiceId` at PICKED_UP; the repairId
+  // itself is kept so a repair can always list its own payments.
   amount         Decimal  @db.Decimal(12, 2)
   previousCredit Decimal  @db.Decimal(12, 2)
   newCredit      Decimal  @db.Decimal(12, 2)

@@ -1,11 +1,12 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type {
-  FilteredQuery,
-  ChartsQuery,
-  ChartType,
-  TopProductsQuery,
-  ReportQuery,
-  ReportType,
+import {
+  ReportFormat,
+  type FilteredQuery,
+  type ChartsQuery,
+  type ChartType,
+  type TopProductsQuery,
+  type ReportQuery,
+  type ReportType,
 } from "@dragon-telecom/contract";
 import * as statisticsService from "@/services/statistics.service";
 import { qk } from "@/lib/query-keys";
@@ -69,11 +70,18 @@ export function useReport(type: ReportType, query: ReportQuery) {
   });
 }
 
-// Imperative (triggers a file download) rather than a query — exportReportCsv returns a Blob,
-// not cacheable domain data. Mirrors useExportAdminDeliveryFees (usePlatform.ts).
-export function useExportReportCsv() {
+// Imperative (triggers a file download) rather than a query — exportReport returns a Blob, not
+// cacheable domain data. Mirrors useExportAdminDeliveryFees (usePlatform.ts).
+export function useExportReport() {
   return useMutation({
-    mutationFn: ({ type, query }: { type: ReportType; query: Omit<ReportQuery, "format"> }) =>
-      statisticsService.exportReportCsv(type, query),
+    mutationFn: ({
+      type,
+      query,
+      format,
+    }: {
+      type: ReportType;
+      query: Omit<ReportQuery, "format">;
+      format: ReportFormat.CSV | ReportFormat.PDF;
+    }) => statisticsService.exportReport(type, query, format),
   });
 }

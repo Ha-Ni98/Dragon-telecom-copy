@@ -460,7 +460,8 @@ model Product {
   deviceModelId    String? // null = universal part
   guestPrice       Decimal? @db.Decimal(12, 2) // null => hidden from guests
   defaultSalePrice Decimal? @db.Decimal(12, 2) // null until first stock; POS fallback price
-  averageCost      Decimal  @default(0) @db.Decimal(12, 2) // display reference; profit is FIFO
+  avgStockPrice    Decimal  @default(0) @db.Decimal(12, 2) // avg cost of layers on hand; maintained on IN and OUT (S23); profit is FIFO
+  avgPrice         Decimal  @default(0) @db.Decimal(12, 2) // unweighted mean of purchase-receipt unit costs; supplier-invoice context only
   quantityOnHand   Int      @default(0) // owned by inventory module
   quantityReserved Int      @default(0) // owned by inventory module
   reorderThreshold Int      @default(0)

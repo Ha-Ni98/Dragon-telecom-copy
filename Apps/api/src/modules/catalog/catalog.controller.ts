@@ -3,6 +3,8 @@ import { sendSuccess } from '@common/http/response';
 import { AuthError } from '@common/errors';
 import type {
   AddProductImagesCommand,
+  BarcodeLabelSheetCommand,
+  BarcodeLookupCommand,
   BrandIdParams,
   CategoryIdParams,
   CreateBrandCommand,
@@ -27,7 +29,12 @@ import type {
   UpdateProductCommand,
   UpdateProductImagesCommand,
 } from '@dragon-telecom/contract';
-import type { ICatalogCategoryService, ICatalogProductService, ICatalogTaxonomyService } from './catalog.interface';
+import type {
+  ICatalogCategoryService,
+  ICatalogProductService,
+  ICatalogTaxonomyService,
+  PdfResult,
+} from './catalog.interface';
 
 // `req.files` is only populated on multipart routes (Multer `.array(...)`); every other route
 // never sets it, hence the fallback to an empty array rather than throwing.
@@ -195,6 +202,22 @@ export class CatalogController {
     }
   };
 
+  lookupBarcodes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.products.lookupBarcodes(req.validated.body as BarcodeLookupCommand));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  renderBarcodeLabels = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      this.streamPdf(res, await this.products.renderBarcodeLabels(req.validated.body as BarcodeLabelSheetCommand));
+    } catch (error) {
+      next(error);
+    }
+  };
+
   // --- Admin: taxonomy ---
 
   listAdminBrands = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -303,4 +326,12 @@ export class CatalogController {
       next(error);
     }
   };
+
+  // S22 — PDFs bypass the ApiResponse<T> envelope, streamed directly rather than via sendSuccess;
+  // the same pattern billing.controller.ts uses for invoice PDFs.
+  private streamPdf(res: Response, pdf: PdfResult): void {
+    res.setHeader('Content-Type', pdf.mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${pdf.filename}"`);
+    res.send(pdf.body);
+  }
 }

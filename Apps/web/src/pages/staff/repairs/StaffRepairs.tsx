@@ -21,6 +21,7 @@ import {
 } from "@/hooks/useRepairs";
 import { useTechnicians } from "@/hooks/useIdentity";
 import { useStaffProducts } from "@/hooks/useCatalogProducts";
+import { usePublicSettings } from "@/hooks/usePlatform";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
 import { RepairStatus, type RepairDto } from "@dragon-telecom/contract";
@@ -74,6 +75,9 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
     limit: 10,
   });
   const { data: technicians } = useTechnicians(scope === "admin");
+  // S25 — the repair receipt's store header. Public because /staff/repairs is a staff page and
+  // GET /platform/settings is adminOnly.
+  const publicSettings = usePublicSettings();
 
   const [intakeOpen, setIntakeOpen] = useState(false);
 
@@ -215,6 +219,7 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
         onRecordPayment={handleRecordPayment}
         isRecordingPayment={recordPayment.isPending}
         scope={scope}
+        store={publicSettings.data?.store}
       />
 
       <RepairStatusDialog

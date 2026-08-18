@@ -1,6 +1,8 @@
 import ExcelJS from 'exceljs';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import {
+  EXPORT_ERROR,
+  EXPORT_MAX_ROWS,
   FeeSource,
   SettingsResponseSchema,
   type AdminFeesDto,
@@ -16,6 +18,8 @@ import {
 } from '@dragon-telecom/contract';
 import { BadRequestError, ConflictError } from '@common/errors';
 import { eventBus } from '@common/events/event-bus';
+import { csvMoney, toCsv, CSV_MIME } from '@common/utils/csv.utils';
+import { renderTablePdf } from '@common/utils/pdf.utils';
 import { DEFAULT_SETTINGS } from '../../../prisma/settings-defaults';
 import type {
   ExportFeesResult,
@@ -292,11 +296,48 @@ export class PlatformService implements IPlatformService {
     }
 
     if (format === 'csv') {
-      const lines = [
-        FEE_ROW_HEADERS.join(','),
-        ...rows.map((row) => [row.wilayaCode, row.communeCode ?? '', row.deliveryHome, row.deliveryOffice].join(',')),
-      ];
-      return { filename: 'delivery-fees.csv', mime: 'text/csv', body: lines.join('\n') };
+      // S25 — routed through the shared RFC 4180 writer (BOM + CRLF + proper quoting) instead of
+      // a bare join(','); a wilaya/commune *code* never contains a comma today, but the writer
+      // costs nothing and keeps every CSV export in the app on one code path.
+      return {
+        filename: 'delivery-fees.csv',
+        mime: CSV_MIME,
+        body: toCsv(
+          [...FEE_ROW_HEADERS],
+          rows.map((row) => [row.wilayaCode, row.communeCode ?? '', csvMoney(row.deliveryHome), csvMoney(row.deliveryOffice)]),
+        ),
+      };
+    }
+
+    if (format === 'pdf') {
+      // S25 — every export in this module is a single in-memory document, so an unbounded result
+      // set would hold the request open while it serialised. 58 wilayas plus overrides will never
+      // approach EXPORT_MAX_ROWS, but the guard is applied uniformly across every export.
+      if (rows.length > EXPORT_MAX_ROWS) {
+        throw new BadRequestError(EXPORT_ERROR.ROW_LIMIT_EXCEEDED, { limit: EXPORT_MAX_ROWS, total: rows.length });
+      }
+      // The CSV/Excel branches above export wilaya/commune *codes* because they round-trip
+      // through the importer (importFees). The PDF is read by a human, so it shows the resolved
+      // French names instead — do not "fix" this back to codes to match the other two branches.
+      const body = await renderTablePdf({
+        title: 'Delivery fees',
+        filters: [],
+        generatedAt: new Date(),
+        orientation: 'portrait',
+        columns: [
+          { header: 'Wilaya', width: 3 },
+          { header: 'Commune', width: 3 },
+          { header: 'Home delivery', width: 2, align: 'right' },
+          { header: 'Office delivery', width: 2, align: 'right' },
+        ],
+        rows: fees.map((fee) => [
+          fee.wilaya.frName,
+          fee.commune?.frName ?? '—',
+          fee.deliveryHome.toNumber().toFixed(2),
+          fee.deliveryOffice.toNumber().toFixed(2),
+        ]),
+      });
+      return { filename: 'delivery-fees.pdf', mime: 'application/pdf', body };
     }
 
     const workbook = new ExcelJS.Workbook();

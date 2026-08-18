@@ -8,7 +8,8 @@ import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { NotFoundState } from "@/components/shared/NotFoundState";
-import { Package, Download, Search } from "lucide-react";
+import { ExportMenu } from "@/components/shared/ExportMenu";
+import { Package, Search } from "lucide-react";
 import type { StockRowDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
@@ -22,7 +23,8 @@ interface StockLevelsTableProps {
   onSearchChange: (value: string) => void;
   lowStockOnly: boolean;
   onLowStockOnlyChange: (value: boolean) => void;
-  onExportCsv?: () => void;
+  onExport?: (format: "csv" | "pdf") => void;
+  isExporting?: boolean;
 }
 
 // ADM-06 Stock levels tab — StockRowDto (inventory.dtos.ts): productId/name/quantityOnHand/
@@ -39,7 +41,8 @@ export function StockLevelsTable({
   onSearchChange,
   lowStockOnly,
   onLowStockOnlyChange,
-  onExportCsv,
+  onExport,
+  isExporting,
 }: StockLevelsTableProps) {
   const { t, language } = useTranslation();
 
@@ -117,11 +120,22 @@ export function StockLevelsTable({
             <Label htmlFor="low-stock-only">{t("admin.inventory.stock.lowStockOnly")}</Label>
           </div>
         </div>
-        {onExportCsv && (
-          <Button variant="outline" size="sm" onClick={onExportCsv}>
-            <Download className="mr-2 h-4 w-4" />
-            {t("admin.inventory.stock.exportCsv")}
-          </Button>
+        {onExport && (
+          <ExportMenu
+            isPending={isExporting}
+            items={[
+              {
+                key: "csv",
+                labelKey: "admin.inventory.stock.exportCsv",
+                onSelect: () => onExport("csv"),
+              },
+              {
+                key: "pdf",
+                labelKey: "admin.inventory.stock.exportPdf",
+                onSelect: () => onExport("pdf"),
+              },
+            ]}
+          />
         )}
       </div>
 

@@ -65,10 +65,11 @@ export class PlatformMapper {
     return SettingsResponseSchema.parse(dto);
   }
 
-  // SETTINGS_PUBLIC route note: "featured products and families only" — trims an already-assembled
-  // SettingsDto down to the one public-safe section (store/invoicing/delivery stay internal).
+  // SETTINGS_PUBLIC — the public-safe subset of an already-assembled SettingsDto. S25 added
+  // `store` (see the schema comment in platform.dtos.ts for why the shop header is public);
+  // `invoicing` and `delivery` remain internal.
   static toPublicSettingsDto(settings: SettingsDto): PublicSettingsDto {
-    const dto: PublicSettingsDto = { storefront: settings.storefront };
+    const dto: PublicSettingsDto = { store: settings.store, storefront: settings.storefront };
     return PublicSettingsResponseSchema.parse(dto);
   }
 

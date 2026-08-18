@@ -16,8 +16,9 @@ import type { AdjustmentFormValues } from "@/pages/admin/inventory/components/ad
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
 import {
   useStock,
-  useExportStockCsv,
+  useExportStock,
   useMovements,
+  useExportMovements,
   useReservations,
   useCreateAdjustment,
 } from "@/hooks/useInventory";
@@ -47,7 +48,7 @@ export default function AdminInventory() {
     [lowStockOnly, debouncedStockSearch],
   );
   const stock = useStock(stockQuery);
-  const exportStockCsv = useExportStockCsv();
+  const exportStock = useExportStock();
 
   const movementsQuery = useMemo(
     () => ({
@@ -59,6 +60,13 @@ export default function AdminInventory() {
     [movementFilters, debouncedMovementSearch, movementsPage],
   );
   const movements = useMovements(movementsQuery);
+  // Same filters the ledger table is rendered from, minus page/limit — the export is the whole
+  // filtered result set (S25), never the visible page.
+  const movementsExportQuery = useMemo(
+    () => ({ ...movementFilters, search: debouncedMovementSearch.trim() || undefined }),
+    [movementFilters, debouncedMovementSearch],
+  );
+  const exportMovements = useExportMovements();
 
   const reservationsQuery = useMemo(
     () => ({ page: reservationsPage, limit: 20 }),
@@ -94,10 +102,18 @@ export default function AdminInventory() {
     setMovementsPage(1);
   };
 
-  const handleExportCsv = () => {
-    exportStockCsv.mutate(undefined, {
-      onSuccess: (blob) => downloadBlob("stock.csv", blob),
-    });
+  const handleExportStock = (format: "csv" | "pdf") => {
+    exportStock.mutate(
+      { query: stockQuery, format },
+      { onSuccess: (blob) => downloadBlob(`stock.${format}`, blob) },
+    );
+  };
+
+  const handleExportMovements = (format: "csv" | "pdf") => {
+    exportMovements.mutate(
+      { query: movementsExportQuery, format },
+      { onSuccess: (blob) => downloadBlob(`movements.${format}`, blob) },
+    );
   };
 
   const handleAdjustmentSubmit = (values: AdjustmentFormValues) => {
@@ -142,7 +158,8 @@ export default function AdminInventory() {
             onSearchChange={setStockSearch}
             lowStockOnly={lowStockOnly}
             onLowStockOnlyChange={setLowStockOnly}
-            onExportCsv={handleExportCsv}
+            onExport={handleExportStock}
+            isExporting={exportStock.isPending}
           />
         </TabsContent>
 
@@ -158,6 +175,8 @@ export default function AdminInventory() {
             isLoading={movements.isLoading}
             isError={movements.isError}
             onRetry={() => movements.refetch()}
+            onExport={handleExportMovements}
+            isExporting={exportMovements.isPending}
           />
           {movements.data && (
             <SimplePagination

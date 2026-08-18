@@ -1,7 +1,7 @@
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "sonner";
-import { CATALOG_ERROR, type ApiResponse } from "@dragon-telecom/contract";
+import { CATALOG_ERROR, EXPORT_ERROR, type ApiResponse } from "@dragon-telecom/contract";
 import { translate, getLanguage } from "@/lib/i18n";
 
 // Business-rule sentinels travel as the error *message* (see apiErrorMessage below). When one
@@ -10,6 +10,9 @@ import { translate, getLanguage } from "@/lib/i18n";
 const SENTINEL_TRANSLATION_KEYS: Record<string, string> = {
   [CATALOG_ERROR.BARCODE_TAKEN]: "common.errors.sentinel.barcodeTaken",
   [CATALOG_ERROR.BARCODE_GENERATION_EXHAUSTED]: "common.errors.sentinel.barcodeGenerationExhausted",
+  [CATALOG_ERROR.BARCODE_LABELS_EMPTY]: "common.errors.sentinel.barcodeLabelsEmpty",
+  [CATALOG_ERROR.BARCODE_LABEL_TOTAL_EXCEEDED]: "common.errors.sentinel.barcodeLabelTotalExceeded",
+  [EXPORT_ERROR.ROW_LIMIT_EXCEEDED]: "common.errors.sentinel.exportRowLimitExceeded",
 };
 
 export const message = (err: unknown): string => {

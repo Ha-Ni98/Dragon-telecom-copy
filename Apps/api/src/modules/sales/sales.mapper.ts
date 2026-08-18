@@ -21,10 +21,16 @@ export type SaleRow = Sale & {
 
 // S12 — the shape RETURN_INCLUDE (sales.service.ts) produces. A ReturnLine carries no product
 // identity of its own, so the linked SaleLine is joined for productId/name/unitPrice.
-export type ReturnRow = Return & {
+// S24 — Return/ReturnLine.saleId/saleLineId are nullable at the schema level (polymorphic over
+// Sale and Order), but every caller of this mapper reads sale-scoped rows only (listReturns now
+// filters `saleId: { not: null }`) — narrowed back to non-null here rather than threading an
+// optional-`sale`/`saleLine` shape through every field below.
+export type ReturnRow = Omit<Return, 'saleId'> & {
+  saleId: string;
   sale: Pick<Sale, 'reference' | 'posClientId'> & { posClient: Pick<PosClient, 'name'> | null };
   staff: Pick<Staff, 'firstName' | 'lastName'>;
-  lines: (ReturnLine & {
+  lines: (Omit<ReturnLine, 'saleLineId'> & {
+    saleLineId: string;
     saleLine: Pick<SaleLine, 'productId' | 'productNameSnapshot' | 'unitPrice'>;
   })[];
 };
