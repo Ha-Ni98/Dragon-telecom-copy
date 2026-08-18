@@ -9,8 +9,9 @@ import { MovementType } from './inventory.enums';
 export const StockQuerySchema = z.object({
   lowStockOnly: BooleanQuerySchema.optional(),
   search: z.string().optional(),
-  // Only "csv" is documented ("CSV export param") — no other format is named in the spec.
-  export: z.literal('csv').optional(),
+  // Only "csv" was originally documented ("CSV export param") — S25 added "pdf" alongside it,
+  // reusing the same filtered result set.
+  export: z.enum(['csv', 'pdf']).optional(),
 });
 export type StockQuery = z.infer<typeof StockQuerySchema>;
 
@@ -25,6 +26,11 @@ export const MovementsQuerySchema = z.object({
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  // S25 — export=csv|pdf returns the whole filtered ledger, unpaginated. `page`/`limit` above keep
+  // their defaults (they are non-optional after .default()) and are deliberately IGNORED on this
+  // branch: exporting only the page on screen is the defect the set brief calls out by name. The
+  // result set is capped at EXPORT_MAX_ROWS.
+  export: z.enum(['csv', 'pdf']).optional(),
 });
 export type MovementsQuery = z.infer<typeof MovementsQuerySchema>;
 

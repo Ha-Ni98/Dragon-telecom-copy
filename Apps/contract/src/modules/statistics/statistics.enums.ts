@@ -20,9 +20,12 @@ export enum ChartType {
 
 // Only "csv" is confirmed (Test Scenarios: "CSV shape = rows"); "table" is the inferred
 // complement (the default JSON table + chart response).
+// S25 adds PDF: the same rows, rendered server-side through pdf.utils.ts's renderTablePdf with
+// the report's chart and totals. CSV is unchanged and stays alongside it.
 export enum ReportFormat {
   TABLE = 'table',
   CSV = 'csv',
+  PDF = 'pdf',
 }
 
 // S24 — the statistics page's revenue-source filter. PRODUCTS = sales + orders (goods sold);

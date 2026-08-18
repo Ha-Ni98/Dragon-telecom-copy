@@ -22,10 +22,12 @@ import {
   useConfirmSale,
 } from "@/hooks/useSales";
 import { useSendStaffSearch } from "@/hooks/useObservability";
+import { usePublicSettings } from "@/hooks/usePlatform";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 import { apiErrorMessage } from "@/lib/query-client";
+import { printReceipt } from "@/lib/print";
 import { resolvePosPrice } from "@/pages/staff/pos/pos-pricing";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
 import {
@@ -92,6 +94,9 @@ export default function StaffPos({ scope = "staff" }: Props) {
   // name logs one row, not one per keystroke. POS only: /admin/products and /staff/products keep
   // their own 300ms beacon (R3) — this is a second, independent debounce off the same raw query.
   const sendStaffSearch = useSendStaffSearch();
+  // S25 — the receipt's store header (name/address/phone/logo). Public because the POS is a
+  // STAFF page and GET /platform/settings is adminOnly.
+  const publicSettings = usePublicSettings();
   const beaconQuery = useDebouncedValue(productQuery, 2000);
   useEffect(() => {
     if (beaconQuery.trim()) sendStaffSearch.mutate({ query: beaconQuery.trim() });
@@ -107,6 +112,9 @@ export default function StaffPos({ scope = "staff" }: Props) {
   // set true by the payment panel's onChange, reset on a fresh ticket or a resumed draft.
   const [paidAmountTouched, setPaidAmountTouched] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptDto | null>(null);
+  // S25 — captured once when the receipt is set, not derived at render: the receipt view stays
+  // mounted until "New sale", so a render-time `new Date()` would creep forward on every re-render.
+  const [receiptAt, setReceiptAt] = useState<string | null>(null);
   const [clientZoneError, setClientZoneError] = useState<string>();
   const [paymentError, setPaymentError] = useState<string>();
 
@@ -325,6 +333,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
         {
           onSuccess: (receiptResult) => {
             setReceipt(receiptResult);
+            setReceiptAt(new Date().toISOString());
             resetTicketState();
           },
           onError: (err) => {
@@ -366,6 +375,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
   // below what's already on the ticket. Both are documented approximations, report-sprint-07.md.
   const handleOpenDraft = (draft: SaleDto) => {
     setReceipt(null);
+    setReceiptAt(null);
     setDraftId(draft.id);
     // The stored discount is not re-editable from the POS (S6/I6) — the resumed ticket's total is
     // simply its lines' subtotal.
@@ -439,9 +449,14 @@ export default function StaffPos({ scope = "staff" }: Props) {
           grandTotal={receipt.grandTotal}
           paid={receipt.totalPaid}
           newCredit={receipt.newCredit}
-          onPrint={() => window.print()}
+          reference={receipt.reference}
+          lines={receipt.lines}
+          issuedAt={receiptAt ?? new Date().toISOString()}
+          store={publicSettings.data?.store}
+          onPrint={printReceipt}
           onNewSale={() => {
             setReceipt(null);
+            setReceiptAt(null);
             resetTicketState();
           }}
         />

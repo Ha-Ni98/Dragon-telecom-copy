@@ -15,11 +15,12 @@ export function useStock(query: Omit<StockQuery, "export"> = {}) {
   });
 }
 
-// Imperative (triggers a file download) rather than a query — exportStockCsv returns a Blob,
-// not cacheable domain data (same shape as usePlatform.ts's useExportAdminDeliveryFees).
-export function useExportStockCsv() {
+// Imperative (triggers a file download) rather than a query — exportStock returns a Blob, not
+// cacheable domain data (same shape as usePlatform.ts's useExportAdminDeliveryFees).
+export function useExportStock() {
   return useMutation({
-    mutationFn: () => inventoryService.exportStockCsv(),
+    mutationFn: ({ query, format }: { query: Omit<StockQuery, "export">; format: "csv" | "pdf" }) =>
+      inventoryService.exportStock(query, format),
   });
 }
 
@@ -27,6 +28,19 @@ export function useMovements(query: MovementsQuery) {
   return useQuery({
     queryKey: qk.inventory.movements.list(query),
     queryFn: () => inventoryService.listMovements(query),
+  });
+}
+
+// Imperative (triggers a file download) rather than a query — mirrors useExportStock above.
+export function useExportMovements() {
+  return useMutation({
+    mutationFn: ({
+      query,
+      format,
+    }: {
+      query: Omit<MovementsQuery, "export" | "page" | "limit">;
+      format: "csv" | "pdf";
+    }) => inventoryService.exportMovements(query, format),
   });
 }
 

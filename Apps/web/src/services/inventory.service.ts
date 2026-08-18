@@ -31,11 +31,17 @@ export async function getStock(query: Omit<StockQuery, "export"> = {}): Promise<
 
 // Bypasses the envelope entirely (same pattern as platform.service.ts's exportFees — the
 // backend's getStock checks `'body' in result` and sends raw Content-Type/Content-Disposition
-// instead of calling sendSuccess when `export=csv` is set). Sends no filters: the export is
-// always the full stock list (S4 decision D-b).
-export async function exportStockCsv(): Promise<Blob> {
+// instead of calling sendSuccess when `export` is set).
+//
+// S25 — now mirrors the table's own query (search/lowStockOnly) instead of always sending none.
+// The old "sends no filters" behaviour was a real defect the S25 audit found: an admin filtered
+// to "low stock only" and clicking Export got the whole catalogue regardless.
+export async function exportStock(
+  query: Omit<StockQuery, "export"> = {},
+  format: "csv" | "pdf",
+): Promise<Blob> {
   const res = await api.get<Blob>(apiPath(INVENTORY_ROUTES.STOCK), {
-    params: { export: "csv" },
+    params: { lowStockOnly: query.lowStockOnly, search: query.search, export: format },
     responseType: "blob",
   });
   return res.data;
@@ -50,6 +56,20 @@ export async function listMovements(query: MovementsQuery): Promise<PaginatedRes
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
+}
+
+// Bypasses the envelope (backend streams the body directly) — same pattern as exportStock above.
+// `page`/`limit` are stripped: the export is the whole filtered ledger, never the page on screen
+// (S25 — no export of any kind existed here before this set).
+export async function exportMovements(
+  query: Omit<MovementsQuery, "export" | "page" | "limit">,
+  format: "csv" | "pdf",
+): Promise<Blob> {
+  const res = await api.get<Blob>(apiPath(INVENTORY_ROUTES.MOVEMENTS), {
+    params: { ...query, export: format },
+    responseType: "blob",
+  });
+  return res.data;
 }
 
 export async function listReservations(

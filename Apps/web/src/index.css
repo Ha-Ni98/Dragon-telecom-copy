@@ -168,3 +168,48 @@
      just appears at its final size/opacity instead of animating in. */
   .animate-pop-in { animation: none; }
 }
+
+/* S25 — 80 mm thermal receipts (POS and repair). Every rule is gated on `body.printing-receipt`,
+   which lib/print.ts adds only for the duration of a receipt's own window.print() call. The
+   companion `@page { size: 80mm auto }` is injected by that same helper because @page cannot be
+   selector-scoped. Anything else in the app that prints keeps the browser's default A4 page and
+   its normal whole-page render — /staff/sales Reprint and /staff/invoices Print rely on that.
+
+   visibility, not display, for the *masking*: `display: none` on an ancestor would take the
+   receipt out of flow with it, so the subtree could never be shown again by a descendant rule.
+   visibility:hidden is inherited but individually overridable, which is what this needs.
+
+   The root's own hiding is the opposite case and must be `display`, below. */
+
+/* Hidden at all times on screen, and hidden during any print that is NOT a gated receipt print —
+   so Ctrl+P on /staff/repairs with the ticket sheet open does not sneak the receipt into the A4
+   page. Deliberately not Tailwind's `hidden` class and not the `print:block` variant: `hidden` is
+   display:none, which the print rule below would have to fight with !important, and `print:block`
+   is not gated on the body class, so it would leak into every other print. */
+.receipt-print-root {
+  display: none;
+}
+
+@media print {
+  body.printing-receipt * {
+    visibility: hidden;
+  }
+  body.printing-receipt .receipt-print-root,
+  body.printing-receipt .receipt-print-root * {
+    visibility: visible;
+  }
+  body.printing-receipt .receipt-print-root {
+    /* display:block is load-bearing: visibility:visible alone cannot reveal a display:none
+       element — the two properties are independent, and skipping this prints a blank page. */
+    display: block;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 80mm;
+    padding: 3mm;
+    color: #000;
+    background: #fff;
+    font-family: ui-monospace, "Courier New", monospace;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+}

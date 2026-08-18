@@ -14,10 +14,11 @@ import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { NotFoundState } from "@/components/shared/NotFoundState";
-import { FileBarChart, Download } from "lucide-react";
+import { FileBarChart } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { ReportType } from "@dragon-telecom/contract";
-import { useReport, useExportReportCsv } from "@/hooks/useStatistics";
+import { ReportFormat, ReportType } from "@dragon-telecom/contract";
+import { useReport, useExportReport } from "@/hooks/useStatistics";
+import { ExportMenu } from "@/components/shared/ExportMenu";
 import { useTranslation } from "@/hooks/useTranslation";
 import { downloadBlob, formatDZD } from "@/lib/utils";
 import type { Language } from "@/lib/i18n";
@@ -67,7 +68,7 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
 
   const reportQuery = useMemo(() => ({ from, to }), [from, to]);
   const report = useReport(type, reportQuery);
-  const exportCsv = useExportReportCsv();
+  const exportReport = useExportReport();
 
   const rows = useMemo(() => report.data?.rows ?? [], [report.data]);
   const drill = report.data?.drill;
@@ -97,10 +98,10 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
     }));
   }, [rows, drill, t, language]);
 
-  const handleExport = () => {
-    exportCsv.mutate(
-      { type, query: reportQuery },
-      { onSuccess: (blob) => downloadBlob(`${type}.csv`, blob) },
+  const handleExport = (format: ReportFormat.CSV | ReportFormat.PDF) => {
+    exportReport.mutate(
+      { type, query: reportQuery, format },
+      { onSuccess: (blob) => downloadBlob(`${type}.${format}`, blob) },
     );
   };
 
@@ -115,15 +116,22 @@ export function ReportPicker({ from, to, className = "" }: ReportPickerProps) {
             </CardTitle>
             <CardDescription>{t("admin.statistics.reports.description")}</CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={exportCsv.isPending || rows.length === 0}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {t("admin.statistics.reports.exportCsv")}
-          </Button>
+          <ExportMenu
+            disabled={rows.length === 0}
+            isPending={exportReport.isPending}
+            items={[
+              {
+                key: "csv",
+                labelKey: "admin.statistics.reports.exportCsv",
+                onSelect: () => handleExport(ReportFormat.CSV),
+              },
+              {
+                key: "pdf",
+                labelKey: "admin.statistics.reports.exportPdf",
+                onSelect: () => handleExport(ReportFormat.PDF),
+              },
+            ]}
+          />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

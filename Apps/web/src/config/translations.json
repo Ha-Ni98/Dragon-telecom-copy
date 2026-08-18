@@ -24,6 +24,16 @@
     "fr": "Annuler",
     "ar": ""
   },
+  "common.actions.export": {
+    "en": "Export",
+    "fr": "Exporter",
+    "ar": ""
+  },
+  "common.actions.exporting": {
+    "en": "Exporting…",
+    "fr": "Exportation…",
+    "ar": ""
+  },
   "common.actions.confirm": {
     "en": "Confirm",
     "fr": "Confirmer",
@@ -9374,6 +9384,16 @@
     "fr": "Exporter Excel",
     "ar": ""
   },
+  "admin.settings.delivery.exportCsv": {
+    "en": "Export CSV",
+    "fr": "Exporter en CSV",
+    "ar": ""
+  },
+  "admin.settings.delivery.exportPdf": {
+    "en": "Export PDF",
+    "fr": "Exporter en PDF",
+    "ar": ""
+  },
   "admin.settings.delivery.importExcel": {
     "en": "Import Excel",
     "fr": "Importer Excel",
@@ -10579,6 +10599,21 @@
     "fr": "Nouvelle vente",
     "ar": ""
   },
+  "staff.pos.receipt.reference": {
+    "en": "Receipt no.",
+    "fr": "Reçu n°",
+    "ar": ""
+  },
+  "staff.pos.receipt.serials": {
+    "en": "Serial no.",
+    "fr": "N° de série",
+    "ar": ""
+  },
+  "staff.pos.receipt.thankYou": {
+    "en": "Thank you for your visit",
+    "fr": "Merci de votre visite",
+    "ar": ""
+  },
   "admin.pos.pageTitle": {
     "en": "POS (all staff)",
     "fr": "Point de vente (tout le personnel)",
@@ -11669,6 +11704,121 @@
     "fr": "Facture",
     "ar": ""
   },
+  "staff.repairs.receipt.print": {
+    "en": "Print receipt",
+    "fr": "Imprimer le reçu",
+    "ar": ""
+  },
+  "staff.repairs.receipt.title": {
+    "en": "Repair ticket",
+    "fr": "Bon de réparation",
+    "ar": ""
+  },
+  "staff.repairs.receipt.reference": {
+    "en": "Ticket no.",
+    "fr": "Bon n°",
+    "ar": ""
+  },
+  "staff.repairs.receipt.intakeAt": {
+    "en": "Received on",
+    "fr": "Reçu le",
+    "ar": ""
+  },
+  "staff.repairs.receipt.status": {
+    "en": "Status",
+    "fr": "Statut",
+    "ar": ""
+  },
+  "staff.repairs.receipt.customer": {
+    "en": "Customer",
+    "fr": "Client",
+    "ar": ""
+  },
+  "staff.repairs.receipt.device": {
+    "en": "Device",
+    "fr": "Appareil",
+    "ar": ""
+  },
+  "staff.repairs.receipt.imei": {
+    "en": "IMEI",
+    "fr": "IMEI",
+    "ar": ""
+  },
+  "staff.repairs.receipt.issues": {
+    "en": "Reported issues",
+    "fr": "Pannes signalées",
+    "ar": ""
+  },
+  "staff.repairs.receipt.diagnosis": {
+    "en": "Diagnosis",
+    "fr": "Diagnostic",
+    "ar": ""
+  },
+  "staff.repairs.receipt.technician": {
+    "en": "Technician",
+    "fr": "Technicien",
+    "ar": ""
+  },
+  "staff.repairs.receipt.parts": {
+    "en": "Parts",
+    "fr": "Pièces",
+    "ar": ""
+  },
+  "staff.repairs.receipt.labour": {
+    "en": "Labour",
+    "fr": "Main-d'œuvre",
+    "ar": ""
+  },
+  "staff.repairs.receipt.partsTotal": {
+    "en": "Parts total",
+    "fr": "Total pièces",
+    "ar": ""
+  },
+  "staff.repairs.receipt.total": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.repairs.receipt.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "staff.repairs.receipt.due": {
+    "en": "Amount due",
+    "fr": "Reste à payer",
+    "ar": ""
+  },
+  "staff.repairs.receipt.statusPaid": {
+    "en": "PAID",
+    "fr": "PAYÉ",
+    "ar": ""
+  },
+  "staff.repairs.receipt.statusPartial": {
+    "en": "PARTIALLY PAID",
+    "fr": "PARTIELLEMENT PAYÉ",
+    "ar": ""
+  },
+  "staff.repairs.receipt.statusUnpaid": {
+    "en": "UNPAID",
+    "fr": "NON PAYÉ",
+    "ar": ""
+  },
+  "staff.repairs.receipt.invoiceNumber": {
+    "en": "Invoice no.",
+    "fr": "Facture n°",
+    "ar": ""
+  },
+  "staff.repairs.receipt.serials": {
+    "en": "Serial no.",
+    "fr": "N° de série",
+    "ar": ""
+  },
+  "staff.repairs.receipt.footer": {
+    "en": "Please keep this ticket — it is required to collect your device",
+    "fr": "Conservez ce bon — il est exigé pour retirer votre appareil",
+    "ar": ""
+  },
   "staff.repairs.detail.amountDue": {
     "en": "Amount due",
     "fr": "Montant dû",
@@ -12439,6 +12589,11 @@
     "fr": "Trop d'étiquettes en une fois — réduisez les quantités",
     "ar": ""
   },
+  "common.errors.sentinel.exportRowLimitExceeded": {
+    "en": "This export is too large. Narrow the filters and try again.",
+    "fr": "Cet export est trop volumineux. Affinez les filtres et réessayez.",
+    "ar": ""
+  },
   "admin.nav.pos": {
     "en": "POS",
     "fr": "Point de vente",
@@ -12589,6 +12744,11 @@
     "fr": "Exporter en CSV",
     "ar": ""
   },
+  "admin.inventory.stock.exportPdf": {
+    "en": "Export PDF",
+    "fr": "Exporter en PDF",
+    "ar": ""
+  },
   "admin.inventory.movements.table.date": {
     "en": "Date",
     "fr": "Date",
@@ -12627,6 +12787,16 @@
   "admin.inventory.movements.table.staff": {
     "en": "Staff",
     "fr": "Employé",
+    "ar": ""
+  },
+  "admin.inventory.movements.export.csv": {
+    "en": "Export CSV",
+    "fr": "Exporter en CSV",
+    "ar": ""
+  },
+  "admin.inventory.movements.export.pdf": {
+    "en": "Export PDF",
+    "fr": "Exporter en PDF",
     "ar": ""
   },
   "admin.inventory.movements.empty": {
@@ -13552,6 +13722,11 @@
   "admin.statistics.reports.exportCsv": {
     "en": "Export CSV",
     "fr": "Exporter en CSV",
+    "ar": ""
+  },
+  "admin.statistics.reports.exportPdf": {
+    "en": "Export PDF",
+    "fr": "Exporter en PDF",
     "ar": ""
   },
   "admin.statistics.reports.columns.productId": {

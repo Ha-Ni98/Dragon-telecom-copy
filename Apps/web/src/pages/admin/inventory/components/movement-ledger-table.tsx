@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { Button } from "@/components/ui/button";
 import { StatusPill, type BadgeTone } from "@/components/shared/StatusBadge";
+import { ExportMenu } from "@/components/shared/ExportMenu";
 import { ClipboardList } from "lucide-react";
 import { MovementDirection, type MovementDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -15,6 +16,8 @@ interface MovementLedgerTableProps {
   isLoading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
+  onExport?: (format: "csv" | "pdf") => void;
+  isExporting?: boolean;
 }
 
 const DIRECTION_TONE: Record<MovementDirection, BadgeTone> = {
@@ -40,6 +43,8 @@ export function MovementLedgerTable({
   isLoading = false,
   isError = false,
   onRetry,
+  onExport,
+  isExporting,
 }: MovementLedgerTableProps) {
   const { t, language } = useTranslation();
 
@@ -101,37 +106,57 @@ export function MovementLedgerTable({
     </div>
   );
 
-  if (isLoading) return <TableSkeleton rows={6} columns={7} />;
-
-  if (isError) {
-    return (
-      <NotFoundState
-        title={t("admin.inventory.error")}
-        body=""
-        action={
-          onRetry && (
-            <Button variant="outline" onClick={onRetry}>
-              {t("common.actions.tryAgain")}
-            </Button>
-          )
-        }
-      />
-    );
-  }
-
   return (
-    <DataTable
-      columns={columns}
-      data={data}
-      getRowKey={(row) => row.id}
-      renderMobileRow={renderMobileRow}
-      emptyState={
-        <EmptyState
-          icon={<ClipboardList className="h-6 w-6" />}
-          title={t("admin.inventory.movements.empty")}
+    <div className="space-y-4">
+      {onExport && (
+        <div className="flex justify-end">
+          <ExportMenu
+            isPending={isExporting}
+            items={[
+              {
+                key: "csv",
+                labelKey: "admin.inventory.movements.export.csv",
+                onSelect: () => onExport("csv"),
+              },
+              {
+                key: "pdf",
+                labelKey: "admin.inventory.movements.export.pdf",
+                onSelect: () => onExport("pdf"),
+              },
+            ]}
+          />
+        </div>
+      )}
+
+      {isLoading ? (
+        <TableSkeleton rows={6} columns={7} />
+      ) : isError ? (
+        <NotFoundState
+          title={t("admin.inventory.error")}
           body=""
+          action={
+            onRetry && (
+              <Button variant="outline" onClick={onRetry}>
+                {t("common.actions.tryAgain")}
+              </Button>
+            )
+          }
         />
-      }
-    />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={data}
+          getRowKey={(row) => row.id}
+          renderMobileRow={renderMobileRow}
+          emptyState={
+            <EmptyState
+              icon={<ClipboardList className="h-6 w-6" />}
+              title={t("admin.inventory.movements.empty")}
+              body=""
+            />
+          }
+        />
+      )}
+    </div>
   );
 }

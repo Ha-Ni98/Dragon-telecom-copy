@@ -1,6 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import {
   ChartType,
+  EXPORT_ERROR,
+  EXPORT_MAX_ROWS,
   ReportFormat,
   ReportType,
   RevenueSource,
@@ -14,11 +16,44 @@ import {
   type StaffDashboardDto,
   type TopProductsQuery,
 } from '@dragon-telecom/contract';
+import { BadRequestError } from '@common/errors';
+import { csvMoney, toCsv, toCsvSection, CSV_EOL, CSV_MIME } from '@common/utils/csv.utils';
+import { renderTablePdf } from '@common/utils/pdf.utils';
 import type { ChartPoint, DraftSaleRow, LowStockRow, TopProductDto } from './statistics.mapper';
 import { StatisticsMapper } from './statistics.mapper';
 import type { ExportResult, IStatisticsService } from './statistics.interface';
 
 const DAY_MS = 24 * 3_600_000;
+
+// S25 — every export in this module is a single in-memory document, so an unbounded row count
+// would hold the request open while it serialised. Declared locally rather than shared with
+// inventory.service.ts's identical-shaped helper — the two modules have no shared error-helper
+// file; both import EXPORT_MAX_ROWS/EXPORT_ERROR from the same contract constants instead.
+const assertExportSize = (total: number): void => {
+  if (total > EXPORT_MAX_ROWS) {
+    throw new BadRequestError(EXPORT_ERROR.ROW_LIMIT_EXCEEDED, { limit: EXPORT_MAX_ROWS, total });
+  }
+};
+
+// A report row's cell can be string | number | boolean | null | undefined today (no current
+// report emits anything else) — guarded to '' for any other shape rather than "[object Object]".
+const toReportCsvValue = (value: unknown): string | number | boolean | null | undefined =>
+  value == null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? value : '';
+
+// Same guard as toReportCsvValue, but always returns a string (renderTablePdf's `rows` are
+// pre-formatted strings) — non-integer numbers go through csvMoney for a consistent 2 dp.
+const formatReportCell = (value: unknown): string => {
+  if (value == null) return '';
+  if (typeof value === 'number') return Number.isInteger(value) ? String(value) : csvMoney(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'string') return value;
+  return '';
+};
+
+const humaniseReportType = (type: ReportType): string => {
+  const words = type.replace(/-/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
 
 // D2 (S10) — nothing accrues before completion any more: cost and profit are stamped at
 // COMPLETED only, so recognising a CONFIRMED/PACKAGED/IN_DELIVERY order here would report
@@ -188,6 +223,9 @@ export class StatisticsService implements IStatisticsService {
 
     if (query.format === ReportFormat.CSV) {
       return this.toCsvExport(type, dto);
+    }
+    if (query.format === ReportFormat.PDF) {
+      return this.toPdfExport(type, dto, query);
     }
     return dto;
   }
@@ -1437,12 +1475,62 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
+  // S25 — was JSON.stringify-per-field (JSON escaping, not CSV: an inner quote came out \" where
+  // CSV needs ""), with headers taken from rows[0] alone. Columns are now the union of every
+  // row's keys in first-seen order — the same fix S24/A9 applied to report-picker.tsx, and for
+  // the same reason (client-browsing emits two row shapes). `totals` is appended after a blank
+  // line as label,value pairs: S24/A4 established that the repairs report's recognised revenue,
+  // cost and profit exist ONLY in totals, so a rows-only CSV of that report carries no money at
+  // all. The trailing block costs strict rectangularity; Excel reads it fine and the alternative
+  // is exporting a report without its headline figures.
   private toCsvExport(type: ReportType, dto: ReportDto): ExportResult {
-    const headers = dto.rows.length > 0 ? Object.keys(dto.rows[0]!) : [];
-    const lines = [headers.join(',')];
-    for (const row of dto.rows) {
-      lines.push(headers.map((header) => JSON.stringify((row as Record<string, unknown>)[header] ?? '')).join(','));
+    assertExportSize(dto.rows.length);
+    const headers = [...new Set(dto.rows.flatMap((row) => Object.keys(row)))];
+    const rows = dto.rows.map((row) =>
+      headers.map((header) => toReportCsvValue((row as Record<string, unknown>)[header])),
+    );
+
+    let body = toCsv(headers, rows);
+    if (Object.keys(dto.totals).length > 0) {
+      const totalsRows = Object.entries(dto.totals).map(([label, value]) => [label, toReportCsvValue(value)]);
+      body += CSV_EOL + toCsvSection(['Total', 'Value'], totalsRows);
     }
-    return { filename: `${type}.csv`, mime: 'text/csv', body: lines.join('\n') };
+
+    return { filename: `${type}.csv`, mime: CSV_MIME, body };
+  }
+
+  // S25 — PDF counterpart of toCsvExport, sharing its column-union logic. Column headers are the
+  // raw field names: the REPORT_COLUMN_KEY label map that translates them into readable text
+  // lives in the frontend (report-columns.ts) and the backend must not import across apps — a
+  // server-rendered document's text is English literals by established precedent (invoice PDFs,
+  // barcode labels; see S25 §0.6).
+  private async toPdfExport(type: ReportType, dto: ReportDto, query: ReportQuery): Promise<ExportResult> {
+    assertExportSize(dto.rows.length);
+    const headers = [...new Set(dto.rows.flatMap((row) => Object.keys(row)))];
+    const rows = dto.rows.map((row) => headers.map((header) => formatReportCell((row as Record<string, unknown>)[header])));
+
+    // S24 (A11) — reportAgeing takes no range at all (a point-in-time snapshot); printing a date
+    // range on it would be lying, so it gets a note instead, matching the UI's own
+    // ageingSnapshotNote.
+    const filters: { label: string; value: string }[] =
+      type === ReportType.AGEING
+        ? [{ label: 'Note', value: 'point-in-time snapshot — the date range does not apply' }]
+        : [
+            ...(query.from ? [{ label: 'From', value: query.from }] : []),
+            ...(query.to ? [{ label: 'To', value: query.to }] : []),
+          ];
+
+    const body = await renderTablePdf({
+      title: humaniseReportType(type),
+      filters,
+      generatedAt: new Date(),
+      orientation: headers.length > 6 ? 'landscape' : 'portrait',
+      columns: headers.map((header) => ({ header, width: 1 })),
+      rows,
+      chart: dto.chart,
+      totals: Object.entries(dto.totals).map(([label, value]) => ({ label, value: formatReportCell(value) })),
+    });
+
+    return { filename: `${type}.pdf`, mime: 'application/pdf', body };
   }
 }

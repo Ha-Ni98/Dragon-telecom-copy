@@ -20,7 +20,9 @@ export type ExportResult = { filename: string; mime: string; body: Buffer | stri
 // HTTP-facing surface — every method returns a contract DTO (rules §4), never a Prisma entity.
 export interface IInventoryReadService {
   getStock(query: StockQuery): Promise<StockRowDto[] | ExportResult>;
-  listMovements(query: MovementsQuery): Promise<PaginatedResult<MovementDto>>;
+  // S25 — export=csv|pdf returns the whole filtered ledger as a document instead of a page.
+  // Same dual-return shape as getStock above.
+  listMovements(query: MovementsQuery): Promise<PaginatedResult<MovementDto> | ExportResult>;
   listReservations(query: ReservationsQuery): Promise<PaginatedResult<ReservationDto>>;
   createAdjustment(cmd: CreateAdjustmentCommand, staffId: string): Promise<AdjustmentResultDto>;
 }

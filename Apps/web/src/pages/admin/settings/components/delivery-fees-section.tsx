@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
-  Download,
   Upload,
   Truck,
   MapPin,
@@ -25,6 +24,7 @@ import { DataTable } from "@/components/shared/DataTable";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SimplePagination } from "@/components/shared/SimplePagination";
+import { ExportMenu } from "@/components/shared/ExportMenu";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ExcelFileUploader } from "@/components/shared/excel-file-uploader";
 import {
@@ -127,8 +127,19 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
     setIsImportDialogOpen(false);
     setImportedCount(null);
   };
-  const handleExport = () => {
-    exportFees.mutate({}, { onSuccess: (blob) => downloadBlob("delivery-fees.csv", blob) });
+  // S25 — was a single button that always sent no `format`, so the backend fell through to its
+  // `?? 'excel'` default and the frontend saved the XLSX payload as "delivery-fees.csv" (a real
+  // bug: Excel warned on open, a text editor showed the ZIP header). Now an explicit format per
+  // menu item, each saved under the matching extension. This screen has no filters (client-
+  // paginated only), so the export is always the full set.
+  const handleExport = (format: "csv" | "excel" | "pdf") => {
+    exportFees.mutate(
+      { format },
+      {
+        onSuccess: (blob) =>
+          downloadBlob(`delivery-fees.${format === "excel" ? "xlsx" : format}`, blob),
+      },
+    );
   };
 
   const columns = useMemo<ColumnDef<FeeRow>[]>(
@@ -209,15 +220,27 @@ export function DeliveryFeesSection({ className }: DeliveryFeesSectionProps) {
                 <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                 {t("common.actions.refresh")}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!rows.length || exportFees.isPending}
-                onClick={handleExport}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {t("admin.settings.delivery.exportExcel")}
-              </Button>
+              <ExportMenu
+                disabled={!rows.length}
+                isPending={exportFees.isPending}
+                items={[
+                  {
+                    key: "csv",
+                    labelKey: "admin.settings.delivery.exportCsv",
+                    onSelect: () => handleExport("csv"),
+                  },
+                  {
+                    key: "excel",
+                    labelKey: "admin.settings.delivery.exportExcel",
+                    onSelect: () => handleExport("excel"),
+                  },
+                  {
+                    key: "pdf",
+                    labelKey: "admin.settings.delivery.exportPdf",
+                    onSelect: () => handleExport("pdf"),
+                  },
+                ]}
+              />
               <Button onClick={() => setIsImportDialogOpen(true)} disabled={isLoading}>
                 <Upload className="mr-2 h-4 w-4" />
                 {t("admin.settings.delivery.importExcel")}

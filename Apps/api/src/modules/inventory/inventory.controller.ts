@@ -24,7 +24,17 @@ export class InventoryController {
 
   listMovements = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      sendSuccess(res, await this.service.listMovements(req.validated.query as MovementsQuery));
+      const result = await this.service.listMovements(req.validated.query as MovementsQuery);
+      // S25 — same dual-return handling as getStock above. `attachment`, not `inline`: a ledger
+      // export is always a download, never previewed in place (matches S22's streamPdf reasoning
+      // in catalog.controller.ts).
+      if ('body' in result) {
+        res.setHeader('Content-Type', result.mime);
+        res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+        res.status(200).send(result.body);
+        return;
+      }
+      sendSuccess(res, result);
     } catch (error) {
       next(error);
     }
