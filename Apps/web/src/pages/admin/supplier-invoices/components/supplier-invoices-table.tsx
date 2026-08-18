@@ -8,7 +8,7 @@ import { NotFoundState } from "@/components/shared/NotFoundState";
 import { Button } from "@/components/ui/button";
 import { SimplePagination } from "@/components/shared/SimplePagination";
 import { SupplierInvoiceStatusBadge } from "@/components/shared/StatusBadge";
-import { FileText } from "lucide-react";
+import { FileText, Printer } from "lucide-react";
 import type { PaginatedResult, SupplierInvoiceDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDateTime } from "@/lib/utils";
@@ -19,6 +19,10 @@ interface SupplierInvoicesTableProps {
   isError?: boolean;
   onRetry?: () => void;
   onPageChange: (page: number) => void;
+  /** S26 — the page owns the dialog (the table stays dumb); this only reports which row was
+   *  picked. Available on every row regardless of status, exactly like the detail page's own
+   *  action — labels are about the goods received, not the money. */
+  onPrintBarcodes: (invoice: SupplierInvoiceDto) => void;
 }
 
 function formatCurrency(amount: number): string {
@@ -32,6 +36,7 @@ export function SupplierInvoicesTable({
   isError = false,
   onRetry,
   onPageChange,
+  onPrintBarcodes,
 }: SupplierInvoicesTableProps) {
   const { t, language } = useTranslation();
   const invoices = data?.items ?? [];
@@ -79,8 +84,23 @@ export function SupplierInvoicesTable({
         cell: ({ row }) =>
           row.original.paidDate ? formatDateTime(row.original.paidDate, language) : "-",
       },
+      {
+        id: "actions",
+        header: t("admin.supplierInvoices.table.actions"),
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onPrintBarcodes(row.original)}
+            aria-label={t("admin.supplierInvoices.table.printLabels")}
+            title={t("admin.supplierInvoices.table.printLabels")}
+          >
+            <Printer className="h-4 w-4" />
+          </Button>
+        ),
+      },
     ],
-    [t, language],
+    [t, language, onPrintBarcodes],
   );
 
   const renderMobileRow = (invoice: SupplierInvoiceDto) => (
@@ -94,13 +114,22 @@ export function SupplierInvoicesTable({
         </Link>
         <SupplierInvoiceStatusBadge status={invoice.status} />
       </div>
-      <div className="text-sm text-muted-foreground">
-        {invoice.supplierName} · {formatCurrency(invoice.totalAmount)}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          {invoice.supplierName} · {formatCurrency(invoice.totalAmount)}
+        </div>
+        <button
+          type="button"
+          className="text-sm text-primary"
+          onClick={() => onPrintBarcodes(invoice)}
+        >
+          {t("admin.supplierInvoices.table.printLabels")}
+        </button>
       </div>
     </div>
   );
 
-  if (isLoading) return <TableSkeleton rows={6} columns={8} />;
+  if (isLoading) return <TableSkeleton rows={6} columns={9} />;
 
   if (isError) {
     return (

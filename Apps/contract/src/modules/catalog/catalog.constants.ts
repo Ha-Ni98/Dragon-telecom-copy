@@ -23,14 +23,20 @@ export const BARCODE_LABEL_MAX_QUANTITY = 200;
 
 // S22 — bounds on one label-sheet request. Named here because the API validates against them and
 // the dialogs must disable Confirm on the same figures rather than letting the user submit into a
-// 400. 1000 labels is 25 A4 pages (40 per page) and renders in well under 100 ms, so the ceiling
-// exists to keep the request bounded, not because the renderer is slow.
+// 400. S26 widened the label to 50 x 25 mm, so 1000 labels is now 34 A4 pages (30 per page, was 40);
+// it still renders in well under 100 ms, so the ceiling exists to keep the request bounded, not
+// because the renderer is slow.
 export const BARCODE_LABEL_SHEET_MAX_ITEMS = 100;
 export const BARCODE_LABEL_SHEET_MAX_TOTAL = 1000;
 
 // S22 — bound on one barcode-lookup request. A supplier invoice with more product lines than this
 // does not exist in practice; the cap only stops an unbounded id list reaching the database.
 export const BARCODE_LOOKUP_MAX_IDS = 200;
+
+// S26 — caps on the two customizable label texts (store name, top text). The renderer truncates
+// visually to fit the label regardless, so these only bound the request payload. Declared here
+// because the schema validates against them and the inputs set maxLength from them.
+export const BARCODE_LABEL_TEXT_MAX = 60;
 
 // Business-rule sentinels. They travel as the *error message*, not `error.code` — the API's
 // ConflictError/BadRequestError hardcode the generic ErrorCode (RESOURCE_CONFLICT /

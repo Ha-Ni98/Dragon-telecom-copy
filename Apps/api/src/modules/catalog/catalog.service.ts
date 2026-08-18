@@ -922,14 +922,23 @@ export class CatalogProductService implements ICatalogProductService {
     const uniqueIds = Array.from(new Set(cmd.productIds));
     const products = await this.prisma.product.findMany({
       where: { id: { in: uniqueIds } },
-      select: { id: true, name: true, barcode: true },
+      // S26 — deviceModel feeds the dialog's default "text above the barcode". Optional relation:
+      // a universal part has none, and that prints as no top text (owner decision Q3).
+      select: { id: true, name: true, barcode: true, deviceModel: { select: { name: true } } },
     });
 
     const byId = new Map(products.map((product) => [product.id, product]));
     const items = uniqueIds.flatMap((productId) => {
       const product = byId.get(productId);
       if (product == null || !isPrintableBarcode(product.barcode)) return [];
-      return [{ productId, name: product.name, barcode: product.barcode }];
+      return [
+        {
+          productId,
+          name: product.name,
+          barcode: product.barcode,
+          ...(product.deviceModel != null ? { modelName: product.deviceModel.name } : {}),
+        },
+      ];
     });
 
     return { items };
@@ -939,6 +948,10 @@ export class CatalogProductService implements ICatalogProductService {
   // edited since the dialog opened prints as it is *now*. Unprintable products are dropped with
   // the same predicate lookupBarcodes uses, and `items` order is preserved: for a supplier invoice
   // that is invoice-line order.
+  // S26 — `storeName` is one value for the whole run and is copied onto every request; `topText`
+  // is per item. Both are printed verbatim, never re-derived server-side: the field is editable,
+  // so the sheet must carry exactly the string the admin confirmed (an admin who cleared the store
+  // name must get labels without one).
   async renderBarcodeLabels(cmd: BarcodeLabelSheetCommand): Promise<PdfResult> {
     const products = await this.prisma.product.findMany({
       where: { id: { in: Array.from(new Set(cmd.items.map((item) => item.productId))) } },
@@ -946,10 +959,21 @@ export class CatalogProductService implements ICatalogProductService {
     });
     const barcodeById = new Map(products.map((product) => [product.id, product.barcode]));
 
+    const storeName = cmd.storeName?.trim() ?? '';
+
     const requests = cmd.items.flatMap((item) => {
       const barcode = barcodeById.get(item.productId) ?? null;
       if (!isPrintableBarcode(barcode)) return [];
-      return [{ barcode, quantity: item.quantity }];
+      return [
+        {
+          barcode,
+          quantity: item.quantity,
+          // S26 — a blank string is not a value: z.string().trim() means whitespace-only input
+          // arrives as '', which must print no section rather than an empty one.
+          ...(storeName !== '' ? { storeName } : {}),
+          ...(item.topText != null && item.topText !== '' ? { topText: item.topText } : {}),
+        },
+      ];
     });
 
     // Every requested product turned out to be unprintable — an empty PDF would look like a

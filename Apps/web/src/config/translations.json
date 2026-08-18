@@ -12214,6 +12214,26 @@
     "fr": "Réduisez les quantités — une planche contient au maximum {max} étiquettes.",
     "ar": ""
   },
+  "admin.productsList.printLabels.storeNameLabel": {
+    "en": "Store name (optional)",
+    "fr": "Nom du magasin (facultatif)",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.storeNameHelper": {
+    "en": "Printed vertically down the left of each label. Leave empty to omit it.",
+    "fr": "Imprimé verticalement à gauche de chaque étiquette. Laissez vide pour l'omettre.",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.topTextLabel": {
+    "en": "Text above the barcode (optional)",
+    "fr": "Texte au-dessus du code-barres (facultatif)",
+    "ar": ""
+  },
+  "admin.productsList.printLabels.topTextHelper": {
+    "en": "Defaults to the product's model. Leave empty to omit it.",
+    "fr": "Par défaut, le modèle du produit. Laissez vide pour l'omettre.",
+    "ar": ""
+  },
   "admin.productsList.table.empty": {
     "en": "No products match these filters",
     "fr": "Aucun produit ne correspond à ces filtres",
@@ -13317,6 +13337,31 @@
   "admin.supplierInvoices.printLabels.loadError": {
     "en": "Couldn't load the barcodes for this invoice",
     "fr": "Impossible de charger les codes-barres de cette facture",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.storeNameLabel": {
+    "en": "Store name (optional)",
+    "fr": "Nom du magasin (facultatif)",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.storeNameHelper": {
+    "en": "Applies to every label in this run. Defaults to your store name plus the supplier's initials.",
+    "fr": "S'applique à toutes les étiquettes de cette impression. Par défaut, le nom de votre magasin suivi des initiales du fournisseur.",
+    "ar": ""
+  },
+  "admin.supplierInvoices.printLabels.columnTopText": {
+    "en": "Text above",
+    "fr": "Texte au-dessus",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.actions": {
+    "en": "Actions",
+    "fr": "Actions",
+    "ar": ""
+  },
+  "admin.supplierInvoices.table.printLabels": {
+    "en": "Print barcodes",
+    "fr": "Imprimer les codes-barres",
     "ar": ""
   },
   "admin.posClients.title": {

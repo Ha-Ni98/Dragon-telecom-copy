@@ -3,6 +3,7 @@ import {
   BARCODE_LABEL_MAX_QUANTITY,
   BARCODE_LABEL_SHEET_MAX_ITEMS,
   BARCODE_LABEL_SHEET_MAX_TOTAL,
+  BARCODE_LABEL_TEXT_MAX,
   BARCODE_LOOKUP_MAX_IDS,
   CATALOG_ERROR,
 } from './catalog.constants';
@@ -113,13 +114,18 @@ export type BarcodeLookupCommand = z.infer<typeof BarcodeLookupSchema>;
 
 // S22 — one label-sheet request. `items` is ordered and may repeat a productId: the sheet is laid
 // out in exactly this order, which for a supplier invoice is invoice-line order.
+// S26 — plus the two customizable texts. `storeName` is top-level because one print run is one
+// store; `topText` is per item because each line is a different product with a different model
+// (owner decision Q2). Both optional: omitted (or blank) prints the label without that section.
 export const BarcodeLabelSheetSchema = z
   .object({
+    storeName: z.string().trim().max(BARCODE_LABEL_TEXT_MAX).optional(),
     items: z
       .array(
         z.object({
           productId: z.uuid(),
           quantity: z.number().int().min(1).max(BARCODE_LABEL_MAX_QUANTITY),
+          topText: z.string().trim().max(BARCODE_LABEL_TEXT_MAX).optional(),
         }),
       )
       .min(1)

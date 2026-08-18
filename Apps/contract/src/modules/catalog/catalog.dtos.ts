@@ -156,12 +156,16 @@ export type GeneratedBarcodeDto = z.infer<typeof GeneratedBarcodeResponseSchema>
 // `barcode` is required here (unlike Product.barcode, which is nullable). `name` is the current
 // catalog name; the supplier-invoice dialog still shows its own productNameSnapshot, and only
 // falls back to this.
+// S26 — `modelName` is what the supplier-invoice dialog seeds each line's "text above the barcode"
+// with. Optional because a universal part has no model, which per owner decision Q3 means the
+// label simply prints no top text.
 export const BarcodeLookupResponseSchema = z.object({
   items: z.array(
     z.object({
       productId: z.uuid(),
       name: z.string(),
       barcode: z.string(),
+      modelName: z.string().optional(),
     }),
   ),
 });
