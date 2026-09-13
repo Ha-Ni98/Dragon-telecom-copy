@@ -10,9 +10,11 @@ import {
   type FeeDto,
   type FeeQuery,
   type FeesExportQuery,
+  type MediaImageDto,
   type PublicSettingsDto,
   type SettingsDto,
   type UpdateSettingsCommand,
+  type UploadImageCommand,
   type UpsertFeesCommand,
   type WilayaDto,
 } from '@dragon-telecom/contract';
@@ -20,6 +22,8 @@ import { BadRequestError, ConflictError } from '@common/errors';
 import { eventBus } from '@common/events/event-bus';
 import { csvMoney, toCsv, CSV_MIME } from '@common/utils/csv.utils';
 import { renderTablePdf } from '@common/utils/pdf.utils';
+import { imagePipeline } from '@common/media/image-pipeline.service';
+import type { UploadFile } from '@common/storage/storage.types';
 import { DEFAULT_SETTINGS } from '../../../prisma/settings-defaults';
 import type {
   ExportFeesResult,
@@ -402,6 +406,13 @@ export class PlatformService implements IPlatformService {
   async getPublicSettings(): Promise<PublicSettingsDto> {
     const settings = await this.getSettings();
     return PlatformMapper.toPublicSettingsDto(settings);
+  }
+
+  // S26.1 — a thin delegation to the shared pipeline. No settings row is touched here: the
+  // caller decides what the returned URL becomes (a brand logo, a family icon, the store logo,
+  // the print logo) with its own PATCH.
+  async uploadImage(file: UploadFile, cmd: UploadImageCommand): Promise<MediaImageDto> {
+    return imagePipeline.process(file, cmd.purpose);
   }
 
   private async loadWilayasWithCommunes() {

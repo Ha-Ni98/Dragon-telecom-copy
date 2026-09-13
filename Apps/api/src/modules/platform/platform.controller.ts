@@ -1,7 +1,13 @@
 import type { NextFunction, Request, Response } from 'express';
 import { sendSuccess } from '@common/http/response';
 import { BadRequestError } from '@common/errors';
-import type { FeeQuery, FeesExportQuery, UpdateSettingsCommand, UpsertFeesCommand } from '@dragon-telecom/contract';
+import type {
+  FeeQuery,
+  FeesExportQuery,
+  UpdateSettingsCommand,
+  UploadImageCommand,
+  UpsertFeesCommand,
+} from '@dragon-telecom/contract';
 import type { IPlatformService } from './platform.interface';
 
 export class PlatformController {
@@ -83,6 +89,19 @@ export class PlatformController {
   getPublicSettings = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       sendSuccess(res, await this.service.getPublicSettings(), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  uploadImage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.file) throw new BadRequestError('No file uploaded (field name must be "image")');
+      const result = await this.service.uploadImage(
+        { buffer: req.file.buffer, originalname: req.file.originalname, mimetype: req.file.mimetype },
+        req.validated.body as UploadImageCommand,
+      );
+      sendSuccess(res, result, 201);
     } catch (error) {
       next(error);
     }

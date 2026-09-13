@@ -27,9 +27,23 @@ export type FeeDto = z.infer<typeof FeeResponseSchema>;
 export const SettingsResponseSchema = z.object({
   store: z.object({
     name: z.string(),
+    // S26.1 — the store's description line, printed under the name on the thermal receipt
+    // (e.g. "VENTE PIECES DE RECHANGE ET ACCESOIRRES MOBILES").
+    activityLine: z.string().optional(),
     address: z.string().optional(),
+    // S26.1 / owner decision Q2 — `phone` keeps its existing role and its existing consumers
+    // (invoice PDF header, POS receipt, repair claim slip). `repairPhone` and `salesPhone` are
+    // the two separately labelled numbers S27's receipt prints; each falls back to `phone`
+    // when unset, so no printed document loses a number.
     phone: z.string().optional(),
+    repairPhone: z.string().optional(),
+    salesPhone: z.string().optional(),
+    // Full-colour logo — screen and PDF.
     logoUrl: z.string().optional(),
+    // S26.1 — a dedicated monochrome PNG for the thermal printer, uploaded already
+    // black-and-white and stored without lossy encoding (a WebP/JPEG of a 1-bit image produces
+    // edge artifacts the thermal head renders as grey fringing). Never used on screen.
+    printLogoUrl: z.string().optional(),
   }),
   invoicing: z.object({
     prefixes: z.record(z.enum(DocType), z.string()),
@@ -52,12 +66,19 @@ export type SettingsDto = z.infer<typeof SettingsResponseSchema>;
 // phone and logo, but GET /platform/settings is adminOnly; these four fields are already printed
 // on every invoice PDF handed to a customer, so exposing them publicly discloses nothing new.
 // `invoicing` (prefixes, next sequence numbers) and `delivery` stay internal — they are not here.
+// S26.1 — the new header fields (activityLine, repairPhone, salesPhone, printLogoUrl) are public
+// for the same reason: the STAFF-scoped POS receipt (S27) reads this route to print them, and
+// every one of them is already destined for a document handed to a customer.
 export const PublicSettingsResponseSchema = z.object({
   store: z.object({
     name: z.string(),
+    activityLine: z.string().optional(),
     address: z.string().optional(),
     phone: z.string().optional(),
+    repairPhone: z.string().optional(),
+    salesPhone: z.string().optional(),
     logoUrl: z.string().optional(),
+    printLogoUrl: z.string().optional(),
   }),
   storefront: z.object({
     featuredProductIds: z.array(z.uuid()),

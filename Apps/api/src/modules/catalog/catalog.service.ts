@@ -8,6 +8,7 @@ import {
   BARCODE_PREFIX_CHARS,
   BARCODE_PREFIX_PAD_CHAR,
   CATALOG_ERROR,
+  ImagePurpose,
   MovementType,
   ProductEnabledFilter,
   ProductSort,
@@ -62,6 +63,7 @@ import type {
   Viewer,
 } from './catalog.interface';
 import { storageService } from '@common/storage/storage.service';
+import { imagePipeline } from '@common/media/image-pipeline.service';
 
 const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaClientKnownRequestError =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
@@ -615,6 +617,16 @@ export class CatalogProductService implements ICatalogProductService {
     images: Express.Multer.File[],
     staffId: string,
   ): Promise<AdminProductDto> {
+    // S26.1 — processed and stored BEFORE the transaction opens, for two reasons: a network
+    // round-trip must never be held inside a database transaction, and the set's guarantee is
+    // that no row may point at an object that does not exist. If R2 is unreachable this throws
+    // here and nothing at all is written. The inverse (object stored, row write then fails) is
+    // the tolerated direction: an orphaned object costs nothing, a broken <img> is user-visible.
+    const processedImages =
+      images.length > 0
+        ? await Promise.all(images.map((file) => imagePipeline.process(file, ImagePurpose.PRODUCT)))
+        : [];
+
     try {
       const productId = await this.prisma.$transaction(async (tx) => {
         const brandId = await this.resolveBrandId(tx, cmd);
@@ -659,25 +671,14 @@ export class CatalogProductService implements ICatalogProductService {
           });
         }
 
-        if (images.length > 0) {
-          const uploadedImages = await Promise.all(
-            images.map((file) =>
-              storageService.upload(
-                {
-                  buffer: file.buffer,
-                  originalname: file.originalname,
-                  mimetype: file.mimetype,
-                },
-                "products",
-              ),
-            ),
-          );
-
+        if (processedImages.length > 0) {
           await tx.productImage.createMany({
-            data: uploadedImages.map((image, index) => ({
+            data: processedImages.map((image, index) => ({
               productId: product.id,
               url: image.url,
               key: image.key,
+              ...(image.thumbnailUrl != null ? { thumbnailUrl: image.thumbnailUrl } : {}),
+              ...(image.thumbnailKey != null ? { thumbnailKey: image.thumbnailKey } : {}),
               position: index,
               isPrimary: index === 0,
             })),
@@ -770,16 +771,7 @@ export class CatalogProductService implements ICatalogProductService {
     if (!product) throw new NotFoundError('Product');
 
     const uploadedImages = await Promise.all(
-      files.map((file) =>
-        storageService.upload(
-          {
-            buffer: file.buffer,
-            originalname: file.originalname,
-            mimetype: file.mimetype,
-          },
-          "products",
-        ),
-      ),
+      files.map((file) => imagePipeline.process(file, ImagePurpose.PRODUCT)),
     );
 
     await this.prisma.productImage.createMany({
@@ -789,6 +781,14 @@ export class CatalogProductService implements ICatalogProductService {
         url: uploadedImages[index]!.url,
 
         key: uploadedImages[index]!.key,
+
+        ...(uploadedImages[index]!.thumbnailUrl != null
+          ? { thumbnailUrl: uploadedImages[index]!.thumbnailUrl }
+          : {}),
+
+        ...(uploadedImages[index]!.thumbnailKey != null
+          ? { thumbnailKey: uploadedImages[index]!.thumbnailKey }
+          : {}),
 
         ...(meta.alt != null ? { alt: meta.alt } : {}),
 
@@ -821,12 +821,12 @@ export class CatalogProductService implements ICatalogProductService {
     return this.getAdminProduct(id);
   }
 
-  // Deletes the row *and* the file on disk (S3). The DB row is the source of truth: if the file
-  // is already gone (manual cleanup, a failed earlier delete) the unlink error is swallowed and
-  // the row still goes — an orphaned row would keep rendering a broken <img>, which is worse than
-  // an orphaned file. `basename()` is a path-traversal guard: `url` is written by this service as
-  // `/uploads/<generated-uuid><ext>`, but it is still a stored string, so the filesystem path is
-  // rebuilt from its last segment only and never from the stored value directly.
+  // Deletes the row *and* every stored derivative (full size + thumbnail) in R2. The DB row is
+  // the source of truth: a failed object delete is swallowed and the row still goes, because an
+  // orphaned row keeps rendering a broken <img> while an orphaned object costs nothing.
+  // The `imageCount` guard matters more since S26.1 made keys content-addressed: two products
+  // uploaded from the same photo file share one object, so the object may only be deleted when
+  // this is the last row referencing that URL.
   async deleteImage(id: string, imageId: string): Promise<AdminProductDto> {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundError('Product');
@@ -850,11 +850,9 @@ export class CatalogProductService implements ICatalogProductService {
     }
 
     if (imageCount == 1) {
-      try {
-        await storageService.delete(image.key);
-      } catch {
-        // File already absent — the row is gone, which is what the caller asked for.
-      }
+      await storageService.deleteMany(
+        [image.key, ...(image.thumbnailKey != null ? [image.thumbnailKey] : [])],
+      );
     }
 
     return this.getAdminProduct(id);

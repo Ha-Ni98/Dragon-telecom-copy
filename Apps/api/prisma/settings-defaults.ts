@@ -24,6 +24,10 @@ export const DEFAULT_NEXT_SEQUENCES: Record<DocType, number> = Object.fromEntrie
 // platform.mapper.ts (the merge-over-defaults fallback when a Setting row is entirely
 // missing) — see plan-platform.md §1.2. Keyed by the SettingsDto section name (Setting.key
 // mirrors the DTO key).
+// S26.1 — activityLine/repairPhone/salesPhone/printLogoUrl are all optional on `store`, and
+// PlatformMapper.toSettingsDto falls back WHOLE-SECTION (not field-wise) for `store`, so no
+// change is needed here: an unseeded/legacy `store` row missing these fields still parses fine
+// against SettingsResponseSchema once this default (or the real stored row) supplies `name`.
 export const DEFAULT_SETTINGS = {
   store: { name: 'Dragon Telecom' },
   invoicing: { prefixes: DEFAULT_INVOICING_PREFIXES, nextSequences: DEFAULT_NEXT_SEQUENCES },

@@ -1,7 +1,12 @@
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "sonner";
-import { CATALOG_ERROR, EXPORT_ERROR, type ApiResponse } from "@dragon-telecom/contract";
+import {
+  CATALOG_ERROR,
+  EXPORT_ERROR,
+  MEDIA_ERROR,
+  type ApiResponse,
+} from "@dragon-telecom/contract";
 import { translate, getLanguage } from "@/lib/i18n";
 
 // Business-rule sentinels travel as the error *message* (see apiErrorMessage below). When one
@@ -13,6 +18,11 @@ const SENTINEL_TRANSLATION_KEYS: Record<string, string> = {
   [CATALOG_ERROR.BARCODE_LABELS_EMPTY]: "common.errors.sentinel.barcodeLabelsEmpty",
   [CATALOG_ERROR.BARCODE_LABEL_TOTAL_EXCEEDED]: "common.errors.sentinel.barcodeLabelTotalExceeded",
   [EXPORT_ERROR.ROW_LIMIT_EXCEEDED]: "common.errors.sentinel.exportRowLimitExceeded",
+  [MEDIA_ERROR.UNSUPPORTED_IMAGE_TYPE]: "common.errors.sentinel.unsupportedImageType",
+  [MEDIA_ERROR.IMAGE_TOO_LARGE]: "common.errors.sentinel.imageTooLarge",
+  [MEDIA_ERROR.IMAGE_TOO_MANY_PIXELS]: "common.errors.sentinel.imageTooManyPixels",
+  [MEDIA_ERROR.IMAGE_DECODE_FAILED]: "common.errors.sentinel.imageDecodeFailed",
+  [MEDIA_ERROR.IMAGE_STORAGE_UNAVAILABLE]: "common.errors.sentinel.imageStorageUnavailable",
 };
 
 export const message = (err: unknown): string => {

@@ -91,7 +91,9 @@ export const ProductCard = React.memo(function ProductCard({
           >
             {primaryImage ? (
               <img
-                src={primaryImage.url}
+                // S26.1 — thumbnailUrl is the 400px grid derivative; falls back to the full-size
+                // url for rows written before S26.1, which have no derivative.
+                src={primaryImage.thumbnailUrl ?? primaryImage.url}
                 alt={primaryImage.alt ?? product.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 loading="lazy"

@@ -5,8 +5,8 @@ import { validateRequest } from '@common/middlewares/validate-request.middleware
 import { requireAuth } from '@common/middlewares/auth.middleware';
 import {
   CATALOG_ROUTES,
+  IMAGE_MAX_UPLOAD_BYTES,
   PageKey,
-  PRODUCT_UPLOAD_DIR,
   UserType,
   AddProductImagesSchema,
   BarcodeLabelSheetSchema,
@@ -67,19 +67,17 @@ export const catalogProductService = productService;
 // (single import direction: inventory -> catalog, per plan §6).
 export const catalogPricingService = productService;
 
-// Product images must persist across requests (unlike platform's import file, which is parsed
-// once and discarded from memory) — disk storage with a stable, servable path. No upload env
-// knob exists yet (env-template.md lists only AWS_* generically); an in-code constant is the
-// plan §7.4-recommended choice pending an owner decision on the real storage backend (local/S3).
-// `PRODUCT_UPLOAD_DIR` is shared with app.ts's express.static mount and catalog.service.ts's
-// deleteImage (S3) — kept under this local name so the rest of this file is untouched.
+// S26.1 — product photos go through the shared image pipeline (processed, then stored in R2 as
+// content-addressed WebP + thumbnail); memoryStorage because the Fly filesystem is ephemeral and
+// every byte goes straight to sharp. No fileFilter on mimetype: the pipeline sniffs the real type
+// from magic bytes, because the declared mimetype is attacker-controlled. The 10 MB ceiling is
+// the contract's IMAGE_MAX_UPLOAD_BYTES, shared with the media upload route and the web control.
 const uploadImages = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: IMAGE_MAX_UPLOAD_BYTES,
+    files: 3,
   },
-  fileFilter: (_req, file, cb) =>
-    cb(null, file.mimetype.startsWith('image/')),
 });
 
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });

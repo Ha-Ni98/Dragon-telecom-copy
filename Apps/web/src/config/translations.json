@@ -3554,6 +3554,16 @@
     "fr": "Général",
     "ar": ""
   },
+  "admin.settings.general.activityLine": {
+    "en": "Activity line",
+    "fr": "Ligne d'activité",
+    "ar": ""
+  },
+  "admin.settings.general.activityLineHelp": {
+    "en": "Printed under the store name on receipts.",
+    "fr": "Imprimée sous le nom du magasin sur les tickets.",
+    "ar": ""
+  },
   "admin.settings.general.description": {
     "en": "Basic application configuration",
     "fr": "Configuration de base de l'application",
@@ -3582,6 +3592,21 @@
   "admin.settings.general.storePhone": {
     "en": "Store Phone",
     "fr": "Téléphone du Magasin",
+    "ar": ""
+  },
+  "admin.settings.general.storePhoneHelp": {
+    "en": "General number, used on invoices.",
+    "fr": "Numéro général, utilisé sur les factures.",
+    "ar": ""
+  },
+  "admin.settings.general.repairPhone": {
+    "en": "Repair phone",
+    "fr": "Téléphone réparation",
+    "ar": ""
+  },
+  "admin.settings.general.salesPhone": {
+    "en": "Sales phone",
+    "fr": "Téléphone vente",
     "ar": ""
   },
   "admin.settings.general.title": {
@@ -12614,6 +12639,56 @@
     "fr": "Cet export est trop volumineux. Affinez les filtres et réessayez.",
     "ar": ""
   },
+  "common.errors.sentinel.unsupportedImageType": {
+    "en": "Unsupported image format. Use JPEG, PNG, WebP or HEIC.",
+    "fr": "Format d'image non pris en charge. Utilisez JPEG, PNG, WebP ou HEIC.",
+    "ar": ""
+  },
+  "common.errors.sentinel.imageTooLarge": {
+    "en": "The image is too large. The maximum is 10 MB.",
+    "fr": "L'image est trop volumineuse. Le maximum est de 10 Mo.",
+    "ar": ""
+  },
+  "common.errors.sentinel.imageTooManyPixels": {
+    "en": "The image has too many pixels to process safely.",
+    "fr": "L'image comporte trop de pixels pour être traitée.",
+    "ar": ""
+  },
+  "common.errors.sentinel.imageDecodeFailed": {
+    "en": "The image could not be read. It may be corrupt.",
+    "fr": "Impossible de lire l'image. Elle est peut-être corrompue.",
+    "ar": ""
+  },
+  "common.errors.sentinel.imageStorageUnavailable": {
+    "en": "Image storage is unreachable. Nothing was saved — try again.",
+    "fr": "Le stockage d'images est injoignable. Rien n'a été enregistré — réessayez.",
+    "ar": ""
+  },
+  "common.media.upload": {
+    "en": "Upload",
+    "fr": "Téléverser",
+    "ar": ""
+  },
+  "common.media.replace": {
+    "en": "Replace",
+    "fr": "Remplacer",
+    "ar": ""
+  },
+  "common.media.uploading": {
+    "en": "Uploading…",
+    "fr": "Téléversement…",
+    "ar": ""
+  },
+  "common.media.uploadSuccess": {
+    "en": "Image uploaded",
+    "fr": "Image téléversée",
+    "ar": ""
+  },
+  "common.media.tooLarge": {
+    "en": "The image must be under {max} MB.",
+    "fr": "L'image doit faire moins de {max} Mo.",
+    "ar": ""
+  },
   "admin.nav.pos": {
     "en": "POS",
     "fr": "Point de vente",
@@ -14469,6 +14544,36 @@
     "fr": "Le nom de la catégorie est requis",
     "ar": ""
   },
+  "admin.settings.store.logos.title": {
+    "en": "Logos",
+    "fr": "Logos",
+    "ar": ""
+  },
+  "admin.settings.store.logos.description": {
+    "en": "The full-colour logo shown on screen and on PDF documents, and the monochrome logo used by the thermal receipt printer.",
+    "fr": "Le logo en couleur affiché à l'écran et sur les documents PDF, et le logo monochrome utilisé par l'imprimante de tickets thermique.",
+    "ar": ""
+  },
+  "admin.settings.store.logos.storeLogo": {
+    "en": "Store logo",
+    "fr": "Logo du magasin",
+    "ar": ""
+  },
+  "admin.settings.store.logos.storeLogoHelp": {
+    "en": "Full colour. Used on screen and on PDF documents.",
+    "fr": "En couleur. Utilisé à l'écran et sur les documents PDF.",
+    "ar": ""
+  },
+  "admin.settings.store.logos.printLogo": {
+    "en": "Print logo",
+    "fr": "Logo d'impression",
+    "ar": ""
+  },
+  "admin.settings.store.logos.printLogoHelp": {
+    "en": "Black and white only — used by the thermal receipt printer. Upload an already monochrome image.",
+    "fr": "En noir et blanc uniquement — utilisé par l'imprimante thermique. Téléversez une image déjà monochrome.",
+    "ar": ""
+  },
   "admin.settings.storefront.title": {
     "en": "Storefront",
     "fr": "Vitrine",
@@ -14697,6 +14802,11 @@
   "admin.settings.hierarchy.enableSuccess": {
     "en": "Enabled successfully",
     "fr": "Activé avec succès",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.logoUpdateSuccess": {
+    "en": "Image updated",
+    "fr": "Image mise à jour",
     "ar": ""
   },
   "admin.settings.hierarchy.parentStillDisabled": {

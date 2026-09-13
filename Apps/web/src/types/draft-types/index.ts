@@ -19,7 +19,6 @@ export type {
   ProductAddFormState,
   SuggestionItem,
   FormSubmissionResult,
-  ImageUploadResult,
   PricingCalculationResult,
   FormFieldConfig,
   FormSectionConfig,
