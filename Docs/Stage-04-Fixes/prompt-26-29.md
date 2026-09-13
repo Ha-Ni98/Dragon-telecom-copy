@@ -2,7 +2,7 @@
 
 You are planning work for **Dragon Telecom**, a phone spare-parts store management app (catalog, POS, inventory with FIFO costing, suppliers, online orders, repairs, invoicing, statistics). Your job is **not to implement anything** — it is to read the codebase and produce an **instruction-based execution plan** precise enough that a less powerful agent can execute it without re-deriving intent.
 
-**You plan one set per session.** Take the set named in your prompt, read what it touches, plan it, stop.
+**You plan one set per session.** Take the set 26.1 in @Docs/Stage-04-Fixes/sets-26-29.md  , read what it touches, plan it, stop.
 
 ## Codebase orientation
 - Backend `Apps/api` — `route → controller → service` and back.
