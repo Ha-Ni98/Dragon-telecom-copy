@@ -26,10 +26,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useBarcodeLookup, usePrintBarcodeLabels } from "@/hooks/useCatalogProducts";
+import { useBarcodeLookup } from "@/hooks/useCatalogProducts";
 import { usePlatformSettings } from "@/hooks/usePlatform";
 import { useTranslation } from "@/hooks/useTranslation";
-import { downloadBlob } from "@/lib/utils";
+import { useLabelSize } from "@/hooks/use-label-size";
+import { printLabelSheet } from "@/lib/print";
+import { renderBarcodeSvg } from "@/lib/barcode-svg";
+import { BarcodeLabelSheet, type LabelSheetItem } from "@/components/shared/barcode-label-sheet";
+import { LabelSizeField } from "@/components/shared/label-size-field";
+import {
+  LABEL_PADDING_MM,
+  LABEL_STORE_COLUMN_MM,
+  LABEL_STORE_GAP_MM,
+} from "@/types/label-print.types";
 
 interface BarcodeLabelsDialogProps {
   invoice: SupplierInvoiceDto;
@@ -57,21 +66,29 @@ const supplierInitials = (name: string): string =>
 // S22 — every product line of one supplier invoice, one editable label count per line, defaulting
 // to the quantity received. Lines whose product has no printable barcode are omitted entirely and
 // reported as a count, so the absence is never silent (the same predicate runs server-side, so the
-// note and the PDF can never disagree). Available on every invoice regardless of status: an
-// amount-only invoice simply has no lines and shows the empty note.
+// note and the printed sheet can never disagree). Available on every invoice regardless of status:
+// an amount-only invoice simply has no lines and shows the empty note.
 //
 // S26 — plus the two customizable texts. The store name is one field for the whole run (defaulting
 // to the store name from settings followed by the supplier's initials, e.g. "Dragon Telecom HA");
 // the caption above the bars is *per line*, defaulting to that line's own product model, because a
 // single shared caption could only ever be right for one product on a multi-line invoice
 // (owner decision Q2).
+//
+// S27 — printed directly via the browser's print dialog (lib/print.ts's printLabelSheet), not a
+// server-side PDF download: this replaces the POST /admin/products/barcode-labels + downloadBlob
+// flow, which is now deleted. Barcodes are still resolved server-side via useBarcodeLookup — only
+// the rendering moved into the browser. <BarcodeLabelSheet> is a sibling of <Dialog>, and this
+// dialog does NOT close itself after Print (window.print() is not reliably blocking — see
+// lib/print.ts), so the print root stays mounted for as long as printing needs it; the admin
+// closes the dialog manually via Cancel once done, exactly as before.
 export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabelsDialogProps) {
   const { t } = useTranslation();
 
   // Stable across renders so it can be a query key; invoice.lines is already in line order.
   const productIds = useMemo(() => invoice.lines.map((line) => line.productId), [invoice.lines]);
   const lookup = useBarcodeLookup(productIds, { enabled: open });
-  const printLabels = usePrintBarcodeLabels();
+  const [size, setSize] = useLabelSize();
 
   const settings = usePlatformSettings();
   // Both halves are optional: no settings yet, or a supplier whose name has no usable characters,
@@ -84,6 +101,7 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
   // asynchronously, so seeding state from them would race the admin's typing).
   const [storeName, setStoreName] = useState<string | undefined>(undefined);
   const effectiveStoreName = storeName ?? defaultStoreName;
+  const trimmedStoreName = effectiveStoreName.trim();
 
   // Per line, keyed by line id; a missing key means "untouched, use that product's model name".
   // Mirrors how `quantities` already defaults to the line's invoice quantity.
@@ -95,7 +113,7 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
   );
 
   // One row per *line*, not per product — the same product on two lines is two rows with two
-  // quantities and two captions, and the PDF keeps that order.
+  // quantities and two captions, and the printed sheet keeps that order.
   const printableLines = useMemo(
     () =>
       invoice.lines.flatMap((line) => {
@@ -125,142 +143,156 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
   );
   const overLimit = totalLabels > BARCODE_LABEL_SHEET_MAX_TOTAL;
 
-  const handlePrint = () => {
-    printLabels.mutate(
-      {
-        ...(effectiveStoreName.trim() !== "" ? { storeName: effectiveStoreName.trim() } : {}),
-        items: printableLines.map((line) => {
-          const caption = (topTexts[line.id] ?? line.modelName).trim();
-          return {
-            productId: line.productId,
-            quantity: quantities[line.id] ?? line.quantity,
-            ...(caption !== "" ? { topText: caption } : {}),
-          };
-        }),
-      },
-      {
-        onSuccess: (blob) => {
-          downloadBlob(`labels-${invoice.reference}.pdf`, blob);
-          onOpenChange(false);
-        },
-      },
+  const printItems: LabelSheetItem[] = useMemo(
+    () =>
+      printableLines.map((line) => {
+        const caption = (topTexts[line.id] ?? line.modelName).trim();
+        return {
+          barcode: line.barcode,
+          quantity: quantities[line.id] ?? line.quantity,
+          ...(caption !== "" ? { topText: caption } : {}),
+        };
+      }),
+    [printableLines, topTexts, quantities],
+  );
+
+  // Narrowest barcode area across the run drives the scan-floor warning — if the densest label
+  // in the batch is fine, every shorter one is too (a longer value only ever narrows the bars
+  // further at a fixed label width).
+  const moduleMm = useMemo(() => {
+    if (printableLines.length === 0) return undefined;
+    const barcodeAreaMm =
+      size.widthMm -
+      LABEL_PADDING_MM * 2 -
+      (trimmedStoreName !== "" ? LABEL_STORE_COLUMN_MM + LABEL_STORE_GAP_MM : 0);
+    const modulesPerLine = printableLines.map(
+      (line) => renderBarcodeSvg(line.barcode).totalModules,
     );
+    const maxModules = Math.max(...modulesPerLine, 0);
+    return maxModules > 0 ? barcodeAreaMm / maxModules : undefined;
+  }, [printableLines, size, trimmedStoreName]);
+
+  const handlePrint = () => {
+    printLabelSheet(size.widthMm, size.heightMm);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{t("admin.supplierInvoices.printLabels.title")}</DialogTitle>
-          <DialogDescription>
-            {t("admin.supplierInvoices.printLabels.description")}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{t("admin.supplierInvoices.printLabels.title")}</DialogTitle>
+            <DialogDescription>
+              {t("admin.supplierInvoices.printLabels.description")}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-1">
-          <Label htmlFor="invoice-label-store-name">
-            {t("admin.supplierInvoices.printLabels.storeNameLabel")}
-          </Label>
-          <Input
-            id="invoice-label-store-name"
-            maxLength={BARCODE_LABEL_TEXT_MAX}
-            value={effectiveStoreName}
-            onChange={(event) => setStoreName(event.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">
-            {t("admin.supplierInvoices.printLabels.storeNameHelper")}
-          </p>
-        </div>
-
-        {lookup.isLoading ? (
-          <Skeleton className="h-40 w-full" />
-        ) : lookup.isError ? (
-          <p className="text-sm text-destructive">
-            {t("admin.supplierInvoices.printLabels.loadError")}
-          </p>
-        ) : printableLines.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {t("admin.supplierInvoices.printLabels.none")}
-          </p>
-        ) : (
-          <div className="max-h-[50vh] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("admin.supplierInvoices.printLabels.columnProduct")}</TableHead>
-                  <TableHead>{t("admin.supplierInvoices.printLabels.columnBarcode")}</TableHead>
-                  <TableHead>{t("admin.supplierInvoices.printLabels.columnTopText")}</TableHead>
-                  <TableHead className="w-28">
-                    {t("admin.supplierInvoices.printLabels.columnQuantity")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {printableLines.map((line) => (
-                  <TableRow key={line.id}>
-                    <TableCell className="text-sm">{line.productNameSnapshot}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {line.barcode}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        maxLength={BARCODE_LABEL_TEXT_MAX}
-                        value={topTexts[line.id] ?? line.modelName}
-                        onChange={(event) =>
-                          setTopTexts((prev) => ({ ...prev, [line.id]: event.target.value }))
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={BARCODE_LABEL_MAX_QUANTITY}
-                        value={quantities[line.id] ?? line.quantity}
-                        onChange={(event) =>
-                          setQuantities((prev) => ({
-                            ...prev,
-                            [line.id]: clampQuantity(Number(event.target.value)),
-                          }))
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-
-        <div className="space-y-1 text-xs text-muted-foreground">
-          {skippedCount > 0 && (
-            <p>{t("admin.supplierInvoices.printLabels.skipped", { count: skippedCount })}</p>
-          )}
-          {printableLines.length > 0 && (
-            <p>{t("admin.supplierInvoices.printLabels.total", { count: totalLabels })}</p>
-          )}
-          {overLimit && (
-            <p className="text-destructive">
-              {t("admin.productsList.printLabels.tooMany", { max: BARCODE_LABEL_SHEET_MAX_TOTAL })}
+          <div className="space-y-1">
+            <Label htmlFor="invoice-label-store-name">
+              {t("admin.supplierInvoices.printLabels.storeNameLabel")}
+            </Label>
+            <Input
+              id="invoice-label-store-name"
+              maxLength={BARCODE_LABEL_TEXT_MAX}
+              value={effectiveStoreName}
+              onChange={(event) => setStoreName(event.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("admin.supplierInvoices.printLabels.storeNameHelper")}
             </p>
-          )}
-        </div>
+          </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("common.actions.cancel")}
-          </Button>
-          <Button
-            onClick={handlePrint}
-            disabled={printableLines.length === 0 || overLimit || printLabels.isPending}
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            {printLabels.isPending
-              ? t("admin.productsList.printLabels.generating")
-              : t("admin.productsList.printLabels.print")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          {lookup.isLoading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : lookup.isError ? (
+            <p className="text-sm text-destructive">
+              {t("admin.supplierInvoices.printLabels.loadError")}
+            </p>
+          ) : printableLines.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("admin.supplierInvoices.printLabels.none")}
+            </p>
+          ) : (
+            <div className="max-h-[50vh] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("admin.supplierInvoices.printLabels.columnProduct")}</TableHead>
+                    <TableHead>{t("admin.supplierInvoices.printLabels.columnBarcode")}</TableHead>
+                    <TableHead>{t("admin.supplierInvoices.printLabels.columnTopText")}</TableHead>
+                    <TableHead className="w-28">
+                      {t("admin.supplierInvoices.printLabels.columnQuantity")}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {printableLines.map((line) => (
+                    <TableRow key={line.id}>
+                      <TableCell className="text-sm">{line.productNameSnapshot}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {line.barcode}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          maxLength={BARCODE_LABEL_TEXT_MAX}
+                          value={topTexts[line.id] ?? line.modelName}
+                          onChange={(event) =>
+                            setTopTexts((prev) => ({ ...prev, [line.id]: event.target.value }))
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={BARCODE_LABEL_MAX_QUANTITY}
+                          value={quantities[line.id] ?? line.quantity}
+                          onChange={(event) =>
+                            setQuantities((prev) => ({
+                              ...prev,
+                              [line.id]: clampQuantity(Number(event.target.value)),
+                            }))
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <LabelSizeField value={size} onChange={setSize} moduleMm={moduleMm} />
+
+          <div className="space-y-1 text-xs text-muted-foreground">
+            {skippedCount > 0 && (
+              <p>{t("admin.supplierInvoices.printLabels.skipped", { count: skippedCount })}</p>
+            )}
+            {printableLines.length > 0 && (
+              <p>{t("admin.supplierInvoices.printLabels.total", { count: totalLabels })}</p>
+            )}
+            {overLimit && (
+              <p className="text-destructive">
+                {t("admin.productsList.printLabels.tooMany", {
+                  max: BARCODE_LABEL_SHEET_MAX_TOTAL,
+                })}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              {t("common.actions.cancel")}
+            </Button>
+            <Button onClick={handlePrint} disabled={printableLines.length === 0 || overLimit}>
+              <Printer className="mr-2 h-4 w-4" />
+              {t("admin.productsList.printLabels.print")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <BarcodeLabelSheet items={printItems} storeName={effectiveStoreName} size={size} />
+    </>
   );
 }

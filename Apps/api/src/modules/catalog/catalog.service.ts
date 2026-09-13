@@ -19,7 +19,6 @@ import {
   paginated,
   type AddProductImagesCommand,
   type AdminProductDto,
-  type BarcodeLabelSheetCommand,
   type BarcodeLookupCommand,
   type BarcodeLookupDto,
   type BrandDto,
@@ -52,14 +51,12 @@ import {
 } from '@dragon-telecom/contract';
 import { BadRequestError, ConflictError, NotFoundError } from '@common/errors';
 import { eventBus } from '@common/events/event-bus';
-import { renderBarcodeLabelsPdf } from '@common/utils/pdf.utils';
 import { CatalogMapper, type ResolvedPricing } from './catalog.mapper';
 import type {
   ICatalogCategoryService,
   ICatalogProductService,
   ICatalogTaxonomyService,
   IInventoryPort,
-  PdfResult,
   Viewer,
 } from './catalog.interface';
 import { storageService } from '@common/storage/storage.service';
@@ -102,11 +99,11 @@ function randomBarcodeDigits(): string {
     .padStart(BARCODE_DIGITS, '0');
 }
 
-// S22 — Code 128 encodes ASCII 0x20–0x7E only, and bwipjs.raw() throws on anything outside it.
-// Product.barcode is admin-typed free text, so a barcode that cannot be encoded is treated exactly
-// like a missing one: skipped and counted, never a 500. Both the lookup and the sheet renderer go
-// through this one predicate, so the dialog's "N skipped" note can never disagree with what the
-// PDF actually contains.
+// S22 — Code 128 encodes ASCII 0x20–0x7E only, and JsBarcode throws on anything outside it (S27
+// moved that render into the browser; the constraint is unchanged). Product.barcode is
+// admin-typed free text, so a barcode that cannot be encoded is treated exactly like a missing
+// one: skipped and counted, never a 500. This is the one predicate the lookup and both dialogs'
+// "N skipped" notes agree on.
 const isPrintableBarcode = (barcode: string | null): barcode is string =>
   barcode != null && barcode.length > 0 && /^[\x20-\x7E]+$/.test(barcode);
 
@@ -940,49 +937,6 @@ export class CatalogProductService implements ICatalogProductService {
     });
 
     return { items };
-  }
-
-  // S22 — the label sheet. Barcodes are resolved here, not taken from the client, so a barcode
-  // edited since the dialog opened prints as it is *now*. Unprintable products are dropped with
-  // the same predicate lookupBarcodes uses, and `items` order is preserved: for a supplier invoice
-  // that is invoice-line order.
-  // S26 — `storeName` is one value for the whole run and is copied onto every request; `topText`
-  // is per item. Both are printed verbatim, never re-derived server-side: the field is editable,
-  // so the sheet must carry exactly the string the admin confirmed (an admin who cleared the store
-  // name must get labels without one).
-  async renderBarcodeLabels(cmd: BarcodeLabelSheetCommand): Promise<PdfResult> {
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: Array.from(new Set(cmd.items.map((item) => item.productId))) } },
-      select: { id: true, barcode: true },
-    });
-    const barcodeById = new Map(products.map((product) => [product.id, product.barcode]));
-
-    const storeName = cmd.storeName?.trim() ?? '';
-
-    const requests = cmd.items.flatMap((item) => {
-      const barcode = barcodeById.get(item.productId) ?? null;
-      if (!isPrintableBarcode(barcode)) return [];
-      return [
-        {
-          barcode,
-          quantity: item.quantity,
-          // S26 — a blank string is not a value: z.string().trim() means whitespace-only input
-          // arrives as '', which must print no section rather than an empty one.
-          ...(storeName !== '' ? { storeName } : {}),
-          ...(item.topText != null && item.topText !== '' ? { topText: item.topText } : {}),
-        },
-      ];
-    });
-
-    // Every requested product turned out to be unprintable — an empty PDF would look like a
-    // failure the user cannot explain. The dialogs never submit this; it guards a stale client.
-    if (requests.length === 0) throw new BadRequestError(CATALOG_ERROR.BARCODE_LABELS_EMPTY);
-
-    return {
-      filename: 'barcode-labels.pdf',
-      mime: 'application/pdf',
-      body: await renderBarcodeLabelsPdf(requests),
-    };
   }
 
   // Read port for clients' cart hydration (plan §C-3, §I.5) — an id-set counterpart to

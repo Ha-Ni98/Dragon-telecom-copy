@@ -7,7 +7,6 @@ import type {
   AddProductImagesCommand,
   UpdateProductImagesCommand,
   GenerateBarcodeCommand,
-  BarcodeLabelSheetCommand,
   BarcodeLookupCommand,
 } from "@dragon-telecom/contract";
 import * as catalogService from "@/services/catalog.service";
@@ -178,13 +177,5 @@ export function useBarcodeLookup(productIds: string[], options?: { enabled?: boo
     queryKey: qk.catalog.barcodeLookup(productIds),
     queryFn: () => catalogService.lookupBarcodes({ productIds }),
     enabled: (options?.enabled ?? true) && productIds.length > 0,
-  });
-}
-
-// Imperative (triggers a file download) rather than a query — returns a Blob, not cacheable domain
-// data. Same shape as useInvoicePdf (useBilling.ts) and useExportReportCsv.
-export function usePrintBarcodeLabels() {
-  return useMutation({
-    mutationFn: (command: BarcodeLabelSheetCommand) => catalogService.renderBarcodeLabels(command),
   });
 }

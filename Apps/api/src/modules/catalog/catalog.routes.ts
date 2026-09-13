@@ -9,7 +9,6 @@ import {
   PageKey,
   UserType,
   AddProductImagesSchema,
-  BarcodeLabelSheetSchema,
   BarcodeLookupSchema,
   BrandIdParamsSchema,
   CategoryIdParamsSchema,
@@ -156,21 +155,16 @@ router.post(
   validateRequest({ body: GenerateBarcodeSchema }),
   controller.generateBarcode,
 );
-// S22 — BARCODE_LOOKUP and BARCODE_LABELS are literal segments under "/admin/products" and follow
-// the same registration rule as PRODUCT_STATS and GENERATE_BARCODE above: literal before
-// ADMIN_PRODUCT_BY_ID ("/admin/products/:id"). adminOnly on both — there is no staff supplier-
-// invoices page and the staff products list is read-only with no row actions (S18 parity work).
+// S22 — BARCODE_LOOKUP is a literal segment under "/admin/products" and follows the same
+// registration rule as PRODUCT_STATS and GENERATE_BARCODE above: literal before
+// ADMIN_PRODUCT_BY_ID ("/admin/products/:id"). adminOnly — there is no staff supplier-invoices
+// page. S27 deleted the sibling BARCODE_LABELS route (label rendering moved into the browser);
+// this lookup remains the supplier-invoice label dialog's only server dependency.
 router.post(
   CATALOG_ROUTES.BARCODE_LOOKUP,
   adminOnly,
   validateRequest({ body: BarcodeLookupSchema }),
   controller.lookupBarcodes,
-);
-router.post(
-  CATALOG_ROUTES.BARCODE_LABELS,
-  adminOnly,
-  validateRequest({ body: BarcodeLabelSheetSchema }),
-  controller.renderBarcodeLabels,
 );
 router.get(
   CATALOG_ROUTES.ADMIN_PRODUCTS,

@@ -92,6 +92,10 @@ export class SalesMapper {
 
   // Customer-facing: no cost/profit fields exist on this schema at all — never any margin
   // leakage regardless of who prints the receipt (spec: "a printed receipt is customer-facing").
+  // `posClientName`/`staffName` are identity, not margin — safe on a customer-facing document.
+  // S27 — `subtotal`/`discountAmount` are the two figures the printed money block needs beside
+  // `total`: subtotal is Σ line totals BEFORE discount, total (unchanged) is subtotal minus the
+  // discount and is what the customer actually pays (== the credit block's "purchase total").
   static toReceiptDto(sale: SaleRow): ReceiptDto {
     const total = SalesMapper.toMoney(sale.totalAmount);
     const previousCredit = sale.previousCredit != null ? SalesMapper.toMoney(sale.previousCredit) : 0;
@@ -109,6 +113,8 @@ export class SalesMapper {
           ...(serialNumbers != null ? { serialNumbers } : {}),
         };
       }),
+      subtotal: SalesMapper.toMoney(sale.subtotal),
+      discountAmount: SalesMapper.toMoney(sale.discountAmount),
       total,
       previousCredit,
       // Not a stored column — derived from the immutable snapshot (BL#2): what the client would
@@ -116,6 +122,9 @@ export class SalesMapper {
       grandTotal: total + previousCredit,
       totalPaid: SalesMapper.toMoney(sale.paidAmount),
       newCredit,
+      ...(sale.posClient?.name != null ? { posClientName: sale.posClient.name } : {}),
+      staffName: `${sale.staff.firstName} ${sale.staff.lastName}`,
+      ...(sale.soldAt != null ? { soldAt: sale.soldAt.toISOString() } : {}),
     };
     return ReceiptResponseSchema.parse(dto);
   }

@@ -169,11 +169,12 @@
   .animate-pop-in { animation: none; }
 }
 
-/* S25 — 80 mm thermal receipts (POS and repair). Every rule is gated on `body.printing-receipt`,
-   which lib/print.ts adds only for the duration of a receipt's own window.print() call. The
-   companion `@page { size: 80mm auto }` is injected by that same helper because @page cannot be
-   selector-scoped. Anything else in the app that prints keeps the browser's default A4 page and
-   its normal whole-page render — /staff/sales Reprint and /staff/invoices Print rely on that.
+/* S25/S27 — 80 mm thermal receipts (POS and repair). Every rule is gated on
+   `body.printing-receipt`, which lib/print.ts adds only for the duration of a receipt's own
+   window.print() call. The companion `@page { size: 80mm auto }` is injected by that same helper
+   because @page cannot be selector-scoped. Anything else in the app that prints keeps the
+   browser's default A4 page and its normal whole-page render — /staff/sales Reprint and
+   /staff/invoices Print rely on that.
 
    visibility, not display, for the *masking*: `display: none` on an ancestor would take the
    receipt out of flow with it, so the subtree could never be shown again by a descendant rule.
@@ -198,6 +199,15 @@
   body.printing-receipt .receipt-print-root * {
     visibility: visible;
   }
+  /* S27 — @page is 80mm but html/body keep their viewport width, so the browser lays the receipt
+     out against a much wider box and the driver scales or clips it. Constraining both to the roll
+     width is what makes the printed output physically match the page. */
+  body.printing-receipt,
+  html:has(body.printing-receipt) {
+    width: 80mm;
+    margin: 0;
+    padding: 0;
+  }
   body.printing-receipt .receipt-print-root {
     /* display:block is load-bearing: visibility:visible alone cannot reveal a display:none
        element — the two properties are independent, and skipping this prints a blank page. */
@@ -205,11 +215,64 @@
     position: absolute;
     inset: 0 auto auto 0;
     width: 80mm;
-    padding: 3mm;
+    /* 4mm padding on each side of an 80mm roll leaves 72mm of printable content, the width the
+       set specifies. */
+    padding: 4mm;
     color: #000;
     background: #fff;
     font-family: ui-monospace, "Courier New", monospace;
-    font-size: 11px;
+    /* Bold + 12px (was regular 11px): thermal heads reproduce thin or grey text poorly. */
+    font-size: 12px;
+    font-weight: 700;
     line-height: 1.35;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* No greys, no shadows, no background fills anywhere inside the receipt — a descendant style
+     that leaked in (e.g. a Tailwind muted-text utility) would otherwise print faint. */
+  body.printing-receipt .receipt-print-root * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+/* S27 — barcode label sheet, printed one label per page. Gated on `body.printing-labels` for the
+   exact reason the receipt rules above are gated on `body.printing-receipt`: S22 finding F1 was
+   an UNGATED label print rule breaking every other print in the app. This must never repeat. */
+.label-print-root {
+  display: none;
+}
+
+@media print {
+  body.printing-labels * {
+    visibility: hidden;
+  }
+  body.printing-labels .label-print-root,
+  body.printing-labels .label-print-root * {
+    visibility: visible;
+  }
+  body.printing-labels .label-print-root {
+    /* display:block is load-bearing for the same reason it is on the receipt root above —
+       visibility:visible cannot reveal a display:none element. */
+    display: block;
+    position: absolute;
+    inset: 0 auto auto 0;
+    color: #000;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.printing-labels,
+  html:has(body.printing-labels) {
+    margin: 0;
+    padding: 0;
+  }
+  /* One label per page, since label stock is a continuous roll of discrete labels. break-after on
+     every label EXCEPT the last — a trailing break emits a blank page, which on a continuous roll
+     wastes a physical label. */
+  body.printing-labels .label-print-root > .label-page:not(:last-child) {
+    break-after: page;
+    page-break-after: always; /* legacy alias — some print drivers still read only this */
   }
 }

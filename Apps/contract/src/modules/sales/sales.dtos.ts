@@ -49,6 +49,11 @@ export type SaleDto = z.infer<typeof SaleResponseSchema>;
 
 // No field list for `lines` beyond the bare name; a printed receipt is customer-facing,
 // so it carries no cost/profit — only what the customer sees on paper.
+//
+// S27 — the printed money block is "total / discount / amount payable". `subtotal` is Σ line
+// totals BEFORE discount and `discountAmount` is the deduction; `total` below is unchanged and
+// still means Sale.totalAmount (= subtotal - discountAmount), i.e. what the customer pays and
+// what the credit block calls the purchase total. Three separate figures, do not conflate them.
 export const ReceiptResponseSchema = z.object({
   reference: z.string(),
   lines: z.array(
@@ -60,11 +65,21 @@ export const ReceiptResponseSchema = z.object({
       serialNumbers: z.array(z.string()).optional(),
     }),
   ),
+  subtotal: z.number(),
+  discountAmount: z.number(),
   total: z.number(),
   previousCredit: z.number(),
   grandTotal: z.number(),
   totalPaid: z.number(),
   newCredit: z.number(),
+  // S27 — absent for a walk-in sale. Its presence is the single condition for BOTH the printed
+  // credit block and the printed client-name line (owner decision D2).
+  posClientName: z.string().optional(),
+  // S27 — the cashier, printed in the receipt footer.
+  staffName: z.string(),
+  // S27 — Sale.soldAt, set at confirmation. Optional because the column is nullable; the POS
+  // falls back to its own confirm-time stamp.
+  soldAt: z.iso.datetime().optional(),
 });
 export type ReceiptDto = z.infer<typeof ReceiptResponseSchema>;
 

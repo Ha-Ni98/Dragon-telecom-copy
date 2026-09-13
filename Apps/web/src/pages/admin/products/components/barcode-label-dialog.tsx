@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Printer } from "lucide-react";
 import {
   BARCODE_LABEL_MAX_QUANTITY,
@@ -16,10 +16,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/hooks/useTranslation";
-import { usePrintBarcodeLabels } from "@/hooks/useCatalogProducts";
 import { usePlatformSettings } from "@/hooks/usePlatform";
-import { downloadBlob } from "@/lib/utils";
+import { useLabelSize } from "@/hooks/use-label-size";
+import { printLabelSheet } from "@/lib/print";
+import { renderBarcodeSvg } from "@/lib/barcode-svg";
 import { BarcodeLabel } from "@/pages/admin/products/components/barcode-label";
+import { BarcodeLabelSheet, type LabelSheetItem } from "@/components/shared/barcode-label-sheet";
+import { LabelSizeField } from "@/components/shared/label-size-field";
+import {
+  LABEL_PADDING_MM,
+  LABEL_STORE_COLUMN_MM,
+  LABEL_STORE_GAP_MM,
+} from "@/types/label-print.types";
 
 interface BarcodeLabelDialogProps {
   /** null when no row has been picked — the dialog owns no product of its own. */
@@ -34,11 +42,18 @@ interface BarcodeLabelDialogProps {
 const clampQuantity = (raw: number): number =>
   Number.isFinite(raw) ? Math.min(Math.max(Math.trunc(raw), 1), BARCODE_LABEL_MAX_QUANTITY) : 1;
 
-// S22 — the sheet is a server-side PDF now (POST /admin/products/barcode-labels, PDFKit + bwip-js),
-// not a hidden print portal: both this dialog and the supplier-invoice one post to the same
-// endpoint, so the two entry points cannot produce different labels. The on-screen <BarcodeLabel>
-// below is a preview only — it renders through jsbarcode in the browser and never reaches the PDF.
-// Confirming downloads the file, matching every other PDF in the app (InvoiceDetail.tsx).
+// S27 — the label sheet is printed directly via the browser's print dialog (lib/print.ts's
+// printLabelSheet), not a server-side PDF download: this replaces S22/S26's
+// POST /admin/products/barcode-labels + downloadBlob flow entirely, which is now deleted. The
+// on-screen <BarcodeLabel> below stays a preview; the actual printed artefact is
+// <BarcodeLabelSheet>, rendered as a sibling of <Dialog> (not inside <DialogContent>, whose Radix
+// portal/transform would become the containing block for the sheet's `position: absolute` print
+// rule and clip it — the same trap S25 documented when placing <RepairReceipt> outside <Sheet>).
+//
+// This dialog deliberately does NOT close itself after Print: window.print() is not reliably
+// blocking across browsers (see lib/print.ts), and unmounting the print root mid-print would risk
+// a blank page. The admin closes the dialog manually via Cancel once printing is done, exactly as
+// they already could before pressing Print.
 //
 // S26 — the label also carries an optional store name (vertical, left column) and an optional
 // caption above the bars. Both are seeded from data (settings / the product's model) but are the
@@ -47,7 +62,7 @@ const clampQuantity = (raw: number): number =>
 export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabelDialogProps) {
   const { t } = useTranslation();
   const [quantity, setQuantity] = useState(1);
-  const printLabels = usePrintBarcodeLabels();
+  const [size, setSize] = useLabelSize();
 
   const settings = usePlatformSettings();
   const defaultStoreName = settings.data?.store.name ?? "";
@@ -73,114 +88,133 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
     }
   }, [open, product]);
 
+  const barcode = product?.barcode;
+  const trimmedStoreName = effectiveStoreName.trim();
+
+  const printItems: LabelSheetItem[] = useMemo(
+    () =>
+      barcode
+        ? [
+            {
+              barcode,
+              quantity,
+              ...(effectiveTopText.trim() !== "" ? { topText: effectiveTopText.trim() } : {}),
+            },
+          ]
+        : [],
+    [barcode, quantity, effectiveTopText],
+  );
+
+  // Millimetres per barcode module at the current size — drives LabelSizeField's scan-floor
+  // warning. Same geometry the printed label uses: the barcode area is the label width minus
+  // padding minus the optional store column, and moduleMm is that width divided by the symbol's
+  // total module count (bars + both quiet zones).
+  const totalModules = useMemo(
+    () => (barcode ? renderBarcodeSvg(barcode).totalModules : 0),
+    [barcode],
+  );
+  const moduleMm = useMemo(() => {
+    if (totalModules === 0) return undefined;
+    const barcodeAreaMm =
+      size.widthMm -
+      LABEL_PADDING_MM * 2 -
+      (trimmedStoreName !== "" ? LABEL_STORE_COLUMN_MM + LABEL_STORE_GAP_MM : 0);
+    return barcodeAreaMm / totalModules;
+  }, [size, trimmedStoreName, totalModules]);
+
   // A product with no barcode has nothing to encode; the list already renders its action disabled,
   // this is the matching guard.
-  if (!product?.barcode) return null;
-  const barcode = product.barcode;
+  if (!barcode) return null;
 
   const handlePrint = () => {
-    if (!product) return;
-    printLabels.mutate(
-      {
-        ...(effectiveStoreName.trim() !== "" ? { storeName: effectiveStoreName.trim() } : {}),
-        items: [
-          {
-            productId: product.id,
-            quantity,
-            ...(effectiveTopText.trim() !== "" ? { topText: effectiveTopText.trim() } : {}),
-          },
-        ],
-      },
-      {
-        onSuccess: (blob) => {
-          downloadBlob(`labels-${barcode}.pdf`, blob);
-          onOpenChange(false);
-        },
-      },
-    );
+    printLabelSheet(size.widthMm, size.heightMm);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("admin.productsList.printLabels.title")}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("admin.productsList.printLabels.title")}</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <Label>{t("admin.productsList.printLabels.preview")}</Label>
-            <div className="flex justify-center">
-              <BarcodeLabel
-                value={barcode}
-                storeName={effectiveStoreName}
-                topText={effectiveTopText}
-              />
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>{t("admin.productsList.printLabels.preview")}</Label>
+              <div className="flex justify-center">
+                <BarcodeLabel
+                  value={barcode}
+                  storeName={effectiveStoreName}
+                  topText={effectiveTopText}
+                />
+              </div>
             </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="label-store-name">
+                {t("admin.productsList.printLabels.storeNameLabel")}
+              </Label>
+              <Input
+                id="label-store-name"
+                maxLength={BARCODE_LABEL_TEXT_MAX}
+                value={effectiveStoreName}
+                onChange={(event) => setStoreName(event.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("admin.productsList.printLabels.storeNameHelper")}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="label-top-text">
+                {t("admin.productsList.printLabels.topTextLabel")}
+              </Label>
+              <Input
+                id="label-top-text"
+                maxLength={BARCODE_LABEL_TEXT_MAX}
+                value={effectiveTopText}
+                onChange={(event) => setTopText(event.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("admin.productsList.printLabels.topTextHelper")}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="label-quantity">
+                {t("admin.productsList.printLabels.quantityLabel")}
+              </Label>
+              <Input
+                id="label-quantity"
+                type="number"
+                min={1}
+                max={BARCODE_LABEL_MAX_QUANTITY}
+                value={quantity}
+                onChange={(event) => setQuantity(clampQuantity(Number(event.target.value)))}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("admin.productsList.printLabels.quantityHelper", {
+                  max: BARCODE_LABEL_MAX_QUANTITY,
+                })}
+              </p>
+            </div>
+
+            <LabelSizeField value={size} onChange={setSize} moduleMm={moduleMm} />
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="label-store-name">
-              {t("admin.productsList.printLabels.storeNameLabel")}
-            </Label>
-            <Input
-              id="label-store-name"
-              maxLength={BARCODE_LABEL_TEXT_MAX}
-              value={effectiveStoreName}
-              onChange={(event) => setStoreName(event.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("admin.productsList.printLabels.storeNameHelper")}
-            </p>
-          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              {t("common.actions.cancel")}
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              {t("admin.productsList.printLabels.print")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <div className="space-y-1">
-            <Label htmlFor="label-top-text">
-              {t("admin.productsList.printLabels.topTextLabel")}
-            </Label>
-            <Input
-              id="label-top-text"
-              maxLength={BARCODE_LABEL_TEXT_MAX}
-              value={effectiveTopText}
-              onChange={(event) => setTopText(event.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("admin.productsList.printLabels.topTextHelper")}
-            </p>
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="label-quantity">
-              {t("admin.productsList.printLabels.quantityLabel")}
-            </Label>
-            <Input
-              id="label-quantity"
-              type="number"
-              min={1}
-              max={BARCODE_LABEL_MAX_QUANTITY}
-              value={quantity}
-              onChange={(event) => setQuantity(clampQuantity(Number(event.target.value)))}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("admin.productsList.printLabels.quantityHelper", {
-                max: BARCODE_LABEL_MAX_QUANTITY,
-              })}
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t("common.actions.cancel")}
-          </Button>
-          <Button onClick={handlePrint} disabled={printLabels.isPending}>
-            <Printer className="mr-2 h-4 w-4" />
-            {printLabels.isPending
-              ? t("admin.productsList.printLabels.generating")
-              : t("admin.productsList.printLabels.print")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <BarcodeLabelSheet items={printItems} storeName={effectiveStoreName} size={size} />
+    </>
   );
 }

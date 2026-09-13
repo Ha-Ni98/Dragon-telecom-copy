@@ -10639,6 +10639,76 @@
     "fr": "Merci de votre visite",
     "ar": ""
   },
+  "staff.pos.receipt.colItem": {
+    "en": "Item",
+    "fr": "Article",
+    "ar": ""
+  },
+  "staff.pos.receipt.colQty": {
+    "en": "Qty",
+    "fr": "Qté",
+    "ar": ""
+  },
+  "staff.pos.receipt.colUnitPrice": {
+    "en": "Unit",
+    "fr": "P.U.",
+    "ar": ""
+  },
+  "staff.pos.receipt.colLineTotal": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.pos.receipt.articleCount": {
+    "en": "Articles: {count}",
+    "fr": "Articles : {count}",
+    "ar": ""
+  },
+  "staff.pos.receipt.totalQuantity": {
+    "en": "Total quantity: {count}",
+    "fr": "Quantité totale : {count}",
+    "ar": ""
+  },
+  "staff.pos.receipt.subtotal": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.pos.receipt.discount": {
+    "en": "Discount",
+    "fr": "Remise",
+    "ar": ""
+  },
+  "staff.pos.receipt.amountPayable": {
+    "en": "Amount payable",
+    "fr": "Net à payer",
+    "ar": ""
+  },
+  "staff.pos.receipt.purchaseTotal": {
+    "en": "Purchase total",
+    "fr": "Total achat",
+    "ar": ""
+  },
+  "staff.pos.receipt.client": {
+    "en": "Client",
+    "fr": "Client",
+    "ar": ""
+  },
+  "staff.pos.receipt.cashier": {
+    "en": "Cashier",
+    "fr": "Caissier",
+    "ar": ""
+  },
+  "staff.pos.receipt.repairPhone": {
+    "en": "Repair",
+    "fr": "Réparation",
+    "ar": ""
+  },
+  "staff.pos.receipt.salesPhone": {
+    "en": "Sales",
+    "fr": "Vente",
+    "ar": ""
+  },
   "admin.pos.pageTitle": {
     "en": "POS (all staff)",
     "fr": "Point de vente (tout le personnel)",
@@ -12229,14 +12299,39 @@
     "fr": "Imprimer",
     "ar": ""
   },
-  "admin.productsList.printLabels.generating": {
-    "en": "Generating…",
-    "fr": "Génération…",
-    "ar": ""
-  },
   "admin.productsList.printLabels.tooMany": {
     "en": "Reduce the quantities — one sheet holds at most {max} labels.",
     "fr": "Réduisez les quantités — une planche contient au maximum {max} étiquettes.",
+    "ar": ""
+  },
+  "admin.labelSize.label": {
+    "en": "Label size",
+    "fr": "Format d'étiquette",
+    "ar": ""
+  },
+  "admin.labelSize.custom": {
+    "en": "Custom",
+    "fr": "Personnalisé",
+    "ar": ""
+  },
+  "admin.labelSize.width": {
+    "en": "Width (mm)",
+    "fr": "Largeur (mm)",
+    "ar": ""
+  },
+  "admin.labelSize.height": {
+    "en": "Height (mm)",
+    "fr": "Hauteur (mm)",
+    "ar": ""
+  },
+  "admin.labelSize.helper": {
+    "en": "Must match the label stock loaded in the printer.",
+    "fr": "Doit correspondre aux étiquettes chargées dans l'imprimante.",
+    "ar": ""
+  },
+  "admin.labelSize.tooNarrow": {
+    "en": "At this size the bars fall below {min} mm and may not scan. Use a wider label.",
+    "fr": "À ce format les barres passent sous {min} mm et risquent de ne pas être lues. Utilisez une étiquette plus large.",
     "ar": ""
   },
   "admin.productsList.printLabels.storeNameLabel": {
@@ -12622,16 +12717,6 @@
   "common.errors.sentinel.barcodeGenerationExhausted": {
     "en": "Couldn't generate a unique barcode — enter one manually",
     "fr": "Impossible de générer un code-barres unique — saisissez-en un manuellement",
-    "ar": ""
-  },
-  "common.errors.sentinel.barcodeLabelsEmpty": {
-    "en": "None of the selected products has a printable barcode",
-    "fr": "Aucun des produits sélectionnés n'a de code-barres imprimable",
-    "ar": ""
-  },
-  "common.errors.sentinel.barcodeLabelTotalExceeded": {
-    "en": "Too many labels in one run — reduce the quantities",
-    "fr": "Trop d'étiquettes en une fois — réduisez les quantités",
     "ar": ""
   },
   "common.errors.sentinel.exportRowLimitExceeded": {

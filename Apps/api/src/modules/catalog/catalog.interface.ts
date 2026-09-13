@@ -2,7 +2,6 @@ import type { Prisma } from '@prisma/client';
 import type {
   AddProductImagesCommand,
   AdminProductDto,
-  BarcodeLabelSheetCommand,
   BarcodeLookupCommand,
   BarcodeLookupDto,
   BrandDto,
@@ -40,11 +39,6 @@ import type {
 // through with no viewer; the resolver/mapper branch on this exactly like the price matrix.
 export type Viewer = JWTPayload | undefined;
 
-// Mirrors billing's own PdfResult (billing.interface.ts) rather than sharing it — the same
-// deliberate duplication billing's comment records for platform/inventory's ExportResult. PDFs
-// bypass the ApiResponse<T> envelope and are streamed by the controller, not sent via sendSuccess.
-export type PdfResult = { filename: string; mime: 'application/pdf'; body: Buffer };
-
 export interface ICatalogProductService {
   listProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<ProductWithPricingDto>>;
   getProduct(id: string, viewer: Viewer): Promise<ProductDetailDto>;
@@ -60,7 +54,6 @@ export interface ICatalogProductService {
   productStats(): Promise<ProductStatsDto>;
   generateBarcode(cmd: GenerateBarcodeCommand): Promise<GeneratedBarcodeDto>;
   lookupBarcodes(cmd: BarcodeLookupCommand): Promise<BarcodeLookupDto>;
-  renderBarcodeLabels(cmd: BarcodeLabelSheetCommand): Promise<PdfResult>;
 }
 
 export interface ICatalogTaxonomyService {

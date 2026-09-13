@@ -114,6 +114,9 @@ export default function StaffPos({ scope = "staff" }: Props) {
   const [receipt, setReceipt] = useState<ReceiptDto | null>(null);
   // S25 — captured once when the receipt is set, not derived at render: the receipt view stays
   // mounted until "New sale", so a render-time `new Date()` would creep forward on every re-render.
+  // S27 — now only the fallback: `receipt.soldAt` (the server's confirm-time stamp) is preferred
+  // when present, since it is the honest source; this stays as the fallback for the unlikely case
+  // a sale's `soldAt` comes back null.
   const [receiptAt, setReceiptAt] = useState<string | null>(null);
   const [clientZoneError, setClientZoneError] = useState<string>();
   const [paymentError, setPaymentError] = useState<string>();
@@ -444,14 +447,18 @@ export default function StaffPos({ scope = "staff" }: Props) {
 
       {receipt ? (
         <PosReceiptView
+          subtotal={receipt.subtotal}
+          discountAmount={receipt.discountAmount}
           total={receipt.total}
           previousCredit={receipt.previousCredit}
           grandTotal={receipt.grandTotal}
           paid={receipt.totalPaid}
           newCredit={receipt.newCredit}
+          posClientName={receipt.posClientName}
+          staffName={receipt.staffName}
           reference={receipt.reference}
           lines={receipt.lines}
-          issuedAt={receiptAt ?? new Date().toISOString()}
+          issuedAt={receipt.soldAt ?? receiptAt ?? new Date().toISOString()}
           store={publicSettings.data?.store}
           onPrint={printReceipt}
           onNewSale={() => {

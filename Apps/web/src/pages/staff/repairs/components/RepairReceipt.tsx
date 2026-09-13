@@ -47,8 +47,16 @@ export function RepairReceipt({ repair, store }: RepairReceiptProps) {
 
   return (
     <div className={RECEIPT_ROOT_CLASS}>
-      {store?.logoUrl && (
-        <img src={store.logoUrl} alt="" style={{ maxWidth: "40mm", margin: "0 auto" }} />
+      {/* S27 — logo swap only (owner decision D4): the print logo (S26.1) replaces the colour
+          store logo here, since this prints to the same thermal head as the POS receipt. Nothing
+          else about this receipt was restructured — the set's structure list is "The POS
+          receipt"; this still prints only the single general `store.phone`, no activity line. */}
+      {(store?.printLogoUrl ?? store?.logoUrl) && (
+        <img
+          src={store?.printLogoUrl ?? store?.logoUrl}
+          alt=""
+          style={{ maxWidth: "40mm", margin: "0 auto" }}
+        />
       )}
       {store?.name && <div style={{ textAlign: "center", fontWeight: "bold" }}>{store.name}</div>}
       {store?.address && <div style={{ textAlign: "center" }}>{store.address}</div>}
