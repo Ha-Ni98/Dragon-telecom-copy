@@ -23,11 +23,30 @@ export function renderBarcodeSvg(value: string): RenderedBarcode {
     fontSize: 14,
     height: 48,
     width: MODULE_PX,
-    margin: QUIET_ZONE_MODULES * MODULE_PX, // the quiet zone JsBarcode does not add by default
+    // Quiet zone belongs on the left/right only ("leaving a quiet zone on both sides" — brief).
+    // The generic `margin` option pads all four sides equally, which wasted vertical room the
+    // label has none of to spare and left less height for the caption above the bars.
+    marginLeft: QUIET_ZONE_MODULES * MODULE_PX,
+    marginRight: QUIET_ZONE_MODULES * MODULE_PX,
+    marginTop: 0,
+    marginBottom: 0,
     textMargin: 2,
   });
   // JsBarcode writes "0 0 <w> <h>"; w is (modules + 2 * quiet) * MODULE_PX.
   const viewBox = svg.getAttribute("viewBox") ?? "";
   const width = Number(viewBox.split(" ")[2] ?? 0);
+
+  // JsBarcode also writes fixed pixel `width`/`height` attributes on the <svg> itself. Those
+  // attributes override any CSS placed on a *wrapping* element, so without this the symbol always
+  // rendered at its own native size (tens of mm) regardless of the label's real physical
+  // dimensions — badly overflowing a 50x25mm (or smaller) label and getting clipped by
+  // `.label-page`'s `overflow: hidden`. Replacing them with percentages, plus a non-uniform
+  // `preserveAspectRatio`, makes the symbol fill exactly whatever box the caller gives it: a
+  // barcode's decodability depends only on the horizontal bar-width ratios, so a uniform vertical
+  // stretch (or squash) is harmless, and filling the assigned area is exactly what a label needs.
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "100%");
+  svg.setAttribute("preserveAspectRatio", "none");
+
   return { svg: svg.outerHTML, totalModules: width > 0 ? width / MODULE_PX : 0 };
 }

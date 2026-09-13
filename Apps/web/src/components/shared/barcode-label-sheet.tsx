@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { renderBarcodeSvg } from "@/lib/barcode-svg";
-import { LABEL_ROOT_CLASS } from "@/lib/print";
+import { getLabelPrintPortal } from "@/lib/print";
 import {
   LABEL_PADDING_MM,
   LABEL_STORE_COLUMN_MM,
@@ -26,14 +27,24 @@ interface BarcodeLabelSheetProps {
 // approved. Structurally identical to barcode-label.tsx's on-screen preview — the two must be
 // kept in step — but this component renders ALL copies for a print run, not just one preview.
 //
-// The root is gated on `body.printing-labels` in index.css, exactly the way the receipt root is
-// gated on `body.printing-receipt`: an ungated print rule is exactly the S22 finding F1
-// regression (a label print rule that leaked into every other print in the app).
-//
-// Renders nothing on screen — `.label-print-root` is `display: none` outside a gated print, which
-// index.css already guarantees. The dialogs keep their own <BarcodeLabel> preview.
+// Rendered via a React portal into lib/print.ts's getLabelPrintPortal() — a div appended directly
+// to <body>, outside #root — rather than in place in the component tree. This is NOT the
+// receipt's visibility + position:absolute masking technique: that approach broke multi-page
+// printing outright (Chrome's print engine does not fragment a position:absolute box across
+// physical pages, so a run of N labels printed only the first page and left N-1 blank — found by
+// printing a real 14-label run). The portal lives in normal document flow, so index.css can hide
+// #root wholesale and let native pagination tile the labels correctly. See lib/print.ts's comment
+// for the full explanation; see index.css for the matching `#label-print-portal` rules.
 export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetProps) {
   const trimmedStoreName = storeName?.trim();
+
+  // The portal target must exist before we can render into it; grabbing it in an effect (not
+  // during render) keeps this a side-effect-free render like any other component. Idempotent —
+  // getLabelPrintPortal() reuses the same node across every mount.
+  const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalNode(getLabelPrintPortal());
+  }, []);
 
   // Render each DISTINCT barcode once (a run may be up to BARCODE_LABEL_SHEET_MAX_TOTAL = 1000
   // labels; mounting 1000 JsBarcode effects would be slow enough to look like a hang). Rebuilt
@@ -47,8 +58,10 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
     return map;
   }, [barcodeIds]);
 
-  return (
-    <div className={LABEL_ROOT_CLASS}>
+  if (!portalNode) return null;
+
+  return createPortal(
+    <div>
       {items.flatMap((item, index) =>
         Array.from({ length: item.quantity }, (_, copy) => {
           const svg = svgByBarcode.get(item.barcode) ?? "";
@@ -110,14 +123,15 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
                 style={{
                   flex: 1,
                   minWidth: 0,
+                  height: "100%",
                   display: "flex",
                   flexDirection: "column",
-                  justifyContent: "center",
                 }}
               >
                 {topText ? (
                   <span
                     style={{
+                      flex: "0 0 auto",
                       textAlign: "center",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
@@ -129,10 +143,14 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
                     {topText}
                   </span>
                 ) : null}
-                {/* The SVG string is our own JsBarcode output (lib/barcode-svg.ts), never
-                    user-supplied markup. */}
+                {/* flex:1 + minHeight:0 gives this wrapper a DEFINITE resolved height — required
+                    for the injected <svg>'s own height:100% (set in lib/barcode-svg.ts) to mean
+                    anything; height:"auto" here would leave the percentage with nothing to
+                    resolve against, and the symbol would fall back to its native pixel size and
+                    overflow the label. The SVG string is our own JsBarcode output
+                    (lib/barcode-svg.ts), never user-supplied markup. */}
                 <div
-                  style={{ width: "100%", height: "auto" }}
+                  style={{ flex: "1 1 auto", minHeight: 0, width: "100%" }}
                   dangerouslySetInnerHTML={{ __html: svg }}
                 />
               </div>
@@ -140,6 +158,7 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
           );
         }),
       )}
-    </div>
+    </div>,
+    portalNode,
   );
 }

@@ -237,27 +237,40 @@
   }
 }
 
-/* S27 — barcode label sheet, printed one label per page. Gated on `body.printing-labels` for the
-   exact reason the receipt rules above are gated on `body.printing-receipt`: S22 finding F1 was
-   an UNGATED label print rule breaking every other print in the app. This must never repeat. */
-.label-print-root {
+/* S27, fixed post owner report — barcode label sheet, one label per physical page.
+   `#label-print-portal` is created by lib/print.ts's getLabelPrintPortal() and appended directly
+   to <body>, OUTSIDE #root, and BarcodeLabelSheet renders into it via a React portal.
+
+   This is deliberately NOT the receipt's visibility + position:absolute masking above. That
+   technique broke multi-page printing outright: Chrome's print engine does not fragment a
+   position:absolute box across physical pages, so a run of N labels printed only the first page
+   and left every subsequent forced page-break blank (confirmed by printing a real 14-label run —
+   page 1 correct, pages 2-14 empty). The receipt never hit this because its `@page` height is
+   `auto` — it is architecturally always exactly one page, so its box never needed to fragment.
+
+   The fix: the portal lives in normal document flow (not absolutely positioned), so hiding
+   everything else and letting the portal's own content flow normally is what lets the browser's
+   native pagination tile N labels across N physical pages correctly.
+
+   Hiding targets EVERY direct child of <body> except the portal itself — not just `#root` —
+   because the label dialog is open (and its Print button just clicked) at the moment this fires,
+   and Radix's Dialog renders its open content into its OWN portal appended directly to <body>,
+   as a sibling of #root, not inside it. `#root { display: none }` alone would leave that open
+   dialog (and anything else portaled to body, e.g. a toast) visible and un-hidden during print.
+
+   Gated on `body.printing-labels` for the same S22-finding-F1 reason the receipt rules above are
+   gated on `body.printing-receipt`: an ungated print rule once broke every other print in the
+   app. */
+#label-print-portal {
   display: none;
 }
 
 @media print {
-  body.printing-labels * {
-    visibility: hidden;
+  body.printing-labels > *:not(#label-print-portal) {
+    display: none !important;
   }
-  body.printing-labels .label-print-root,
-  body.printing-labels .label-print-root * {
-    visibility: visible;
-  }
-  body.printing-labels .label-print-root {
-    /* display:block is load-bearing for the same reason it is on the receipt root above —
-       visibility:visible cannot reveal a display:none element. */
+  body.printing-labels #label-print-portal {
     display: block;
-    position: absolute;
-    inset: 0 auto auto 0;
     color: #000;
     background: #fff;
     -webkit-print-color-adjust: exact;
@@ -271,7 +284,7 @@
   /* One label per page, since label stock is a continuous roll of discrete labels. break-after on
      every label EXCEPT the last — a trailing break emits a blank page, which on a continuous roll
      wastes a physical label. */
-  body.printing-labels .label-print-root > .label-page:not(:last-child) {
+  body.printing-labels #label-print-portal > div > .label-page:not(:last-child) {
     break-after: page;
     page-break-after: always; /* legacy alias — some print drivers still read only this */
   }

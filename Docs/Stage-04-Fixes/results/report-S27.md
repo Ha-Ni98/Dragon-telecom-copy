@@ -3,6 +3,71 @@
 Executed against `Docs/Stage-04-Fixes/plans/plan-S27-thermal-receipt-and-labels.md` on
 `version-1-3`, 2026-09-13. Depends on S26.1 (landed).
 
+## Post-execution fix — multi-page label printing was broken
+
+The owner printed a real 14-label run and found **only page 1 correct; pages 2–14 blank**. Root
+cause: `.label-print-root` (like the receipt root) used `visibility:hidden` on everything plus
+`visibility:visible` + `position:absolute` on the printable subtree. That masking technique is
+correct for the **receipt**, which is architecturally always exactly one page (`@page` height is
+`auto`), but it silently breaks **multi-page** printing: Chrome's print engine does not fragment a
+`position: absolute` box across physical pages, so only the label placed on the first page ever
+rendered — every subsequent forced `break-after: page` produced an empty page.
+
+**Fix applied** (`lib/print.ts`, `components/shared/barcode-label-sheet.tsx`, `index.css`):
+- `lib/print.ts` gained `getLabelPrintPortal()` — lazily creates and returns a `<div
+  id="label-print-portal">` appended directly to `<body>`, outside `#root`.
+- `BarcodeLabelSheet` now renders via `createPortal(...)` into that node (grabbed in a `useEffect`,
+  not during render) instead of rendering in place in the component tree, and dropped
+  `LABEL_ROOT_CLASS` entirely.
+- `index.css`'s label print block no longer uses `visibility`/`position:absolute` at all. Because
+  the portal lives in **normal document flow**, the browser's native pagination now tiles N labels
+  across N physical pages correctly. The hide rule is
+  `body.printing-labels > *:not(#label-print-portal) { display: none !important }` — deliberately
+  every direct child of `<body>`, not just `#root`: Radix's `Dialog` renders its **open** content
+  (the label dialog itself, mid-print) into its own portal appended directly to `<body>` as a
+  sibling of `#root`, not inside it, so hiding only `#root` would have left the open dialog (and
+  any other body-portaled UI, e.g. a toast) visible in the printed output.
+- The **receipt** print path (`.receipt-print-root`, `body.printing-receipt`) is untouched — it
+  never hits this bug (single always-one-page design) and needed no change.
+
+Re-validated: `tsc --noEmit` and lint clean on both changed files; grep confirms zero remaining
+references to the removed `LABEL_ROOT_CLASS`/`.label-print-root`.
+
+**This changes verification steps 19–22 and 28–30 below** — re-test a multi-label run (not just a
+single label) specifically for this: every page must carry content, none blank, and the dialog
+itself must not appear anywhere in the printed output.
+
+## Post-execution fix #2 — the barcode symbol did not scale to the label
+
+With multi-page printing fixed, the owner printed again and found every label populated, but the
+barcode graphic badly oversized for a 50×25mm label — spilling past the label edges, clipped by
+`.label-page`'s `overflow:hidden`, and squeezing the caption text against the top edge.
+
+**Root cause**: JsBarcode writes its `<svg>` with **hard-coded pixel `width`/`height` attributes**.
+`BarcodeLabelSheet` wrapped that raw SVG string in a `<div style={{ width: "100%", height: "auto"
+}}>`, but CSS on a wrapping `div` has no effect on a child `<svg>`'s own explicit attributes — they
+win. So every barcode rendered at its native size (tens of millimetres) regardless of the chosen
+label size, rather than scaling to fit it. A second, smaller compounding issue: `renderBarcodeSvg`
+passed JsBarcode's generic `margin` option (intended only to buy the horizontal quiet zone), which
+also padded the *top and bottom*, stealing vertical room the caption needed.
+
+**Fix applied** (`lib/barcode-svg.ts`, `components/shared/barcode-label-sheet.tsx`):
+- `renderBarcodeSvg` now overwrites the `<svg>`'s own `width`/`height` attributes to `"100%"` and
+  sets `preserveAspectRatio="none"` before serialising it, so the symbol fills exactly whatever box
+  contains it. A barcode's decodability depends only on its horizontal bar-width ratios, so a
+  uniform vertical stretch or squash to fill the label is harmless — and is what a label needs
+  ("fit the format") rather than floating at an arbitrary native size.
+- The quiet zone now uses `marginLeft`/`marginRight` only (`marginTop`/`marginBottom: 0`), matching
+  the brief's "quiet zone on both sides" (i.e. left/right, not top/bottom).
+- `BarcodeLabelSheet`'s barcode column was restructured so the SVG's wrapping `div` gets a
+  **definite resolved height** via `flex: "1 1 auto"; minHeight: 0` inside a `height: "100%"` flex
+  column, with the caption pinned to `flex: "0 0 auto"` so it can no longer be squeezed. A
+  percentage height on a child (the SVG's new `height:100%`) needs a height-having ancestor to
+  resolve against — `height: "auto"` on the old wrapper gave it nothing to resolve against, which
+  was the second half of why the raw attributes were winning.
+
+Re-validated: `tsc --noEmit` and lint clean on both changed files.
+
 ## Note on the plan's own §0 — three brief premises were already stale
 
 The plan flagged this before execution began, and it held: S25 had already built the 80mm print
@@ -258,47 +323,59 @@ page.
     defaulting to 50 × 25mm.
 18. Choose Custom, enter 30×20 → a warning appears that the bars fall below 0.25mm; Print stays
     enabled.
-19. Set size back to 50×25, quantity 3, click Print → the print dialog opens directly. No PDF is
-    downloaded and no file-save prompt appears.
-20. The preview shows 3 pages, one label per page — not tiled on one sheet.
-21. Each label shows the vertical store name, the caption above the bars, the Code 128 symbol and
-    its digits, with visible white margin either side of the bars.
-22. Close the dialog, reopen it → size field still reads 50×25mm. Reload the page and reopen →
+19. Set size back to 50×25, quantity **14 or more** (the exact scenario that first exposed the
+    bug — a low quantity like 3 will not reliably reveal a pagination regression), click Print →
+    the print dialog opens directly. No PDF is downloaded and no file-save prompt appears.
+20. **In the print preview, scroll through every page — not just the first.** The preview must
+    show N pages, one label per page, **every single one carrying the barcode/store/caption
+    content** — none blank. This is the specific defect the owner found and this fix addresses.
+21. **The dialog itself (inputs, buttons, overlay) must not appear anywhere in the printed
+    output**, on any page.
+22. Each label shows the vertical store name, the caption above the bars, the Code 128 symbol and
+    its digits, with visible white margin either side of the bars. **The barcode must fill its
+    assigned area within the label — not spill past the label's edge, and not float tiny in a sea
+    of blank space.** Check this at every preset (50×25, 40×30, 50×30) and at a custom size.
+23. Close the dialog, reopen it → size field still reads 50×25mm. Reload the page and reopen →
     still remembered.
 
 ### Barcode labels — supplier invoices
-23. `/admin/supplier-invoices` → open any invoice → Print barcodes.
-24. Rows default to each line's invoice quantity and are editable; the size field shows the value
-    remembered from step 22.
-25. An invoice with a line whose product has no barcode still shows the "N line(s) skipped" note.
-26. Push quantities past 1000 → the red over-limit note appears and Print is disabled.
-27. Print → print dialog opens directly, one label per page, in invoice-line order.
+24. `/admin/supplier-invoices` → open an invoice with **several lines** (multi-page is the point of
+    this check) → Print barcodes.
+25. Rows default to each line's invoice quantity and are editable; the size field shows the value
+    remembered from step 23.
+26. An invoice with a line whose product has no barcode still shows the "N line(s) skipped" note.
+27. Push quantities past 1000 → the red over-limit note appears and Print is disabled.
+28. Print → print dialog opens directly; **scroll through every page in the preview** — one label
+    per page, in invoice-line order, **every page populated, none blank**, dialog not visible on
+    any page.
 
 ### Barcode labels — on the real label printer
-28. Load 50×25mm stock and print for real. Each label lands centred on its own physical label with
-    no misfeed and no creep across the run.
-29. Scan the printed barcode with the handheld reader — reads first time. Scan one from a 10-label
-    run to confirm the last is as good as the first.
-30. Print a run at 50×30 on matching stock → still one per label, still scans.
+29. Load 50×25mm stock and print a **multi-label run (10+)** for real. Each label lands centred on
+    its own physical label with no misfeed and no creep across the run, and **every physical label
+    in the run prints content — none come out blank**.
+30. Scan the printed barcode with the handheld reader — reads first time. Scan the **last** label
+    in the run, not just the first, to confirm it printed too.
+31. Print a run at 50×30 on matching stock → still one per label, still scans, still every label
+    populated.
 
 ### Print-scoping regressions — S22 finding F1
-31. `/staff/sales` → Reprint on a sale → prints the whole A4 page, unchanged.
-32. `/staff/invoices` → Print → whole A4 page, unchanged.
-33. `Ctrl+P` on `/admin/products` with the label dialog open → normal A4 page; no labels leak in.
-34. `Ctrl+P` on `/staff/pos` with a receipt on screen → normal A4 page, no 80mm receipt.
-35. Print a receipt, close the dialog, then immediately `Ctrl+P` on the same page → A4, proving
+32. `/staff/sales` → Reprint on a sale → prints the whole A4 page, unchanged.
+33. `/staff/invoices` → Print → whole A4 page, unchanged.
+34. `Ctrl+P` on `/admin/products` with the label dialog open → normal A4 page; no labels leak in.
+35. `Ctrl+P` on `/staff/pos` with a receipt on screen → normal A4 page, no 80mm receipt.
+36. Print a receipt, close the dialog, then immediately `Ctrl+P` on the same page → A4, proving
     teardown ran.
-36. Print labels, then print a POS receipt without reloading → receipt comes out at 80mm, not the
+37. Print labels, then print a POS receipt without reloading → receipt comes out at 80mm, not the
     label size. Print labels again → back to the label size.
 
 ### Repair slip
-37. `/staff/repairs` → open a ticket → Print receipt → uses the print logo and is
+38. `/staff/repairs` → open a ticket → Print receipt → uses the print logo and is
     darker/bolder than before (shares the receipt CSS). Everything else is unchanged — single store
     phone, no activity line.
-38. With the repair sheet open, `Ctrl+P` → normal A4 page, no receipt.
+39. With the repair sheet open, `Ctrl+P` → normal A4 page, no receipt.
 
 ### Language
-39. Switch to FR and repeat steps 3 and 19 → every printed label and dialog string is French,
+40. Switch to FR and repeat steps 3 and 19 → every printed label and dialog string is French,
     including the new column headers, money-block labels, "Caissier", and the label-size field. No
     raw key, no English leak.
 
