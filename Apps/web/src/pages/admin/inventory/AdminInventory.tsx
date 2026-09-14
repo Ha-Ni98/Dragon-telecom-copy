@@ -12,8 +12,12 @@ import {
   type MovementFiltersValue,
 } from "@/pages/admin/inventory/components/inventory-filters";
 import { AdjustmentForm } from "@/pages/admin/inventory/components/adjustment-form";
-import type { AdjustmentFormValues } from "@/pages/admin/inventory/components/adjustment.schema";
-import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
+import { StockAdjustDialog } from "@/pages/admin/inventory/components/stock-adjust-dialog";
+import {
+  type AdjustmentFormValues,
+  toCreateAdjustmentCommand,
+} from "@/pages/admin/inventory/components/adjustment.schema";
+import type { StockRowDto } from "@dragon-telecom/contract";
 import {
   useStock,
   useExportStock,
@@ -22,30 +26,36 @@ import {
   useReservations,
   useCreateAdjustment,
 } from "@/hooks/useInventory";
-import { useAdminCatalogProducts } from "@/hooks/useCatalogProducts";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
 import { downloadBlob } from "@/lib/utils";
 
-// ADM-06 — Sprint 5 wiring. The product picker, the adjustment form's system-quantity map and its
-// avgStockPrice map (S4, D10) all come from `useAdminCatalogProducts` (AdminProductDto carries
-// `quantityOnHand` and `avgStockPrice`) rather than a second `useStock()` call — one fewer query,
-// and it's the same "current on-hand" figure the Stock tab itself renders. Known limitation: that
-// query is capped at `limit: 100`, so only the first 100 products are pickable/adjustable here.
+// ADM-06 — Sprint 5 wiring. S28 — the Stock tab is now server-paginated (20/page) and the
+// Adjustments tab's product picker searches the whole catalogue server-side
+// (use-adjustment-products.ts), so this page no longer loads a single capped
+// `useAdminCatalogProducts({ page: 1, limit: 100 })` for both surfaces.
 export default function AdminInventory() {
   const { t } = useTranslation();
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [stockSearch, setStockSearch] = useState("");
   const debouncedStockSearch = useDebouncedValue(stockSearch, 300);
+  const [stockPage, setStockPage] = useState(1);
   const [movementFilters, setMovementFilters] = useState<MovementFiltersValue>({});
   const [movementSearch, setMovementSearch] = useState("");
   const debouncedMovementSearch = useDebouncedValue(movementSearch, 300);
   const [movementsPage, setMovementsPage] = useState(1);
   const [reservationsPage, setReservationsPage] = useState(1);
+  const [adjustRow, setAdjustRow] = useState<StockRowDto | null>(null);
 
-  const stockQuery = useMemo(
+  // Same filters the stock table is rendered from, minus page/limit — the export is the whole
+  // filtered stock table (S25/S28), never the visible page.
+  const stockExportQuery = useMemo(
     () => ({ lowStockOnly, search: debouncedStockSearch.trim() || undefined }),
     [lowStockOnly, debouncedStockSearch],
+  );
+  const stockQuery = useMemo(
+    () => ({ ...stockExportQuery, page: stockPage, limit: 20 }),
+    [stockExportQuery, stockPage],
   );
   const stock = useStock(stockQuery);
   const exportStock = useExportStock();
@@ -76,21 +86,15 @@ export default function AdminInventory() {
 
   const createAdjustment = useCreateAdjustment();
 
-  const products = useAdminCatalogProducts({ page: 1, limit: 100 });
-  const productOptions: AutocompleteOption[] = useMemo(
-    () => (products.data?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
-    [products.data],
-  );
-  const systemQuantityByProductId = useMemo(
-    () => Object.fromEntries((products.data?.items ?? []).map((p) => [p.id, p.quantityOnHand])),
-    [products.data],
-  );
-  // D10 — the adjustment default and every margin read avgStockPrice (the quantity-weighted
-  // figure), never avgPrice (which is supplier-invoice context only).
-  const avgStockPriceByProductId = useMemo(
-    () => Object.fromEntries((products.data?.items ?? []).map((p) => [p.id, p.avgStockPrice])),
-    [products.data],
-  );
+  const handleStockSearchChange = (value: string) => {
+    setStockSearch(value);
+    setStockPage(1);
+  };
+
+  const handleLowStockOnlyChange = (value: boolean) => {
+    setLowStockOnly(value);
+    setStockPage(1);
+  };
 
   const handleMovementFiltersChange = (value: MovementFiltersValue) => {
     setMovementFilters(value);
@@ -104,7 +108,7 @@ export default function AdminInventory() {
 
   const handleExportStock = (format: "csv" | "pdf") => {
     exportStock.mutate(
-      { query: stockQuery, format },
+      { query: stockExportQuery, format },
       { onSuccess: (blob) => downloadBlob(`stock.${format}`, blob) },
     );
   };
@@ -117,9 +121,10 @@ export default function AdminInventory() {
   };
 
   const handleAdjustmentSubmit = (values: AdjustmentFormValues) => {
-    createAdjustment.mutate(values, {
+    createAdjustment.mutate(toCreateAdjustmentCommand(values), {
       onSuccess: (result) => {
         toast.success(t("admin.inventory.adjustment.success", { reference: result.reference }));
+        setAdjustRow(null);
       },
     });
   };
@@ -148,19 +153,27 @@ export default function AdminInventory() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="stock">
+        <TabsContent value="stock" className="space-y-4">
           <StockLevelsTable
-            data={stock.data ?? []}
+            data={stock.data?.items ?? []}
             isLoading={stock.isLoading}
             isError={stock.isError}
             onRetry={() => stock.refetch()}
             search={stockSearch}
-            onSearchChange={setStockSearch}
+            onSearchChange={handleStockSearchChange}
             lowStockOnly={lowStockOnly}
-            onLowStockOnlyChange={setLowStockOnly}
+            onLowStockOnlyChange={handleLowStockOnlyChange}
             onExport={handleExportStock}
             isExporting={exportStock.isPending}
+            onAdjust={setAdjustRow}
           />
+          {stock.data && (
+            <SimplePagination
+              page={stock.data.meta.page}
+              totalPages={stock.data.meta.totalPages}
+              onPageChange={setStockPage}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="movements" className="space-y-4">
@@ -205,14 +218,21 @@ export default function AdminInventory() {
 
         <TabsContent value="adjustments">
           <AdjustmentForm
-            productOptions={productOptions}
-            systemQuantityByProductId={systemQuantityByProductId}
-            avgStockPriceByProductId={avgStockPriceByProductId}
             onSubmit={handleAdjustmentSubmit}
             isSubmitting={createAdjustment.isPending}
           />
         </TabsContent>
       </Tabs>
+
+      <StockAdjustDialog
+        row={adjustRow}
+        open={adjustRow != null}
+        onOpenChange={(open) => {
+          if (!open) setAdjustRow(null);
+        }}
+        onSubmit={handleAdjustmentSubmit}
+        isSubmitting={createAdjustment.isPending}
+      />
     </div>
   );
 }

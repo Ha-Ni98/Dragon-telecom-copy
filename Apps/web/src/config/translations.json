@@ -12909,6 +12909,26 @@
     "fr": "Stock faible",
     "ar": ""
   },
+  "admin.inventory.stock.table.actions": {
+    "en": "Actions",
+    "fr": "Actions",
+    "ar": ""
+  },
+  "admin.inventory.stock.adjust": {
+    "en": "Adjust",
+    "fr": "Ajuster",
+    "ar": ""
+  },
+  "admin.inventory.stock.adjustDialog.title": {
+    "en": "Adjust stock — {product}",
+    "fr": "Ajuster le stock — {product}",
+    "ar": ""
+  },
+  "admin.inventory.stock.adjustDialog.description": {
+    "en": "Creates a stock adjustment for this product only.",
+    "fr": "Crée un ajustement de stock pour ce produit uniquement.",
+    "ar": ""
+  },
   "admin.inventory.stock.empty": {
     "en": "No stock rows found",
     "fr": "Aucune ligne de stock trouvée",
@@ -13137,6 +13157,46 @@
   "admin.inventory.adjustment.unitCostRequiredForIncrease": {
     "en": "Unit cost is required when the counted quantity increases stock",
     "fr": "Le coût unitaire est requis lorsque la quantité comptée augmente le stock",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.toggle": {
+    "en": "Also update this product's prices",
+    "fr": "Mettre aussi à jour les prix de ce produit",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.title": {
+    "en": "Prices",
+    "fr": "Prix",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.guestPrice": {
+    "en": "Guest price",
+    "fr": "Prix visiteur",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.defaultSalePrice": {
+    "en": "Default sale price",
+    "fr": "Prix de vente par défaut",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.categoryPriceLabel": {
+    "en": "{category} price",
+    "fr": "Prix {category}",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.previous": {
+    "en": "-previous {value}-",
+    "fr": "-précédent {value}-",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.previousEmpty": {
+    "en": "-previous empty-",
+    "fr": "-précédent vide-",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.productSearchPlaceholder": {
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
     "ar": ""
   },
   "admin.supplierInvoices.title": {

@@ -4,13 +4,19 @@ import { MovementType } from './inventory.enums';
 
 // `search` matches product name (case-insensitive substring) or barcode (prefix) — resolved
 // backend-side in InventoryReadService.getStock so the Product.barcode unique index applies
-// (S1 finding F1). Applied before the CSV branch: an export sent with `search` exports the
-// filtered set.
+// (S1 finding F1). Applied before both the pagination and the export branch: a page or an export
+// sent with `search`/`lowStockOnly` set only ever sees the filtered set.
 export const StockQuerySchema = z.object({
   lowStockOnly: BooleanQuerySchema.optional(),
   search: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   // Only "csv" was originally documented ("CSV export param") — S25 added "pdf" alongside it,
-  // reusing the same filtered result set.
+  // reusing the same filtered result set. S28 — export=csv|pdf returns the whole filtered stock
+  // table, unpaginated: `page`/`limit` above keep their defaults (they are non-optional after
+  // .default()) and are deliberately IGNORED on this branch, exactly as MovementsQuerySchema does.
+  // Exporting only the page on screen would re-introduce the very defect S25 fixed. The result
+  // set is capped at EXPORT_MAX_ROWS.
   export: z.enum(['csv', 'pdf']).optional(),
 });
 export type StockQuery = z.infer<typeof StockQuerySchema>;

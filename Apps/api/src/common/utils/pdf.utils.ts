@@ -72,7 +72,10 @@ export const renderInvoicePdf = (data: InvoicePdfData): Promise<Buffer> => {
 
 export type TablePdfColumn = {
   header: string;
-  width: number; // relative weight, normalised across the row
+  // Relative weight, normalised across the row. S28 — cells wrap onto as many lines as they need
+  // rather than being ellipsised onto one, so a narrow weight now means "more wrapped lines for
+  // this column", not "truncate this column".
+  width: number;
   align?: 'left' | 'right'; // default 'left'; money/quantity columns pass 'right'
 };
 
@@ -92,8 +95,10 @@ const TITLE_SIZE = 16;
 const META_SIZE = 9; // filter lines + generated-at
 const HEAD_SIZE = 9;
 const BODY_SIZE = 8.5;
-const ROW_HEIGHT = 15;
-const HEAD_HEIGHT = 18;
+const ROW_MIN_HEIGHT = 15; // the pre-S28 fixed row height, now a floor for short rows
+const HEAD_MIN_HEIGHT = 18;
+const CELL_PAD_X = 2;
+const CELL_PAD_Y = 3;
 const FOOTER_SIZE = 8;
 const CHART_HEIGHT = 140;
 const CHART_MAX_BARS = 20; // beyond this the labels are unreadable; the table still has every row
@@ -177,49 +182,112 @@ const layoutColumns = (columns: TablePdfColumn[], availableWidth: number): LaidO
   });
 };
 
+// S28 — statistics reports have dynamic columns, so their caller cannot hand-tune weights the way
+// the inventory/platform exports do. Derive a weight from the longest string each column actually
+// contains (header included), divided by a nominal characters-per-unit and clamped so one very
+// long free-text column cannot squeeze every other column to nothing. The absolute value is
+// irrelevant — layoutColumns normalises the weights across the row.
+const WEIGHT_CHARS_PER_UNIT = 8;
+const WEIGHT_MIN = 1;
+const WEIGHT_MAX = 6;
+
+export const deriveColumnWeights = (headers: string[], rows: string[][]): number[] =>
+  headers.map((header, index) => {
+    const longest = rows.reduce(
+      (max, row) => Math.max(max, (row[index] ?? '').length),
+      header.length,
+    );
+    return Math.min(WEIGHT_MAX, Math.max(WEIGHT_MIN, longest / WEIGHT_CHARS_PER_UNIT));
+  });
+
+// S28 — cells wrap instead of being ellipsised on one line, so a row is as tall as its tallest
+// cell. `heightOfString` measures with the font and size CURRENTLY set on the doc, so every
+// caller must set the row's font before calling this (bold/HEAD_SIZE for the header row,
+// Helvetica/BODY_SIZE for body rows) — measuring with the wrong font silently mis-paginates.
+const measureRowHeight = (
+  doc: PDFKit.PDFDocument,
+  laidOut: LaidOutColumn[],
+  cells: string[],
+  minHeight: number,
+): number => {
+  let tallest = 0;
+  laidOut.forEach((col, index) => {
+    const height = doc.heightOfString(cells[index] ?? '', {
+      width: col.width - CELL_PAD_X * 2,
+      align: col.align,
+    });
+    if (height > tallest) tallest = height;
+  });
+  return Math.max(minHeight, tallest + CELL_PAD_Y * 2);
+};
+
+// The cell box: `height` is a hard clip that also stops PDFKit adding a page of its own mid-cell,
+// which would desynchronise the manual `y` cursor below. `ellipsis` therefore only ever fires in
+// the pathological case handled in drawTable (a single cell taller than a whole page); in every
+// normal row the text wraps and fits.
+const drawCell = (
+  doc: PDFKit.PDFDocument,
+  col: LaidOutColumn,
+  text: string,
+  y: number,
+  rowHeight: number,
+): void => {
+  doc.text(text, col.x + CELL_PAD_X, y + CELL_PAD_Y, {
+    width: col.width - CELL_PAD_X * 2,
+    height: rowHeight - CELL_PAD_Y * 2,
+    align: col.align,
+    ellipsis: true,
+  });
+};
+
 const drawHeaderRow = (
   doc: PDFKit.PDFDocument,
   laidOut: LaidOutColumn[],
   y: number,
   availableWidth: number,
+  headHeight: number,
 ): void => {
-  doc.fillColor('#EEEEEE').rect(PAGE_MARGIN, y, availableWidth, HEAD_HEIGHT).fill();
+  doc.fillColor('#EEEEEE').rect(PAGE_MARGIN, y, availableWidth, headHeight).fill();
   doc.font('Helvetica-Bold').fontSize(HEAD_SIZE).fillColor('#000000');
-  for (const col of laidOut) {
-    doc.text(col.header, col.x + 2, y + 4, { width: col.width - 4, align: col.align, ellipsis: true, lineBreak: false });
-  }
+  for (const col of laidOut) drawCell(doc, col, col.header, y, headHeight);
 };
 
-// The part that must not be improvised: `lineBreak: false` + `ellipsis` keeps every row exactly
-// one line tall, which is what makes the fixed ROW_HEIGHT pagination arithmetic below correct.
-// Switching a cell to wrap silently breaks pagination — rows would overlap without warning.
+// S28 — rows wrap and grow. The arithmetic that must not be improvised:
+//   rowHeight = max(ROW_MIN_HEIGHT, measured + 2*CELL_PAD_Y), then clamped to maxRowHeight.
+//   cell box height = rowHeight - 2*CELL_PAD_Y, which is >= `measured` in BOTH branches of the
+//   max (if the floor wins, `measured` was < ROW_MIN_HEIGHT - 2*CELL_PAD_Y by definition), so a
+//   normal row is never clipped. Only the clamp can clip, and that needs one cell taller than an
+//   entire page. Reverting any cell to `lineBreak: false` silently breaks this pagination.
 const drawTable = (doc: PDFKit.PDFDocument, data: TablePdfData, availableWidth: number): void => {
   const laidOut = layoutColumns(data.columns, availableWidth);
   const pageBottom = doc.page.height - PAGE_MARGIN - FOOTER_SIZE * 2;
-  let y = doc.y;
 
-  drawHeaderRow(doc, laidOut, y, availableWidth);
-  y += HEAD_HEIGHT;
+  doc.font('Helvetica-Bold').fontSize(HEAD_SIZE);
+  const headHeight = measureRowHeight(doc, laidOut, data.columns.map((col) => col.header), HEAD_MIN_HEIGHT);
+  // The tallest a row may be: a full fresh page minus its repeated header. Measured once.
+  const maxRowHeight = Math.max(ROW_MIN_HEIGHT, pageBottom - PAGE_MARGIN - headHeight);
+
+  let y = doc.y;
+  drawHeaderRow(doc, laidOut, y, availableWidth, headHeight);
+  y += headHeight;
   doc.font('Helvetica').fontSize(BODY_SIZE).fillColor('#000000');
 
   for (const row of data.rows) {
-    if (y + ROW_HEIGHT > pageBottom) {
+    const rowHeight = Math.min(measureRowHeight(doc, laidOut, row, ROW_MIN_HEIGHT), maxRowHeight);
+    if (y + rowHeight > pageBottom) {
       doc.addPage();
       y = PAGE_MARGIN;
-      drawHeaderRow(doc, laidOut, y, availableWidth);
-      y += HEAD_HEIGHT;
+      drawHeaderRow(doc, laidOut, y, availableWidth, headHeight);
+      y += headHeight;
       doc.font('Helvetica').fontSize(BODY_SIZE).fillColor('#000000');
     }
-    laidOut.forEach((col, index) => {
-      const cell = row[index] ?? '';
-      doc.text(cell, col.x + 2, y + 3, { width: col.width - 4, align: col.align, ellipsis: true, lineBreak: false });
-    });
+    laidOut.forEach((col, index) => drawCell(doc, col, row[index] ?? '', y, rowHeight));
     doc
       .strokeColor('#DDDDDD')
-      .moveTo(PAGE_MARGIN, y + ROW_HEIGHT)
-      .lineTo(PAGE_MARGIN + availableWidth, y + ROW_HEIGHT)
+      .moveTo(PAGE_MARGIN, y + rowHeight)
+      .lineTo(PAGE_MARGIN + availableWidth, y + rowHeight)
       .stroke();
-    y += ROW_HEIGHT;
+    y += rowHeight;
   }
 
   doc.y = y;

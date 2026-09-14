@@ -463,11 +463,58 @@ export class InventoryReadService implements IInventoryReadService {
     private engine: IInventoryService,
   ) {}
 
-  async getStock(query: StockQuery): Promise<StockRowDto[] | ExportResult> {
-    // Name is a case-insensitive substring match; barcode is a prefix match so it can use the
-    // `Product.barcode @unique` btree index (S1 finding F1 — a `contains` predicate could not).
-    // A scanner emits a whole barcode, so `startsWith` also covers the exact-scan case.
-    const where: Prisma.ProductWhereInput = query.search
+  // S28 — the Stock tab is paginated server-side (20/page by schema default), so the whole
+  // catalogue is no longer mapped on every page view. `lowStockOnly` cannot be a Prisma
+  // predicate: isLow is `quantityOnHand - quantityReserved <= reorderThreshold`, a three-column
+  // arithmetic comparison that neither `where` nor `fieldRef` can express. It is resolved as a
+  // one-column id pre-query instead (buildStockWhere below), which keeps ONE `where` — and
+  // therefore one search predicate, one ordering and one row count — shared by the paginated and
+  // the export branch.
+  async getStock(query: StockQuery): Promise<PaginatedResult<StockRowDto> | ExportResult> {
+    const where = await this.buildStockWhere(query);
+
+    if (query.export) {
+      // `page`/`limit` carry schema defaults and are ignored here on purpose (contract comment on
+      // StockQuerySchema.export). The +1 is what makes the EXPORT_MAX_ROWS ceiling detectable —
+      // same idiom as listMovements; before S28 this branch read the table unbounded.
+      const products = await this.prisma.product.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        take: EXPORT_MAX_ROWS + 1,
+      });
+      assertExportSize(products.length);
+      const rows = products.map((product) => InventoryMapper.toStockRowDto(product));
+      if (query.export === 'pdf') return this.stockPdf(rows, query);
+      return this.stockCsv(rows);
+    }
+
+    const [total, products] = await Promise.all([
+      this.prisma.product.count({ where }),
+      this.prisma.product.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+    ]);
+
+    return {
+      items: products.map((product) => InventoryMapper.toStockRowDto(product)),
+      meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) },
+    };
+  }
+
+  // Name is a case-insensitive substring match; barcode is a prefix match so it can use the
+  // `Product.barcode @unique` btree index (S1 finding F1 — a `contains` predicate could not).
+  // A scanner emits a whole barcode, so `startsWith` also covers the exact-scan case.
+  //
+  // S28 — the low-stock arm is the only raw SQL in this module's read path. It selects ids only
+  // (one column, and only the rows already below threshold), then feeds them back into the same
+  // Prisma `where`, so paging, counting, ordering and the export all stay on one code path.
+  // The predicate below MUST stay identical to InventoryMapper.isLow — if that rule ever changes,
+  // change both.
+  private async buildStockWhere(query: StockQuery): Promise<Prisma.ProductWhereInput> {
+    const search: Prisma.ProductWhereInput = query.search
       ? {
           OR: [
             { name: { contains: query.search, mode: 'insensitive' as const } },
@@ -475,20 +522,15 @@ export class InventoryReadService implements IInventoryReadService {
           ],
         }
       : {};
-    const products = await this.prisma.product.findMany({ where, orderBy: { name: 'asc' } });
-    const rows = products.map((product) => InventoryMapper.toStockRowDto(product));
-    const filtered = query.lowStockOnly ? rows.filter((row) => row.isLow) : rows;
 
-    if (query.export) {
-      // S25 — the export now mirrors the table's own query (search/lowStockOnly), fixing the
-      // defect where the export always downloaded the whole catalogue regardless of the active
-      // filters — `filtered` above already applied both.
-      assertExportSize(filtered.length);
-      if (query.export === 'pdf') return this.stockPdf(filtered, query);
-      return this.stockCsv(filtered);
-    }
+    if (!query.lowStockOnly) return search;
 
-    return filtered;
+    const lowStockIds = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "Product" WHERE "quantityOnHand" - "quantityReserved" <= "reorderThreshold"
+    `;
+    // An empty id list yields `{ id: { in: [] } }`, which Prisma resolves to zero rows — the
+    // correct answer when nothing is below threshold, not "no filter".
+    return { ...search, id: { in: lowStockIds.map((row) => row.id) } };
   }
 
   private stockCsv(rows: StockRowDto[]): ExportResult {
@@ -524,7 +566,7 @@ export class InventoryReadService implements IInventoryReadService {
       generatedAt: new Date(),
       orientation: 'landscape',
       columns: [
-        { header: 'Product', width: 5 },
+        { header: 'Product', width: 6 },
         { header: 'Barcode', width: 3 },
         { header: 'On hand', width: 2, align: 'right' },
         { header: 'Reserved', width: 2, align: 'right' },
@@ -675,18 +717,18 @@ export class InventoryReadService implements IInventoryReadService {
       orientation: 'landscape',
       columns: [
         { header: 'Date', width: 3 },
-        { header: 'Reference', width: 3 },
-        { header: 'Type', width: 3 },
-        { header: 'Dir', width: 1.5 },
-        { header: 'Product', width: 4 },
-        { header: 'Qty', width: 1.5, align: 'right' },
-        { header: 'Unit cost', width: 2.5, align: 'right' },
-        { header: 'Cost of goods', width: 2.5, align: 'right' },
-        { header: 'Profit', width: 2.5, align: 'right' },
-        { header: 'Balance', width: 2, align: 'right' },
+        { header: 'Reference', width: 3.5 },
+        { header: 'Type', width: 3.5 },
+        { header: 'Dir', width: 1.2 },
+        { header: 'Product', width: 6 },
+        { header: 'Qty', width: 1.3, align: 'right' },
+        { header: 'Unit cost', width: 2.2, align: 'right' },
+        { header: 'Cost of goods', width: 2.4, align: 'right' },
+        { header: 'Profit', width: 2.2, align: 'right' },
+        { header: 'Balance', width: 1.8, align: 'right' },
         { header: 'Staff', width: 3 },
         // `reason` is deliberately dropped here: it is free text of unbounded length and would
-        // force wrapping, which pdf.utils.ts's fixed-row-height pagination forbids. The CSV
+        // dominate the row now that cells wrap and rows grow to fit (S28). The CSV
         // (movementsCsv above) carries it in full.
       ],
       // csvDate is a general UTC date formatter despite the name — reused here for the PDF's Date

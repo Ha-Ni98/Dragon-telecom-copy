@@ -18,7 +18,7 @@ import {
 } from '@dragon-telecom/contract';
 import { BadRequestError } from '@common/errors';
 import { csvMoney, toCsv, toCsvSection, CSV_EOL, CSV_MIME } from '@common/utils/csv.utils';
-import { renderTablePdf } from '@common/utils/pdf.utils';
+import { deriveColumnWeights, renderTablePdf } from '@common/utils/pdf.utils';
 import type { ChartPoint, DraftSaleRow, LowStockRow, TopProductDto } from './statistics.mapper';
 import { StatisticsMapper } from './statistics.mapper';
 import type { ExportResult, IStatisticsService } from './statistics.interface';
@@ -1520,12 +1520,16 @@ export class StatisticsService implements IStatisticsService {
             ...(query.to ? [{ label: 'To', value: query.to }] : []),
           ];
 
+    // S28 — weights derived from the rendered content, because report columns are dynamic: a
+    // `productName` column and a `quantity` column used to be given identical width.
+    const weights = deriveColumnWeights(headers, rows);
+
     const body = await renderTablePdf({
       title: humaniseReportType(type),
       filters,
       generatedAt: new Date(),
       orientation: headers.length > 6 ? 'landscape' : 'portrait',
-      columns: headers.map((header) => ({ header, width: 1 })),
+      columns: headers.map((header, index) => ({ header, width: weights[index] ?? 1 })),
       rows,
       chart: dto.chart,
       totals: Object.entries(dto.totals).map(([label, value]) => ({ label, value: formatReportCell(value) })),

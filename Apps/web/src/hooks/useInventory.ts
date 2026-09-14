@@ -8,7 +8,7 @@ import type {
 import * as inventoryService from "@/services/inventory.service";
 import { qk } from "@/lib/query-keys";
 
-export function useStock(query: Omit<StockQuery, "export"> = {}) {
+export function useStock(query: inventoryService.StockListQuery) {
   return useQuery({
     queryKey: qk.inventory.stock(query),
     queryFn: () => inventoryService.getStock(query),
@@ -19,8 +19,13 @@ export function useStock(query: Omit<StockQuery, "export"> = {}) {
 // cacheable domain data (same shape as usePlatform.ts's useExportAdminDeliveryFees).
 export function useExportStock() {
   return useMutation({
-    mutationFn: ({ query, format }: { query: Omit<StockQuery, "export">; format: "csv" | "pdf" }) =>
-      inventoryService.exportStock(query, format),
+    mutationFn: ({
+      query,
+      format,
+    }: {
+      query: Omit<StockQuery, "export" | "page" | "limit">;
+      format: "csv" | "pdf";
+    }) => inventoryService.exportStock(query, format),
   });
 }
 
@@ -52,6 +57,8 @@ export function useReservations(query: ReservationsQuery) {
 }
 
 // Cross-invalidates catalog admin products (quantities/avgStockPrice/avgPrice change) and stats — plan.md §3.
+// S28 — the per-product Adjust dialog submits through this same hook, so the row's quantity and
+// average refresh on close without any extra invalidation.
 export function useCreateAdjustment() {
   const queryClient = useQueryClient();
   return useMutation({
