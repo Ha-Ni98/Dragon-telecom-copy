@@ -10384,6 +10384,16 @@
     "fr": "Point de vente",
     "ar": ""
   },
+  "staff.pos.focus.enter": {
+    "en": "Focus mode",
+    "fr": "Mode concentration",
+    "ar": ""
+  },
+  "staff.pos.focus.exit": {
+    "en": "Exit focus mode",
+    "fr": "Quitter le mode concentration",
+    "ar": ""
+  },
   "staff.posClients.title": {
     "en": "POS clients",
     "fr": "Clients point de vente",
@@ -11582,6 +11592,21 @@
   "staff.repairs.intake.imeiLabel": {
     "en": "IMEI (optional)",
     "fr": "IMEI (facultatif)",
+    "ar": ""
+  },
+  "staff.repairs.intake.deviceLabelLabel": {
+    "en": "Device (optional)",
+    "fr": "Appareil (facultatif)",
+    "ar": ""
+  },
+  "staff.repairs.intake.deviceLabelPlaceholder": {
+    "en": "e.g. Samsung S24 Ultra",
+    "fr": "ex. Samsung S24 Ultra",
+    "ar": ""
+  },
+  "staff.repairs.intake.deviceLabelHelper": {
+    "en": "Prefilled from the brand and model — edit it freely.",
+    "fr": "Prérempli à partir de la marque et du modèle — modifiable librement.",
     "ar": ""
   },
   "staff.repairs.intake.reportedIssuesLabel": {

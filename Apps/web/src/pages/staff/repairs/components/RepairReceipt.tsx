@@ -6,6 +6,7 @@ import {
   REPAIR_STATUS_LABEL_KEY,
   REPORTED_ISSUE_LABEL_KEY,
 } from "@/pages/staff/repairs/repair-status-labels";
+import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-label";
 
 interface RepairReceiptProps {
   repair: RepairDto;
@@ -25,9 +26,9 @@ interface RepairReceiptProps {
 export function RepairReceipt({ repair, store }: RepairReceiptProps) {
   const { t, language } = useTranslation();
 
-  const deviceLabel =
-    [repair.device.brand?.name, repair.device.model?.name].filter(Boolean).join(" ") ||
-    repair.device.label;
+  // S29 — the stored free-text label now wins over brand+model (formatRepairDeviceLabel); a
+  // technician-edited label must never be overruled by a derived brand/model string.
+  const deviceLabel = formatRepairDeviceLabel(repair.device);
 
   const amountDue = repair.totalAmount - repair.paidAmount;
   // A fresh INTAKE ticket has total=0 and paid=0 — stamping that "PAID" would be wrong, it is

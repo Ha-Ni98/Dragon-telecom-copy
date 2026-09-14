@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { queryClient } from "@/lib/query-client";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { LanguageProvider } from "@/components/providers/LanguageProvider";
+import { WorkspaceFocusProvider } from "@/components/providers/WorkspaceFocusProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Toaster } from "@/components/ui/sonner";
 import App from "./App";
@@ -15,10 +16,12 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <LanguageProvider>
-          <AuthProvider>
-            <App />
-            <Toaster richColors position="bottom-right" />
-          </AuthProvider>
+          <WorkspaceFocusProvider>
+            <AuthProvider>
+              <App />
+              <Toaster richColors position="bottom-right" />
+            </AuthProvider>
+          </WorkspaceFocusProvider>
         </LanguageProvider>
       </ThemeProvider>
       {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}

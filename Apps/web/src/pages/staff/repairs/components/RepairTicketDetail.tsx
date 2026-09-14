@@ -23,6 +23,7 @@ import {
   type AddRepairPartFormValues,
 } from "@/pages/staff/repairs/add-repair-part.schema";
 import { REPAIR_STATUS_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
+import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-label";
 import { RecordRepairPaymentDialog } from "@/pages/staff/repairs/components/RecordRepairPaymentDialog";
 import { RepairReceipt } from "@/pages/staff/repairs/components/RepairReceipt";
 import type { RecordRepairPaymentFormValues } from "@/pages/staff/repairs/record-repair-payment.schema";
@@ -122,7 +123,7 @@ export function RepairTicketDetail({
               <div className="font-medium">{repair.customerName}</div>
               <div className="text-muted-foreground">{repair.customerPhone}</div>
               <div className="text-muted-foreground">
-                {repair.device.brand?.name} {repair.device.model?.name}
+                {formatRepairDeviceLabel(repair.device)}
                 {repair.device.imei ? ` · IMEI ${repair.device.imei}` : ""}
               </div>
             </div>
