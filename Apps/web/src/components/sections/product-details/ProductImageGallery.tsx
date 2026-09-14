@@ -238,7 +238,9 @@ export const ProductImageGallery = memo(function ProductImageGallery({
             >
               {!imageErrors.has(image.id) ? (
                 <img
-                  src={image.url}
+                  // S26.1 — the thumb strip uses the 400px derivative; the main/zoom image above
+                  // keeps the full-size url.
+                  src={image.thumbnailUrl ?? image.url}
                   alt={image.alt ?? productName}
                   className="w-full h-full object-cover"
                   loading="lazy"

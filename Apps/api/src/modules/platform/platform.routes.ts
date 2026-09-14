@@ -4,10 +4,12 @@ import { prisma } from '@common/db/prisma';
 import { validateRequest } from '@common/middlewares/validate-request.middleware';
 import { requireAuth } from '@common/middlewares/auth.middleware';
 import {
+  IMAGE_MAX_UPLOAD_BYTES,
   PLATFORM_ROUTES,
   UserType,
   FeeQuerySchema,
   FeesExportQuerySchema,
+  UploadImageSchema,
   UpsertFeesSchema,
   UpdateSettingsSchema,
 } from '@dragon-telecom/contract';
@@ -42,6 +44,16 @@ const upload = multer({
   },
 });
 
+// S26.1 — image uploads. memoryStorage because the Fly filesystem is ephemeral and every byte
+// goes straight to sharp; the 10 MB ceiling is the contract's IMAGE_MAX_UPLOAD_BYTES so multer,
+// the pipeline and the web control all enforce the same number. NO fileFilter on mimetype:
+// the type is decided by magic-byte sniffing inside the pipeline, because the declared mimetype
+// is attacker-controlled.
+const uploadImage = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: IMAGE_MAX_UPLOAD_BYTES, files: 1 },
+});
+
 // 2. Routes (validation uses contract schemas per segment)
 router.get(PLATFORM_ROUTES.WILAYAS, controller.listWilayas);
 router.get(PLATFORM_ROUTES.FEE, validateRequest({ query: FeeQuerySchema }), controller.resolveFee);
@@ -63,6 +75,14 @@ router.patch(
   adminOnly,
   validateRequest({ body: UpdateSettingsSchema }),
   controller.updateSettings,
+);
+
+router.post(
+  PLATFORM_ROUTES.ADMIN_MEDIA_IMAGE,
+  adminOnly,
+  uploadImage.single('image'),
+  validateRequest({ body: UploadImageSchema }),
+  controller.uploadImage,
 );
 
 export { router };

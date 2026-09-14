@@ -19,7 +19,10 @@ export type ExportResult = { filename: string; mime: string; body: Buffer | stri
 
 // HTTP-facing surface — every method returns a contract DTO (rules §4), never a Prisma entity.
 export interface IInventoryReadService {
-  getStock(query: StockQuery): Promise<StockRowDto[] | ExportResult>;
+  // S28 — paginated like listMovements below; the export branch still returns a document instead
+  // of a page (`'body' in result` is the controller's discriminant, and PaginatedResult has no
+  // `body` key).
+  getStock(query: StockQuery): Promise<PaginatedResult<StockRowDto> | ExportResult>;
   // S25 — export=csv|pdf returns the whole filtered ledger as a document instead of a page.
   // Same dual-return shape as getStock above.
   listMovements(query: MovementsQuery): Promise<PaginatedResult<MovementDto> | ExportResult>;

@@ -1,18 +1,19 @@
-import { useEffect, useRef } from "react";
-import { Controller, type Control, type UseFormSetValue } from "react-hook-form";
+import { Controller, type Control, type UseFormSetValue, type UseFormWatch } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AutocompleteInput, type AutocompleteOption } from "@/components/shared/autocomplete-input";
 import { Trash2 } from "lucide-react";
 import type { AdjustmentFormValues } from "@/pages/admin/inventory/components/adjustment.schema";
+import { AdjustmentUnitCostField } from "@/pages/admin/inventory/components/adjustment-unit-cost-field";
+import { AdjustmentRepriceFields } from "@/pages/admin/inventory/components/adjustment-reprice-fields";
 import { useTranslation } from "@/hooks/useTranslation";
-import { formatDZD } from "@/lib/utils";
 
 interface AdjustmentLineEditorProps {
   index: number;
   control: Control<AdjustmentFormValues>;
   setValue: UseFormSetValue<AdjustmentFormValues>;
+  watch: UseFormWatch<AdjustmentFormValues>;
   productOptions: AutocompleteOption[];
   systemQuantityByProductId: Record<string, number>;
   avgStockPrice: number;
@@ -20,17 +21,26 @@ interface AdjustmentLineEditorProps {
   productId: string;
   onRemove: () => void;
   unitCostError?: string;
+  /** S28 — the picker now searches the whole catalogue server-side (useAdjustmentProducts),
+   *  instead of only offering the first 100 admin products. */
+  onSearchChange: (query: string) => void;
+  isSearchLoading?: boolean;
+  categories: { id: string; name: string }[];
+  currentPrices?: {
+    guestPrice?: number;
+    defaultSalePrice?: number;
+    categoryPrices: { categoryId: string; price: number }[];
+  };
 }
 
-// ADM-06 adjustment form — one line row. Shows the counted-vs-system delta chip and reveals
-// `unitCost` only when the count raises stock (an IN-delta), matching `adjustment.schema.ts`'s own
-// `superRefine` rule. On an IN-delta the unit cost is pre-filled with the product's avgStockPrice
-// (D10, S4) — the same value the backend's createAdjustment would default to — with the average
-// shown as helper text beneath the input.
+// ADM-06 Adjustments tab — one line row. S28 added the optional reprice sub-form below the
+// unit-cost field (the same one the Stock-tab Adjust dialog uses) and moved the product picker
+// onto a server-side search of the whole catalogue.
 export function AdjustmentLineEditor({
   index,
   control,
   setValue,
+  watch,
   productOptions,
   systemQuantityByProductId,
   avgStockPrice,
@@ -38,27 +48,15 @@ export function AdjustmentLineEditor({
   productId,
   onRemove,
   unitCostError,
+  onSearchChange,
+  isSearchLoading,
+  categories,
+  currentPrices,
 }: AdjustmentLineEditorProps) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const systemQuantity = systemQuantityByProductId[productId] ?? 0;
   const delta = countedQuantity - systemQuantity;
   const isIncrease = delta > 0;
-
-  // D10/S4 — a positive delta creates an IN layer, whose unit cost defaults to the product's
-  // quantity-weighted average (`avgStockPrice`). Applied once per selected product: re-applied when
-  // the user picks a different product (a new product means a new average), never overwriting a
-  // value the user has since typed for the *same* product. A product with no average yet
-  // (avgStockPrice <= 0) is left blank on purpose, so the schema's "unit cost is required when the
-  // count raises stock" refine forces a real figure instead of silently creating a zero-cost layer.
-  const defaultedForProductId = useRef<string | null>(null);
-  useEffect(() => {
-    if (!isIncrease || !productId) return;
-    if (defaultedForProductId.current === productId) return;
-    defaultedForProductId.current = productId;
-    setValue(`lines.${index}.unitCost`, avgStockPrice > 0 ? avgStockPrice : undefined, {
-      shouldDirty: false,
-    });
-  }, [isIncrease, productId, avgStockPrice, index, setValue]);
 
   return (
     <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-[2fr_1fr_1fr_1fr_auto]">
@@ -70,8 +68,14 @@ export function AdjustmentLineEditor({
             inputId={`adjustment-line-${index}-product`}
             value={field.value}
             onChange={field.onChange}
+            onSearch={onSearchChange}
+            isLoading={isSearchLoading}
             suggestions={productOptions}
-            placeholder={t("admin.inventory.adjustment.product")}
+            // AutocompleteInput's own default (10) truncated below use-adjustment-products.ts's
+            // search query (limit: 20) — a server-side match past position 10 never showed up in
+            // the dropdown even though it had already been fetched.
+            maxSuggestions={20}
+            placeholder={t("admin.inventory.adjustment.productSearchPlaceholder")}
           />
         )}
       />
@@ -108,31 +112,30 @@ export function AdjustmentLineEditor({
 
       {isIncrease && (
         <div className="sm:col-span-5">
-          <Controller
+          <AdjustmentUnitCostField
+            index={index}
             control={control}
-            name={`lines.${index}.unitCost`}
-            render={({ field }) => (
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={field.value ?? ""}
-                onChange={(e) =>
-                  field.onChange(e.target.value === "" ? undefined : Number(e.target.value))
-                }
-                placeholder={t("admin.inventory.adjustment.unitCost")}
-                className={unitCostError ? "border-destructive" : ""}
-              />
-            )}
+            setValue={setValue}
+            productId={productId}
+            avgStockPrice={avgStockPrice}
+            isIncrease={isIncrease}
+            unitCostError={unitCostError}
           />
-          <p className="mt-1 text-xs text-muted-foreground">
-            {avgStockPrice > 0
-              ? t("admin.inventory.adjustment.avgStockPriceHint", {
-                  price: formatDZD(avgStockPrice, language),
-                })
-              : t("admin.inventory.adjustment.avgStockPriceUnknown")}
-          </p>
-          {unitCostError && <p className="mt-1 text-sm text-destructive">{unitCostError}</p>}
+        </div>
+      )}
+
+      {productId && (
+        <div className="sm:col-span-5">
+          <AdjustmentRepriceFields
+            index={index}
+            control={control}
+            setValue={setValue}
+            watch={watch}
+            productId={productId}
+            avgStockPrice={avgStockPrice}
+            categories={categories}
+            current={currentPrices}
+          />
         </div>
       )}
     </div>

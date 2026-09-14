@@ -55,7 +55,7 @@ export function CartItemRow({
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-muted">
           {primaryImage && (
             <img
-              src={primaryImage.url}
+              src={primaryImage.thumbnailUrl ?? primaryImage.url}
               alt={primaryImage.alt ?? product.name}
               className="h-full w-full object-cover"
             />

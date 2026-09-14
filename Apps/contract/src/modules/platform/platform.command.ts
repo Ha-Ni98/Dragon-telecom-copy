@@ -15,9 +15,13 @@ export type UpsertFeesCommand = z.infer<typeof UpsertFeesSchema>;
 
 const StoreSettingsInputSchema = z.object({
   name: z.string().optional(),
+  activityLine: z.string().optional(),
   address: z.string().optional(),
   phone: z.string().optional(),
+  repairPhone: z.string().optional(),
+  salesPhone: z.string().optional(),
   logoUrl: z.string().optional(),
+  printLogoUrl: z.string().optional(),
 });
 
 const InvoicingSettingsInputSchema = z.object({

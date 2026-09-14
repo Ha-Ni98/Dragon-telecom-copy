@@ -497,6 +497,11 @@ model ProductImage {
   productId String
   url       String
   key       String
+  // S26.1 — the 400px derivative emitted by the shared image pipeline, used by list/grid views
+  // so a product grid does not pull five 1600px originals. Optional: rows written before S26.1
+  // have no derivative and fall back to `url` on both sides. No backfill (test data only).
+  thumbnailUrl String?
+  thumbnailKey String?
   alt       String?
   position  Int     @default(0)
   isPrimary Boolean @default(false)

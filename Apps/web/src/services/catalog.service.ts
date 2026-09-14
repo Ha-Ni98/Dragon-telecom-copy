@@ -25,7 +25,6 @@ import {
   type ProductStatsDto,
   type GenerateBarcodeCommand,
   type GeneratedBarcodeDto,
-  type BarcodeLabelSheetCommand,
   type BarcodeLookupCommand,
   type BarcodeLookupDto,
   type BrandDto,
@@ -90,11 +89,6 @@ export async function listProducts(
     },
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
-
-  for (const image of res.data.data.items.flatMap((p) => p.images)) {
-    // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
-    image.url = `${image.url}`;
-  }
   return res.data.data;
 }
 
@@ -103,10 +97,6 @@ export async function getProduct(id: string): Promise<ProductDetailDto> {
     withParams(apiPath(CATALOG_ROUTES.PRODUCT_DETAIL), { id }),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
-  for (const image of res.data.data.images) {
-    // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
-    image.url = `${image.url}`;
-  }
   return res.data.data;
 }
 
@@ -153,10 +143,6 @@ export async function getAdminProduct(id: string): Promise<AdminProductDto> {
     withParams(apiPath(CATALOG_ROUTES.ADMIN_PRODUCT_BY_ID), { id }),
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
-  for (const image of res.data.data.images) {
-    // The backend returns a relative path (e.g. "/uploads/abc.jpg") but the frontend needs a full URL.
-    image.url = `${image.url}`;
-  }
   return res.data.data;
 }
 
@@ -241,15 +227,6 @@ export async function lookupBarcodes(command: BarcodeLookupCommand): Promise<Bar
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
-}
-
-// Bypasses the ApiResponse envelope entirely (backend's PdfResult, streamed directly) — mirrors
-// billing's getInvoicePdf and platform's exportFees.
-export async function renderBarcodeLabels(command: BarcodeLabelSheetCommand): Promise<Blob> {
-  const res = await api.post<Blob>(apiPath(CATALOG_ROUTES.BARCODE_LABELS), command, {
-    responseType: "blob",
-  });
-  return res.data;
 }
 
 // `admin` selects ADMIN_BRANDS (includes disabled rows) vs. the public BRANDS list.

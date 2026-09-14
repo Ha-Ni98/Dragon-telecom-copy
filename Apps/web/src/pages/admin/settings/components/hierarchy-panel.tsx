@@ -12,8 +12,14 @@ import {
 } from "@/components/ui/select";
 import { EnabledBadge } from "@/components/shared/StatusBadge";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
-import { Plus, Layers } from "lucide-react";
-import type { FamilyDto, BrandDto, DeviceModelDto } from "@dragon-telecom/contract";
+import { ImageUploadField } from "@/components/shared/image-upload-field";
+import { Plus, Layers, Image as ImageIcon } from "lucide-react";
+import {
+  ImagePurpose,
+  type FamilyDto,
+  type BrandDto,
+  type DeviceModelDto,
+} from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface HierarchyPanelProps {
@@ -34,6 +40,11 @@ interface HierarchyPanelProps {
   onEnableFamily?: (id: string) => void;
   onEnableBrand?: (id: string) => void;
   onEnableModel?: (id: string) => void;
+  /** S26.1 — Brand.logoUrl / Family.iconUrl have existed in the schema and been rendered by the
+   *  home page since the start; there was simply no way to set them. Optional for the same
+   *  reason onEnable* above is: an existing test renders this component without them. */
+  onSetFamilyIcon?: (id: string, iconUrl: string) => void;
+  onSetBrandLogo?: (id: string, logoUrl: string) => void;
 }
 
 // ADM-17 Hierarchy tab — the real rebuild replacing the old `product-hierarchy-section.tsx`
@@ -57,6 +68,8 @@ export function HierarchyPanel({
   onEnableFamily,
   onEnableBrand,
   onEnableModel,
+  onSetFamilyIcon,
+  onSetBrandLogo,
 }: HierarchyPanelProps) {
   const { t } = useTranslation();
   const [newFamilyName, setNewFamilyName] = useState("");
@@ -110,9 +123,24 @@ export function HierarchyPanel({
                   key={family.id}
                   className="flex items-center justify-between rounded-md border p-2 text-sm"
                 >
-                  <span>{family.name}</span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+                      {family.iconUrl ? (
+                        <img src={family.iconUrl} alt="" className="h-full w-full object-contain" />
+                      ) : (
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <span className="truncate">{family.name}</span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <EnabledBadge isEnabled={family.isEnabled} />
+                    <ImageUploadField
+                      compact
+                      purpose={ImagePurpose.FAMILY_ICON}
+                      label={t("admin.settings.hierarchy.icon")}
+                      onUploaded={(url) => onSetFamilyIcon?.(family.id, url)}
+                    />
                     {family.isEnabled ? (
                       <Button variant="ghost" size="sm" onClick={() => onDisableFamily(family.id)}>
                         {t("common.actions.disable")}
@@ -161,9 +189,24 @@ export function HierarchyPanel({
                   key={brand.id}
                   className="flex items-center justify-between rounded-md border p-2 text-sm"
                 >
-                  <span>{brand.name}</span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+                      {brand.logoUrl ? (
+                        <img src={brand.logoUrl} alt="" className="h-full w-full object-contain" />
+                      ) : (
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <span className="truncate">{brand.name}</span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <EnabledBadge isEnabled={brand.isEnabled} />
+                    <ImageUploadField
+                      compact
+                      purpose={ImagePurpose.BRAND_LOGO}
+                      label={t("admin.settings.hierarchy.logo")}
+                      onUploaded={(url) => onSetBrandLogo?.(brand.id, url)}
+                    />
                     {brand.isEnabled ? (
                       <Button variant="ghost" size="sm" onClick={() => onDisableBrand(brand.id)}>
                         {t("common.actions.disable")}

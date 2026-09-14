@@ -33,6 +33,12 @@ interface PosTicketProps {
 // Dumb, props-only (Sprint 4) — Sprint 7 wires POS state management around this. The discount is
 // intentionally not editable from the POS (S6/I6) — Sale.discountAmount still exists as a column
 // and is always written as 0 from this ticket.
+//
+// S29 — the fixed columns (qty stepper, charged-price input, resolved-vs-charged, line total,
+// remove button) sum to ≈424px; that figure is what lets the ticket pane shrink to the lg
+// breakpoint's ~408px without the page scrolling sideways (see the S29 plan §1.2 for the
+// arithmetic). Widening any of them needs that arithmetic redone against the layout's actual
+// available width.
 export function PosTicket({
   lines,
   total,
@@ -55,19 +61,27 @@ export function PosTicket({
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
-      <div className="divide-y divide-border">
+      {/* S29 — overflow-x-auto is a containment guarantee: if a future addition ever pushes a row
+          past the pane again, it scrolls INSIDE this card instead of scrolling the whole page,
+          which is the defect this set exists to remove. */}
+      <div className="divide-y divide-border overflow-x-auto">
         {lines.map((line) => (
-          <div key={line.productId} className="flex items-center gap-3 p-4">
+          <div key={line.productId} className="flex items-center gap-2 p-3">
             <div className="min-w-0 flex-1">
-              <div className="truncate font-medium">{line.productName}</div>
+              <div className="truncate font-medium" title={line.productName}>
+                {line.productName}
+              </div>
               {line.serialNumbers && line.serialNumbers.length > 0 && (
-                <div className="truncate text-xs text-muted-foreground">
+                <div
+                  className="truncate text-xs text-muted-foreground"
+                  title={line.serialNumbers.join(", ")}
+                >
                   {t("staff.pos.ticket.serials")}: {line.serialNumbers.join(", ")}
                 </div>
               )}
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               <Button
                 variant="outline"
                 size="icon"
@@ -100,28 +114,29 @@ export function PosTicket({
               min={0}
               value={line.unitPrice}
               onChange={(e) => onUnitPriceChange(line.productId, Number(e.target.value))}
-              className="w-24"
+              className="w-20 shrink-0"
               aria-label={t("staff.pos.ticket.chargedPrice")}
             />
 
-            <div className="w-24 text-right">
+            <div className="w-20 shrink-0 text-right">
               <ResolvedVsChargedPrice
                 resolvedPrice={line.resolvedPrice}
                 unitPrice={line.unitPrice}
               />
             </div>
 
-            <div className="w-24 text-right font-semibold">
+            <div className="w-20 shrink-0 text-right font-semibold">
               {formatDZD(line.lineTotal, language)}
             </div>
 
             <Button
               variant="ghost"
               size="icon"
+              className="h-8 w-8 shrink-0"
               onClick={() => onRemoveLine(line.productId)}
               aria-label={t("staff.pos.ticket.remove")}
             >
-              <Trash2 className="h-4 w-4 text-destructive" />
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
             </Button>
           </div>
         ))}

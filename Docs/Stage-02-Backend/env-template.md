@@ -20,7 +20,17 @@ Every variable listed here must also exist in the `src/env.ts` Zod schema — th
 - **`TEST_DATABASE_URL`** — separate disposable DB for integration tests.
 - **`REFRESH_TOKEN_EXPIRATION`** — refresh-token lifetime (default `7d`). Used by the Auth service to set `RefreshToken.expiredAt`.
 - **`REDIS_URL`** — caching/queues.
-- **`SMTP_*` / `AWS_*`** — email / file uploads.
+- **`SMTP_*`** — email.
+
+## Cloudflare R2 (image storage — S26.1, required)
+Every image upload (product photos, brand logos, family icons, the store logo, the print logo) is
+processed by the shared image pipeline and stored in R2. Objects are served from `R2_PUBLIC_URL`
+directly — the API never proxies image bytes, so image traffic costs the Fly machine nothing.
+- **`R2_ENDPOINT`** — the account's S3-compatible endpoint, `https://<account-id>.r2.cloudflarestorage.com`.
+- **`R2_BUCKET_NAME`** — the bucket holding all processed images.
+- **`R2_ACCESS_KEY_ID`** / **`R2_SECRET_ACCESS_KEY`** — R2 API token credentials.
+- **`R2_PUBLIC_URL`** — the bucket's public custom domain / `r2.dev` URL, no trailing slash. Every
+  stored object's DTO `url` is `${R2_PUBLIC_URL}/${key}`.
 
 ## `.env.example` (commit this; never commit a real `.env`)
 
@@ -47,4 +57,11 @@ LOG_LEVEL="debug"
 # Realtime (opt-in) — leave false unless the app needs realtime
 WS_ENABLED="false"
 WS_PATH="/socket.io"
+
+# Cloudflare R2 (image storage) — S26.1
+R2_ENDPOINT="https://<account-id>.r2.cloudflarestorage.com"
+R2_BUCKET_NAME="myapp"
+R2_ACCESS_KEY_ID="replace-me"
+R2_SECRET_ACCESS_KEY="replace-me"
+R2_PUBLIC_URL="https://media.example.com"
 ```

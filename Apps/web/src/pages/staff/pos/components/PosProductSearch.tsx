@@ -27,7 +27,10 @@ interface PosProductSearchProps {
 // focus shortcut (STF-02 §UI) onto the input without this component owning key handling.
 // S6/I1/I8: each card shows the price the attached client would actually be charged on the
 // right, and a secondary, visually muted breakdown of the default plus every category price
-// beneath it.
+// beneath it. S29: both the name and the breakdown line stay on one line and ellipsise at
+// narrower widths (the ticket pane got more room, §6 of the S29 plan), with the full text in a
+// native `title` tooltip — not a styled Radix tooltip, since a hover-delay popover on up to 20
+// rapidly scanned/tapped cards would fight the scan-and-tap rhythm this page is built around.
 export const PosProductSearch = forwardRef<HTMLInputElement, PosProductSearchProps>(
   function PosProductSearch(
     { query, onQueryChange, products, isLoading, isError, onRetry, onSelect, attachedCategoryId },
@@ -88,6 +91,10 @@ export const PosProductSearch = forwardRef<HTMLInputElement, PosProductSearchPro
                 attachedCategoryId,
               );
               const breakdown = posPriceBreakdown(product);
+              const breakdownTitle = [
+                `${t("staff.pos.search.defaultPriceLabel")} ${formatDZD(product.defaultSalePrice ?? 0, language)}`,
+                ...breakdown.map((entry) => `${entry.label} ${formatDZD(entry.price, language)}`),
+              ].join(" · ");
               return (
                 <button
                   key={product.id}
@@ -97,7 +104,9 @@ export const PosProductSearch = forwardRef<HTMLInputElement, PosProductSearchPro
                   className="flex w-full flex-col gap-1 rounded-xl border border-border bg-card p-3 text-left text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <div className="flex w-full items-center justify-between gap-2">
-                    <div className="min-w-0 truncate font-medium">{product.name}</div>
+                    <div className="min-w-0 truncate font-medium" title={product.name}>
+                      {product.name}
+                    </div>
                     <div className="shrink-0 font-semibold">
                       {formatDZD(resolvedPrice, language)}
                     </div>
@@ -105,7 +114,7 @@ export const PosProductSearch = forwardRef<HTMLInputElement, PosProductSearchPro
                   <div className="text-xs text-muted-foreground">
                     {product.brand.name} · {product.availableQuantity} {t("common.units.inStock")}
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="truncate text-xs text-muted-foreground" title={breakdownTitle}>
                     {t("staff.pos.search.defaultPriceLabel")}{" "}
                     {formatDZD(product.defaultSalePrice ?? 0, language)}
                     {breakdown.map((entry) => (
