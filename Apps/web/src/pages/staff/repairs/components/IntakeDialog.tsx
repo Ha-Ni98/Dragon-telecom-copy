@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import {
 // S25 — moved to repair-status-labels.ts (this cluster's single source of truth for label-key
 // maps, alongside REPAIR_STATUS_LABEL_KEY) so RepairReceipt.tsx can reuse the same map.
 import { REPORTED_ISSUE_LABEL_KEY as ISSUE_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
+import { buildDeviceLabelDefault } from "@/pages/staff/repairs/repair-device-label";
 
 interface IntakeDialogProps {
   open: boolean;
@@ -78,6 +80,25 @@ export function IntakeDialog({
   const createBrand = useCreateCatalogBrand(scope === "admin");
   const createModel = useCreateCatalogModel(scope === "admin");
 
+  const [deviceLabelEdited, setDeviceLabelEdited] = useState(false);
+  const brandName = brands?.find((b) => b.id === brandId)?.name ?? "";
+  const modelName = models?.find((m) => m.id === watch("deviceModelId"))?.name ?? "";
+
+  // S29 — mirrors AdminProductsAdd's auto-name (imperative, called with the *next* names from
+  // each picker's own handler, never from an effect on the ids: the brand/model name lists are
+  // fetched separately and an id-keyed effect would fire before the names arrive and write a
+  // half-built label). setValue does not fire register's onChange, so the auto-fill can never
+  // mark itself as user-edited.
+  const recomputeDeviceLabel = (nextBrand: string, nextModel: string) => {
+    if (deviceLabelEdited) return;
+    setValue("deviceLabel", buildDeviceLabelDefault(nextBrand, nextModel));
+  };
+
+  // Resets the edited flag whenever the dialog opens, so the next ticket starts fresh.
+  useEffect(() => {
+    if (open) setDeviceLabelEdited(false);
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -118,6 +139,7 @@ export function IntakeDialog({
                     // Cascading reset (F5) — a model belongs to exactly one brand; switching
                     // brand invalidates whatever model was previously chosen.
                     setValue("deviceModelId", undefined);
+                    recomputeDeviceLabel(brand.name, "");
                   }
                 }}
                 suggestions={(brands ?? []).map((b) => ({ value: b.id, label: b.name }))}
@@ -128,6 +150,7 @@ export function IntakeDialog({
                       onSuccess: (brand) => {
                         setValue("brandId", brand.id);
                         setValue("deviceModelId", undefined);
+                        recomputeDeviceLabel(brand.name, "");
                       },
                     },
                   )
@@ -141,7 +164,10 @@ export function IntakeDialog({
                 value={watch("deviceModelId") ?? ""}
                 onChange={(value) => {
                   const model = models?.find((m) => m.id === value);
-                  if (model) setValue("deviceModelId", model.id);
+                  if (model) {
+                    setValue("deviceModelId", model.id);
+                    recomputeDeviceLabel(brandName, model.name);
+                  }
                 }}
                 suggestions={(models ?? []).map((m) => ({ value: m.id, label: m.name }))}
                 disabled={!brandId}
@@ -150,7 +176,12 @@ export function IntakeDialog({
                     ? (name) =>
                         createModel.mutate(
                           { brandId, name },
-                          { onSuccess: (model) => setValue("deviceModelId", model.id) },
+                          {
+                            onSuccess: (model) => {
+                              setValue("deviceModelId", model.id);
+                              recomputeDeviceLabel(brandName, model.name);
+                            },
+                          },
                         )
                     : undefined
                 }
@@ -164,8 +195,22 @@ export function IntakeDialog({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="intake-device-label">{t("staff.repairs.intake.imeiLabel")}</Label>
-            <Input id="intake-device-label" {...register("deviceImei")} />
+            <Label htmlFor="intake-device-label">
+              {t("staff.repairs.intake.deviceLabelLabel")}
+            </Label>
+            <Input
+              id="intake-device-label"
+              placeholder={t("staff.repairs.intake.deviceLabelPlaceholder")}
+              {...register("deviceLabel", { onChange: () => setDeviceLabelEdited(true) })}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("staff.repairs.intake.deviceLabelHelper")}
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="intake-device-imei">{t("staff.repairs.intake.imeiLabel")}</Label>
+            <Input id="intake-device-imei" {...register("deviceImei")} />
           </div>
 
           <div className="space-y-2">

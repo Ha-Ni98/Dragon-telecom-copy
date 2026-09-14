@@ -3,6 +3,8 @@ import { Outlet } from "react-router-dom";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { ScrollToTop } from "@/components/layout/ScrollToTop";
+import { useWorkspaceFocus } from "@/components/providers/WorkspaceFocusProvider";
+import { cn } from "@/lib/utils";
 
 interface Props {
   /** Explicit children override <Outlet/>. Currently unused — CatchAllRoute (S2) no longer
@@ -18,13 +20,14 @@ interface Props {
 // while the admin session is still alive would kill a socket AuthProvider isn't watching to
 // reconnect (its effect deps haven't changed).
 export function AdminLayout({ children }: Props) {
+  const { chromeHidden } = useWorkspaceFocus();
   return (
     <div className="min-h-screen bg-surface">
       <ScrollToTop />
-      <AdminHeader />
-      <div className="mx-auto flex max-w-7xl">
-        <AdminSidebar />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+      {!chromeHidden && <AdminHeader />}
+      <div className="flex w-full pl-2">
+        {!chromeHidden && <AdminSidebar />}
+        <main className={cn("min-w-0 flex-1", chromeHidden ? "p-2" : "p-4 sm:p-6 lg:p-8")}>
           {children ?? <Outlet />}
         </main>
       </div>

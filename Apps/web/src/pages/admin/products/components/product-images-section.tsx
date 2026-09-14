@@ -10,7 +10,7 @@ import {
   useUpdateProductImages,
   useDeleteProductImage,
 } from "@/hooks/useCatalogProducts";
-import type { AdminProductDto } from "@dragon-telecom/contract";
+import { ACCEPTED_IMAGE_MIME_TYPES, type AdminProductDto } from "@dragon-telecom/contract";
 
 interface ProductImagesSectionProps {
   product: AdminProductDto;
@@ -97,7 +97,7 @@ export function ProductImagesSection({ product }: ProductImagesSectionProps) {
               className="relative"
             >
               <img
-                src={image.url}
+                src={image.thumbnailUrl ?? image.url}
                 alt={image.alt ?? ""}
                 className="h-24 w-full rounded-lg border object-cover"
               />
@@ -129,7 +129,7 @@ export function ProductImagesSection({ product }: ProductImagesSectionProps) {
               )}
               <input
                 type="file"
-                accept="image/*"
+                accept={ACCEPTED_IMAGE_MIME_TYPES.join(",")}
                 multiple
                 className="hidden"
                 disabled={addImages.isPending}

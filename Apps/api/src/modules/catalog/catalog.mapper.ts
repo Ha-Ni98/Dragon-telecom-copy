@@ -46,6 +46,7 @@ export class CatalogMapper {
     const dto: ProductImageDto = {
       id: image.id,
       url: image.url,
+      ...(image.thumbnailUrl != null ? { thumbnailUrl: image.thumbnailUrl } : {}),
       ...(image.alt != null ? { alt: image.alt } : {}),
       position: image.position,
       isPrimary: image.isPrimary,

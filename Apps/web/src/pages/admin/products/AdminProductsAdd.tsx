@@ -30,7 +30,7 @@ import {
 } from "@/hooks/useCatalogTaxonomy";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { useCreateProduct, useGenerateBarcode } from "@/hooks/useCatalogProducts";
-import { CATALOG_ERROR } from "@dragon-telecom/contract";
+import { ACCEPTED_IMAGE_MIME_TYPES, CATALOG_ERROR } from "@dragon-telecom/contract";
 import { apiErrorMessage } from "@/lib/query-client";
 import {
   productsAddSchema,
@@ -508,7 +508,7 @@ export default function AdminProductsAdd() {
                   <Upload className="h-6 w-6 text-muted-foreground" />
                   <input
                     type="file"
-                    accept="image/*"
+                    accept={ACCEPTED_IMAGE_MIME_TYPES.join(",")}
                     multiple
                     className="hidden"
                     onChange={(e) => handleFilesSelected(e.target.files)}

@@ -5,12 +5,15 @@ import type {
   FeeDto,
   FeeQuery,
   FeesExportQuery,
+  MediaImageDto,
   PublicSettingsDto,
   SettingsDto,
   UpdateSettingsCommand,
+  UploadImageCommand,
   UpsertFeesCommand,
   WilayaDto,
 } from '@dragon-telecom/contract';
+import type { UploadFile } from '@common/storage/storage.types';
 
 export type ImportFeesResult = { imported: number };
 export type ExportFeesResult = { filename: string; mime: string; body: Buffer | string };
@@ -25,6 +28,8 @@ export interface IPlatformService {
   getSettings(): Promise<SettingsDto>;
   updateSettings(cmd: UpdateSettingsCommand): Promise<SettingsDto>;
   getPublicSettings(): Promise<PublicSettingsDto>;
+  // S26.1 — a thin delegation to the shared image pipeline; writes no row.
+  uploadImage(file: UploadFile, cmd: UploadImageCommand): Promise<MediaImageDto>;
 }
 
 // Injected into every document module (orders, sales, purchasing, repairs, billing) — takes the

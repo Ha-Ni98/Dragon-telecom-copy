@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -23,13 +24,22 @@ interface StoreSettingsFormProps {
   isSaving?: boolean;
 }
 
-// ADM-17 Store tab — dumb (owns only local form state); Sprint 8 wires
-// `usePlatformSettings`/`useUpdatePlatformSettings`.
+// ADM-17 Store tab — dumb (owns only local form state); wired to
+// `usePlatformSettings`/`useUpdatePlatformSettings` by AdminSettings.tsx. The store/print logos
+// are handled beside this form (their own upload controls, own PATCH), not inside it — see
+// store-settings.schema.ts for why.
 export function StoreSettingsForm({ values, onSave, isSaving = false }: StoreSettingsFormProps) {
   const { t } = useTranslation();
   const form = useForm<StoreSettingsFormValues>({
     resolver: zodResolver(storeSettingsSchema(t)),
-    values: values ?? { name: "", address: "", phone: "", logoUrl: "" },
+    values: values ?? {
+      name: "",
+      activityLine: "",
+      address: "",
+      phone: "",
+      repairPhone: "",
+      salesPhone: "",
+    },
   });
 
   return (
@@ -44,6 +54,20 @@ export function StoreSettingsForm({ values, onSave, isSaving = false }: StoreSet
               <FormControl>
                 <Input {...field} disabled={isSaving} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="activityLine"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("admin.settings.general.activityLine")}</FormLabel>
+              <FormControl>
+                <Input {...field} disabled={isSaving} />
+              </FormControl>
+              <FormDescription>{t("admin.settings.general.activityLineHelp")}</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -67,6 +91,33 @@ export function StoreSettingsForm({ values, onSave, isSaving = false }: StoreSet
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t("admin.settings.general.storePhone")}</FormLabel>
+              <FormControl>
+                <Input {...field} disabled={isSaving} />
+              </FormControl>
+              <FormDescription>{t("admin.settings.general.storePhoneHelp")}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="repairPhone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("admin.settings.general.repairPhone")}</FormLabel>
+              <FormControl>
+                <Input {...field} disabled={isSaving} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="salesPhone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("admin.settings.general.salesPhone")}</FormLabel>
               <FormControl>
                 <Input {...field} disabled={isSaving} />
               </FormControl>

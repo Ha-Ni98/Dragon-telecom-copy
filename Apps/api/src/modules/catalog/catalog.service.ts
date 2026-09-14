@@ -8,6 +8,7 @@ import {
   BARCODE_PREFIX_CHARS,
   BARCODE_PREFIX_PAD_CHAR,
   CATALOG_ERROR,
+  ImagePurpose,
   MovementType,
   ProductEnabledFilter,
   ProductSort,
@@ -18,7 +19,6 @@ import {
   paginated,
   type AddProductImagesCommand,
   type AdminProductDto,
-  type BarcodeLabelSheetCommand,
   type BarcodeLookupCommand,
   type BarcodeLookupDto,
   type BrandDto,
@@ -51,17 +51,16 @@ import {
 } from '@dragon-telecom/contract';
 import { BadRequestError, ConflictError, NotFoundError } from '@common/errors';
 import { eventBus } from '@common/events/event-bus';
-import { renderBarcodeLabelsPdf } from '@common/utils/pdf.utils';
 import { CatalogMapper, type ResolvedPricing } from './catalog.mapper';
 import type {
   ICatalogCategoryService,
   ICatalogProductService,
   ICatalogTaxonomyService,
   IInventoryPort,
-  PdfResult,
   Viewer,
 } from './catalog.interface';
 import { storageService } from '@common/storage/storage.service';
+import { imagePipeline } from '@common/media/image-pipeline.service';
 
 const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaClientKnownRequestError =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
@@ -100,11 +99,11 @@ function randomBarcodeDigits(): string {
     .padStart(BARCODE_DIGITS, '0');
 }
 
-// S22 — Code 128 encodes ASCII 0x20–0x7E only, and bwipjs.raw() throws on anything outside it.
-// Product.barcode is admin-typed free text, so a barcode that cannot be encoded is treated exactly
-// like a missing one: skipped and counted, never a 500. Both the lookup and the sheet renderer go
-// through this one predicate, so the dialog's "N skipped" note can never disagree with what the
-// PDF actually contains.
+// S22 — Code 128 encodes ASCII 0x20–0x7E only, and JsBarcode throws on anything outside it (S27
+// moved that render into the browser; the constraint is unchanged). Product.barcode is
+// admin-typed free text, so a barcode that cannot be encoded is treated exactly like a missing
+// one: skipped and counted, never a 500. This is the one predicate the lookup and both dialogs'
+// "N skipped" notes agree on.
 const isPrintableBarcode = (barcode: string | null): barcode is string =>
   barcode != null && barcode.length > 0 && /^[\x20-\x7E]+$/.test(barcode);
 
@@ -615,6 +614,16 @@ export class CatalogProductService implements ICatalogProductService {
     images: Express.Multer.File[],
     staffId: string,
   ): Promise<AdminProductDto> {
+    // S26.1 — processed and stored BEFORE the transaction opens, for two reasons: a network
+    // round-trip must never be held inside a database transaction, and the set's guarantee is
+    // that no row may point at an object that does not exist. If R2 is unreachable this throws
+    // here and nothing at all is written. The inverse (object stored, row write then fails) is
+    // the tolerated direction: an orphaned object costs nothing, a broken <img> is user-visible.
+    const processedImages =
+      images.length > 0
+        ? await Promise.all(images.map((file) => imagePipeline.process(file, ImagePurpose.PRODUCT)))
+        : [];
+
     try {
       const productId = await this.prisma.$transaction(async (tx) => {
         const brandId = await this.resolveBrandId(tx, cmd);
@@ -659,25 +668,14 @@ export class CatalogProductService implements ICatalogProductService {
           });
         }
 
-        if (images.length > 0) {
-          const uploadedImages = await Promise.all(
-            images.map((file) =>
-              storageService.upload(
-                {
-                  buffer: file.buffer,
-                  originalname: file.originalname,
-                  mimetype: file.mimetype,
-                },
-                "products",
-              ),
-            ),
-          );
-
+        if (processedImages.length > 0) {
           await tx.productImage.createMany({
-            data: uploadedImages.map((image, index) => ({
+            data: processedImages.map((image, index) => ({
               productId: product.id,
               url: image.url,
               key: image.key,
+              ...(image.thumbnailUrl != null ? { thumbnailUrl: image.thumbnailUrl } : {}),
+              ...(image.thumbnailKey != null ? { thumbnailKey: image.thumbnailKey } : {}),
               position: index,
               isPrimary: index === 0,
             })),
@@ -770,16 +768,7 @@ export class CatalogProductService implements ICatalogProductService {
     if (!product) throw new NotFoundError('Product');
 
     const uploadedImages = await Promise.all(
-      files.map((file) =>
-        storageService.upload(
-          {
-            buffer: file.buffer,
-            originalname: file.originalname,
-            mimetype: file.mimetype,
-          },
-          "products",
-        ),
-      ),
+      files.map((file) => imagePipeline.process(file, ImagePurpose.PRODUCT)),
     );
 
     await this.prisma.productImage.createMany({
@@ -789,6 +778,14 @@ export class CatalogProductService implements ICatalogProductService {
         url: uploadedImages[index]!.url,
 
         key: uploadedImages[index]!.key,
+
+        ...(uploadedImages[index]!.thumbnailUrl != null
+          ? { thumbnailUrl: uploadedImages[index]!.thumbnailUrl }
+          : {}),
+
+        ...(uploadedImages[index]!.thumbnailKey != null
+          ? { thumbnailKey: uploadedImages[index]!.thumbnailKey }
+          : {}),
 
         ...(meta.alt != null ? { alt: meta.alt } : {}),
 
@@ -821,12 +818,12 @@ export class CatalogProductService implements ICatalogProductService {
     return this.getAdminProduct(id);
   }
 
-  // Deletes the row *and* the file on disk (S3). The DB row is the source of truth: if the file
-  // is already gone (manual cleanup, a failed earlier delete) the unlink error is swallowed and
-  // the row still goes — an orphaned row would keep rendering a broken <img>, which is worse than
-  // an orphaned file. `basename()` is a path-traversal guard: `url` is written by this service as
-  // `/uploads/<generated-uuid><ext>`, but it is still a stored string, so the filesystem path is
-  // rebuilt from its last segment only and never from the stored value directly.
+  // Deletes the row *and* every stored derivative (full size + thumbnail) in R2. The DB row is
+  // the source of truth: a failed object delete is swallowed and the row still goes, because an
+  // orphaned row keeps rendering a broken <img> while an orphaned object costs nothing.
+  // The `imageCount` guard matters more since S26.1 made keys content-addressed: two products
+  // uploaded from the same photo file share one object, so the object may only be deleted when
+  // this is the last row referencing that URL.
   async deleteImage(id: string, imageId: string): Promise<AdminProductDto> {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundError('Product');
@@ -850,11 +847,9 @@ export class CatalogProductService implements ICatalogProductService {
     }
 
     if (imageCount == 1) {
-      try {
-        await storageService.delete(image.key);
-      } catch {
-        // File already absent — the row is gone, which is what the caller asked for.
-      }
+      await storageService.deleteMany(
+        [image.key, ...(image.thumbnailKey != null ? [image.thumbnailKey] : [])],
+      );
     }
 
     return this.getAdminProduct(id);
@@ -942,49 +937,6 @@ export class CatalogProductService implements ICatalogProductService {
     });
 
     return { items };
-  }
-
-  // S22 — the label sheet. Barcodes are resolved here, not taken from the client, so a barcode
-  // edited since the dialog opened prints as it is *now*. Unprintable products are dropped with
-  // the same predicate lookupBarcodes uses, and `items` order is preserved: for a supplier invoice
-  // that is invoice-line order.
-  // S26 — `storeName` is one value for the whole run and is copied onto every request; `topText`
-  // is per item. Both are printed verbatim, never re-derived server-side: the field is editable,
-  // so the sheet must carry exactly the string the admin confirmed (an admin who cleared the store
-  // name must get labels without one).
-  async renderBarcodeLabels(cmd: BarcodeLabelSheetCommand): Promise<PdfResult> {
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: Array.from(new Set(cmd.items.map((item) => item.productId))) } },
-      select: { id: true, barcode: true },
-    });
-    const barcodeById = new Map(products.map((product) => [product.id, product.barcode]));
-
-    const storeName = cmd.storeName?.trim() ?? '';
-
-    const requests = cmd.items.flatMap((item) => {
-      const barcode = barcodeById.get(item.productId) ?? null;
-      if (!isPrintableBarcode(barcode)) return [];
-      return [
-        {
-          barcode,
-          quantity: item.quantity,
-          // S26 — a blank string is not a value: z.string().trim() means whitespace-only input
-          // arrives as '', which must print no section rather than an empty one.
-          ...(storeName !== '' ? { storeName } : {}),
-          ...(item.topText != null && item.topText !== '' ? { topText: item.topText } : {}),
-        },
-      ];
-    });
-
-    // Every requested product turned out to be unprintable — an empty PDF would look like a
-    // failure the user cannot explain. The dialogs never submit this; it guards a stale client.
-    if (requests.length === 0) throw new BadRequestError(CATALOG_ERROR.BARCODE_LABELS_EMPTY);
-
-    return {
-      filename: 'barcode-labels.pdf',
-      mime: 'application/pdf',
-      body: await renderBarcodeLabelsPdf(requests),
-    };
   }
 
   // Read port for clients' cart hydration (plan §C-3, §I.5) — an id-set counterpart to

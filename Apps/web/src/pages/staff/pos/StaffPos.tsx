@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileStack } from "lucide-react";
+import { FileStack, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PosProductSearch } from "@/pages/staff/pos/components/PosProductSearch";
@@ -28,7 +28,9 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 import { apiErrorMessage } from "@/lib/query-client";
 import { printReceipt } from "@/lib/print";
+import { cn } from "@/lib/utils";
 import { resolvePosPrice } from "@/pages/staff/pos/pos-pricing";
+import { useWorkspaceFocusScope } from "@/components/providers/WorkspaceFocusProvider";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
 import {
   SaleStatus,
@@ -72,6 +74,10 @@ export default function StaffPos({ scope = "staff" }: Props) {
   const { t } = useTranslation();
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // S29 — declares the POS as focus-capable. The preference itself is remembered globally
+  // (localStorage), but the chrome only actually hides while this page is mounted.
+  const { focusPreferred, setFocusPreferred, chromeHidden } = useWorkspaceFocusScope();
+
   // --- Left pane: product search ---
   const [productQuery, setProductQuery] = useState("");
   const debouncedProductQuery = useDebouncedValue(productQuery, 300);
@@ -114,6 +120,9 @@ export default function StaffPos({ scope = "staff" }: Props) {
   const [receipt, setReceipt] = useState<ReceiptDto | null>(null);
   // S25 — captured once when the receipt is set, not derived at render: the receipt view stays
   // mounted until "New sale", so a render-time `new Date()` would creep forward on every re-render.
+  // S27 — now only the fallback: `receipt.soldAt` (the server's confirm-time stamp) is preferred
+  // when present, since it is the honest source; this stays as the fallback for the unlikely case
+  // a sale's `soldAt` comes back null.
   const [receiptAt, setReceiptAt] = useState<string | null>(null);
   const [clientZoneError, setClientZoneError] = useState<string>();
   const [paymentError, setPaymentError] = useState<string>();
@@ -413,6 +422,21 @@ export default function StaffPos({ scope = "staff" }: Props) {
     },
   });
 
+  // S29 — Esc leaves focus mode. Deliberately NOT routed through useKeyboardShortcuts: that hook
+  // preventDefaults every key it handles, and Escape belongs to whichever Radix overlay is open
+  // (quick-add client, drafts drawer). This listener never preventDefaults, stands down while any
+  // overlay is open, and is only attached while the chrome is actually hidden.
+  useEffect(() => {
+    if (!chromeHidden) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector('[role="dialog"][data-state="open"]')) return;
+      setFocusPreferred(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [chromeHidden, setFocusPreferred]);
+
   const isSyncing = createDraft.isPending || updateDraft.isPending;
 
   return (
@@ -422,6 +446,24 @@ export default function StaffPos({ scope = "staff" }: Props) {
           title={scope === "admin" ? t("admin.pos.pageTitle") : t("staff.pos.pageTitle")}
         />
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size={chromeHidden ? "icon" : "default"}
+            onClick={() => setFocusPreferred(!focusPreferred)}
+            aria-label={chromeHidden ? t("staff.pos.focus.exit") : t("staff.pos.focus.enter")}
+            // S29 — one button, three exits. In focus mode it detaches from this row and pins
+            // itself to the viewport's top-right, which is the brief's "floating button";
+            // rendering a second, separate floating button would land it on top of this one once
+            // the app header is gone.
+            className={cn(chromeHidden && "fixed right-4 top-4 z-40 shadow-lg")}
+          >
+            {chromeHidden ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="mr-2 h-4 w-4" />
+            )}
+            {!chromeHidden && t("staff.pos.focus.enter")}
+          </Button>
           <MyDraftsDrawer
             trigger={
               <Button variant="outline">
@@ -444,14 +486,18 @@ export default function StaffPos({ scope = "staff" }: Props) {
 
       {receipt ? (
         <PosReceiptView
+          subtotal={receipt.subtotal}
+          discountAmount={receipt.discountAmount}
           total={receipt.total}
           previousCredit={receipt.previousCredit}
           grandTotal={receipt.grandTotal}
           paid={receipt.totalPaid}
           newCredit={receipt.newCredit}
+          posClientName={receipt.posClientName}
+          staffName={receipt.staffName}
           reference={receipt.reference}
           lines={receipt.lines}
-          issuedAt={receiptAt ?? new Date().toISOString()}
+          issuedAt={receipt.soldAt ?? receiptAt ?? new Date().toISOString()}
           store={publicSettings.data?.store}
           onPrint={printReceipt}
           onNewSale={() => {
@@ -461,7 +507,12 @@ export default function StaffPos({ scope = "staff" }: Props) {
           }}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_3fr]">
+        // S29 — minmax(0,·) rather than a bare fr: a grid item's min-width defaults to auto, so a
+        // 3fr track could not shrink below the ticket row's min-content width and the whole page
+        // scrolled sideways. The ratio also shifts 2:3 -> 1:2 toward the ticket, which holds the
+        // editable quantity and price inputs and needs the room more than the read-only product
+        // list does.
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
           <div className="space-y-4">
             <PosProductSearch
               ref={searchRef}

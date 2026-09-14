@@ -9,7 +9,7 @@ import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { ExportMenu } from "@/components/shared/ExportMenu";
-import { Package, Search } from "lucide-react";
+import { Package, Search, SlidersHorizontal } from "lucide-react";
 import type { StockRowDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
@@ -25,6 +25,9 @@ interface StockLevelsTableProps {
   onLowStockOnlyChange: (value: boolean) => void;
   onExport?: (format: "csv" | "pdf") => void;
   isExporting?: boolean;
+  /** S28 — opens the per-product Adjust dialog (stock-adjust-dialog.tsx). Optional so the
+   *  component still renders without it (and the Actions column is simply omitted). */
+  onAdjust?: (row: StockRowDto) => void;
 }
 
 // ADM-06 Stock levels tab — StockRowDto (inventory.dtos.ts): productId/name/quantityOnHand/
@@ -32,6 +35,10 @@ interface StockLevelsTableProps {
 // server-side (StockQuery.search, S4) — this component only renders the controlled input; the page
 // owns the debounce. `stockValue` is on-hand × avgStockPrice (D10) and is what the "Total cost"
 // column shows.
+//
+// S28 — the table is now server-paginated (the page owns page/limit and renders
+// SimplePagination below it; this component still renders only the rows it is given). The
+// Adjust action opens a dialog — it must not navigate to the Adjustments tab.
 export function StockLevelsTable({
   data,
   isLoading = false,
@@ -43,6 +50,7 @@ export function StockLevelsTable({
   onLowStockOnlyChange,
   onExport,
   isExporting,
+  onAdjust,
 }: StockLevelsTableProps) {
   const { t, language } = useTranslation();
 
@@ -82,8 +90,22 @@ export function StockLevelsTable({
         cell: ({ row }) =>
           row.original.isLow ? <span className="text-destructive">●</span> : null,
       },
+      ...(onAdjust
+        ? [
+            {
+              id: "adjust",
+              header: t("admin.inventory.stock.table.actions"),
+              cell: ({ row }) => (
+                <Button variant="outline" size="sm" onClick={() => onAdjust(row.original)}>
+                  <SlidersHorizontal className="mr-2 h-4 w-4" />
+                  {t("admin.inventory.stock.adjust")}
+                </Button>
+              ),
+            } satisfies ColumnDef<StockRowDto>,
+          ]
+        : []),
     ],
-    [t, language],
+    [t, language, onAdjust],
   );
 
   const renderMobileRow = (row: StockRowDto) => (
@@ -95,6 +117,12 @@ export function StockLevelsTable({
       <div className="text-sm text-muted-foreground">
         {t("admin.inventory.stock.table.totalCost")}: {formatDZD(row.stockValue, language)}
       </div>
+      {onAdjust && (
+        <Button variant="outline" size="sm" onClick={() => onAdjust(row)}>
+          <SlidersHorizontal className="mr-2 h-4 w-4" />
+          {t("admin.inventory.stock.adjust")}
+        </Button>
+      )}
     </div>
   );
 
@@ -140,7 +168,7 @@ export function StockLevelsTable({
       </div>
 
       {isLoading ? (
-        <TableSkeleton rows={6} columns={7} />
+        <TableSkeleton rows={6} columns={onAdjust ? 8 : 7} />
       ) : isError ? (
         <NotFoundState
           title={t("admin.inventory.error")}

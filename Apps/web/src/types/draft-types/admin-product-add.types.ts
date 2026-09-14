@@ -127,15 +127,6 @@ export interface FormSubmissionResult {
 }
 
 /**
- * Image upload result interface
- */
-export interface ImageUploadResult {
-  success: boolean;
-  imageUrl?: string;
-  error?: string;
-}
-
-/**
  * Pricing calculation result interface
  */
 export interface PricingCalculationResult {

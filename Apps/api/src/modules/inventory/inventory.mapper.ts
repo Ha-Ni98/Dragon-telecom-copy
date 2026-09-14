@@ -116,7 +116,8 @@ export class InventoryMapper {
     return product.quantityOnHand - product.quantityReserved;
   }
 
-  // Shared with the engine's low-stock edge-trigger check (Sprint 2) — same reason as above.
+  // Shared with the engine's low-stock edge-trigger check (Sprint 2) — same reason as above. The
+  // same rule is expressed in SQL by InventoryReadService.buildStockWhere (S28); keep them in step.
   static isLow(available: number, reorderThreshold: number): boolean {
     return available <= reorderThreshold;
   }

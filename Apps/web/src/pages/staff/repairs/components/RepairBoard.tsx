@@ -18,6 +18,7 @@ import { RepairStatus, type RepairDto, type TechnicianDto } from "@dragon-teleco
 import { useTranslation } from "@/hooks/useTranslation";
 import { cn } from "@/lib/utils";
 import { REPAIR_STATUS_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
+import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-label";
 
 const LANES = [
   RepairStatus.INTAKE,
@@ -211,7 +212,7 @@ export function RepairBoard({
                       </div>
                       <div className="font-medium">{repair.customerName}</div>
                       <div className="text-xs text-muted-foreground">
-                        {repair.device.brand?.name} {repair.device.model?.name}
+                        {formatRepairDeviceLabel(repair.device)}
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>{repair.technician?.name ?? "—"}</span>

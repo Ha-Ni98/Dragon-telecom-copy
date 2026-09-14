@@ -8,17 +8,23 @@ interface BarcodeLabelProps {
   topText?: string;
 }
 
-// S19/S22/S26 — the on-screen *preview* of one printed label. The printed sheet is rendered
-// server-side as a PDF (pdf.utils.ts's renderBarcodeLabelsPdf, PDFKit + bwip-js); this only has to
-// look like it, so the two must be kept in step. Layout as of S26: 50 x 25 mm, an optional store
-// name running bottom-to-top down a 6 mm left column, a vertical rule, then the optional caption,
-// the symbol and its digits.
+// S19/S22/S26/S27 — the on-screen *preview* of one printed label. The printed sheet is now
+// rendered in the browser too (components/shared/barcode-label-sheet.tsx, via
+// lib/barcode-svg.ts's JsBarcode render — S27 deleted the S22/S26 server-side PDF renderer
+// entirely), so this preview and the printed artefact share the same underlying symbol library;
+// only the surrounding markup is duplicated, and the two must be kept in step. Layout as of S26:
+// 50 x 25 mm, an optional store name running bottom-to-top down a 6 mm left column, a vertical
+// rule, then the optional caption, the symbol and its digits.
 //
 // Code 128 is the symbology: a generated barcode is 9 *alphanumeric* characters, which the
 // fixed-length numeric symbologies (EAN-13, UPC) cannot encode. JsBarcode writes a `viewBox` onto
 // the <svg>, so `w-full h-auto` scales the symbol to the box without distorting the bar ratios. The
 // box is forced black-on-white regardless of theme: JsBarcode draws black bars, and a dark-mode
 // card behind them would preview unreadably.
+//
+// This preview intentionally keeps `margin: 0` (no quiet zone) below — it is a visual reference at
+// a fixed on-screen size, not a scan target. The printed label adds the real quiet zone via
+// lib/barcode-svg.ts's `renderBarcodeSvg` (QUIET_ZONE_MODULES).
 export function BarcodeLabel({ value, storeName, topText }: BarcodeLabelProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 

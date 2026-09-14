@@ -18,13 +18,25 @@ import {
   type AdjustmentResultDto,
 } from "@dragon-telecom/contract";
 
-// Split from the dual-return backend method (StockRowDto[] | export-Blob) into two functions —
-// a query hook can only have one result type, and `export=csv` is a distinct caller intent.
-// The query is the contract's StockQuery minus `export` (which belongs to exportStockCsv below).
-export async function getStock(query: Omit<StockQuery, "export"> = {}): Promise<StockRowDto[]> {
-  const res = await api.get<ApiResponse<StockRowDto[]>>(apiPath(INVENTORY_ROUTES.STOCK), {
-    params: { lowStockOnly: query.lowStockOnly, search: query.search },
-  });
+// Split from the dual-return backend method (paginated rows | export-Blob) into two functions —
+// a query hook can only have one result type, and `export=csv|pdf` is a distinct caller intent.
+// S28 — `getStock` is now paginated server-side, so it returns PaginatedResult<StockRowDto>
+// instead of a bare array; `StockListQuery` is the contract query minus `export`, and `page` /
+// `limit` are required because StockQuerySchema gives them `.default()`s.
+export type StockListQuery = Omit<StockQuery, "export">;
+
+export async function getStock(query: StockListQuery): Promise<PaginatedResult<StockRowDto>> {
+  const res = await api.get<ApiResponse<PaginatedResult<StockRowDto>>>(
+    apiPath(INVENTORY_ROUTES.STOCK),
+    {
+      params: {
+        lowStockOnly: query.lowStockOnly,
+        search: query.search,
+        page: query.page,
+        limit: query.limit,
+      },
+    },
+  );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }
@@ -33,11 +45,13 @@ export async function getStock(query: Omit<StockQuery, "export"> = {}): Promise<
 // backend's getStock checks `'body' in result` and sends raw Content-Type/Content-Disposition
 // instead of calling sendSuccess when `export` is set).
 //
-// S25 — now mirrors the table's own query (search/lowStockOnly) instead of always sending none.
+// S25 — mirrors the table's own filters (search/lowStockOnly) instead of always sending none.
 // The old "sends no filters" behaviour was a real defect the S25 audit found: an admin filtered
 // to "low stock only" and clicking Export got the whole catalogue regardless.
+// S28 — `page`/`limit` are stripped: the export is the whole filtered stock table, never the page
+// on screen, exactly like exportMovements below.
 export async function exportStock(
-  query: Omit<StockQuery, "export"> = {},
+  query: Omit<StockQuery, "export" | "page" | "limit">,
   format: "csv" | "pdf",
 ): Promise<Blob> {
   const res = await api.get<Blob>(apiPath(INVENTORY_ROUTES.STOCK), {

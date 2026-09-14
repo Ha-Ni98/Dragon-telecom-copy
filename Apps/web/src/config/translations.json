@@ -3554,6 +3554,16 @@
     "fr": "Général",
     "ar": ""
   },
+  "admin.settings.general.activityLine": {
+    "en": "Activity line",
+    "fr": "Ligne d'activité",
+    "ar": ""
+  },
+  "admin.settings.general.activityLineHelp": {
+    "en": "Printed under the store name on receipts.",
+    "fr": "Imprimée sous le nom du magasin sur les tickets.",
+    "ar": ""
+  },
   "admin.settings.general.description": {
     "en": "Basic application configuration",
     "fr": "Configuration de base de l'application",
@@ -3582,6 +3592,21 @@
   "admin.settings.general.storePhone": {
     "en": "Store Phone",
     "fr": "Téléphone du Magasin",
+    "ar": ""
+  },
+  "admin.settings.general.storePhoneHelp": {
+    "en": "General number, used on invoices.",
+    "fr": "Numéro général, utilisé sur les factures.",
+    "ar": ""
+  },
+  "admin.settings.general.repairPhone": {
+    "en": "Repair phone",
+    "fr": "Téléphone réparation",
+    "ar": ""
+  },
+  "admin.settings.general.salesPhone": {
+    "en": "Sales phone",
+    "fr": "Téléphone vente",
     "ar": ""
   },
   "admin.settings.general.title": {
@@ -10359,6 +10384,16 @@
     "fr": "Point de vente",
     "ar": ""
   },
+  "staff.pos.focus.enter": {
+    "en": "Focus mode",
+    "fr": "Mode concentration",
+    "ar": ""
+  },
+  "staff.pos.focus.exit": {
+    "en": "Exit focus mode",
+    "fr": "Quitter le mode concentration",
+    "ar": ""
+  },
   "staff.posClients.title": {
     "en": "POS clients",
     "fr": "Clients point de vente",
@@ -10612,6 +10647,76 @@
   "staff.pos.receipt.thankYou": {
     "en": "Thank you for your visit",
     "fr": "Merci de votre visite",
+    "ar": ""
+  },
+  "staff.pos.receipt.colItem": {
+    "en": "Item",
+    "fr": "Article",
+    "ar": ""
+  },
+  "staff.pos.receipt.colQty": {
+    "en": "Qty",
+    "fr": "Qté",
+    "ar": ""
+  },
+  "staff.pos.receipt.colUnitPrice": {
+    "en": "Unit",
+    "fr": "P.U.",
+    "ar": ""
+  },
+  "staff.pos.receipt.colLineTotal": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.pos.receipt.articleCount": {
+    "en": "Articles: {count}",
+    "fr": "Articles : {count}",
+    "ar": ""
+  },
+  "staff.pos.receipt.totalQuantity": {
+    "en": "Total quantity: {count}",
+    "fr": "Quantité totale : {count}",
+    "ar": ""
+  },
+  "staff.pos.receipt.subtotal": {
+    "en": "Total",
+    "fr": "Total",
+    "ar": ""
+  },
+  "staff.pos.receipt.discount": {
+    "en": "Discount",
+    "fr": "Remise",
+    "ar": ""
+  },
+  "staff.pos.receipt.amountPayable": {
+    "en": "Amount payable",
+    "fr": "Net à payer",
+    "ar": ""
+  },
+  "staff.pos.receipt.purchaseTotal": {
+    "en": "Purchase total",
+    "fr": "Total achat",
+    "ar": ""
+  },
+  "staff.pos.receipt.client": {
+    "en": "Client",
+    "fr": "Client",
+    "ar": ""
+  },
+  "staff.pos.receipt.cashier": {
+    "en": "Cashier",
+    "fr": "Caissier",
+    "ar": ""
+  },
+  "staff.pos.receipt.repairPhone": {
+    "en": "Repair",
+    "fr": "Réparation",
+    "ar": ""
+  },
+  "staff.pos.receipt.salesPhone": {
+    "en": "Sales",
+    "fr": "Vente",
     "ar": ""
   },
   "admin.pos.pageTitle": {
@@ -11489,6 +11594,21 @@
     "fr": "IMEI (facultatif)",
     "ar": ""
   },
+  "staff.repairs.intake.deviceLabelLabel": {
+    "en": "Device (optional)",
+    "fr": "Appareil (facultatif)",
+    "ar": ""
+  },
+  "staff.repairs.intake.deviceLabelPlaceholder": {
+    "en": "e.g. Samsung S24 Ultra",
+    "fr": "ex. Samsung S24 Ultra",
+    "ar": ""
+  },
+  "staff.repairs.intake.deviceLabelHelper": {
+    "en": "Prefilled from the brand and model — edit it freely.",
+    "fr": "Prérempli à partir de la marque et du modèle — modifiable librement.",
+    "ar": ""
+  },
   "staff.repairs.intake.reportedIssuesLabel": {
     "en": "Reported issues",
     "fr": "Problèmes signalés",
@@ -12204,14 +12324,39 @@
     "fr": "Imprimer",
     "ar": ""
   },
-  "admin.productsList.printLabels.generating": {
-    "en": "Generating…",
-    "fr": "Génération…",
-    "ar": ""
-  },
   "admin.productsList.printLabels.tooMany": {
     "en": "Reduce the quantities — one sheet holds at most {max} labels.",
     "fr": "Réduisez les quantités — une planche contient au maximum {max} étiquettes.",
+    "ar": ""
+  },
+  "admin.labelSize.label": {
+    "en": "Label size",
+    "fr": "Format d'étiquette",
+    "ar": ""
+  },
+  "admin.labelSize.custom": {
+    "en": "Custom",
+    "fr": "Personnalisé",
+    "ar": ""
+  },
+  "admin.labelSize.width": {
+    "en": "Width (mm)",
+    "fr": "Largeur (mm)",
+    "ar": ""
+  },
+  "admin.labelSize.height": {
+    "en": "Height (mm)",
+    "fr": "Hauteur (mm)",
+    "ar": ""
+  },
+  "admin.labelSize.helper": {
+    "en": "Must match the label stock loaded in the printer.",
+    "fr": "Doit correspondre aux étiquettes chargées dans l'imprimante.",
+    "ar": ""
+  },
+  "admin.labelSize.tooNarrow": {
+    "en": "At this size the bars fall below {min} mm and may not scan. Use a wider label.",
+    "fr": "À ce format les barres passent sous {min} mm et risquent de ne pas être lues. Utilisez une étiquette plus large.",
     "ar": ""
   },
   "admin.productsList.printLabels.storeNameLabel": {
@@ -12599,19 +12744,59 @@
     "fr": "Impossible de générer un code-barres unique — saisissez-en un manuellement",
     "ar": ""
   },
-  "common.errors.sentinel.barcodeLabelsEmpty": {
-    "en": "None of the selected products has a printable barcode",
-    "fr": "Aucun des produits sélectionnés n'a de code-barres imprimable",
-    "ar": ""
-  },
-  "common.errors.sentinel.barcodeLabelTotalExceeded": {
-    "en": "Too many labels in one run — reduce the quantities",
-    "fr": "Trop d'étiquettes en une fois — réduisez les quantités",
-    "ar": ""
-  },
   "common.errors.sentinel.exportRowLimitExceeded": {
     "en": "This export is too large. Narrow the filters and try again.",
     "fr": "Cet export est trop volumineux. Affinez les filtres et réessayez.",
+    "ar": ""
+  },
+  "common.errors.sentinel.unsupportedImageType": {
+    "en": "Unsupported image format. Use JPEG, PNG, WebP or HEIC.",
+    "fr": "Format d'image non pris en charge. Utilisez JPEG, PNG, WebP ou HEIC.",
+    "ar": ""
+  },
+  "common.errors.sentinel.imageTooLarge": {
+    "en": "The image is too large. The maximum is 10 MB.",
+    "fr": "L'image est trop volumineuse. Le maximum est de 10 Mo.",
+    "ar": ""
+  },
+  "common.errors.sentinel.imageTooManyPixels": {
+    "en": "The image has too many pixels to process safely.",
+    "fr": "L'image comporte trop de pixels pour être traitée.",
+    "ar": ""
+  },
+  "common.errors.sentinel.imageDecodeFailed": {
+    "en": "The image could not be read. It may be corrupt.",
+    "fr": "Impossible de lire l'image. Elle est peut-être corrompue.",
+    "ar": ""
+  },
+  "common.errors.sentinel.imageStorageUnavailable": {
+    "en": "Image storage is unreachable. Nothing was saved — try again.",
+    "fr": "Le stockage d'images est injoignable. Rien n'a été enregistré — réessayez.",
+    "ar": ""
+  },
+  "common.media.upload": {
+    "en": "Upload",
+    "fr": "Téléverser",
+    "ar": ""
+  },
+  "common.media.replace": {
+    "en": "Replace",
+    "fr": "Remplacer",
+    "ar": ""
+  },
+  "common.media.uploading": {
+    "en": "Uploading…",
+    "fr": "Téléversement…",
+    "ar": ""
+  },
+  "common.media.uploadSuccess": {
+    "en": "Image uploaded",
+    "fr": "Image téléversée",
+    "ar": ""
+  },
+  "common.media.tooLarge": {
+    "en": "The image must be under {max} MB.",
+    "fr": "L'image doit faire moins de {max} Mo.",
     "ar": ""
   },
   "admin.nav.pos": {
@@ -12747,6 +12932,26 @@
   "admin.inventory.stock.table.lowStock": {
     "en": "Low stock",
     "fr": "Stock faible",
+    "ar": ""
+  },
+  "admin.inventory.stock.table.actions": {
+    "en": "Actions",
+    "fr": "Actions",
+    "ar": ""
+  },
+  "admin.inventory.stock.adjust": {
+    "en": "Adjust",
+    "fr": "Ajuster",
+    "ar": ""
+  },
+  "admin.inventory.stock.adjustDialog.title": {
+    "en": "Adjust stock — {product}",
+    "fr": "Ajuster le stock — {product}",
+    "ar": ""
+  },
+  "admin.inventory.stock.adjustDialog.description": {
+    "en": "Creates a stock adjustment for this product only.",
+    "fr": "Crée un ajustement de stock pour ce produit uniquement.",
     "ar": ""
   },
   "admin.inventory.stock.empty": {
@@ -12977,6 +13182,46 @@
   "admin.inventory.adjustment.unitCostRequiredForIncrease": {
     "en": "Unit cost is required when the counted quantity increases stock",
     "fr": "Le coût unitaire est requis lorsque la quantité comptée augmente le stock",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.toggle": {
+    "en": "Also update this product's prices",
+    "fr": "Mettre aussi à jour les prix de ce produit",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.title": {
+    "en": "Prices",
+    "fr": "Prix",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.guestPrice": {
+    "en": "Guest price",
+    "fr": "Prix visiteur",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.defaultSalePrice": {
+    "en": "Default sale price",
+    "fr": "Prix de vente par défaut",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.categoryPriceLabel": {
+    "en": "{category} price",
+    "fr": "Prix {category}",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.previous": {
+    "en": "-previous {value}-",
+    "fr": "-précédent {value}-",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.reprice.previousEmpty": {
+    "en": "-previous empty-",
+    "fr": "-précédent vide-",
+    "ar": ""
+  },
+  "admin.inventory.adjustment.productSearchPlaceholder": {
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
     "ar": ""
   },
   "admin.supplierInvoices.title": {
@@ -14469,6 +14714,36 @@
     "fr": "Le nom de la catégorie est requis",
     "ar": ""
   },
+  "admin.settings.store.logos.title": {
+    "en": "Logos",
+    "fr": "Logos",
+    "ar": ""
+  },
+  "admin.settings.store.logos.description": {
+    "en": "The full-colour logo shown on screen and on PDF documents, and the monochrome logo used by the thermal receipt printer.",
+    "fr": "Le logo en couleur affiché à l'écran et sur les documents PDF, et le logo monochrome utilisé par l'imprimante de tickets thermique.",
+    "ar": ""
+  },
+  "admin.settings.store.logos.storeLogo": {
+    "en": "Store logo",
+    "fr": "Logo du magasin",
+    "ar": ""
+  },
+  "admin.settings.store.logos.storeLogoHelp": {
+    "en": "Full colour. Used on screen and on PDF documents.",
+    "fr": "En couleur. Utilisé à l'écran et sur les documents PDF.",
+    "ar": ""
+  },
+  "admin.settings.store.logos.printLogo": {
+    "en": "Print logo",
+    "fr": "Logo d'impression",
+    "ar": ""
+  },
+  "admin.settings.store.logos.printLogoHelp": {
+    "en": "Black and white only — used by the thermal receipt printer. Upload an already monochrome image.",
+    "fr": "En noir et blanc uniquement — utilisé par l'imprimante thermique. Téléversez une image déjà monochrome.",
+    "ar": ""
+  },
   "admin.settings.storefront.title": {
     "en": "Storefront",
     "fr": "Vitrine",
@@ -14697,6 +14972,11 @@
   "admin.settings.hierarchy.enableSuccess": {
     "en": "Enabled successfully",
     "fr": "Activé avec succès",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.logoUpdateSuccess": {
+    "en": "Image updated",
+    "fr": "Image mise à jour",
     "ar": ""
   },
   "admin.settings.hierarchy.parentStillDisabled": {

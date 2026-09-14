@@ -10,19 +10,19 @@ export const CATALOG_ROUTES = {
   PRICING: '/admin/products/:id/pricing',
   IMAGES: '/admin/products/:id/images',
   IMAGE_BY_ID: '/admin/products/:id/images/:imageId',
-  IMAGE: '/uploads/:id',
   PRODUCT_STATS: '/admin/products/stats',
   // S19 — barcode generation. A POST (not a GET) because each call must yield a *fresh* value:
   // nothing is written, but the response is deliberately non-idempotent and must never be cached
   // by a browser or a proxy. Registered before ADMIN_PRODUCT_BY_ID for the same reason
   // PRODUCT_STATS is (see catalog.routes.ts in the api).
   GENERATE_BARCODE: '/admin/products/barcode',
-  // S22 — barcode label printing. Both are POSTs: BARCODE_LOOKUP takes an id array (too long for a
-  // query string) and BARCODE_LABELS takes a per-line quantity map. Both are literal segments
-  // under "/admin/products" and must be registered before ADMIN_PRODUCT_BY_ID for the same reason
-  // PRODUCT_STATS and GENERATE_BARCODE are (see catalog.routes.ts in the api).
+  // S22 — barcode lookup, still used by the supplier-invoice label dialog to resolve each line's
+  // barcode before printing (S27 moved label rendering into the browser, but the lookup itself
+  // stays server-side: it is the only place a SaleLine's linked product's current barcode is
+  // known). A POST because the id array is too long for a query string. A literal segment under
+  // "/admin/products", registered before ADMIN_PRODUCT_BY_ID for the same reason PRODUCT_STATS
+  // and GENERATE_BARCODE are (see catalog.routes.ts in the api).
   BARCODE_LOOKUP: '/admin/products/barcode-lookup',
-  BARCODE_LABELS: '/admin/products/barcode-labels',
   ADMIN_BRANDS: '/admin/brands',
   ADMIN_BRAND_BY_ID: '/admin/brands/:id',
   ADMIN_FAMILIES: '/admin/families',
@@ -38,7 +38,3 @@ export const CATALOG_ROUTES = {
   CATEGORIES_CUD: '/admin/client-categories',
   CATEGORY_BY_ID: '/admin/client-categories/:id',
 } as const;
-
-// The on-disk directory product images are written to and served from. Shared because three
-// places must agree on it: multer's destination, express.static's mount, and the delete path.
-export const PRODUCT_UPLOAD_DIR = 'uploads';

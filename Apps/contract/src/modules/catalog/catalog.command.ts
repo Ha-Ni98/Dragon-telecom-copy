@@ -1,12 +1,5 @@
 import { z } from 'zod';
-import {
-  BARCODE_LABEL_MAX_QUANTITY,
-  BARCODE_LABEL_SHEET_MAX_ITEMS,
-  BARCODE_LABEL_SHEET_MAX_TOTAL,
-  BARCODE_LABEL_TEXT_MAX,
-  BARCODE_LOOKUP_MAX_IDS,
-  CATALOG_ERROR,
-} from './catalog.constants';
+import { BARCODE_LOOKUP_MAX_IDS } from './catalog.constants';
 
 const CategoryPriceInputSchema = z.object({
   categoryId: z.uuid(),
@@ -111,33 +104,6 @@ export const BarcodeLookupSchema = z.object({
   productIds: z.array(z.uuid()).min(1).max(BARCODE_LOOKUP_MAX_IDS),
 });
 export type BarcodeLookupCommand = z.infer<typeof BarcodeLookupSchema>;
-
-// S22 — one label-sheet request. `items` is ordered and may repeat a productId: the sheet is laid
-// out in exactly this order, which for a supplier invoice is invoice-line order.
-// S26 — plus the two customizable texts. `storeName` is top-level because one print run is one
-// store; `topText` is per item because each line is a different product with a different model
-// (owner decision Q2). Both optional: omitted (or blank) prints the label without that section.
-export const BarcodeLabelSheetSchema = z
-  .object({
-    storeName: z.string().trim().max(BARCODE_LABEL_TEXT_MAX).optional(),
-    items: z
-      .array(
-        z.object({
-          productId: z.uuid(),
-          quantity: z.number().int().min(1).max(BARCODE_LABEL_MAX_QUANTITY),
-          topText: z.string().trim().max(BARCODE_LABEL_TEXT_MAX).optional(),
-        }),
-      )
-      .min(1)
-      .max(BARCODE_LABEL_SHEET_MAX_ITEMS),
-  })
-  // Cross-field, so it cannot live on the array element. The message is a contract sentinel, not a
-  // sentence, so the web side can translate it (query-client.ts's SENTINEL_TRANSLATION_KEYS).
-  .refine(
-    (value) => value.items.reduce((total, item) => total + item.quantity, 0) <= BARCODE_LABEL_SHEET_MAX_TOTAL,
-    { message: CATALOG_ERROR.BARCODE_LABEL_TOTAL_EXCEEDED, path: ['items'] },
-  );
-export type BarcodeLabelSheetCommand = z.infer<typeof BarcodeLabelSheetSchema>;
 
 export const CreateBrandSchema = z.object({
   name: z.string(),

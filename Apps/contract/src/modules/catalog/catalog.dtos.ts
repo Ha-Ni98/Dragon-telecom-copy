@@ -5,6 +5,9 @@ import { BARCODE_LENGTH } from './catalog.constants';
 export const ProductImageResponseSchema = z.object({
   id: z.uuid(),
   url: z.string(),
+  // S26.1 — 400px derivative for grids and list views. Absent on rows created before S26.1;
+  // every consumer reads `thumbnailUrl ?? url`.
+  thumbnailUrl: z.string().optional(),
   alt: z.string().optional(),
   position: z.number().int().min(0),
   isPrimary: z.boolean(),

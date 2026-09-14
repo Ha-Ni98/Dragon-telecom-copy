@@ -32,3 +32,12 @@ export class BadRequestError extends AppError {
     super(400, ErrorCode.VALIDATION_ERROR, message, details);
   }
 }
+
+/** S26.1 — R2 refused or could not be reached. 502, because the failure is an upstream
+ *  dependency's, not the caller's. The message is the MEDIA_ERROR sentinel so the web toast can
+ *  translate it like every other business-rule error. */
+export class StorageUnavailableError extends AppError {
+  constructor(message: string, details?: unknown) {
+    super(502, ErrorCode.INTERNAL_SERVER_ERROR, message, details);
+  }
+}

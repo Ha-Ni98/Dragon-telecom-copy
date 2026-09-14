@@ -43,6 +43,7 @@ import { DisabledProductsPanel } from "@/pages/admin/settings/components/disable
 import { StorefrontSettings } from "@/pages/admin/settings/components/storefront-settings";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { NotFoundState } from "@/components/shared/NotFoundState";
+import { ImageUploadField } from "@/components/shared/image-upload-field";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
 import type { StoreSettingsFormValues } from "@/pages/admin/settings/components/store-settings.schema";
 import type { InvoicingSettingsFormValues } from "@/pages/admin/settings/components/invoicing-settings.schema";
@@ -61,7 +62,7 @@ import {
   useSetModelFamilies,
 } from "@/hooks/useCatalogTaxonomy";
 import { useAdminCatalogProducts, useUpdateProduct } from "@/hooks/useCatalogProducts";
-import { ProductEnabledFilter, type AdminProductDto } from "@dragon-telecom/contract";
+import { ImagePurpose, ProductEnabledFilter, type AdminProductDto } from "@dragon-telecom/contract";
 
 // ADM-17 — Sprint 3 retyped the tabs whose existing component was structurally compatible with
 // the real DTOs (Categories -> ClientCategoryDto; Delivery fees -> AdminFeesDto). Sprint 4 added
@@ -209,6 +210,16 @@ export default function AdminSettings() {
     );
   };
 
+  // S26.1 — a logo commits immediately on upload rather than waiting for the text form's Save,
+  // mirroring ProductImagesSection (an upload is its own mutation there too). This is also why
+  // storeSettingsSchema no longer carries logoUrl: two writers for one field would race.
+  const handleSaveStoreLogo = (patch: { logoUrl?: string; printLogoUrl?: string }) => {
+    updateSettings.mutate(
+      { store: patch },
+      { onSuccess: () => toast.success(t("admin.settings.saveSuccess")) },
+    );
+  };
+
   const handleSaveInvoicing = (values: InvoicingSettingsFormValues) => {
     setSequenceDecreaseError(false);
     updateSettings.mutate(
@@ -314,6 +325,21 @@ export default function AdminSettings() {
       { onSuccess: () => toast.success(t("admin.settings.hierarchy.enableSuccess")) },
     );
   };
+
+  // S26.1 — Brand.logoUrl / Family.iconUrl already existed and were already rendered by the
+  // home page; these two handlers are the only missing piece (a way to set them). Both hooks'
+  // existing `qk.catalog.families.all()` / `qk.catalog.brands.all()` invalidation already
+  // refreshes the admin list and the public storefront list — no new query key needed.
+  const handleSetFamilyIcon = (id: string, iconUrl: string) =>
+    updateFamily.mutate(
+      { id, command: { iconUrl } },
+      { onSuccess: () => toast.success(t("admin.settings.hierarchy.logoUpdateSuccess")) },
+    );
+  const handleSetBrandLogo = (id: string, logoUrl: string) =>
+    updateBrand.mutate(
+      { id, command: { logoUrl } },
+      { onSuccess: () => toast.success(t("admin.settings.hierarchy.logoUpdateSuccess")) },
+    );
 
   const handleEnableProduct = (product: AdminProductDto) => {
     updateProduct.mutate(
@@ -608,7 +634,33 @@ export default function AdminSettings() {
         </TabsContent>
 
         {/* Store Tab */}
-        <TabsContent value="store">
+        <TabsContent value="store" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("admin.settings.store.logos.title")}</CardTitle>
+              <CardDescription>{t("admin.settings.store.logos.description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <ImageUploadField
+                value={settingsQuery.data?.store.logoUrl}
+                purpose={ImagePurpose.STORE_LOGO}
+                label={t("admin.settings.store.logos.storeLogo")}
+                hint={t("admin.settings.store.logos.storeLogoHelp")}
+                onUploaded={(url) => handleSaveStoreLogo({ logoUrl: url })}
+                disabled={updateSettings.isPending}
+              />
+              <ImageUploadField
+                value={settingsQuery.data?.store.printLogoUrl}
+                purpose={ImagePurpose.PRINT_LOGO}
+                label={t("admin.settings.store.logos.printLogo")}
+                hint={t("admin.settings.store.logos.printLogoHelp")}
+                onUploaded={(url) => handleSaveStoreLogo({ printLogoUrl: url })}
+                disabled={updateSettings.isPending}
+                previewClassName="h-20 w-40 bg-white"
+              />
+            </CardContent>
+          </Card>
+
           {settingsQuery.isLoading ? (
             <TableSkeleton rows={3} columns={1} />
           ) : settingsQuery.isError ? (
@@ -672,6 +724,8 @@ export default function AdminSettings() {
             onEnableFamily={handleEnableFamily}
             onEnableBrand={handleEnableBrand}
             onEnableModel={handleEnableModel}
+            onSetFamilyIcon={handleSetFamilyIcon}
+            onSetBrandLogo={handleSetBrandLogo}
           />
         </TabsContent>
 
