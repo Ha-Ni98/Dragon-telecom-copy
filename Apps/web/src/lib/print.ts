@@ -1,8 +1,14 @@
-// S25/S27 — printing thermal artefacts via the browser's own print dialog, never a PDF. Three
-// callers across two page sizes: the POS receipt (PosReceiptView) and the repair receipt
-// (RepairReceipt) both print at 80mm and mark their root with RECEIPT_ROOT_CLASS; the barcode
-// label sheet (BarcodeLabelSheet, S27) prints at a size chosen per run and is portaled into
-// getLabelPrintPortal() below.
+// S25/S27 — printing thermal artefacts via the browser's own print dialog, never a PDF. The POS
+// receipt (PosReceiptView) and the repair receipt (RepairReceipt) both print at 80mm and mark
+// their root with RECEIPT_ROOT_CLASS; the barcode label sheet (BarcodeLabelSheet, S27) prints at
+// a size chosen per run and is portaled into getLabelPrintPortal() below. Three dialogs drive the
+// label path since S27.1 added the repair client label.
+//
+// S27.1 — everything here is now the FALLBACK path, not the only path. When a local print helper
+// is reachable, lib/print-bridge.ts sends ZPL/ESC-POS straight to the hardware and these functions
+// are never called; they run when there is no helper, when the operator chose Browser, or when a
+// thermal send failed. Nothing in this file knows about that — callers decide, so this stays the
+// simple, always-works path it has always been.
 //
 // `@page` is a document-level at-rule: it cannot be scoped by a class or an :is()/:has() selector.
 // So the page size is injected as a <style> element for the duration of one print and removed
