@@ -117,6 +117,13 @@ export const qk = {
     settings: () => ["platform", "settings"] as const,
     publicSettings: () => ["platform", "public-settings"] as const,
   },
+  // S27.1 — the local print helper's availability. Not a backend resource, but it is fetched
+  // state shared by every print button on a page, so it belongs in the cache rather than in a
+  // per-component effect (the rules forbid effect-fetching, and a shared key dedupes the probe
+  // between a label dialog and the receipt button on the same screen).
+  printBridge: {
+    status: () => ["print-bridge", "status"] as const,
+  },
   orders: {
     all: () => ["orders"] as const,
     mine: (query?: unknown) => ["orders", "mine", query] as const,

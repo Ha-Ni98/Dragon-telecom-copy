@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Printer } from "lucide-react";
+import { toast } from "sonner";
 import {
   BARCODE_LABEL_MAX_QUANTITY,
   BARCODE_LABEL_SHEET_MAX_TOTAL,
@@ -30,7 +31,12 @@ import { useBarcodeLookup } from "@/hooks/useCatalogProducts";
 import { usePlatformSettings } from "@/hooks/usePlatform";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLabelSize } from "@/hooks/use-label-size";
+import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
 import { printLabelSheet } from "@/lib/print";
+import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
+import { buildZplBatch } from "@/lib/zpl";
+import { PRINT_BRIDGE_DEFAULT_LABEL_DPI } from "@/types/print-bridge.types";
+import { PrinterModeField } from "@/components/shared/printer-mode-field";
 import { renderBarcodeSvg } from "@/lib/barcode-svg";
 import { BarcodeLabelSheet, type LabelSheetItem } from "@/components/shared/barcode-label-sheet";
 import { LabelSizeField } from "@/components/shared/label-size-field";
@@ -89,6 +95,9 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
   const productIds = useMemo(() => invoice.lines.map((line) => line.productId), [invoice.lines]);
   const lookup = useBarcodeLookup(productIds, { enabled: open });
   const [size, setSize] = useLabelSize();
+  const [mode, setMode] = usePrinterMode();
+  const { available: bridgeAvailable } = usePrintBridgeStatus();
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const settings = usePlatformSettings();
   // Both halves are optional: no settings yet, or a supplier whose name has no usable characters,
@@ -172,8 +181,51 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
     return maxModules > 0 ? barcodeAreaMm / maxModules : undefined;
   }, [printableLines, size, trimmedStoreName]);
 
-  const handlePrint = () => {
-    printLabelSheet(size.widthMm, size.heightMm);
+  // S27.1 — thermal first, browser fallback. The early return is deliberately synchronous:
+  // `window.print()` after an `await` leaves the user-gesture task.
+  //
+  // One POST for the whole invoice: buildZplBatch emits one ^XA…^XZ block per line, each with its
+  // own ^PQ, so a 14-line invoice is a single job rather than fourteen round-trips.
+  const handlePrint = async () => {
+    const browserFallback = () => printLabelSheet(size.widthMm, size.heightMm);
+
+    if (mode === "browser" || bridgeAvailable !== true) {
+      browserFallback();
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      const zpl = buildZplBatch(
+        printItems.map((item) => ({
+          barcode: item.barcode,
+          totalModules: renderBarcodeSvg(item.barcode).totalModules,
+          widthMm: size.widthMm,
+          heightMm: size.heightMm,
+          copies: item.quantity,
+          dpi: PRINT_BRIDGE_DEFAULT_LABEL_DPI,
+          ...(item.topText != null && item.topText !== "" ? { topText: item.topText } : {}),
+          ...(trimmedStoreName !== "" ? { storeName: trimmedStoreName } : {}),
+        })),
+      );
+      const outcome = await printOrFallback(
+        {
+          jobId: newJobId(),
+          target: "label",
+          language: "ZPL",
+          encoding: "base64",
+          payload: bytesToBase64(new TextEncoder().encode(zpl)),
+          // ^PQ inside each block already carries the per-line count; the helper must send a ZPL
+          // payload exactly once.
+          copies: 1,
+        },
+        browserFallback,
+      );
+      if (outcome === "bridge") toast.success(t("common.print.bridge.sent"));
+      else toast.warning(t("common.print.bridge.fallback"));
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   return (
@@ -264,6 +316,8 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
 
           <LabelSizeField value={size} onChange={setSize} moduleMm={moduleMm} />
 
+          <PrinterModeField value={mode} onChange={setMode} bridgeAvailable={bridgeAvailable} />
+
           <div className="space-y-1 text-xs text-muted-foreground">
             {skippedCount > 0 && (
               <p>{t("admin.supplierInvoices.printLabels.skipped", { count: skippedCount })}</p>
@@ -284,7 +338,10 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {t("common.actions.cancel")}
             </Button>
-            <Button onClick={handlePrint} disabled={printableLines.length === 0 || overLimit}>
+            <Button
+              onClick={handlePrint}
+              disabled={printableLines.length === 0 || overLimit || isPrinting}
+            >
               <Printer className="mr-2 h-4 w-4" />
               {t("admin.productsList.printLabels.print")}
             </Button>

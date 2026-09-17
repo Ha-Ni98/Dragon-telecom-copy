@@ -6,6 +6,9 @@ import {
   LABEL_PADDING_MM,
   LABEL_STORE_COLUMN_MM,
   LABEL_STORE_GAP_MM,
+  LABEL_TEXT_BLOCK_MAX_PCT,
+  REPAIR_LABEL_LINE_HEIGHT,
+  REPAIR_LABEL_TEXT_PT,
   type LabelSize,
 } from "@/types/label-print.types";
 
@@ -13,6 +16,10 @@ export interface LabelSheetItem {
   barcode: string;
   quantity: number;
   topText?: string;
+  /** S27.1 — stacked raw-text lines above the symbol, used by the repair client label (name,
+   *  phone, device, problem). `topText` stays the single centred caption the product and
+   *  supplier-invoice labels use; a caller supplies one or the other, not both. */
+  textLines?: string[];
 }
 
 interface BarcodeLabelSheetProps {
@@ -26,6 +33,9 @@ interface BarcodeLabelSheetProps {
 // re-declared in types/label-print.types.ts so the printed label keeps the same layout the owner
 // approved. Structurally identical to barcode-label.tsx's on-screen preview — the two must be
 // kept in step — but this component renders ALL copies for a print run, not just one preview.
+//
+// S27.1 — a THIRD renderer of the same label now exists, lib/zpl.ts, for the thermal path. All
+// three must agree. This one is the browser-print fallback.
 //
 // Rendered via a React portal into lib/print.ts's getLabelPrintPortal() — a div appended directly
 // to <body>, outside #root — rather than in place in the component tree. This is NOT the
@@ -66,6 +76,7 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
         Array.from({ length: item.quantity }, (_, copy) => {
           const svg = svgByBarcode.get(item.barcode) ?? "";
           const topText = item.topText?.trim();
+          const textLines = item.textLines?.filter((line) => line.trim() !== "") ?? [];
           return (
             <div
               key={`${index}-${copy}`}
@@ -142,6 +153,36 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
                   >
                     {topText}
                   </span>
+                ) : null}
+
+                {/* S27.1 — the repair label's raw-text block. `flex: 0 1 auto` + a maxHeight cap
+                    (not `0 0 auto`) is load-bearing: it lets the block SHRINK rather than push the
+                    symbol out of the label, so the barcode is structurally guaranteed the
+                    remaining height at any label size. That is a scan-safety floor, not styling —
+                    a clipped text line is recoverable, an unscannable barcode is not. */}
+                {textLines.length > 0 ? (
+                  <div
+                    style={{
+                      flex: "0 1 auto",
+                      maxHeight: `${LABEL_TEXT_BLOCK_MAX_PCT}%`,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {textLines.map((line, lineIndex) => (
+                      <div
+                        key={lineIndex}
+                        style={{
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          fontSize: `${REPAIR_LABEL_TEXT_PT}pt`,
+                          lineHeight: REPAIR_LABEL_LINE_HEIGHT,
+                        }}
+                      >
+                        {line}
+                      </div>
+                    ))}
+                  </div>
                 ) : null}
                 {/* flex:1 + minHeight:0 gives this wrapper a DEFINITE resolved height — required
                     for the injected <svg>'s own height:100% (set in lib/barcode-svg.ts) to mean

@@ -15263,5 +15263,60 @@
     "en": "Some products can't be ordered right now and are left out of this order.",
     "fr": "Certains produits ne peuvent pas être commandés pour le moment et sont exclus de cette commande.",
     "ar": ""
+  },
+  "staff.repairs.label.print": {
+    "en": "Print label",
+    "fr": "Imprimer l'étiquette",
+    "ar": ""
+  },
+  "staff.repairs.label.dialogTitle": {
+    "en": "Client label",
+    "fr": "Étiquette client",
+    "ar": ""
+  },
+  "staff.repairs.label.preview": {
+    "en": "Preview",
+    "fr": "Aperçu",
+    "ar": ""
+  },
+  "staff.repairs.label.quantityLabel": {
+    "en": "Number of labels",
+    "fr": "Nombre d'étiquettes",
+    "ar": ""
+  },
+  "common.print.mode.label": {
+    "en": "Printer",
+    "fr": "Imprimante",
+    "ar": ""
+  },
+  "common.print.mode.thermal": {
+    "en": "Thermal printer",
+    "fr": "Imprimante thermique",
+    "ar": ""
+  },
+  "common.print.mode.browser": {
+    "en": "Browser",
+    "fr": "Navigateur",
+    "ar": ""
+  },
+  "common.print.bridge.detected": {
+    "en": "Local print helper detected.",
+    "fr": "Assistant d'impression local détecté.",
+    "ar": ""
+  },
+  "common.print.bridge.missing": {
+    "en": "Local print helper not detected — printing will use the browser.",
+    "fr": "Assistant d'impression local introuvable — l'impression passera par le navigateur.",
+    "ar": ""
+  },
+  "common.print.bridge.sent": {
+    "en": "Sent to the thermal printer.",
+    "fr": "Envoyé à l'imprimante thermique.",
+    "ar": ""
+  },
+  "common.print.bridge.fallback": {
+    "en": "Thermal printer unreachable — printing via the browser.",
+    "fr": "Imprimante thermique injoignable — impression via le navigateur.",
+    "ar": ""
   }
 }
