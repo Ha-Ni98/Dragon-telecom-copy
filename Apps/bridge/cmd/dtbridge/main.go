@@ -8,13 +8,16 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"dragon-telecom/bridge/internal/config"
+	"dragon-telecom/bridge/internal/device"
 	"dragon-telecom/bridge/internal/httpapi"
 	"dragon-telecom/bridge/internal/job"
 	"dragon-telecom/bridge/internal/logging"
@@ -70,10 +73,20 @@ func run(args []string) error {
 		"receipt", cfg.Printers.Receipt,
 	)
 
+	prober := device.NewProber(device.DefaultProbeInterval)
+	registerProbe(prober, "label", cfg.Printers.Label)
+	registerProbe(prober, "receipt", cfg.Printers.Receipt)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	go prober.Run(ctx)
+
 	// stubSink stands in for internal/queue (Sprint 5), which itself writes through
-	// internal/device (Sprint 3). Nothing reaches a real printer yet — every accepted job is
-	// logged and dropped. Replaced with the real queue once both layers exist.
-	api := httpapi.New(cfg, logger, stubSink{logger: logger}, version)
+	// internal/device via the Writer backends built in Sprint 3. Nothing reaches a real printer
+	// yet — every accepted job is logged and dropped. Replaced with the real queue once both
+	// layers exist.
+	api := httpapi.New(cfg, logger, stubSink{logger: logger}, version, httpapi.WithConnected(prober.Connected))
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
@@ -82,9 +95,6 @@ func run(args []string) error {
 		WriteTimeout: writeTimeout,
 		IdleTimeout:  idleTimeout,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	serveErr := make(chan error, 1)
 	go func() {
@@ -113,6 +123,20 @@ func run(args []string) error {
 			return fmt.Errorf("serve: %w", err)
 		}
 		return nil
+	}
+}
+
+// registerProbe wires a background connectivity check for target, matching its configured
+// transport. "spooler" has no check yet — the Windows spooler backend arrives in Sprint 4 — so
+// that target is left unregistered and Prober.Connected reports false for it, honestly, rather
+// than guessing.
+func registerProbe(p *device.Prober, target string, printer config.PrinterConfig) {
+	switch printer.Transport {
+	case "tcp":
+		addr := net.JoinHostPort(printer.Host, strconv.Itoa(printer.Port))
+		p.Register(target, device.TCPCheck(addr, device.DefaultProbeTimeout))
+	case "file":
+		p.Register(target, device.FileCheck(printer.Path))
 	}
 }
 
