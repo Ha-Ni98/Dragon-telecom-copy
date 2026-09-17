@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"log/slog"
@@ -158,6 +159,92 @@ func TestQueue_RewriteAppliedBeforeWrite(t *testing.T) {
 	_, writes, _ := w.snapshot()
 	if string(writes[0]) != "hi!" {
 		t.Errorf("write = %q, want the rewritten payload", writes[0])
+	}
+}
+
+func TestQueue_LogoPrependedBeforePayload(t *testing.T) {
+	w := &fakeWriter{closeDone: make(chan struct{}, 10)}
+	logo := func(jobID, logoURL string) []byte {
+		if jobID != "j1" || logoURL != "https://example.com/logo.png" {
+			t.Errorf("Logo called with jobID=%q logoURL=%q", jobID, logoURL)
+		}
+		return []byte("LOGO")
+	}
+	q := New(testLogger(), map[string]Target{"receipt": {Writer: w, Logo: logo}}, DefaultDepth)
+	defer q.Stop()
+
+	err := q.Submit(job.Job{ID: "j1", Target: "receipt", Language: "ESCPOS", Payload: []byte("body"), Copies: 1, LogoURL: "https://example.com/logo.png"})
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	waitForClose(t, w.closeDone)
+
+	_, writes, _ := w.snapshot()
+	if len(writes) != 1 || string(writes[0]) != "LOGObody" {
+		t.Errorf("write = %q, want logo block prepended to the payload", writes)
+	}
+}
+
+func TestQueue_NilLogoBlockLeavesPayloadUnchanged(t *testing.T) {
+	// Fail-open: Logo returning nil/empty (the normal case — no logoUrl, or the fetch failed)
+	// must not add so much as a byte.
+	w := &fakeWriter{closeDone: make(chan struct{}, 10)}
+	logo := func(jobID, logoURL string) []byte { return nil }
+	q := New(testLogger(), map[string]Target{"receipt": {Writer: w, Logo: logo}}, DefaultDepth)
+	defer q.Stop()
+
+	if err := q.Submit(job.Job{ID: "j1", Target: "receipt", Language: "ESCPOS", Payload: []byte("body"), Copies: 1}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	waitForClose(t, w.closeDone)
+
+	_, writes, _ := w.snapshot()
+	if string(writes[0]) != "body" {
+		t.Errorf("write = %q, want the unmodified payload", writes[0])
+	}
+}
+
+func TestQueue_LogoRepeatsPerCopy(t *testing.T) {
+	w := &fakeWriter{closeDone: make(chan struct{}, 10)}
+	logo := func(jobID, logoURL string) []byte { return []byte("L") }
+	q := New(testLogger(), map[string]Target{"receipt": {Writer: w, Logo: logo}}, DefaultDepth)
+	defer q.Stop()
+
+	if err := q.Submit(job.Job{ID: "j1", Target: "receipt", Language: "ESCPOS", Payload: []byte("b"), Copies: 3, LogoURL: "x"}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	waitForClose(t, w.closeDone)
+
+	_, writes, _ := w.snapshot()
+	if len(writes) != 3 {
+		t.Fatalf("got %d writes, want 3", len(writes))
+	}
+	for i, wr := range writes {
+		if string(wr) != "Lb" {
+			t.Errorf("write %d = %q, want the logo+payload pair each time", i, wr)
+		}
+	}
+}
+
+func TestQueue_LogoNeverPassesThroughRewrite(t *testing.T) {
+	// Rewrite must only ever see the web's own payload, never the logo's binary raster bytes —
+	// codePage transcoding on raw pixel data would corrupt it. Simulate this with a Rewrite that
+	// would visibly corrupt anything unexpected: it upper-cases its input, so if the logo bytes
+	// ever reached it, "logo" would come back as "LOGO" instead of staying lowercase.
+	w := &fakeWriter{closeDone: make(chan struct{}, 10)}
+	rewrite := func(payload []byte) []byte { return bytes.ToUpper(payload) }
+	logo := func(jobID, logoURL string) []byte { return []byte("logo") }
+	q := New(testLogger(), map[string]Target{"receipt": {Writer: w, Rewrite: rewrite, Logo: logo}}, DefaultDepth)
+	defer q.Stop()
+
+	if err := q.Submit(job.Job{ID: "j1", Target: "receipt", Language: "ESCPOS", Payload: []byte("body"), Copies: 1, LogoURL: "x"}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	waitForClose(t, w.closeDone)
+
+	_, writes, _ := w.snapshot()
+	if string(writes[0]) != "logoBODY" {
+		t.Errorf("write = %q, want the lowercase logo bytes untouched and only the payload rewritten", writes[0])
 	}
 }
 

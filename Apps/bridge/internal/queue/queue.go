@@ -21,11 +21,18 @@ const DefaultDepth = 16
 // page). nil means "auto": leave the web's bytes untouched.
 type RewriteFunc func(payload []byte) []byte
 
-// Target bundles what one worker needs for its printer: the device to write to, and how to
-// rewrite a payload before writing.
+// LogoFunc returns the ESC/POS raster block to prepend ahead of a job's payload, or nil for "no
+// logo" — always fail-open (see internal/logo.Builder.Build); writeJob never inspects why a logo
+// was skipped, it just doesn't prepend one. nil means this target never attempts a logo at all
+// (labels, or a receipt printer with logo.enabled: false).
+type LogoFunc func(jobID, logoURL string) []byte
+
+// Target bundles what one worker needs for its printer: the device to write to, how to rewrite a
+// payload before writing, and how to build a logo block to prepend.
 type Target struct {
 	Writer  device.Writer
 	Rewrite RewriteFunc
+	Logo    LogoFunc
 }
 
 // Queue owns one worker goroutine per configured target and implements httpapi.Sink.
@@ -97,6 +104,19 @@ func writeJob(logger *slog.Logger, target string, t Target, j job.Job) {
 	payload := j.Payload
 	if t.Rewrite != nil {
 		payload = t.Rewrite(payload)
+	}
+
+	// Logo prepending happens AFTER Rewrite, deliberately: the logo block is raw binary pixel
+	// data, not CP437 text, and must never pass through RewriteCodePage's transcode — only the
+	// web's own payload is text. Prepending (not appending) means a copies>1 loop below repeats
+	// the whole logoBlock+payload pair per copy, matching print-bridge-plan-v1.md §5.
+	if t.Logo != nil {
+		if block := t.Logo(j.ID, j.LogoURL); len(block) > 0 {
+			combined := make([]byte, 0, len(block)+len(payload))
+			combined = append(combined, block...)
+			combined = append(combined, payload...)
+			payload = combined
+		}
 	}
 
 	n := copiesFor(j.Language, j.Copies)

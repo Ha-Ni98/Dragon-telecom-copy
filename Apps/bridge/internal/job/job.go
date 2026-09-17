@@ -9,6 +9,12 @@ import (
 
 // Request is the wire shape of POST /print's body, exactly as print-bridge-protocol.md specifies
 // and as Apps/web/src/types/print-bridge.types.ts's PrintJob sends it.
+//
+// LogoURL is a protocol 1.1 addition (print-bridge-plan-v1.md §3 G3) — optional and backward
+// compatible in both directions: an old web client simply never sends it (json.Unmarshal leaves
+// it as ""), and this helper already treats "" as "no logo" (see internal/logo.Builder.Build),
+// so Sprint 6 can ship the whole logo pipeline before Sprint 7's web-side change exists to
+// populate the field.
 type Request struct {
 	JobID    string `json:"jobId"`
 	Target   string `json:"target"`
@@ -16,6 +22,7 @@ type Request struct {
 	Encoding string `json:"encoding"`
 	Payload  string `json:"payload"`
 	Copies   int    `json:"copies"`
+	LogoURL  string `json:"logoUrl,omitempty"`
 }
 
 // Job is a validated, decoded Request — what the dedupe check and the sink operate on.
@@ -25,6 +32,7 @@ type Job struct {
 	Language string
 	Payload  []byte
 	Copies   int
+	LogoURL  string
 }
 
 // ValidationError is any rejection of a Request. Its Error() is sent verbatim as the "error"
@@ -84,5 +92,6 @@ func FromRequest(req Request, expectedLanguage map[string]string) (Job, error) {
 		Language: req.Language,
 		Payload:  payload,
 		Copies:   req.Copies,
+		LogoURL:  req.LogoURL,
 	}, nil
 }

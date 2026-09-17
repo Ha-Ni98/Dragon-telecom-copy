@@ -87,3 +87,29 @@ func TestFromRequest_ESCPOSMatchesReceipt(t *testing.T) {
 		t.Errorf("Copies = %d, want 3", j.Copies)
 	}
 }
+
+func TestFromRequest_LogoURLRoundTrips(t *testing.T) {
+	req := validZPL()
+	req.Target, req.Language = "receipt", "ESCPOS"
+	req.LogoURL = "https://r2.example.com/store-logo.png"
+
+	j, err := FromRequest(req, languages)
+	if err != nil {
+		t.Fatalf("FromRequest: %v", err)
+	}
+	if j.LogoURL != req.LogoURL {
+		t.Errorf("LogoURL = %q, want %q", j.LogoURL, req.LogoURL)
+	}
+}
+
+func TestFromRequest_AbsentLogoURLIsEmpty(t *testing.T) {
+	// No LogoURL set at all — the Sprint 7 web change doesn't exist yet in this test's world, and
+	// that must not be a validation error (protocol 1.1 backward compatibility, see job.go).
+	j, err := FromRequest(validZPL(), languages)
+	if err != nil {
+		t.Fatalf("FromRequest: %v", err)
+	}
+	if j.LogoURL != "" {
+		t.Errorf("LogoURL = %q, want empty", j.LogoURL)
+	}
+}

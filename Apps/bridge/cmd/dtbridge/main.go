@@ -7,6 +7,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -20,17 +21,19 @@ import (
 	"dragon-telecom/bridge/internal/escpos"
 	"dragon-telecom/bridge/internal/httpapi"
 	"dragon-telecom/bridge/internal/logging"
+	"dragon-telecom/bridge/internal/logo"
 	"dragon-telecom/bridge/internal/queue"
 )
 
 const version = "1.0.0"
 
 const (
-	readTimeout      = 5 * time.Second
-	writeTimeout     = 5 * time.Second
-	idleTimeout      = 60 * time.Second
-	shutdownWait     = 3 * time.Second
-	defaultDryRunDir = "dtbridge-dry-run"
+	readTimeout         = 5 * time.Second
+	writeTimeout        = 5 * time.Second
+	idleTimeout         = 60 * time.Second
+	shutdownWait        = 3 * time.Second
+	defaultDryRunDir    = "dtbridge-dry-run"
+	defaultLogoCacheDir = "dtbridge-logo-cache"
 )
 
 func main() {
@@ -49,6 +52,7 @@ func run(args []string) error {
 	configPath := fs.String("config", "config.json", "path to config.json")
 	dryRun := fs.Bool("dry-run", false, "capture print jobs to .bin files instead of writing to a real device")
 	dryRunDir := fs.String("dry-run-dir", defaultDryRunDir, "directory .bin files are written to under --dry-run")
+	logoCacheDir := fs.String("logo-cache-dir", defaultLogoCacheDir, "directory rastered logos are cached in (\"\" disables the on-disk cache)")
 	showVersion := fs.Bool("version", false, "print version and exit")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -97,6 +101,7 @@ func run(args []string) error {
 		"receipt": {
 			Writer:  newDeviceWriter(cfg.Printers.Receipt, "receipt", *dryRun, *dryRunDir),
 			Rewrite: newReceiptRewrite(cfg.Printers.Receipt),
+			Logo:    newLogoFunc(logger, cfg.Printers.Receipt, *logoCacheDir),
 		},
 	}
 	q := queue.New(logger, targets, queue.DefaultDepth)
@@ -174,6 +179,19 @@ func newReceiptRewrite(printer config.PrinterConfig) queue.RewriteFunc {
 		payload = escpos.RewriteCodePage(payload, codePage)
 		return payload
 	}
+}
+
+// newLogoFunc wires the logo pipeline for the receipt target, or returns nil if logos are off —
+// no Logo config block at all, or logo.enabled: false. A nil queue.LogoFunc means writeJob never
+// attempts a logo for this target, regardless of what a job's LogoURL says; this is the one place
+// "logo.enabled: false" (one of the fail-open triggers print-bridge-plan-v1.md §5 lists) is
+// actually enforced — logo.Builder itself has no enabled/disabled concept.
+func newLogoFunc(logger *slog.Logger, printer config.PrinterConfig, cacheDir string) queue.LogoFunc {
+	if printer.Logo == nil || !printer.Logo.Enabled {
+		return nil
+	}
+	builder := logo.NewBuilder(logger, printer.Logo.MaxWidthDots, printer.WidthDots, printer.Logo.Threshold, cacheDir)
+	return builder.Build
 }
 
 // registerProbe wires a background connectivity check for target, matching its configured
