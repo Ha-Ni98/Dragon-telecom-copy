@@ -171,3 +171,5 @@ it to a canvas, thresholding to 1-bit and bit-packing — and `getImageData` thr
 image unless the bucket sends CORS headers, which could not be verified. If the logo is wanted
 later, the **helper** is the better home: it can fetch the URL server-side with no CORS constraint,
 convert once and cache.
+
+N.B: after verefication the R2 image storage have no CORS constraint, in other words, any url of a stored images is public.
