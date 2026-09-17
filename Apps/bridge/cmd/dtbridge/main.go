@@ -7,15 +7,27 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"dragon-telecom/bridge/internal/config"
+	"dragon-telecom/bridge/internal/httpapi"
+	"dragon-telecom/bridge/internal/job"
 	"dragon-telecom/bridge/internal/logging"
 )
 
 const version = "1.0.0"
+
+const (
+	readTimeout  = 5 * time.Second
+	writeTimeout = 5 * time.Second
+	idleTimeout  = 60 * time.Second
+	shutdownWait = 3 * time.Second
+)
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -58,14 +70,61 @@ func run(args []string) error {
 		"receipt", cfg.Printers.Receipt,
 	)
 
-	// /status and /print land here in Sprint 2; Sprint 1 only proves the process starts, loads a
-	// valid config, and shuts down cleanly.
+	// stubSink stands in for internal/queue (Sprint 5), which itself writes through
+	// internal/device (Sprint 3). Nothing reaches a real printer yet — every accepted job is
+	// logged and dropped. Replaced with the real queue once both layers exist.
+	api := httpapi.New(cfg, logger, stubSink{logger: logger}, version)
+
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%d", cfg.Port),
+		Handler:      api.Handler(),
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
+		IdleTimeout:  idleTimeout,
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info("dtbridge ready — press Ctrl+C to stop")
-	<-ctx.Done()
-	logger.Info("shutting down")
+	serveErr := make(chan error, 1)
+	go func() {
+		logger.Info("listening", "addr", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serveErr <- err
+			return
+		}
+		serveErr <- nil
+	}()
 
+	logger.Info("dtbridge ready — press Ctrl+C to stop")
+
+	select {
+	case <-ctx.Done():
+		logger.Info("shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownWait)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("shutdown: %w", err)
+		}
+		<-serveErr
+		return nil
+	case err := <-serveErr:
+		if err != nil {
+			return fmt.Errorf("serve: %w", err)
+		}
+		return nil
+	}
+}
+
+// stubSink is the temporary Sink used until Sprint 5 wires the real queue. It never fails, so
+// every well-formed job comes back 200 {"ok":true} from the web's point of view — but nothing is
+// actually written to a device yet.
+type stubSink struct {
+	logger *slog.Logger
+}
+
+func (s stubSink) Submit(j job.Job) error {
+	s.logger.Info("job accepted (no device layer wired yet — payload dropped, see Sprint 3/5)",
+		"jobId", j.ID, "target", j.Target, "language", j.Language, "copies", j.Copies, "bytes", len(j.Payload))
 	return nil
 }

@@ -1,0 +1,89 @@
+package job
+
+import (
+	"encoding/base64"
+	"errors"
+	"strings"
+	"testing"
+)
+
+var languages = map[string]string{"label": "ZPL", "receipt": "ESCPOS"}
+
+func validZPL() Request {
+	return Request{
+		JobID:    "job-1",
+		Target:   "label",
+		Language: "ZPL",
+		Encoding: "base64",
+		Payload:  base64.StdEncoding.EncodeToString([]byte("^XA^XZ")),
+		Copies:   1,
+	}
+}
+
+func TestFromRequest_Valid(t *testing.T) {
+	j, err := FromRequest(validZPL(), languages)
+	if err != nil {
+		t.Fatalf("FromRequest: %v", err)
+	}
+	if j.ID != "job-1" || j.Target != "label" || j.Language != "ZPL" || j.Copies != 1 {
+		t.Errorf("unexpected job: %+v", j)
+	}
+	if string(j.Payload) != "^XA^XZ" {
+		t.Errorf("Payload = %q, want decoded bytes", j.Payload)
+	}
+}
+
+func TestFromRequest_Rejections(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*Request)
+		wantSub string
+	}{
+		{"empty jobId", func(r *Request) { r.JobID = "" }, "jobId is required"},
+		{"unknown target", func(r *Request) { r.Target = "cash-drawer" }, "target must be"},
+		{"unknown language", func(r *Request) { r.Language = "PCL" }, "language must be"},
+		{"language mismatch", func(r *Request) { r.Language = "ESCPOS" }, "language mismatch"},
+		{"bad encoding", func(r *Request) { r.Encoding = "utf8" }, "encoding must be"},
+		{"bad base64", func(r *Request) { r.Payload = "not-base64!!!" }, "not valid base64"},
+		{"empty payload", func(r *Request) { r.Payload = "" }, "must not be empty"},
+		{"zero copies", func(r *Request) { r.Copies = 0 }, "copies must be at least 1"},
+		{"negative copies", func(r *Request) { r.Copies = -3 }, "copies must be at least 1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := validZPL()
+			tt.mutate(&req)
+
+			_, err := FromRequest(req, languages)
+			if err == nil {
+				t.Fatalf("expected an error, got none")
+			}
+			var ve *ValidationError
+			if !errors.As(err, &ve) {
+				t.Errorf("error is %T, want *ValidationError", err)
+			}
+			if got := err.Error(); !strings.Contains(got, tt.wantSub) {
+				t.Errorf("error = %q, want it to contain %q", got, tt.wantSub)
+			}
+		})
+	}
+}
+
+func TestFromRequest_ESCPOSMatchesReceipt(t *testing.T) {
+	req := Request{
+		JobID:    "job-2",
+		Target:   "receipt",
+		Language: "ESCPOS",
+		Encoding: "base64",
+		Payload:  base64.StdEncoding.EncodeToString([]byte{0x1b, 0x40}),
+		Copies:   3,
+	}
+	j, err := FromRequest(req, languages)
+	if err != nil {
+		t.Fatalf("FromRequest: %v", err)
+	}
+	if j.Copies != 3 {
+		t.Errorf("Copies = %d, want 3", j.Copies)
+	}
+}
