@@ -40,6 +40,10 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "list-printers" {
+		return runListPrinters(args[1:])
+	}
+
 	fs := flag.NewFlagSet("dtbridge", flag.ContinueOnError)
 	configPath := fs.String("config", "config.json", "path to config.json")
 	dryRun := fs.Bool("dry-run", false, "write print jobs to .bin files instead of a real device")
@@ -127,9 +131,7 @@ func run(args []string) error {
 }
 
 // registerProbe wires a background connectivity check for target, matching its configured
-// transport. "spooler" has no check yet — the Windows spooler backend arrives in Sprint 4 — so
-// that target is left unregistered and Prober.Connected reports false for it, honestly, rather
-// than guessing.
+// transport.
 func registerProbe(p *device.Prober, target string, printer config.PrinterConfig) {
 	switch printer.Transport {
 	case "tcp":
@@ -137,7 +139,32 @@ func registerProbe(p *device.Prober, target string, printer config.PrinterConfig
 		p.Register(target, device.TCPCheck(addr, device.DefaultProbeTimeout))
 	case "file":
 		p.Register(target, device.FileCheck(printer.Path))
+	case "spooler":
+		p.Register(target, device.SpoolerCheck(printer.QueueName))
 	}
+}
+
+// runListPrinters implements `dtbridge list-printers`: lists installed Windows printer queues so
+// a shop technician can copy the exact name into config.json's queueName rather than guessing at
+// it. Off Windows, device.ListPrinters always errors — there is no spooler to enumerate.
+func runListPrinters(args []string) error {
+	fs := flag.NewFlagSet("dtbridge list-printers", flag.ContinueOnError)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	names, err := device.ListPrinters()
+	if err != nil {
+		return fmt.Errorf("list printers: %w", err)
+	}
+	if len(names) == 0 {
+		fmt.Println("no printers found")
+		return nil
+	}
+	for _, name := range names {
+		fmt.Println(name)
+	}
+	return nil
 }
 
 // stubSink is the temporary Sink used until Sprint 5 wires the real queue. It never fails, so

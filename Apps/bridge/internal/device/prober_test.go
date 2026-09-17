@@ -2,6 +2,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -112,6 +113,25 @@ func TestTCPCheck(t *testing.T) {
 	checkAfterClose := TCPCheck(ln.Addr().String(), 200*time.Millisecond)
 	if checkAfterClose() {
 		t.Error("TCPCheck should report false once nothing is listening")
+	}
+}
+
+func TestSpoolerCheck_MatchesByExactName(t *testing.T) {
+	list := func() ([]string, error) { return []string{"ZDesigner GK420d", "Microsoft XPS"}, nil }
+
+	if !spoolerCheck(list, "ZDesigner GK420d")() {
+		t.Error("expected an exact name match to report true")
+	}
+	if spoolerCheck(list, "Not Installed")() {
+		t.Error("expected a non-matching name to report false")
+	}
+}
+
+func TestSpoolerCheck_ListErrorReportsFalse(t *testing.T) {
+	list := func() ([]string, error) { return nil, errors.New("boom") }
+
+	if spoolerCheck(list, "anything")() {
+		t.Error("expected a lister error to report false, not fabricate true")
 	}
 }
 

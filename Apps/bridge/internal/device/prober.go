@@ -99,3 +99,28 @@ func FileCheck(path string) func() bool {
 		return err == nil
 	}
 }
+
+// SpoolerCheck reports whether queueName currently appears among the installed Windows printer
+// queues (ListPrinters, from spooler_windows.go). Off Windows, ListPrinters always errors — see
+// spooler_other.go — so this correctly and honestly reports false there: there is no spooler to
+// check, not a fabricated true.
+func SpoolerCheck(queueName string) func() bool {
+	return spoolerCheck(ListPrinters, queueName)
+}
+
+// spoolerCheck takes the lister as a parameter purely so the matching/error logic above is
+// testable on any OS, without needing the real (Windows-only) ListPrinters.
+func spoolerCheck(list func() ([]string, error), queueName string) func() bool {
+	return func() bool {
+		names, err := list()
+		if err != nil {
+			return false
+		}
+		for _, n := range names {
+			if n == queueName {
+				return true
+			}
+		}
+		return false
+	}
+}
