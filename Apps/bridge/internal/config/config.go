@@ -15,6 +15,9 @@ var (
 	validLanguages  = []string{"ZPL", "ESCPOS"}
 	validTransports = []string{"spooler", "tcp", "file"}
 	validCutCmds    = []string{"auto", "GSV66", "GSV0", "GSV1", "none"}
+	// validCodePages matches internal/escpos.RewriteCodePage's supported targets exactly — kept
+	// here rather than imported from that package to avoid config depending on escpos.
+	validCodePages = []string{"CP437", "CP1252", "CP858"}
 )
 
 type LogoConfig struct {
@@ -204,6 +207,9 @@ func validatePrinter(field string, p *PrinterConfig, isLabel bool) []error {
 	}
 	if !slices.Contains(validCutCmds, p.CutCommand) {
 		errs = append(errs, fmt.Errorf("%s.cutCommand: must be one of %v, got %q", field, validCutCmds, p.CutCommand))
+	}
+	if p.CodePage != nil && !slices.Contains(validCodePages, *p.CodePage) {
+		errs = append(errs, fmt.Errorf("%s.codePage: must be one of %v or null, got %q", field, validCodePages, *p.CodePage))
 	}
 	if p.Logo != nil && (p.Logo.Threshold < 0 || p.Logo.Threshold > 255) {
 		errs = append(errs, fmt.Errorf("%s.logo.threshold: must be 0-255, got %d", field, p.Logo.Threshold))

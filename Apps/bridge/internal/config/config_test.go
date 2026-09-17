@@ -126,6 +126,27 @@ func TestValidate_RejectsUnknownLanguage(t *testing.T) {
 	}
 }
 
+func TestValidate_RejectsUnknownCodePage(t *testing.T) {
+	cfg := Default()
+	bad := "CP1250"
+	cfg.Printers.Receipt.CodePage = &bad
+
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "codePage") {
+		t.Fatalf("Validate() = %v, want a codePage error", err)
+	}
+}
+
+func TestValidate_NilCodePageIsValid(t *testing.T) {
+	cfg := Default()
+	cfg.Printers.Label.QueueName = "TestZebra"
+	cfg.Printers.Receipt.Host = "192.168.1.50"
+	cfg.Printers.Receipt.CodePage = nil // "auto" — leave the web's CP437 untouched
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("Validate() = %v, want nil codePage to be valid", err)
+	}
+}
+
 func TestValidate_RejectsUnknownCutCommand(t *testing.T) {
 	cfg := Default()
 	cfg.Printers.Receipt.CutCommand = "GSVBOGUS"

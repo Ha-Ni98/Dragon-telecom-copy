@@ -7,7 +7,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -18,18 +17,20 @@ import (
 
 	"dragon-telecom/bridge/internal/config"
 	"dragon-telecom/bridge/internal/device"
+	"dragon-telecom/bridge/internal/escpos"
 	"dragon-telecom/bridge/internal/httpapi"
-	"dragon-telecom/bridge/internal/job"
 	"dragon-telecom/bridge/internal/logging"
+	"dragon-telecom/bridge/internal/queue"
 )
 
 const version = "1.0.0"
 
 const (
-	readTimeout  = 5 * time.Second
-	writeTimeout = 5 * time.Second
-	idleTimeout  = 60 * time.Second
-	shutdownWait = 3 * time.Second
+	readTimeout      = 5 * time.Second
+	writeTimeout     = 5 * time.Second
+	idleTimeout      = 60 * time.Second
+	shutdownWait     = 3 * time.Second
+	defaultDryRunDir = "dtbridge-dry-run"
 )
 
 func main() {
@@ -46,7 +47,8 @@ func run(args []string) error {
 
 	fs := flag.NewFlagSet("dtbridge", flag.ContinueOnError)
 	configPath := fs.String("config", "config.json", "path to config.json")
-	dryRun := fs.Bool("dry-run", false, "write print jobs to .bin files instead of a real device")
+	dryRun := fs.Bool("dry-run", false, "capture print jobs to .bin files instead of writing to a real device")
+	dryRunDir := fs.String("dry-run-dir", defaultDryRunDir, "directory .bin files are written to under --dry-run")
 	showVersion := fs.Bool("version", false, "print version and exit")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -86,11 +88,21 @@ func run(args []string) error {
 
 	go prober.Run(ctx)
 
-	// stubSink stands in for internal/queue (Sprint 5), which itself writes through
-	// internal/device via the Writer backends built in Sprint 3. Nothing reaches a real printer
-	// yet — every accepted job is logged and dropped. Replaced with the real queue once both
-	// layers exist.
-	api := httpapi.New(cfg, logger, stubSink{logger: logger}, version, httpapi.WithConnected(prober.Connected))
+	targets := map[string]queue.Target{
+		"label": {
+			Writer: newDeviceWriter(cfg.Printers.Label, "label", *dryRun, *dryRunDir),
+			// No ZPL payload override exists in v1.0 — print-bridge-protocol.md's "^CI28" note is
+			// a known gap, not silently dropped; see the Sprint 5 report.
+		},
+		"receipt": {
+			Writer:  newDeviceWriter(cfg.Printers.Receipt, "receipt", *dryRun, *dryRunDir),
+			Rewrite: newReceiptRewrite(cfg.Printers.Receipt),
+		},
+	}
+	q := queue.New(logger, targets, queue.DefaultDepth)
+	defer q.Stop()
+
+	api := httpapi.New(cfg, logger, q, version, httpapi.WithConnected(prober.Connected))
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
@@ -130,6 +142,40 @@ func run(args []string) error {
 	}
 }
 
+// newDeviceWriter picks the Writer backend for one printer. --dry-run overrides the configured
+// transport entirely — every job for every target is captured to .bin files instead of touching
+// real hardware, regardless of what config.json says.
+func newDeviceWriter(printer config.PrinterConfig, target string, dryRun bool, dryRunDir string) device.Writer {
+	if dryRun {
+		return &device.DryRunWriter{Dir: dryRunDir, Target: target}
+	}
+	switch printer.Transport {
+	case "tcp":
+		return &device.TCPWriter{Host: printer.Host, Port: printer.Port}
+	case "file":
+		return &device.FileWriter{Path: printer.Path}
+	case "spooler":
+		return &device.SpoolerWriter{QueueName: printer.QueueName}
+	}
+	// Unreachable: config.Validate already rejects any transport outside this set.
+	panic(fmt.Sprintf("unknown transport %q", printer.Transport))
+}
+
+// newReceiptRewrite composes the two ESC/POS hardware overrides — cut command and code page —
+// into one queue.RewriteFunc. Both are independently "auto" (pass-through) unless configured, per
+// print-bridge-protocol.md's "Hardware-specific details the helper may need to override".
+func newReceiptRewrite(printer config.PrinterConfig) queue.RewriteFunc {
+	codePage := ""
+	if printer.CodePage != nil {
+		codePage = *printer.CodePage
+	}
+	return func(payload []byte) []byte {
+		payload = escpos.RewriteCut(payload, printer.CutCommand)
+		payload = escpos.RewriteCodePage(payload, codePage)
+		return payload
+	}
+}
+
 // registerProbe wires a background connectivity check for target, matching its configured
 // transport.
 func registerProbe(p *device.Prober, target string, printer config.PrinterConfig) {
@@ -164,18 +210,5 @@ func runListPrinters(args []string) error {
 	for _, name := range names {
 		fmt.Println(name)
 	}
-	return nil
-}
-
-// stubSink is the temporary Sink used until Sprint 5 wires the real queue. It never fails, so
-// every well-formed job comes back 200 {"ok":true} from the web's point of view — but nothing is
-// actually written to a device yet.
-type stubSink struct {
-	logger *slog.Logger
-}
-
-func (s stubSink) Submit(j job.Job) error {
-	s.logger.Info("job accepted (no device layer wired yet — payload dropped, see Sprint 3/5)",
-		"jobId", j.ID, "target", j.Target, "language", j.Language, "copies", j.Copies, "bytes", len(j.Payload))
 	return nil
 }
