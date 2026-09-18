@@ -23,7 +23,6 @@ import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
 import { printLabelSheet } from "@/lib/print";
 import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
 import { buildZplLabel } from "@/lib/zpl";
-import { PRINT_BRIDGE_DEFAULT_LABEL_DPI } from "@/types/print-bridge.types";
 import { PrinterModeField } from "@/components/shared/printer-mode-field";
 import { renderBarcodeSvg } from "@/lib/barcode-svg";
 import { BarcodeLabel } from "@/components/shared/barcode-label";
@@ -70,7 +69,7 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useLabelSize();
   const [mode, setMode] = usePrinterMode();
-  const { available: bridgeAvailable } = usePrintBridgeStatus();
+  const { available: bridgeAvailable, labelDpi } = usePrintBridgeStatus();
   const [isPrinting, setIsPrinting] = useState(false);
 
   const settings = usePlatformSettings();
@@ -154,7 +153,7 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
         widthMm: size.widthMm,
         heightMm: size.heightMm,
         copies: quantity,
-        dpi: PRINT_BRIDGE_DEFAULT_LABEL_DPI,
+        dpi: labelDpi,
         ...(effectiveTopText.trim() !== "" ? { topText: effectiveTopText.trim() } : {}),
         ...(trimmedStoreName !== "" ? { storeName: trimmedStoreName } : {}),
       });

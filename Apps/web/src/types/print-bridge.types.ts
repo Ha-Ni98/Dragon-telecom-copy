@@ -61,6 +61,12 @@ export interface PrintJob {
   /** Authoritative for ESC/POS (the helper writes the payload this many times). Redundant for ZPL,
    *  whose `^PQ` already carries it — the helper must send a ZPL payload exactly once. */
   copies: number;
+  /** Protocol 1.1 addition (Sprint 6/7) — receipt jobs only. The store's print logo, so a helper
+   *  can fetch and raster it server-side (no CORS constraint on the R2 bucket) rather than the
+   *  browser having to draw it to canvas. Backward compatible both ways: an old helper ignores an
+   *  unknown field, and omitting it here still prints — the web's own bold store-name line is the
+   *  fallback the helper falls back to as well. */
+  logoUrl?: string;
 }
 
 export interface BridgePrinterInfo {

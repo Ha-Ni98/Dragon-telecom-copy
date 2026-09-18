@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getBridgeBaseUrl, probeBridge } from "@/lib/print-bridge";
 import { qk } from "@/lib/query-keys";
 import {
+  PRINT_BRIDGE_DEFAULT_LABEL_DPI,
   PRINTER_MODE_STORAGE_KEY,
   PRINT_BRIDGE_PROBE_TTL_MS,
   type PrinterMode,
@@ -39,6 +40,11 @@ export function usePrintBridgeStatus() {
     available: configured ? (query.isPending ? undefined : query.data != null) : undefined,
     status: query.data ?? null,
     configured,
+    /** The label printer's actual dpi if the helper reported one via /status, else the documented
+     *  fallback. Every label dialog reads this instead of PRINT_BRIDGE_DEFAULT_LABEL_DPI directly,
+     *  so a 300 dpi Zebra is a helper-config change, not a web rebuild — see
+     *  print-bridge-plan-v1.md's G1. */
+    labelDpi: query.data?.printers?.label?.dpi ?? PRINT_BRIDGE_DEFAULT_LABEL_DPI,
   };
 }
 
