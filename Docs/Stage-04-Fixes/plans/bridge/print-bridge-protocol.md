@@ -1,8 +1,15 @@
 # Local print helper ("print bridge") — HTTP protocol
 
-**Status:** specified by set S27.1. **The helper itself is NOT in this repository** — S27.1 ships
-only the web-side client. Until a helper is written and installed, every thermal path falls back to
-the browser print dialog, which is the intended behaviour, not a failure.
+**Protocol version 1.1.** Originally specified by set S27.1, which shipped only the web-side
+client — at that point the helper genuinely did not exist in this repository. It has since been
+built: Go, lives at [`Apps/bridge`](../../../../Apps/bridge) (`dtbridge`), see
+[`print-bridge-plan-v1.md`](print-bridge-plan-v1.md) for the build plan and
+[`Apps/bridge/README.md`](../../../../Apps/bridge/README.md) for installing it on a counter PC.
+Until it is installed and running, every thermal path falls back to the browser print dialog,
+which remains the intended behaviour, not a failure — nothing about shipping the helper changes
+that fallback contract.
+
+See [Changelog](#changelog-1--11) at the bottom for exactly what changed between 1.0 and 1.1.
 
 ---
 
@@ -60,8 +67,10 @@ No authentication. Must answer well inside 1.5 s (the web aborts at that point).
 ```
 
 Only `ok: true` is required. `printers.label.dpi` is read by the web to pick the mm→dots factor for
-ZPL; absent ⇒ 203 is assumed. `connected` is informational in S27.1 — the web does not pre-gate on
-it, because the print POST is the real test.
+ZPL; absent ⇒ 203 is assumed. `connected` is informational — the web does not pre-gate on it,
+because the print POST is the real test. `dtbridge` fills it from a background prober (dials the
+TCP port / stats the file path / checks the Windows spooler queue every 10 s) so this endpoint
+never has to do blocking I/O of its own to answer — it must stay well inside the web's 1.5 s abort.
 
 ## `POST {base}/print`
 
@@ -73,14 +82,38 @@ Content-Type: application/json
   "language": "ZPL" | "ESCPOS",
   "encoding": "base64",
   "payload":  "<base64 of the raw bytes to write to the device>",
-  "copies":   1
+  "copies":   1,
+  "logoUrl":  "<optional — receipt jobs only, see below>"
 }
 ```
 
 ```json
 200 OK   { "ok": true }
 4xx/5xx  { "ok": false, "error": "printer offline" }
+4xx/5xx  { "ok": false, "error": "print queue full" }
 ```
+
+### `logoUrl` (protocol 1.1)
+
+Optional, receipt jobs only. The store's print logo URL (`store.printLogoUrl` from
+`GET /platform/settings/public`, falling back to `store.logoUrl` — both public, no auth). The
+helper fetches it **server-side**, so the browser's cross-origin `getImageData` restriction that
+blocked this from being done web-side never applies; the R2 bucket serving these images has no
+CORS restriction and every URL is public.
+
+Backward compatible in both directions: an old web client simply never sends the field, and a
+helper that doesn't recognise it prints exactly as it always did — the receipt's bold,
+double-height store name is the fallback either way, so nothing about the receipt is ever blocked
+on the logo. **Fail-open on every error path** — an absent/empty field, a 404, a wrong content
+type, a body that doesn't decode as PNG, a fetch that times out, or the receipt printer's own
+`logo.enabled: false` config all produce the exact same outcome: the receipt prints, in full,
+without a logo, and the helper logs one line about why. None of these can turn into a failed print
+or a browser-fallback — a logo problem is never allowed to become a print problem.
+
+The logo block (an ESC/POS raster image, `GS v 0`) is placed **before** the web's own payload and
+is never subject to the `cutCommand`/`codePage` overrides below — it is raw binary pixel data, not
+text, and running it through a code-page transcode would corrupt it. With `copies > 1`, the whole
+logo-plus-receipt pair repeats per copy, matching how ZPL and ESC/POS `copies` already work above.
 
 ### Rules the helper must honour
 
@@ -104,26 +137,43 @@ Content-Type: application/json
 
 ### CORS
 
-Both endpoints:
+The web sends `credentials: "omit"` on every request to the helper and never attaches the user's
+session token — which is what makes a **wildcard origin the correct default**, not just a
+convenient one: `Access-Control-Allow-Origin: *` is only forbidden for credentialed requests. This
+is `dtbridge`'s default (`allowedOrigins: ["*"]`), and it means one build/install works against
+production, every preview deploy, and local dev, with nothing to reconfigure when a domain
+changes. The cost, stated plainly: any page a browser on the counter PC happens to open could POST
+to the helper and waste a label or a receipt — no data is readable (the helper only ever answers
+`{"ok":true}`/`{"ok":false,...}`) and no credential is involved, so the blast radius is one sheet
+of paper on one PC.
+
+A shop that wants this tightened can set `allowedOrigins` to an explicit list in `config.json`
+(e.g. `["https://your-shop.vercel.app"]`). In that mode the helper echoes back the exact matched
+origin plus `Vary: Origin`, and rejects a disallowed origin's preflight outright:
 
 ```
-Access-Control-Allow-Origin: <the exact web origin>
+# wildcard mode (default)
+Access-Control-Allow-Origin: *
+
+# explicit-list mode
+Access-Control-Allow-Origin: <the exact origin that matched>
 Vary: Origin
 ```
 
-`application/json` makes `/print` a non-simple request, so it always preflights:
+`application/json` makes `/print` a non-simple request, so it always preflights, in either mode:
 
 ```
 OPTIONS /print
-Access-Control-Allow-Origin: <origin>
+Access-Control-Allow-Origin: <* or the exact origin, per the mode above>
 Access-Control-Allow-Methods: GET, POST, OPTIONS
 Access-Control-Allow-Headers: content-type
 Access-Control-Max-Age: 600
 Access-Control-Allow-Private-Network: true
 ```
 
-Do **not** send `Access-Control-Allow-Credentials` — the web sends `credentials: "omit"` and never
-attaches the user's session token to the helper.
+Do **not** send `Access-Control-Allow-Credentials` in either mode — the web sends
+`credentials: "omit"` and never attaches the user's session token to the helper; sending this
+header would be actively wrong regardless of which origin mode is configured.
 
 ### Private Network Access — stated uncertainty
 
@@ -147,29 +197,73 @@ printing — worst case it keeps today's behaviour.
 
 ## Hardware-specific details the helper may need to override
 
-The web makes two assumptions it cannot verify from a browser. If either is wrong for the actual
-hardware, **the helper is the right place to fix it** — it knows the device, the web does not.
+The web makes assumptions it cannot verify from a browser. If one is wrong for the actual
+hardware, **the helper is the right place to fix it** — it knows the device, the web does not. Two
+of the three below have a `dtbridge` config field; the third is a documented gap, not silently
+dropped — see its own note.
 
 1. **ESC/POS cut command.** The web emits `GS V 66 0` (`1D 56 42 00`, function B partial cut after
    a feed), which has the widest support across Epson-compatible clones. Some clones implement only
-   `GS V 0` (full) or `GS V 1` (partial). If yours differs, substitute the trailing cut sequence.
+   `GS V 0` (full) or `GS V 1` (partial). If yours differs, substitute the trailing cut sequence —
+   in `dtbridge`, set `printers.receipt.cutCommand` to `"GSV0"`, `"GSV1"`, `"none"` (strip the cut
+   entirely, feed-only), or leave it `"auto"` (the default; reproduces the web's own bytes exactly).
 
 2. **ESC/POS code page.** The web emits `ESC t 0` (CP437) and encodes text as CP437 bytes. CP437
    covers the accents French needs (`é è à ç ù â ê î ô û ë ï ü ÿ`, `É Ç Ñ Ö Ü`). If the printer
    prefers CP1252 (`ESC t 16`) or CP858 (`ESC t 19`), the helper may rewrite the leading code-page
    selector and transcode — but note the web has already normalised U+202F/U+00A0/U+2009 to plain
-   spaces, which is the trap that makes French amounts print as garbage otherwise.
+   spaces, which is the trap that makes French amounts print as garbage otherwise. In `dtbridge`,
+   set `printers.receipt.codePage` to `"CP1252"` or `"CP858"`; both transcode via the verified
+   `golang.org/x/text/encoding/charmap` tables rather than a hand-built mapping — CP858 in
+   particular diverges from CP437 in the cent/yen signs in a way that's easy to get subtly wrong
+   from a hand-rolled table. Leave it `null` (the default) for CP437, no rewrite.
 
 3. **ZPL input encoding.** The web emits `^CI28` (UTF-8). Older Zebra firmware may need `^CI13`/
-   `^CI27` with Latin-1 bytes instead.
+   `^CI27` with Latin-1 bytes instead. **Not implemented in v1.0** — there is no config field for
+   this override; it was never in the committed build plan's config schema, unlike the two ESC/POS
+   overrides above. Flagged here as a known gap, not silently dropped. If your printer needs this,
+   the label byte-pipe rule still applies: this would be a helper-side rewrite of the `^CI28`
+   sequence and any non-ASCII bytes that follow it, symmetrical to the code-page rewrite above.
 
-## Known limitation — no logo on thermal receipts
+## Receipt logo (protocol 1.1)
 
-Thermal receipts print the **store name in bold double-height text** where the browser receipt
-prints the store logo. ESC/POS raster printing would require fetching the R2-hosted logo, drawing
-it to a canvas, thresholding to 1-bit and bit-packing — and `getImageData` throws on a cross-origin
-image unless the bucket sends CORS headers, which could not be verified. If the logo is wanted
-later, the **helper** is the better home: it can fetch the URL server-side with no CORS constraint,
-convert once and cache.
+Thermal receipts print the **store logo**, fetched and rastered by the helper from `logoUrl` (see
+above) — not by the browser. This replaces protocol 1.0's limitation, where thermal receipts could
+only ever print the store name in bold double-height text (the R2 CORS constraint that blocked
+doing this from the browser turned out not to exist — see the changelog). That bold store-name
+line is still emitted by the web on every receipt regardless; the logo, when it can be built,
+prints above it — the two are not exclusive, and the store name is what still prints if the logo
+fails for any reason (see `logoUrl`, above).
 
-N.B: after verefication the R2 image storage have no CORS constraint, in other words, any url of a stored images is public.
+The pipeline, for a helper implementing this protocol: decode the fetched PNG, downscale (box
+filter, preserving aspect ratio) to the receipt's printable width, threshold to 1-bit — a straight
+threshold, not dithering, since `printLogoUrl` is already stored monochrome — and wrap the packed
+bitmap in `GS v 0`, banded to ≤128 rows per command (some clones misbehave on a single very tall
+raster command). `dtbridge`'s implementation caches the rastered result both in memory and on disk
+(keyed by URL) so a restart doesn't mean re-fetching on the next receipt, and negative-caches a
+failed fetch for 60 s so a broken URL can't add a multi-second delay to every receipt during a
+busy hour.
+
+---
+
+## Changelog (1.0 → 1.1)
+
+- **The helper exists now.** `Apps/bridge` (`dtbridge`, Go) — protocol 1.0 described a contract
+  with nothing on the other end of it; 1.1 describes one with a real, tested implementation. See
+  `Docs/Stage-04-Fixes/plans/bridge/print-bridge-plan-v1.md` for how it was built and verified, and
+  `Apps/bridge/README.md` for installing it.
+- **`logoUrl`** added to `POST /print` — receipt jobs only, optional, fully fail-open. Thermal
+  receipts print the store's real logo now, not just the bold store-name fallback. See
+  [Receipt logo](#receipt-logo-protocol-11), above. The R2 CORS constraint that originally blocked
+  this (protocol 1.0's "Known limitation") was re-verified and found not to apply — every stored
+  image URL is public with no CORS restriction.
+- **CORS default clarified as wildcard**, not "echo the exact origin" — see [CORS](#cors), above.
+  This was always legal (the web has sent `credentials: "omit"` since S27.1) but 1.0's text
+  described only the explicit-origin-echo mode, which is now documented as the opt-in tightening
+  it actually is.
+- **Hardware overrides now have real config field names** (`cutCommand`, `codePage`) rather than
+  only prose descriptions, and the ZPL `^CI28` override is explicitly flagged as unimplemented in
+  v1.0 rather than left ambiguous.
+- **`/status`'s `printers.label.dpi`** is genuinely read and used now (`Apps/web`'s label dialogs
+  thread it into the mm→dots calculation) — 1.0's text already claimed this, but it was dead code
+  on the web side until this set.

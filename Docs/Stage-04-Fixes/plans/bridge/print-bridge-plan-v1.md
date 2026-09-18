@@ -1,12 +1,17 @@
 # Print bridge helper — v1.0 build plan
 
-**Component:** `Apps/bridge` (new). **Language:** Go. **Consumes:** `Docs/print-bridge-protocol.md`.
-**Status:** plan only — no code written yet.
+**Component:** `Apps/bridge`. **Language:** Go. **Consumes:**
+[`print-bridge-protocol.md`](print-bridge-protocol.md) (now at protocol version 1.1).
+**Status: DONE — all 8 sprints complete, v1.0 code-complete.** Every sprint below was built, tested
+(unit + `-race` + live end-to-end smoke tests against real HTTP/real bytes), and cross-compiled
+clean for windows/amd64 (plus 386/arm64). Real-hardware verification against a physical Zebra and
+receipt printer is the one thing that could not be done from this repository — see §8, still
+pending owner sign-off on real counter hardware.
 
-This plan builds the counter-PC helper that `Docs/print-bridge-protocol.md` specifies and that
-S27.1 shipped the web half of. Until it exists every thermal path falls back to the browser print
-dialog, which is correct behaviour, not a failure — so nothing here is allowed to make the fallback
-worse.
+This plan built the counter-PC helper that `print-bridge-protocol.md` specifies and that S27.1
+shipped the web half of. Until it is installed on a counter PC, every thermal path falls back to
+the browser print dialog, which is correct behaviour, not a failure — nothing in this build was
+allowed to make that fallback worse, and nothing did.
 
 ---
 
@@ -97,7 +102,8 @@ so the shop's actual resolution is declared once, on the machine that knows it. 
 hardware question stops being a blocker — a 300 dpi Zebra is now a one-line config change.**
 
 **G2 — protocol doc says the helper is not in this repository.** `Apps/bridge/` already exists
-(empty, untracked). Amend `Docs/print-bridge-protocol.md` lines 3–5 in Sprint 7.
+(empty, untracked). Amend `print-bridge-protocol.md` lines 3–5 in Sprint 8. **Done** — amended as
+part of Sprint 8, alongside the rest of the 1.0→1.1 changes; see that sprint's row.
 
 **G3 — the logo needs one new optional field on the print job. → The web sends it.** *(confirmed)*
 Three options were considered: helper config holding the URL (goes stale whenever the owner changes
@@ -368,7 +374,7 @@ receipt during a busy hour.
 | **5** | ~~Queue + worker per target, ack-on-enqueue, **copies rule**, language guard, `cutCommand`/`codePage` overrides.~~ **Done.** | Golden-file tests: ZPL written once for `copies: 5`; ESC/POS written 5×; mismatched language 400 (already covered by Sprint 2, re-confirmed, not redone); cut-byte substitution correct — plus code-page transcoding, verified against real `golang.org/x/text` output rather than a hand-built table. Also verified live: a real HTTP job through the real queue, `--dry-run` capturing to `.bin`, byte-exact inspection confirmed `writes=1` for ZPL copies=5, `writes=3` for ESCPOS copies=3, and correct `GSV0`+`CP1252` rewrite bytes. Closed a Sprint 1 gap along the way: `config.Validate()` never checked `codePage` against a known set — now it does. **Known gap, not silently dropped:** the protocol doc's ZPL `^CI28`→`^CI13`/`^CI27` encoding override has no config field — it was never in this plan's committed schema (§4's config JSON only ever had `cutCommand`/`codePage` under `receipt`), so it stays out of v1.0 scope; flagging here rather than letting it go unnoticed. |
 | **6** | ~~Logo pipeline: fetch, decode, downscale, threshold, `GS v 0` banding, cache, negative-cache, fail-open on every error path.~~ **Done.** | Byte-exact golden test against a fixture PNG (real `png.Encode`/`Decode` round-trip, not bypassed) — passed; every failure mode (404, wrong/absent content-type, undecodable body, oversized body, unreachable server, timeout) returns nil and logs one `WARN`, never an error — all individually tested. Also verified live: a real PNG served over local HTTP, decoded, thresholded, and prepended to a real print job — captured bytes matched a hand-derived expectation exactly (`GS v0`, width/height header, checkerboard bitmap), the disk cache file was byte-identical to the logo portion, and the web's own payload came through completely untouched. `job.Job` gained `LogoURL` now (not Sprint 7) — Sprint 7 only needs to populate it from the web side; an old client already round-trips correctly with it absent. |
 | **7** | ~~**Web-side changes (D7)**, in `Apps/web`: G1 — derive `labelDpi` in `use-print-bridge.ts` and thread it through the three label dialogs; G3 — add `logoUrl?: string` to `PrintJob` and populate it in the two receipt call sites.~~ **Done.** | `tsc --noEmit` → 0; `lint` → 0 on all 7 touched files. Existing web suite could not be run green — it was already blocked at collection by a pre-existing, unrelated fixture bug (`tests/fixtures/data/catalog.mock.ts` missing `avgPrice`/`avgStockPrice`, first flagged in the S27.1 report) — confirmed identical (byte-for-byte same failure) with the Sprint 7 diff stashed out, so nothing here caused or worsened it. 22-line diff across 7 files, exactly the scope G1/G3 called for; no other behaviour touched. |
-| **8** | Packaging + docs: `Makefile` cross-compile (with the `/usr/local/go/bin` PATH note), `README.md` install guide for counter staff, `config.example.json`, `.gitignore` for build output, and **amend `Docs/print-bridge-protocol.md`** — in-repo location, the `logoUrl` field, the `*` CORS default, protocol 1.1. | `make build-windows` produces `dtbridge.exe` on the Linux box; docs merged. |
+| **8** | ~~Packaging + docs: `Makefile` cross-compile (with the `/usr/local/go/bin` PATH note), `README.md` install guide for counter staff, `config.example.json`, `.gitignore` for build output, and **amend `Docs/print-bridge-protocol.md`** — in-repo location, the `logoUrl` field, the `*` CORS default, protocol 1.1.~~ **Done — v1.0 code-complete.** | `make build-windows` produces `dtbridge.exe` on the Linux box (also verified `build-windows-386`/`build-windows-arm64`, `build`, `test`, `vet`, `fmt`, all as real Makefile targets, all run and green); docs merged. Protocol doc bumped to 1.1 with a changelog: in-repo location, `logoUrl` (own subsection), CORS wildcard-default rewrite, real `cutCommand`/`codePage` config names, ZPL `^CI28` flagged unimplemented, "no logo" limitation replaced with how the real pipeline works. `config.example.json` was already correct from Sprint 1 (unchanged). `.gitignore` added for `dist/`, the binaries, and every runtime/cache directory the helper creates. |
 
 Sprints 1–3 and 5–7 are fully testable on this Linux machine. Sprint 4 is the only one that cannot
 be verified without Windows.
