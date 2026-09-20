@@ -10,12 +10,12 @@ export interface LabelSize {
 /** S26's report records 40 x 25 mm stock as invalid and 50 x 25 mm as what the store now buys —
  *  so that is the default, and the first preset offered. */
 export const LABEL_SIZE_PRESETS: readonly LabelSize[] = [
-  { widthMm: 50, heightMm: 25 },
+  { widthMm: 40, heightMm: 20 },
   { widthMm: 40, heightMm: 30 },
   { widthMm: 50, heightMm: 30 },
 ] as const;
 
-export const DEFAULT_LABEL_SIZE: LabelSize = { widthMm: 50, heightMm: 25 };
+export const DEFAULT_LABEL_SIZE: LabelSize = { widthMm: 40, heightMm: 20 };
 
 /** Bounds on the custom size, so a typo cannot emit a 5000 mm page. */
 export const LABEL_CUSTOM_MIN_MM = 15;
