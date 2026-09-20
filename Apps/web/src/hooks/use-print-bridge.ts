@@ -47,6 +47,19 @@ export function usePrintBridgeStatus() {
      *  so a 300 dpi Zebra is a helper-config change, not a web rebuild — see
      *  print-bridge-plan-v1.md's G1. */
     labelDpi: query.data?.printers?.label?.dpi ?? PRINT_BRIDGE_DEFAULT_LABEL_DPI,
+    /** Whether the helper can currently see each printer, from /status's background prober.
+     *  `undefined` = not reported (or not probed yet) and must be treated as "go ahead", so a
+     *  helper that omits the field behaves exactly as before.
+     *
+     *  These gate the thermal path because the print POST CANNOT report a dead printer: the
+     *  protocol requires the helper to acknowledge as soon as a job is queued, not when paper
+     *  moves. A receipt sent to a printer that is switched off, unplugged or simply not owned by
+     *  this shop therefore returns `{"ok":true}` and disappears — the operator sees a success
+     *  toast and gets no paper and no browser fallback. `connected` is the only signal available
+     *  before that ack, which is why it is now pre-gated on despite the protocol originally
+     *  saying the POST was the real test. It isn't, and cannot be. */
+    labelConnected: query.data?.printers?.label?.connected,
+    receiptConnected: query.data?.printers?.receipt?.connected,
     /** Which language to build label jobs in, read from the same /status the dpi comes from.
      *
      *  This is not cosmetic: a Zebra sent the language it does not speak prints nothing at all —

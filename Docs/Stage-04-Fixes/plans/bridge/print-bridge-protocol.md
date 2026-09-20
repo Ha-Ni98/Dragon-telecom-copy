@@ -84,11 +84,19 @@ No authentication. Must answer well inside 1.5 s (the web aborts at that point).
 }
 ```
 
-Only `ok: true` is required. `printers.label.dpi` is read by the web to pick the mm→dots factor for
-ZPL; absent ⇒ 203 is assumed. `connected` is informational — the web does not pre-gate on it,
-because the print POST is the real test. `dtbridge` fills it from a background prober (dials the
-TCP port / stats the file path / checks the Windows spooler queue every 10 s) so this endpoint
-never has to do blocking I/O of its own to answer — it must stay well inside the web's 1.5 s abort.
+Only `ok: true` is required. `printers.label.dpi` is read by the web to pick the mm→dots factor,
+and `printers.label.language` to pick the generator (absent ⇒ 203 dpi and ZPL). `dtbridge` fills
+`connected` from a background prober (dials the TCP port / stats the file path / checks the Windows
+spooler queue every 10 s) so this endpoint never has to do blocking I/O of its own to answer — it
+must stay well inside the web's 1.5 s abort.
+
+⚠️ **`connected` is load-bearing, not informational.** Protocol 1.0 said the web should not pre-gate
+on it "because the print POST is the real test". That is false, and the reason is rule 3 below: the
+helper acknowledges as soon as a job is **queued**, so a `POST /print` aimed at a printer that is
+switched off, unplugged, or simply absent still returns `200 {"ok":true}`. The operator gets a
+success toast, no paper, and no browser fallback. `connected` is the only signal available before
+the ack, so **the web now treats an explicit `connected: false` as a reason to use the browser
+instead**. An absent field still means "go ahead" — silence is not a negative report.
 
 ## `POST {base}/print`
 
@@ -290,6 +298,11 @@ no error anywhere in the chain.
   re-stating: treating EPL like ESC/POS would print `copies²` labels.
 - **EPL character-set handling documented** as a deliberate transliteration rather than an
   unimplemented gap — see item 4 under hardware overrides.
+- **`connected` promoted from informational to load-bearing.** The web now falls back to the
+  browser when `/status` explicitly reports a target's printer as disconnected. 1.0's "the print
+  POST is the real test" was wrong: ack-on-queue means the POST cannot fail for a dead device, so
+  a receipt aimed at a printer the shop does not own returned ok and silently produced nothing.
+  See `GET /status`, above.
 - **The model was never recorded.** "Zebra label printer ⇒ ZPL II" came from S27.1's D3 and went
   unquestioned through eight sprints; the cut command, code page and `^CI28` were all correctly
   flagged as unverified hardware assumptions, but the label *language itself* never was. The

@@ -93,7 +93,7 @@ export function RepairTicketDetail({
   // S27.1 — mounted here, not only inside the label dialog: the receipt button below needs the
   // same already-resolved answer so its fallback can stay synchronous (see handlePrintReceipt).
   const [printerMode] = usePrinterMode();
-  const { available: bridgeAvailable } = usePrintBridgeStatus();
+  const { available: bridgeAvailable, receiptConnected } = usePrintBridgeStatus();
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
 
   if (!repair) return null;
@@ -115,7 +115,10 @@ export function RepairTicketDetail({
   // `window.print()` after an `await` is no longer in the user-gesture task, so every common
   // "not printing thermally" case must reach it without awaiting anything.
   const handlePrintReceipt = async () => {
-    if (printerMode === "browser" || bridgeAvailable !== true) {
+    // `receiptConnected === false` diverts to the browser because the helper acks on queue: a job
+    // sent to a receipt printer it cannot see comes back ok and produces nothing at all. Only an
+    // explicit false diverts — undefined means "not reported" and stays on the thermal path.
+    if (printerMode === "browser" || bridgeAvailable !== true || receiptConnected === false) {
       printReceipt();
       return;
     }

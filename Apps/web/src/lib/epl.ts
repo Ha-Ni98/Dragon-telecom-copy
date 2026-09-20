@@ -152,17 +152,20 @@ export function buildEplLabel(input: LabelInput): string {
   // `N` clears the image buffer; `q` sets the printable width (EPL's analogue of ^PW).
   const lines: string[] = ["N", `q${widthDots}`];
 
-  // --- Optional rotated store column. EPL rotation 3 = 270°, reading bottom-to-top, matching the
-  //     ZPL builder's ^A0B and the HTML's writing-mode: vertical-rl + rotate(180deg). Anchored at
-  //     the same bottom-left origin the ZPL version uses.
-  //     HARDWARE-VERIFY: EPL's reference point under rotation is not the same as ZPL's; if this
-  //     column prints upside down or off the label, rotation 1 (90°) is the other candidate. ---
+  // --- Optional rotated store column, reading bottom-to-top down the left edge, matching the ZPL
+  //     builder's ^A0B and the HTML's writing-mode: vertical-rl + rotate(180deg).
+  //
+  //     ANCHORED AT THE TOP, NOT THE BOTTOM — and that difference is why this column silently
+  //     failed to print on the first hardware run. ZPL's ^FO with ^A0B anchors the baseline at the
+  //     BOTTOM of the text and grows upward, so the ZPL builder passes `heightDots - padDots`.
+  //     EPL's reference point is the top-left corner of the ROTATED block, which grows downward
+  //     from there: copying ZPL's anchor put a ~140-dot-long string at y=152 on a 160-dot label,
+  //     i.e. almost entirely past the bottom edge, and the printer simply clipped it. Nothing was
+  //     wrong with the rotation — the origin was. ---
   if (hasStoreColumn) {
     const columnHeight = heightDots - padDots * 2;
     const text = fitToWidth(storeName, columnHeight, font.w);
-    lines.push(
-      `A${padDots},${heightDots - padDots},3,${font.id},${font.mult},${font.mult},N,"${text}"`,
-    );
+    lines.push(`A${padDots},${padDots},3,${font.id},${font.mult},${font.mult},N,"${text}"`);
   }
 
   // --- Text above the symbol. EPL has no justification parameter, so the centred caption is

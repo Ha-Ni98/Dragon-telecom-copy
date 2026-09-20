@@ -133,7 +133,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
   // S27.1 — thermal printing preference + helper availability, read here so the receipt's own
   // fallback can stay synchronous (see handlePrintReceipt).
   const [printerMode] = usePrinterMode();
-  const { available: bridgeAvailable } = usePrintBridgeStatus();
+  const { available: bridgeAvailable, receiptConnected } = usePrintBridgeStatus();
 
   const ticketLines: PosTicketLine[] = useMemo(
     () =>
@@ -323,7 +323,16 @@ export default function StaffPos({ scope = "staff" }: Props) {
   // `window.print()` after an `await` is no longer in the user-gesture task, so every common
   // "not printing thermally" case must reach it without awaiting anything.
   const handlePrintReceipt = async () => {
-    if (!receipt || printerMode === "browser" || bridgeAvailable !== true) {
+    // `receiptConnected === false` is a real fallback trigger, not a nicety: the helper acks a job
+    // as soon as it is queued, so sending to a receipt printer it cannot see would return ok and
+    // silently produce nothing. Only an explicit false diverts — undefined means "not reported",
+    // which stays on the thermal path exactly as before.
+    if (
+      !receipt ||
+      printerMode === "browser" ||
+      bridgeAvailable !== true ||
+      receiptConnected === false
+    ) {
       printReceipt();
       return;
     }
