@@ -10,6 +10,10 @@ interface BarcodeLabelProps {
    *  device, problem). Mutually exclusive in practice with `topText`, which is the single
    *  centred caption the product/supplier labels use. */
   textLines?: string[];
+  /** Repair label only — the bench sticker has no scanner in the loop, so it drops the Code 128
+   *  symbol entirely and lets `textLines` use the full label height instead. Defaults to true so
+   *  the product/supplier-invoice dialogs are unaffected. */
+  showBarcode?: boolean;
 }
 
 // S19/S22/S26/S27 — the on-screen *preview* of one printed label. The printed sheet is now
@@ -34,11 +38,17 @@ interface BarcodeLabelProps {
 // This preview intentionally keeps `margin: 0` (no quiet zone) below — it is a visual reference at
 // a fixed on-screen size, not a scan target. The printed label adds the real quiet zone via
 // lib/barcode-svg.ts's `renderBarcodeSvg` (QUIET_ZONE_MODULES).
-export function BarcodeLabel({ value, storeName, topText, textLines }: BarcodeLabelProps) {
+export function BarcodeLabel({
+  value,
+  storeName,
+  topText,
+  textLines,
+  showBarcode = true,
+}: BarcodeLabelProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
-    if (!svgRef.current) return;
+    if (!showBarcode || !svgRef.current) return;
     JsBarcode(svgRef.current, value, {
       format: "CODE128",
       displayValue: true,
@@ -48,7 +58,7 @@ export function BarcodeLabel({ value, storeName, topText, textLines }: BarcodeLa
       margin: 0,
       textMargin: 2,
     });
-  }, [value]);
+  }, [value, showBarcode]);
 
   return (
     <div className="flex h-[25mm] w-[50mm] items-stretch overflow-hidden border border-dashed border-black/40 bg-white p-[1mm] text-black">
@@ -76,7 +86,7 @@ export function BarcodeLabel({ value, storeName, topText, textLines }: BarcodeLa
             the label; the barcode keeps the remaining height. Mirrors barcode-label-sheet.tsx's
             own guard, which is the scan-safety floor rather than styling. */}
         {textLines && textLines.length > 0 ? (
-          <div className="max-h-[55%] shrink overflow-hidden">
+          <div className={showBarcode ? "max-h-[55%] shrink overflow-hidden" : "overflow-hidden"}>
             {textLines.map((line, index) => (
               <div key={index} className="truncate text-[5pt] leading-[1.15]">
                 {line}
@@ -84,7 +94,7 @@ export function BarcodeLabel({ value, storeName, topText, textLines }: BarcodeLa
             ))}
           </div>
         ) : null}
-        <svg ref={svgRef} className="h-auto w-full" />
+        {showBarcode ? <svg ref={svgRef} className="h-auto w-full" /> : null}
       </div>
     </div>
   );

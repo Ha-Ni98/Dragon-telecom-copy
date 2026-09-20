@@ -1,6 +1,6 @@
 # Local print helper ("print bridge") — HTTP protocol
 
-**Protocol version 1.1.** Originally specified by set S27.1, which shipped only the web-side
+**Protocol version 1.2.** Originally specified by set S27.1, which shipped only the web-side
 client — at that point the helper genuinely did not exist in this repository. It has since been
 built: Go, lives at [`Apps/bridge`](../../../../Apps/bridge) (`dtbridge`), see
 [`print-bridge-plan-v1.md`](print-bridge-plan-v1.md) for the build plan and
@@ -9,7 +9,8 @@ Until it is installed and running, every thermal path falls back to the browser 
 which remains the intended behaviour, not a failure — nothing about shipping the helper changes
 that fallback contract.
 
-See [Changelog](#changelog-1--11) at the bottom for exactly what changed between 1.0 and 1.1.
+**1.2 added EPL2** as a second label language after the first real-hardware test found the shop's
+printer cannot speak ZPL at all. See the changelogs at the bottom for what changed in each version.
 
 ---
 
@@ -23,16 +24,33 @@ i.e. it would destroy the browser fallback the whole design depends on.
 
 A small helper process on the counter PC, addressed over loopback HTTP, is the remaining option.
 
-## Two printers, two languages
+## Two printers, three languages
 
 | Target | Hardware | Language |
 |---|---|---|
-| `label` | Zebra label printer | **ZPL II** |
+| `label` | Zebra label printer, modern | **ZPL II** |
+| `label` | Zebra desktop label printer, pre-"Plus" (e.g. LP 2824) | **EPL2** |
 | `receipt` | 80 mm thermal receipt printer | **ESC/POS** |
 
-These are not interchangeable — a receipt printer does not understand ZPL. The web generates both;
-the helper is a byte pipe and must not re-render anything. That division is deliberate: every
-layout change would otherwise mean reinstalling the helper on every counter PC.
+None of these are interchangeable. A receipt printer does not understand ZPL — and, learned the
+hard way on real hardware, **a label printer sent the wrong one of ZPL/EPL prints nothing at all**:
+no error, no LED, no paper, no entry left behind anywhere to diagnose from. The shop's LP 2824 is
+EPL2-only and silently discarded every ZPL byte it was ever sent.
+
+So the label language is **per printer, declared in the helper's config and reported on `/status`**
+(`printers.label.language`), which the web reads to choose its generator — exactly as it reads
+`dpi`. It is never assumed from "it's a Zebra".
+
+The web generates all three; the helper is a byte pipe and must not re-render anything. That
+division is deliberate: every layout change would otherwise mean reinstalling the helper on every
+counter PC.
+
+### The `copies` rule applies to EPL too
+
+Both label languages carry their copy count **inside** the payload — `^PQ` in ZPL, `P` in EPL —
+so the helper writes a label payload **exactly once** regardless of `copies`, for either language.
+Only ESC/POS is written `copies` times. Getting this wrong prints `copies²` labels: a request for
+3 yields 9.
 
 ## Configuration on the web side
 
@@ -79,7 +97,7 @@ Content-Type: application/json
 {
   "jobId":    "b3f1…",
   "target":   "label" | "receipt",
-  "language": "ZPL" | "ESCPOS",
+  "language": "ZPL" | "EPL" | "ESCPOS",
   "encoding": "base64",
   "payload":  "<base64 of the raw bytes to write to the device>",
   "copies":   1,
@@ -122,9 +140,10 @@ logo-plus-receipt pair repeats per copy, matching how ZPL and ESC/POS `copies` a
    UTF-8 and cannot survive a JSON string. Decode, then write the bytes to the device unmodified.
 
 2. **`copies` semantics differ by language, and this is the most likely thing to get wrong:**
-   - `language: "ZPL"` → **send the payload exactly once.** Copy count is already carried inside
-     the payload as `^PQ`, and a multi-block batch carries one `^PQ` per block. Sending it
-     `copies` times would multiply every label.
+   - `language: "ZPL"` or `"EPL"` → **send the payload exactly once.** Copy count is already
+     carried inside the payload — `^PQ` in ZPL, `P` in EPL — and a multi-block batch carries one
+     per block. Sending it `copies` times would multiply every label, turning a request for 3
+     into 9.
    - `language: "ESCPOS"` → **write the payload `copies` times.**
 
 3. **Acknowledge on queue, not on paper.** Respond as soon as the bytes are handed to the device or
@@ -219,11 +238,19 @@ dropped — see its own note.
    from a hand-rolled table. Leave it `null` (the default) for CP437, no rewrite.
 
 3. **ZPL input encoding.** The web emits `^CI28` (UTF-8). Older Zebra firmware may need `^CI13`/
-   `^CI27` with Latin-1 bytes instead. **Not implemented in v1.0** — there is no config field for
-   this override; it was never in the committed build plan's config schema, unlike the two ESC/POS
+   `^CI27` with Latin-1 bytes instead. **Not implemented** — there is no config field for this
+   override; it was never in the committed build plan's config schema, unlike the two ESC/POS
    overrides above. Flagged here as a known gap, not silently dropped. If your printer needs this,
    the label byte-pipe rule still applies: this would be a helper-side rewrite of the `^CI28`
    sequence and any non-ASCII bytes that follow it, symmetrical to the code-page rewrite above.
+
+4. **EPL character set.** The EPL generator sidesteps the equivalent problem rather than solving
+   it: EPL selects a character set with its own `I` command, which is printer configuration the
+   web cannot verify, and guessing wrong produces mojibake across the whole label. So accented
+   characters are transliterated to ASCII before they are emitted — "État" prints as "ETAT". That
+   is the identical trade `lib/escpos.ts` already makes for the receipt printer: a dropped accent
+   is an acceptable worst case, mojibake is not. If a shop's printer's actual character set is
+   ever confirmed, `sanitizeEplField` in `Apps/web/src/lib/epl.ts` is the single place to change.
 
 ## Receipt logo (protocol 1.1)
 
@@ -245,6 +272,30 @@ failed fetch for 60 s so a broken URL can't add a multi-second delay to every re
 busy hour.
 
 ---
+
+## Changelog (1.1 → 1.2)
+
+Driven by the first real-hardware test, which failed: the shop's **Zebra LP 2824** accepted every
+ZPL job the helper sent it and printed nothing, because it is an **EPL2-only** printer with no ZPL
+interpreter. The Windows spooler queued the job, the port delivered it, the printer discarded it —
+no error anywhere in the chain.
+
+- **`EPL` added to `language`** on `POST /print`, and to the helper's `printers.<target>.language`
+  config. The label language is now genuinely per-printer, not "Zebra means ZPL".
+- **The web chooses the label language from `/status`.** `printers.label.language` was already
+  being reported by the helper and already typed on the web; like `dpi` before it, nothing read it.
+  `lib/label-language.ts` now dispatches to `lib/zpl.ts` or the new `lib/epl.ts` from that value.
+- **The `copies` rule now names both label languages.** EPL's `P` command carries the count exactly
+  as ZPL's `^PQ` does, so the helper writes either exactly once. This was the specific trap worth
+  re-stating: treating EPL like ESC/POS would print `copies²` labels.
+- **EPL character-set handling documented** as a deliberate transliteration rather than an
+  unimplemented gap — see item 4 under hardware overrides.
+- **The model was never recorded.** "Zebra label printer ⇒ ZPL II" came from S27.1's D3 and went
+  unquestioned through eight sprints; the cut command, code page and `^CI28` were all correctly
+  flagged as unverified hardware assumptions, but the label *language itself* never was. The
+  lesson, recorded here so the next device does not repeat it: **confirm what a printer actually
+  speaks before generating a byte for it.** `dtbridge test-print --language EPL|ZPL` now settles
+  that in one command.
 
 ## Changelog (1.0 → 1.1)
 

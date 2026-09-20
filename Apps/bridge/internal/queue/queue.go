@@ -126,15 +126,29 @@ func writeJob(logger *slog.Logger, target string, t Target, j job.Job) {
 			return
 		}
 	}
-	logger.Info("job written to device", "jobId", j.ID, "target", target, "writes", n, "bytes", len(payload))
+
+	// Deliberately NOT "printed" or "written to device". All this line can honestly claim is that
+	// the device layer accepted every byte — for the Windows spooler that means the job was queued,
+	// which is a long way from paper coming out. A Zebra that speaks a different label language
+	// than the one it was sent will reach exactly this line and print nothing at all.
+	attrs := []any{"jobId", j.ID, "target", target, "writes", n, "bytes", len(payload)}
+	if reporter, ok := t.Writer.(device.JobIDReporter); ok {
+		if id := reporter.LastJobID(); id != 0 {
+			attrs = append(attrs, "spoolerJobId", id)
+		}
+	}
+	logger.Info("job accepted by device (queued — not proof it printed)", attrs...)
 }
 
-// copiesFor implements the protocol's copies rule — "the most likely thing to get wrong": ZPL
-// already carries its copy count in ^PQ (one per ^XA…^XZ block in a batch), so the payload is
-// written exactly once regardless of what `copies` says. ESC/POS has no such mechanism, so the
-// payload is written `copies` times.
+// copiesFor implements the protocol's copies rule — "the most likely thing to get wrong".
+//
+// Both label languages carry their own copy count INSIDE the payload: ZPL as ^PQ (one per
+// ^XA…^XZ block in a batch) and EPL as P (one per N…P block). Either is therefore written exactly
+// once regardless of what `copies` says — writing it `copies` times would print copies² labels,
+// so a request for 3 would yield 9. ESC/POS has no such mechanism, so the receipt payload really
+// is written `copies` times.
 func copiesFor(language string, copies int) int {
-	if language == "ZPL" {
+	if language == "ZPL" || language == "EPL" {
 		return 1
 	}
 	if copies < 1 {

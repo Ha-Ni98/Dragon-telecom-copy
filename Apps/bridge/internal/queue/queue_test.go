@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -78,6 +79,75 @@ func waitForClose(t *testing.T, done chan struct{}) {
 	}
 }
 
+// jobIDWriter is a fakeWriter that also satisfies device.JobIDReporter, standing in for the
+// Windows spooler backend (the only real one that has an OS-level job ID).
+type jobIDWriter struct {
+	fakeWriter
+	id uint32
+}
+
+func (w *jobIDWriter) LastJobID() uint32 { return w.id }
+
+func TestQueue_LogsSpoolerJobIDWhenTheWriterReportsOne(t *testing.T) {
+	var logBuf bytes.Buffer
+	var mu sync.Mutex
+	logger := slog.New(slog.NewTextHandler(&lockedWriter{w: &logBuf, mu: &mu}, nil))
+
+	w := &jobIDWriter{id: 42}
+	w.closeDone = make(chan struct{}, 10)
+	q := New(logger, map[string]Target{"label": {Writer: w}}, DefaultDepth)
+	defer q.Stop()
+
+	if err := q.Submit(job.Job{ID: "j1", Target: "label", Language: "ZPL", Payload: []byte("^XA^XZ"), Copies: 1}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	waitForClose(t, w.closeDone)
+
+	mu.Lock()
+	out := logBuf.String()
+	mu.Unlock()
+	if !strings.Contains(out, "spoolerJobId=42") {
+		t.Errorf("log did not carry the spooler job id:\n%s", out)
+	}
+}
+
+func TestQueue_OmitsSpoolerJobIDForWritersWithoutOne(t *testing.T) {
+	// TCP and file backends have no such concept; the attribute must simply be absent rather than
+	// logged as a meaningless zero.
+	var logBuf bytes.Buffer
+	var mu sync.Mutex
+	logger := slog.New(slog.NewTextHandler(&lockedWriter{w: &logBuf, mu: &mu}, nil))
+
+	w := &fakeWriter{closeDone: make(chan struct{}, 10)}
+	q := New(logger, map[string]Target{"label": {Writer: w}}, DefaultDepth)
+	defer q.Stop()
+
+	if err := q.Submit(job.Job{ID: "j1", Target: "label", Language: "ZPL", Payload: []byte("^XA^XZ"), Copies: 1}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	waitForClose(t, w.closeDone)
+
+	mu.Lock()
+	out := logBuf.String()
+	mu.Unlock()
+	if strings.Contains(out, "spoolerJobId") {
+		t.Errorf("log carried a spoolerJobId for a writer that has none:\n%s", out)
+	}
+}
+
+// lockedWriter serialises writes from the worker goroutine so the test can read the buffer
+// without racing the logger.
+type lockedWriter struct {
+	w  *bytes.Buffer
+	mu *sync.Mutex
+}
+
+func (l *lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
+}
+
 func TestQueue_ZPLWrittenExactlyOnceRegardlessOfCopies(t *testing.T) {
 	w := &fakeWriter{closeDone: make(chan struct{}, 10)}
 	q := New(testLogger(), map[string]Target{"label": {Writer: w}}, DefaultDepth)
@@ -98,6 +168,39 @@ func TestQueue_ZPLWrittenExactlyOnceRegardlessOfCopies(t *testing.T) {
 	}
 	if string(writes[0]) != "^XA^PQ5^XZ" {
 		t.Errorf("payload = %q, want the original bytes untouched", writes[0])
+	}
+}
+
+func TestQueue_EPLWrittenExactlyOnceRegardlessOfCopies(t *testing.T) {
+	// The copies² trap: EPL carries its count in the payload's own P command, exactly as ZPL does
+	// with ^PQ. Writing it `copies` times would turn a request for 5 labels into 25.
+	w := &fakeWriter{closeDone: make(chan struct{}, 10)}
+	q := New(testLogger(), map[string]Target{"label": {Writer: w}}, DefaultDepth)
+	defer q.Stop()
+
+	err := q.Submit(job.Job{ID: "j1", Target: "label", Language: "EPL", Payload: []byte("N\r\nP5\r\n"), Copies: 5})
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	waitForClose(t, w.closeDone)
+
+	_, writes, _ := w.snapshot()
+	if len(writes) != 1 {
+		t.Fatalf("got %d writes, want exactly 1 (EPL copies live in the payload's P command)", len(writes))
+	}
+	if string(writes[0]) != "N\r\nP5\r\n" {
+		t.Errorf("payload = %q, want the original bytes untouched", writes[0])
+	}
+}
+
+func TestCopiesFor_LabelLanguagesNeverRepeatThePayload(t *testing.T) {
+	for _, lang := range []string{"ZPL", "EPL"} {
+		if got := copiesFor(lang, 5); got != 1 {
+			t.Errorf("copiesFor(%q, 5) = %d, want 1", lang, got)
+		}
+	}
+	if got := copiesFor("ESCPOS", 5); got != 5 {
+		t.Errorf("copiesFor(\"ESCPOS\", 5) = %d, want 5", got)
 	}
 }
 

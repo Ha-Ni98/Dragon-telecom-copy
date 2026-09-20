@@ -4,6 +4,7 @@ import {
   LABEL_STORE_GAP_MM,
   QUIET_ZONE_MODULES,
   REPAIR_LABEL_TEXT_PT,
+  type LabelInput,
 } from "@/types/label-print.types";
 
 // S27.1 — ZPL II generation for the Zebra label printer.
@@ -43,24 +44,13 @@ function worstCaseModules(value: string): number {
   return 11 * (value.length + 2) + 13 + QUIET_ZONE_MODULES * 2;
 }
 
-export interface ZplLabelInput {
-  barcode: string;
-  /** From renderBarcodeSvg(); INCLUDES both quiet zones. */
-  totalModules: number;
-  /** Repair label: stacked raw-text lines above the symbol. */
-  textLines?: string[];
-  /** Product/supplier label: single centred caption above the symbol. */
-  topText?: string;
-  /** Product/supplier label: rotated bottom-to-top column down the left edge. */
-  storeName?: string;
-  widthMm: number;
-  heightMm: number;
-  copies: number;
-  dpi: number;
-}
+/** Now shared with lib/epl.ts — see LabelInput's own comment for why it moved out of here. The
+ *  alias is kept so this module's existing name still reads naturally at its call sites. */
+export type ZplLabelInput = LabelInput;
 
 export function buildZplLabel(input: ZplLabelInput): string {
   const { barcode, widthMm, heightMm, copies, dpi } = input;
+  const showBarcode = input.showBarcode ?? true;
 
   const padDots = dots(LABEL_PADDING_MM, dpi);
   const widthDots = dots(widthMm, dpi);
@@ -80,17 +70,21 @@ export function buildZplLabel(input: ZplLabelInput): string {
   // zone when positioned. Placing the symbol at `contentX` instead would leave whatever padding
   // happens to be there — typically ~4 modules against Code 128's required 10 — and the label
   // would simply not scan.
-  const budgetModules = Math.max(input.totalModules, worstCaseModules(barcode));
-  const moduleDots = Math.min(10, Math.max(1, Math.floor(contentWidthDots / budgetModules)));
-  const barX = contentX + QUIET_ZONE_MODULES * moduleDots;
+  let moduleDots = 0;
+  let barX = contentX;
+  if (showBarcode) {
+    const budgetModules = Math.max(input.totalModules, worstCaseModules(barcode));
+    moduleDots = Math.min(10, Math.max(1, Math.floor(contentWidthDots / budgetModules)));
+    barX = contentX + QUIET_ZONE_MODULES * moduleDots;
 
-  if (import.meta.env.DEV && moduleDots / dotsPerMm(dpi) < 0.25) {
-    // Warn-only, matching LabelSizeField's established stance — never block a print the operator
-    // asked for; they may know their scanner copes.
-    console.warn(
-      `[zpl] module width ${(moduleDots / dotsPerMm(dpi)).toFixed(3)}mm is below the 0.25mm ` +
-        `scanning floor for "${barcode}" on a ${widthMm}mm label`,
-    );
+    if (import.meta.env.DEV && moduleDots / dotsPerMm(dpi) < 0.25) {
+      // Warn-only, matching LabelSizeField's established stance — never block a print the
+      // operator asked for; they may know their scanner copes.
+      console.warn(
+        `[zpl] module width ${(moduleDots / dotsPerMm(dpi)).toFixed(3)}mm is below the 0.25mm ` +
+          `scanning floor for "${barcode}" on a ${widthMm}mm label`,
+      );
+    }
   }
 
   const fontDots = dots((REPAIR_LABEL_TEXT_PT * 25.4) / 72, dpi);
@@ -131,9 +125,11 @@ export function buildZplLabel(input: ZplLabelInput): string {
   // --- The symbol fills the height left under the text, minus the bottom padding. ^BCN's `Y`
   //     prints the human-readable interpretation line, which is what makes the reference readable
   //     on the repair tag without spending a text line on it. ---
-  const barHeight = Math.max(dots(6, dpi), heightDots - padDots - cursorY - dots(3, dpi));
-  lines.push(`^BY${moduleDots},2.0,${barHeight}`);
-  lines.push(`^FO${barX},${cursorY}^BCN,${barHeight},Y,N,N^FD${sanitizeZplField(barcode)}^FS`);
+  if (showBarcode) {
+    const barHeight = Math.max(dots(6, dpi), heightDots - padDots - cursorY - dots(3, dpi));
+    lines.push(`^BY${moduleDots},2.0,${barHeight}`);
+    lines.push(`^FO${barX},${cursorY}^BCN,${barHeight},Y,N,N^FD${sanitizeZplField(barcode)}^FS`);
+  }
 
   lines.push(`^PQ${Math.max(1, Math.trunc(copies))}`);
   lines.push("^XZ");
