@@ -69,7 +69,12 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useLabelSize();
   const [mode, setMode] = usePrinterMode();
-  const { available: bridgeAvailable, labelDpi, labelLanguage } = usePrintBridgeStatus();
+  const {
+    available: bridgeAvailable,
+    labelDpi,
+    labelLanguage,
+    labelConnected,
+  } = usePrintBridgeStatus();
   const [isPrinting, setIsPrinting] = useState(false);
 
   const settings = usePlatformSettings();
@@ -140,7 +145,10 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
   const handlePrint = async () => {
     const browserFallback = () => printLabelSheet(size.widthMm, size.heightMm);
 
-    if (mode === "browser" || bridgeAvailable !== true) {
+    // labelConnected === false diverts to the browser: the helper acks on queue, so a job
+    // sent to a printer it cannot see returns ok and prints nothing. undefined = not
+    // reported, which stays on the thermal path.
+    if (mode === "browser" || bridgeAvailable !== true || labelConnected === false) {
       browserFallback();
       return;
     }

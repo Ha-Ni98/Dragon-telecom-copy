@@ -54,7 +54,12 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
   // counter, so the two sizes are remembered independently.
   const [size, setSize] = useLabelSize(REPAIR_LABEL_SIZE_STORAGE_KEY);
   const [mode, setMode] = usePrinterMode();
-  const { available: bridgeAvailable, labelDpi, labelLanguage } = usePrintBridgeStatus();
+  const {
+    available: bridgeAvailable,
+    labelDpi,
+    labelLanguage,
+    labelConnected,
+  } = usePrintBridgeStatus();
   const [isPrinting, setIsPrinting] = useState(false);
 
   const textLines = useMemo(
@@ -73,7 +78,10 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
     // Synchronous paths first — `window.print()` called after an `await` is no longer in the
     // user-gesture task, which some browsers' pop-up/print heuristics dislike. Every common
     // "no thermal printing here" case resolves without awaiting anything.
-    if (mode === "browser" || bridgeAvailable !== true) {
+    // labelConnected === false diverts to the browser: the helper acks on queue, so a job
+    // sent to a printer it cannot see returns ok and prints nothing. undefined = not
+    // reported, which stays on the thermal path.
+    if (mode === "browser" || bridgeAvailable !== true || labelConnected === false) {
       browserFallback();
       return;
     }
