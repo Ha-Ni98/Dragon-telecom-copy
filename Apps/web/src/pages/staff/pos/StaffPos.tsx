@@ -29,8 +29,7 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 import { apiErrorMessage } from "@/lib/query-client";
 import { printReceipt } from "@/lib/print";
-import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
-import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
+import { useReceiptPrint } from "@/hooks/use-receipt-print";
 import { buildPosReceiptEscPos } from "@/pages/staff/pos/pos-receipt-escpos";
 import { cn } from "@/lib/utils";
 import { resolvePosPrice } from "@/pages/staff/pos/pos-pricing";
@@ -132,8 +131,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
   const [paymentError, setPaymentError] = useState<string>();
   // S27.1 — thermal printing preference + helper availability, read here so the receipt's own
   // fallback can stay synchronous (see handlePrintReceipt).
-  const [printerMode] = usePrinterMode();
-  const { available: bridgeAvailable, receiptConnected } = usePrintBridgeStatus();
+  const { print: printReceiptDocument } = useReceiptPrint();
 
   const ticketLines: PosTicketLine[] = useMemo(
     () =>
@@ -319,48 +317,27 @@ export default function StaffPos({ scope = "staff" }: Props) {
   // confirm (the draft has become the completed sale and must never be deleted) and by the
   // receipt's "New sale" action. The Clear button uses handleClearTicket below instead, which
   // also deletes the draft (S6/I4).
-  // S27.1 — thermal first, browser fallback. Both early returns are deliberately synchronous:
-  // `window.print()` after an `await` is no longer in the user-gesture task, so every common
-  // "not printing thermally" case must reach it without awaiting anything.
+  // Thermal first, browser fallback — the decision, the toasts and the gesture-safety rule all
+  // live in useReceiptPrint so the POS, the repair ticket and the sales drawer cannot drift apart.
+  // Note it does NOT consult the label dialogs' Thermal/Browser radio: picking Browser to print
+  // one barcode used to silently switch every receipt to browser printing too.
   const handlePrintReceipt = async () => {
-    // `receiptConnected === false` is a real fallback trigger, not a nicety: the helper acks a job
-    // as soon as it is queued, so sending to a receipt printer it cannot see would return ok and
-    // silently produce nothing. Only an explicit false diverts — undefined means "not reported",
-    // which stays on the thermal path exactly as before.
-    if (
-      !receipt ||
-      printerMode === "browser" ||
-      bridgeAvailable !== true ||
-      receiptConnected === false
-    ) {
+    if (!receipt) {
       printReceipt();
       return;
     }
-
-    const bytes = buildPosReceiptEscPos({
-      receipt,
-      issuedAt: receipt.soldAt ?? receiptAt ?? new Date().toISOString(),
-      store: publicSettings.data?.store,
-      t,
-      language,
-    });
-    const logoUrl = publicSettings.data?.store.printLogoUrl ?? publicSettings.data?.store.logoUrl;
-    const outcome = await printOrFallback(
-      {
-        jobId: newJobId(),
-        target: "receipt",
-        language: "ESCPOS",
-        encoding: "base64",
-        payload: bytesToBase64(bytes),
-        copies: 1,
-        ...(logoUrl != null && logoUrl !== "" ? { logoUrl } : {}),
-      },
-      printReceipt,
+    const store = publicSettings.data?.store;
+    await printReceiptDocument(
+      () =>
+        buildPosReceiptEscPos({
+          receipt,
+          issuedAt: receipt.soldAt ?? receiptAt ?? new Date().toISOString(),
+          store,
+          t,
+          language,
+        }),
+      store?.printLogoUrl ?? store?.logoUrl,
     );
-    // Nothing visible happens on the thermal path, so silence would read as a dead button and
-    // invite a second press — i.e. a real double print.
-    if (outcome === "bridge") toast.success(t("common.print.bridge.sent"));
-    else toast.warning(t("common.print.bridge.fallback"));
   };
 
   const resetTicketState = () => {

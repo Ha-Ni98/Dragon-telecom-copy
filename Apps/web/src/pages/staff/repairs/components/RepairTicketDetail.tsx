@@ -18,9 +18,7 @@ import {
 } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD, formatDateTime } from "@/lib/utils";
-import { printReceipt } from "@/lib/print";
-import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
-import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
+import { useReceiptPrint } from "@/hooks/use-receipt-print";
 import { buildRepairReceiptEscPos } from "@/pages/staff/repairs/repair-receipt-escpos";
 import { RepairLabelDialog } from "@/pages/staff/repairs/components/RepairLabelDialog";
 import {
@@ -92,8 +90,7 @@ export function RepairTicketDetail({
   const [labelDialogOpen, setLabelDialogOpen] = useState(false);
   // S27.1 — mounted here, not only inside the label dialog: the receipt button below needs the
   // same already-resolved answer so its fallback can stay synchronous (see handlePrintReceipt).
-  const [printerMode] = usePrinterMode();
-  const { available: bridgeAvailable, receiptConnected } = usePrintBridgeStatus();
+  const { print: printReceiptDocument } = useReceiptPrint();
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
 
   if (!repair) return null;
@@ -111,38 +108,16 @@ export function RepairTicketDetail({
     setPaymentDialogOpen(false);
   };
 
-  // S27.1 — thermal first, browser fallback. The two early returns are deliberately synchronous:
-  // `window.print()` after an `await` is no longer in the user-gesture task, so every common
-  // "not printing thermally" case must reach it without awaiting anything.
+  // Thermal first, browser fallback — shared with the POS and the sales drawer via
+  // useReceiptPrint, which also keeps receipts independent of the label dialogs' Thermal/Browser
+  // radio (choosing Browser for a barcode used to switch every receipt to browser printing too).
   const handlePrintReceipt = async () => {
-    // `receiptConnected === false` diverts to the browser because the helper acks on queue: a job
-    // sent to a receipt printer it cannot see comes back ok and produces nothing at all. Only an
-    // explicit false diverts — undefined means "not reported" and stays on the thermal path.
-    if (printerMode === "browser" || bridgeAvailable !== true || receiptConnected === false) {
-      printReceipt();
-      return;
-    }
-
     setIsPrintingReceipt(true);
     try {
-      const bytes = buildRepairReceiptEscPos({ repair, store, t, language });
-      const logoUrl = store?.printLogoUrl ?? store?.logoUrl;
-      const outcome = await printOrFallback(
-        {
-          jobId: newJobId(),
-          target: "receipt",
-          language: "ESCPOS",
-          encoding: "base64",
-          payload: bytesToBase64(bytes),
-          copies: 1,
-          ...(logoUrl != null && logoUrl !== "" ? { logoUrl } : {}),
-        },
-        printReceipt,
+      await printReceiptDocument(
+        () => buildRepairReceiptEscPos({ repair, store, t, language }),
+        store?.printLogoUrl ?? store?.logoUrl,
       );
-      // Nothing visible happens on the thermal path, so silence would read as a dead button and
-      // invite a second press — i.e. a real double print.
-      if (outcome === "bridge") toast.success(t("common.print.bridge.sent"));
-      else toast.warning(t("common.print.bridge.fallback"));
     } finally {
       setIsPrintingReceipt(false);
     }
