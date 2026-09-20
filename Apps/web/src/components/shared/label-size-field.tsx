@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -48,13 +48,20 @@ export function LabelSizeField({ value, onChange, moduleMm }: LabelSizeFieldProp
         : CUSTOM_VALUE,
     [value],
   );
-  const isCustom = matchedPresetKey === CUSTOM_VALUE;
+  // Tracks an explicit "Custom" pick that hasn't diverged from a preset's numbers yet — without
+  // this, picking Custom while the value still equals a preset (e.g. the 50x25 default) would
+  // have matchedPresetKey snap straight back to that preset and the width/height inputs would
+  // never appear.
+  const [manualCustom, setManualCustom] = useState(false);
+  const isCustom = manualCustom || matchedPresetKey === CUSTOM_VALUE;
+  const selectValue = isCustom ? CUSTOM_VALUE : matchedPresetKey;
 
   const handleSelect = (selected: string) => {
     if (selected === CUSTOM_VALUE) {
-      onChange({ ...value });
+      setManualCustom(true);
       return;
     }
+    setManualCustom(false);
     const preset = LABEL_SIZE_PRESETS.find((p) => presetKey(p) === selected);
     if (preset) onChange(preset);
   };
@@ -62,7 +69,7 @@ export function LabelSizeField({ value, onChange, moduleMm }: LabelSizeFieldProp
   return (
     <div className="space-y-1">
       <Label htmlFor="label-size-select">{t("admin.labelSize.label")}</Label>
-      <Select value={matchedPresetKey} onValueChange={handleSelect}>
+      <Select value={selectValue} onValueChange={handleSelect}>
         <SelectTrigger id="label-size-select">
           <SelectValue />
         </SelectTrigger>
@@ -87,6 +94,7 @@ export function LabelSizeField({ value, onChange, moduleMm }: LabelSizeFieldProp
               type="number"
               min={LABEL_CUSTOM_MIN_MM}
               max={LABEL_CUSTOM_MAX_MM}
+              step={5}
               value={value.widthMm}
               onChange={(event) =>
                 onChange({ ...value, widthMm: clampCustomMm(Number(event.target.value)) })
@@ -102,6 +110,7 @@ export function LabelSizeField({ value, onChange, moduleMm }: LabelSizeFieldProp
               type="number"
               min={LABEL_CUSTOM_MIN_MM}
               max={LABEL_CUSTOM_MAX_MM}
+              step={5}
               value={value.heightMm}
               onChange={(event) =>
                 onChange({ ...value, heightMm: clampCustomMm(Number(event.target.value)) })
