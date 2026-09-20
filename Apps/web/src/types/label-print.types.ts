@@ -53,6 +53,29 @@ export const REPAIR_LABEL_SIZE_STORAGE_KEY = "dt_repair_label_size";
 export const REPAIR_LABEL_TEXT_PT = 6;
 export const REPAIR_LABEL_LINE_HEIGHT = 1.15;
 
+/** The input both thermal label generators take — lib/zpl.ts and lib/epl.ts. Shared rather than
+ *  duplicated per language so the two cannot drift: `showBarcode` had to be added to the ZPL
+ *  builder when the repair label dropped its symbol, and a second copy of this shape would have
+ *  silently missed it. A call site should be able to swap builders and change nothing else. */
+export interface LabelInput {
+  barcode: string;
+  /** From renderBarcodeSvg(); INCLUDES both quiet zones. */
+  totalModules: number;
+  /** Repair label: stacked raw-text lines above the symbol. */
+  textLines?: string[];
+  /** Product/supplier label: single centred caption above the symbol. */
+  topText?: string;
+  /** Product/supplier label: rotated bottom-to-top column down the left edge. */
+  storeName?: string;
+  widthMm: number;
+  heightMm: number;
+  copies: number;
+  dpi: number;
+  /** Repair label only — the bench sticker has no scanner in the loop, so the Code 128 symbol is
+   *  skipped entirely. Defaults to true so the product/supplier-invoice labels are unaffected. */
+  showBarcode?: boolean;
+}
+
 /** S27.1 — hard ceiling on the text block as a share of the label's content height, so a long
  *  line list can never squeeze the symbol below a scannable height. This is a scan-safety floor
  *  for the barcode, not a styling choice. */

@@ -4,6 +4,7 @@ import {
   LABEL_STORE_GAP_MM,
   QUIET_ZONE_MODULES,
   REPAIR_LABEL_TEXT_PT,
+  type LabelInput,
 } from "@/types/label-print.types";
 
 // S27.1 — ZPL II generation for the Zebra label printer.
@@ -43,24 +44,9 @@ function worstCaseModules(value: string): number {
   return 11 * (value.length + 2) + 13 + QUIET_ZONE_MODULES * 2;
 }
 
-export interface ZplLabelInput {
-  barcode: string;
-  /** From renderBarcodeSvg(); INCLUDES both quiet zones. */
-  totalModules: number;
-  /** Repair label: stacked raw-text lines above the symbol. */
-  textLines?: string[];
-  /** Product/supplier label: single centred caption above the symbol. */
-  topText?: string;
-  /** Product/supplier label: rotated bottom-to-top column down the left edge. */
-  storeName?: string;
-  widthMm: number;
-  heightMm: number;
-  copies: number;
-  dpi: number;
-  /** Repair label only — the bench sticker has no scanner in the loop, so the Code 128 symbol is
-   *  skipped entirely. Defaults to true so the product/supplier-invoice labels are unaffected. */
-  showBarcode?: boolean;
-}
+/** Now shared with lib/epl.ts — see LabelInput's own comment for why it moved out of here. The
+ *  alias is kept so this module's existing name still reads naturally at its call sites. */
+export type ZplLabelInput = LabelInput;
 
 export function buildZplLabel(input: ZplLabelInput): string {
   const { barcode, widthMm, heightMm, copies, dpi } = input;

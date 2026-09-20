@@ -17,3 +17,15 @@ type Writer interface {
 	// partial job can never leak a socket or file handle.
 	Close() error
 }
+
+// JobIDReporter is an optional interface a Writer may implement when the OS hands back an
+// identifier for the job it just accepted. Only the Windows spooler has such a concept — a TCP
+// socket or a device file does not — so internal/queue type-asserts for it rather than forcing
+// every backend to carry a meaningless method, the same way net/http treats http.Flusher.
+//
+// It exists because "we handed the bytes over successfully" and "paper came out" are different
+// claims: when a print silently does nothing, this number is what lets a dtbridge log line be
+// matched against the job Windows actually queued.
+type JobIDReporter interface {
+	LastJobID() uint32
+}

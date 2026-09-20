@@ -431,6 +431,55 @@ owner in a real browser**, per §8.
 
 ---
 
+## 8b. Post-v1.0 finding — the label language was never verified (2026-09-20)
+
+The first real-hardware test failed. The shop's **Zebra LP 2824** accepted every ZPL job and
+printed nothing: the Windows spooler queued it, the port delivered it, and the printer discarded
+it as unrecognised. It is an **EPL2-only** model — the pre-"Plus" 2824 has no ZPL interpreter.
+
+**Nothing in the implementation was at fault.** Every layer did its job: HTTP, dedupe, queue, the
+copies rule, the Win32 RAW spooler path. The defect was in this plan's premises. "Zebra label
+printer ⇒ ZPL II" came from S27.1's decision D3 and survived eight sprints unexamined, while the
+ESC/POS cut command, the code page and `^CI28` were all correctly flagged as unverified hardware
+assumptions. The exact model appeared nowhere in the repository. **Confirm what a printer actually
+speaks before generating a byte for it** — and note the failure is silent, which is what made it
+expensive.
+
+Shipped in response:
+
+- **`internal/device/spooler_windows.go`** — `EndPagePrinter`/`EndDocPrinter` had their return
+  values discarded by bare `defer`; since `EndDocPrinter` commits the job, a failure there meant
+  nothing printed while `Write` returned nil. Now surfaced via a named return. The spooler job ID
+  is captured and logged (`device.JobIDReporter`) so a log line can be matched to the Windows
+  queue, and the success log was reworded from `job written to device` to
+  `job accepted by device (queued — not proof it printed)`, which is all it can honestly claim.
+- **`dtbridge test-print`** — sends bytes straight at a printer, bypassing the web, HTTP and the
+  queue. `--language ZPL|EPL|ESCPOS` settles "what does this printer speak?" in one command;
+  `--file` sends arbitrary bytes for iterating on command variants without a rebuild.
+- **EPL2 as a second label language** — new `Apps/web/src/lib/epl.ts` mirroring `lib/zpl.ts` off
+  the now-shared `LabelInput`, dispatched by `lib/label-language.ts` from the helper's
+  `/status.printers.label.language` (the same already-reported-but-unread field `dpi` was). Bridge
+  side: `EPL` added to `validLanguages` and the job guard, and **`copiesFor` returns 1 for EPL as
+  well as ZPL** — EPL's `P` carries the count exactly as `^PQ` does, and getting that wrong prints
+  `copies²` labels.
+
+Verified without hardware by running the real generator through esbuild and byte-inspecting the
+output: geometry matches the ZPL builder exactly (`q320`≡`^PW320`, identical store-column and
+barcode origins), CRLF on every line, batching emits one `N`…`P` block per label, accents
+transliterate, and the font picker prefers a native font over a pixel-doubled smaller one.
+
+### Open item — barcode module width (pre-existing, affects ZPL identically)
+
+Measured while verifying the above: on the current label presets, the emitted narrow-bar width is
+frequently **1 dot = 0.125 mm**, half this project's own `BARCODE_MIN_MODULE_MM` of 0.25 mm. The
+dialog's scan-floor warning does not model two things the generators do — flooring to whole dots,
+and sizing against `worstCaseModules` rather than the real module count — so in 5 of 12
+size/store-column combinations **the dialog shows no warning while the emitted label is
+unscannable**. The store-name column costs ~6.5 mm and is usually what tips it over, the same
+arithmetic that made S27.1 drop the column from the repair label. Not introduced by the EPL work
+and not fixed here; the remedy is a label-stock decision plus aligning the dialog's warning with
+the generator's arithmetic.
+
 ## 9. Risks
 
 | Risk | Handling |

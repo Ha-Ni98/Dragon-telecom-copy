@@ -4,9 +4,11 @@ import { getBridgeBaseUrl, probeBridge } from "@/lib/print-bridge";
 import { qk } from "@/lib/query-keys";
 import {
   PRINT_BRIDGE_DEFAULT_LABEL_DPI,
+  PRINT_BRIDGE_DEFAULT_LABEL_LANGUAGE,
   PRINTER_MODE_STORAGE_KEY,
   PRINT_BRIDGE_PROBE_TTL_MS,
   type PrinterMode,
+  type PrintLanguage,
 } from "@/types/print-bridge.types";
 
 // S27.1 — is the local print helper reachable?
@@ -45,6 +47,14 @@ export function usePrintBridgeStatus() {
      *  so a 300 dpi Zebra is a helper-config change, not a web rebuild — see
      *  print-bridge-plan-v1.md's G1. */
     labelDpi: query.data?.printers?.label?.dpi ?? PRINT_BRIDGE_DEFAULT_LABEL_DPI,
+    /** Which language to build label jobs in, read from the same /status the dpi comes from.
+     *
+     *  This is not cosmetic: a Zebra sent the language it does not speak prints nothing at all —
+     *  no error, no LED, no paper — which is exactly how the LP 2824 presented. Defaults to ZPL
+     *  because that is what every modern Zebra speaks and what the browser-fallback path assumes;
+     *  an EPL2-only printer declares itself in the helper's config and is picked up here. */
+    labelLanguage: (query.data?.printers?.label?.language ??
+      PRINT_BRIDGE_DEFAULT_LABEL_LANGUAGE) as PrintLanguage,
   };
 }
 

@@ -60,10 +60,32 @@ process **refuses to start** if this file is invalid, and prints every problem i
 | `port` | Where `dtbridge` listens. `9110` by default — must match what the web app is configured to reach. |
 | `allowedOrigins` | `["*"]` (default) works for any deployment of the web app, including preview URLs, and is safe here — see the protocol doc's CORS section. Set an explicit list (e.g. `["https://your-shop.vercel.app"]`) only if you want to lock this down. |
 | `printers.label` / `printers.receipt` | One block per printer. `transport` is `"spooler"` (Windows-installed USB/driver printer), `"tcp"` (network printer, raw port), or `"file"` (a device path — Linux/testing only). |
+| `printers.label.language` | **`"ZPL"` or `"EPL"` — get this right or nothing prints.** Modern Zebras speak ZPL; pre-"Plus" desktop units such as the **LP 2824** are EPL2-only and silently discard ZPL. The web reads this from `/status` and builds labels in that language. Use `test-print --language` (above) to find out which yours speaks. |
 | `printers.label.dpi` | Your Zebra's real resolution — `203` or `300`. Reported back to the web via `/status` so labels print at the correct physical size. |
 | `printers.receipt.cutCommand` | `"auto"` (matches the web's default and is correct for most printers) or an override if your clone only supports one cut variant — see the protocol doc. |
 | `printers.receipt.codePage` | `null` (default, correct for most printers) or `"CP1252"`/`"CP858"` if your printer doesn't support CP437 — see the protocol doc. |
 | `printers.receipt.logo` | Prints the shop's logo at the top of receipts. `enabled: false` prints the bold store-name text instead (what every receipt did before this existed) — never a failure either way. |
+
+## Testing a printer directly (`test-print`)
+
+When a print silently does nothing, this sends bytes straight at the printer — bypassing the web
+app, the HTTP layer and the queue — so the failure can be attributed to exactly one layer:
+
+```
+dtbridge.exe test-print --target label                 # built-in test in the configured language
+dtbridge.exe test-print --target label --language EPL  # force a different label language
+dtbridge.exe test-print --target receipt               # the 80mm receipt printer
+dtbridge.exe test-print --file mylabel.txt --target label   # send your own raw bytes
+```
+
+**Label printers do not all speak the same language, and one given the wrong one typically does
+nothing at all** — no error, no LED, no paper. `--language` exists to settle that in one command:
+if `--language EPL` prints and the default `ZPL` does not, the printer is an EPL2 model (common on
+pre-"Plus" Zebra desktop units such as the LP 2824) and the app must be configured to match.
+
+`--file` sends a file's bytes verbatim, which is the fastest way to try command variants without
+rebuilding anything. Note EPL2 requires **CRLF** line endings — Notepad produces these by default,
+many programmer's editors do not.
 
 ## Troubleshooting
 
@@ -78,11 +100,24 @@ process **refuses to start** if this file is invalid, and prints every problem i
   keeps happening.
 - **Label prints at the wrong size.** Check `printers.label.dpi` matches the printer's real
   resolution (most desktop Zebras are 203; some are 300).
+- **Labels print nothing at all, but receipts are fine.** Almost certainly `printers.label.language`
+  is wrong. Run `test-print --target label --language EPL` and then `--language ZPL`: whichever
+  prints is what the printer speaks, and that is the value to put in `config.json`. A Zebra given
+  the other one does not complain — it just ignores the job entirely.
+- **Barcodes print but won't scan.** The bars are too narrow for the reader. The label dialog warns
+  when the calculated module width falls under 0.25 mm; widening the label, shortening the barcode,
+  or clearing the store-name column all buy width back.
 - **Receipt prints garbled accented characters.** Your printer likely doesn't support CP437 — try
   setting `printers.receipt.codePage` to `"CP1252"`.
 - **Labels come out doubled, or receipts print twice.** This is exactly the bug class the
   `copies` rule exists to prevent — please report it rather than working around it; it means
   something is wrong in `dtbridge` itself, not your printer.
+- **The log says the job was accepted but nothing printed.** `job accepted by device` means only
+  that every byte was handed over successfully — for a USB printer, that the Windows spooler
+  queued it. It is not proof paper moved. Check the Windows print queue: if the job appears and
+  then vanishes, the bytes reached the printer and it discarded them, which almost always means
+  the wrong label language — use `test-print --language` above to find the right one. If the job
+  sticks in the queue instead, it is a port/offline/driver problem and never reached the printer.
 - **Logs.** `dtbridge.log` next to the exe has one line per print job, including why any print
   fell back or failed. It's the first place to look for anything above.
 
@@ -99,6 +134,9 @@ make build-all       # + windows/386 and windows/arm64, for unusual counter PCs
 make test            # go test ./... -race
 make vet
 ```
+
+`test-print` (above) also accepts `--dry-run`, so the command can be exercised with no printer
+attached at all.
 
 `--dry-run --dry-run-dir <path>` runs `dtbridge` against no real hardware at all: every print job
 is captured to a `.bin` file in `<path>` instead of being written to a device. This is how the

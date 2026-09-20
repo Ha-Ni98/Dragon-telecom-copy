@@ -21,7 +21,7 @@ import { useLabelSize } from "@/hooks/use-label-size";
 import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
 import { printLabelSheet } from "@/lib/print";
 import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
-import { buildZplLabel } from "@/lib/zpl";
+import { buildLabel } from "@/lib/label-language";
 import { buildRepairLabelLines } from "@/pages/staff/repairs/repair-label-lines";
 import { REPAIR_LABEL_SIZE_STORAGE_KEY } from "@/types/label-print.types";
 
@@ -54,7 +54,7 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
   // counter, so the two sizes are remembered independently.
   const [size, setSize] = useLabelSize(REPAIR_LABEL_SIZE_STORAGE_KEY);
   const [mode, setMode] = usePrinterMode();
-  const { available: bridgeAvailable, labelDpi } = usePrintBridgeStatus();
+  const { available: bridgeAvailable, labelDpi, labelLanguage } = usePrintBridgeStatus();
   const [isPrinting, setIsPrinting] = useState(false);
 
   const textLines = useMemo(
@@ -80,7 +80,7 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
 
     setIsPrinting(true);
     try {
-      const zpl = buildZplLabel({
+      const labelBytes = buildLabel(labelLanguage, {
         barcode: repair.reference,
         totalModules: 0,
         showBarcode: false,
@@ -94,9 +94,9 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
         {
           jobId: newJobId(),
           target: "label",
-          language: "ZPL",
+          language: labelLanguage,
           encoding: "base64",
-          payload: bytesToBase64(new TextEncoder().encode(zpl)),
+          payload: bytesToBase64(new TextEncoder().encode(labelBytes)),
           copies: quantity,
         },
         browserFallback,

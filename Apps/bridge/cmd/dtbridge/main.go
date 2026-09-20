@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -46,6 +47,9 @@ func main() {
 func run(args []string) error {
 	if len(args) > 0 && args[0] == "list-printers" {
 		return runListPrinters(args[1:])
+	}
+	if len(args) > 0 && args[0] == "test-print" {
+		return runTestPrint(args[1:])
 	}
 
 	fs := flag.NewFlagSet("dtbridge", flag.ContinueOnError)
@@ -206,6 +210,126 @@ func registerProbe(p *device.Prober, target string, printer config.PrinterConfig
 	case "spooler":
 		p.Register(target, device.SpoolerCheck(printer.QueueName))
 	}
+}
+
+// Built-in test payloads for `dtbridge test-print`. Each is the smallest thing that unambiguously
+// answers "does this printer understand this language?" — a line of text plus a barcode.
+//
+// The label languages are NOT interchangeable and a printer given the wrong one typically does
+// nothing at all: no error, no LED, no paper. That silence is exactly what makes a direct test
+// worth having, and is why `--language` can override whatever config.json says.
+var testPayloads = map[string][]byte{
+	// ZPL II — Zebra's modern label language.
+	"ZPL": []byte("^XA\n" +
+		"^FO40,40^A0N,40,40^FDDTBRIDGE ZPL TEST^FS\n" +
+		"^FO40,100^BY2^BCN,80,Y,N,N^FD12345678^FS\n" +
+		"^PQ1\n" +
+		"^XZ\n"),
+
+	// EPL2 — the older Eltron language still used by pre-"Plus" Zebra desktop units such as the
+	// LP 2824. Line-oriented and CRLF-terminated, unlike ZPL.
+	//
+	// UNVERIFIED, deliberately flagged: the `B` command's barcode-type selector for Code 128
+	// (here `1`) is recalled, not confirmed against the EPL2 manual or real hardware. If the text
+	// line prints and the barcode does not, that selector is the thing to correct — and it is
+	// precisely why --file exists, so variants can be tried without a rebuild.
+	"EPL": []byte("N\r\n" +
+		"q400\r\n" +
+		"A40,20,0,3,1,1,N,\"DTBRIDGE EPL TEST\"\r\n" +
+		"B40,60,0,1,2,6,80,B,\"12345678\"\r\n" +
+		"P1\r\n"),
+
+	// ESC/POS — the 80mm receipt printer. Init, text, feed clear of the cutter, partial cut.
+	"ESCPOS": append(
+		append([]byte{0x1b, 0x40, 0x1b, 0x61, 0x01}, "DTBRIDGE ESC/POS TEST\n12345678\n"...),
+		0x1b, 0x64, 0x04, 0x1d, 0x56, 0x42, 0x00),
+}
+
+// runTestPrint implements `dtbridge test-print`: send bytes straight at a configured printer,
+// bypassing the web app, the HTTP layer, the dedupe cache and the queue entirely.
+//
+// This is the hardware bring-up tool. When a print silently does nothing, it collapses the
+// question "is it the web, the bridge, or the printer?" into one synchronous command whose error
+// (or silence) is attributable to exactly one layer. It writes directly rather than going through
+// the queue on purpose: the queue acks on enqueue and logs failures asynchronously, which is right
+// for production and useless for diagnosis.
+func runTestPrint(args []string) error {
+	fs := flag.NewFlagSet("dtbridge test-print", flag.ContinueOnError)
+	configPath := fs.String("config", "config.json", "path to config.json")
+	target := fs.String("target", "label", "which configured printer to send to: label | receipt")
+	language := fs.String("language", "", "override the built-in payload's language: ZPL | EPL | ESCPOS (default: whatever the target is configured for)")
+	file := fs.String("file", "", "send the raw bytes of this file instead of a built-in payload")
+	dryRun := fs.Bool("dry-run", false, "capture to a .bin file instead of writing to a real device")
+	dryRunDir := fs.String("dry-run-dir", defaultDryRunDir, "directory .bin files are written to under --dry-run")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	var printer config.PrinterConfig
+	switch *target {
+	case "label":
+		printer = cfg.Printers.Label
+	case "receipt":
+		printer = cfg.Printers.Receipt
+	default:
+		return fmt.Errorf("--target must be \"label\" or \"receipt\", got %q", *target)
+	}
+
+	payload, describe, err := testPrintPayload(*file, *language, printer.Language)
+	if err != nil {
+		return err
+	}
+
+	writer := newDeviceWriter(printer, *target, *dryRun, *dryRunDir)
+	fmt.Printf("sending %d bytes (%s) to the %q printer via %s...\n",
+		len(payload), describe, *target, printer.Transport)
+
+	if err := writer.Open(); err != nil {
+		return fmt.Errorf("open device: %w", err)
+	}
+	defer writer.Close()
+
+	if err := writer.Write(payload); err != nil {
+		return fmt.Errorf("write to device: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("close device: %w", err)
+	}
+
+	if reporter, ok := writer.(device.JobIDReporter); ok && reporter.LastJobID() != 0 {
+		fmt.Printf("accepted by the Windows spooler as job %d.\n", reporter.LastJobID())
+	}
+	fmt.Println("the device accepted every byte. If nothing came out of the printer, the bytes")
+	fmt.Println("reached it and it did not understand them — most often the wrong label language.")
+	return nil
+}
+
+func testPrintPayload(file, languageOverride, configuredLanguage string) (payload []byte, describe string, err error) {
+	if file != "" {
+		raw, err := os.ReadFile(file)
+		if err != nil {
+			return nil, "", fmt.Errorf("read --file: %w", err)
+		}
+		if len(raw) == 0 {
+			return nil, "", fmt.Errorf("--file %s is empty", file)
+		}
+		return raw, "raw bytes from " + file, nil
+	}
+
+	lang := configuredLanguage
+	if languageOverride != "" {
+		lang = strings.ToUpper(languageOverride)
+	}
+	built, ok := testPayloads[lang]
+	if !ok {
+		return nil, "", fmt.Errorf("no built-in test payload for language %q (try ZPL, EPL or ESCPOS, or use --file)", lang)
+	}
+	return built, "built-in " + lang + " test", nil
 }
 
 // runListPrinters implements `dtbridge list-printers`: lists installed Windows printer queues so

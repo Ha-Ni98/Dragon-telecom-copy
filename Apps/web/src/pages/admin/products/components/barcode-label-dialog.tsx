@@ -22,7 +22,7 @@ import { useLabelSize } from "@/hooks/use-label-size";
 import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
 import { printLabelSheet } from "@/lib/print";
 import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
-import { buildZplLabel } from "@/lib/zpl";
+import { buildLabel } from "@/lib/label-language";
 import { PrinterModeField } from "@/components/shared/printer-mode-field";
 import { renderBarcodeSvg } from "@/lib/barcode-svg";
 import { BarcodeLabel } from "@/components/shared/barcode-label";
@@ -69,7 +69,7 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useLabelSize();
   const [mode, setMode] = usePrinterMode();
-  const { available: bridgeAvailable, labelDpi } = usePrintBridgeStatus();
+  const { available: bridgeAvailable, labelDpi, labelLanguage } = usePrintBridgeStatus();
   const [isPrinting, setIsPrinting] = useState(false);
 
   const settings = usePlatformSettings();
@@ -147,7 +147,7 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
 
     setIsPrinting(true);
     try {
-      const zpl = buildZplLabel({
+      const labelBytes = buildLabel(labelLanguage, {
         barcode,
         totalModules,
         widthMm: size.widthMm,
@@ -161,9 +161,9 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
         {
           jobId: newJobId(),
           target: "label",
-          language: "ZPL",
+          language: labelLanguage,
           encoding: "base64",
-          payload: bytesToBase64(new TextEncoder().encode(zpl)),
+          payload: bytesToBase64(new TextEncoder().encode(labelBytes)),
           copies: quantity,
         },
         browserFallback,
