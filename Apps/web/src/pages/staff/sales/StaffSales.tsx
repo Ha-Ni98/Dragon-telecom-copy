@@ -11,6 +11,11 @@ import { ReturnDialog } from "@/pages/admin/sales/components/ReturnDialog";
 import { ReturnsTable } from "@/pages/admin/sales/components/ReturnsTable";
 import { ReturnDetailDialog } from "@/pages/admin/sales/components/ReturnDetailDialog";
 import { useSales, useSale, useCreateReturn, useReturns } from "@/hooks/useSales";
+import { usePublicSettings } from "@/hooks/usePlatform";
+import { useReceiptPrint } from "@/hooks/use-receipt-print";
+import { PosReceiptPrintable } from "@/pages/staff/pos/components/PosReceiptPrintable";
+import { buildPosReceiptEscPos } from "@/pages/staff/pos/pos-receipt-escpos";
+import { saleToReceipt } from "@/pages/staff/sales/sale-to-receipt";
 import { useUsers } from "@/hooks/useIdentity";
 import { usePosClientSearch } from "@/hooks/usePosClients";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -38,7 +43,7 @@ interface Props {
 // page gets both, hitting the staff-mounted returns routes. Profit, the seller column and the
 // footer total stay admin-only (margin data, gated inside SaleDetailDrawer/SalesTable directly).
 export default function StaffSales({ scope = "staff" }: Props) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
 
   const [status, setStatus] = useState<SaleStatus | undefined>();
@@ -94,6 +99,7 @@ export default function StaffSales({ scope = "staff" }: Props) {
 
   const [selectedReference, setSelectedReference] = useState<string | null>(null);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+
   const handleRowClick = useCallback((sale: SaleDto) => setSelectedReference(sale.reference), []);
 
   const {
@@ -102,6 +108,33 @@ export default function StaffSales({ scope = "staff" }: Props) {
     isError: saleIsError,
     error: saleError,
   } = useSale(scope, selectedReference ?? "");
+  // Reprint uses exactly the same path as the POS and the repair ticket: thermal via the helper
+  // when it can reach a receipt printer, browser otherwise. It used to be a bare window.print(),
+  // which printed the whole page rather than a receipt and never touched the helper at all.
+  //
+  // The receipt is rebuilt from the SaleDto because no endpoint returns a ReceiptDto for an
+  // existing sale — see sale-to-receipt.ts, which mirrors the API's own mapper.
+  const publicSettings = usePublicSettings();
+  const { print: printReceiptDocument } = useReceiptPrint();
+  const reprintReceipt = useMemo(
+    () => (selectedSale ? saleToReceipt(selectedSale) : null),
+    [selectedSale],
+  );
+  const handleReprint = useCallback(async () => {
+    if (!reprintReceipt) return;
+    const store = publicSettings.data?.store;
+    await printReceiptDocument(
+      () =>
+        buildPosReceiptEscPos({
+          receipt: reprintReceipt,
+          issuedAt: reprintReceipt.soldAt ?? new Date().toISOString(),
+          store,
+          t,
+          language,
+        }),
+      store?.printLogoUrl ?? store?.logoUrl,
+    );
+  }, [reprintReceipt, publicSettings.data?.store, printReceiptDocument, t, language]);
   const forbidden =
     saleIsError && axios.isAxiosError(saleError) && saleError.response?.status === 403;
 
@@ -244,7 +277,7 @@ export default function StaffSales({ scope = "staff" }: Props) {
         open={!!selectedReference}
         onOpenChange={(open) => !open && setSelectedReference(null)}
         sale={saleLoading ? null : (selectedSale ?? null)}
-        onReprint={() => window.print()}
+        onReprint={handleReprint}
         onResumeDraft={
           selectedSale ? () => navigate(`/${scope}/pos?draftId=${selectedSale.id}`) : undefined
         }
@@ -252,6 +285,28 @@ export default function StaffSales({ scope = "staff" }: Props) {
         scope={scope}
         forbidden={forbidden}
       />
+
+      {/* The browser-fallback artefact. printReceipt() reveals whatever carries
+          RECEIPT_ROOT_CLASS, so without this mounted the fallback would print the whole page —
+          which is exactly what the old bare window.print() did. Invisible on screen: index.css
+          only reveals the receipt root during a lib/print.ts-driven print. */}
+      {reprintReceipt && (
+        <PosReceiptPrintable
+          reference={reprintReceipt.reference}
+          lines={reprintReceipt.lines}
+          issuedAt={reprintReceipt.soldAt ?? new Date().toISOString()}
+          subtotal={reprintReceipt.subtotal}
+          discountAmount={reprintReceipt.discountAmount}
+          total={reprintReceipt.total}
+          previousCredit={reprintReceipt.previousCredit}
+          grandTotal={reprintReceipt.grandTotal}
+          paid={reprintReceipt.totalPaid}
+          newCredit={reprintReceipt.newCredit}
+          posClientName={reprintReceipt.posClientName}
+          staffName={reprintReceipt.staffName}
+          store={publicSettings.data?.store}
+        />
+      )}
 
       <ReturnDialog
         // Forces a fresh mount per sale — same defaultValues-frozen-at-first-render bug as
