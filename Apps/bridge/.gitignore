@@ -1,0 +1,11 @@
+# Build output
+/dist/
+/dtbridge
+/dtbridge.exe
+
+# Runtime state — site-specific, never checked in. config.example.json is the template.
+config.json
+dtbridge.log
+dtbridge.log.1
+/dtbridge-dry-run/
+/dtbridge-logo-cache/

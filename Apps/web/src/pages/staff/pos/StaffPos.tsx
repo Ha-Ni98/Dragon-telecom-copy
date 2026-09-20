@@ -335,6 +335,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
       t,
       language,
     });
+    const logoUrl = publicSettings.data?.store.printLogoUrl ?? publicSettings.data?.store.logoUrl;
     const outcome = await printOrFallback(
       {
         jobId: newJobId(),
@@ -343,6 +344,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
         encoding: "base64",
         payload: bytesToBase64(bytes),
         copies: 1,
+        ...(logoUrl != null && logoUrl !== "" ? { logoUrl } : {}),
       },
       printReceipt,
     );

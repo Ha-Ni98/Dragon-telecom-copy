@@ -123,6 +123,7 @@ export function RepairTicketDetail({
     setIsPrintingReceipt(true);
     try {
       const bytes = buildRepairReceiptEscPos({ repair, store, t, language });
+      const logoUrl = store?.printLogoUrl ?? store?.logoUrl;
       const outcome = await printOrFallback(
         {
           jobId: newJobId(),
@@ -131,6 +132,7 @@ export function RepairTicketDetail({
           encoding: "base64",
           payload: bytesToBase64(bytes),
           copies: 1,
+          ...(logoUrl != null && logoUrl !== "" ? { logoUrl } : {}),
         },
         printReceipt,
       );

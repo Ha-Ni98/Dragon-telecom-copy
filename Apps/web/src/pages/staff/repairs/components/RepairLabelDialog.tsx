@@ -25,7 +25,6 @@ import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
 import { buildZplLabel } from "@/lib/zpl";
 import { buildRepairLabelLines } from "@/pages/staff/repairs/repair-label-lines";
 import { LABEL_PADDING_MM, REPAIR_LABEL_SIZE_STORAGE_KEY } from "@/types/label-print.types";
-import { PRINT_BRIDGE_DEFAULT_LABEL_DPI } from "@/types/print-bridge.types";
 
 interface RepairLabelDialogProps {
   repair: RepairDto;
@@ -60,7 +59,7 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
   // counter, so the two sizes are remembered independently.
   const [size, setSize] = useLabelSize(REPAIR_LABEL_SIZE_STORAGE_KEY);
   const [mode, setMode] = usePrinterMode();
-  const { available: bridgeAvailable } = usePrintBridgeStatus();
+  const { available: bridgeAvailable, labelDpi } = usePrintBridgeStatus();
   const [isPrinting, setIsPrinting] = useState(false);
 
   const textLines = useMemo(() => buildRepairLabelLines(repair, t), [repair, t]);
@@ -98,7 +97,7 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
         widthMm: size.widthMm,
         heightMm: size.heightMm,
         copies: quantity,
-        dpi: PRINT_BRIDGE_DEFAULT_LABEL_DPI,
+        dpi: labelDpi,
       });
       const outcome = await printOrFallback(
         {
