@@ -12,6 +12,7 @@ import { NotFoundState } from "@/components/shared/NotFoundState";
 import { RouteErrorBoundary } from "@/components/shared/RouteErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/useTranslation";
+import { usePublicSettings } from "@/hooks/usePlatform";
 import { setRedirect } from "@/lib/axios";
 
 const Index = lazy(() => import("@/pages/Index"));
@@ -400,9 +401,25 @@ setRedirect((path) => router.navigate(path));
 
 export default function App() {
   const { t } = useTranslation();
+  const { data: publicSettings } = usePublicSettings();
+
   useEffect(() => {
     document.title = t("common.brand.pageTitle");
   }, [t]);
+
+  // Store logo doubles as the browser-tab favicon once uploaded (Settings → Store → Logos);
+  // until then the tag is left absent and the browser falls back to its own default.
+  useEffect(() => {
+    const logoUrl = publicSettings?.store.logoUrl;
+    if (!logoUrl) return;
+    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = logoUrl;
+  }, [publicSettings?.store.logoUrl]);
 
   return <RouterProvider router={router} />;
 }
