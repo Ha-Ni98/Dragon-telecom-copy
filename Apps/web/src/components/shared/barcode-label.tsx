@@ -6,13 +6,22 @@ interface BarcodeLabelProps {
   /** S26 — optional, mirrors the printed label; absent means the column and its rule are not drawn. */
   storeName?: string;
   topText?: string;
+  /** S27.1 — stacked raw-text lines above the symbol (the repair client label: name, phone,
+   *  device, problem). Mutually exclusive in practice with `topText`, which is the single
+   *  centred caption the product/supplier labels use. */
+  textLines?: string[];
 }
 
 // S19/S22/S26/S27 — the on-screen *preview* of one printed label. The printed sheet is now
 // rendered in the browser too (components/shared/barcode-label-sheet.tsx, via
 // lib/barcode-svg.ts's JsBarcode render — S27 deleted the S22/S26 server-side PDF renderer
 // entirely), so this preview and the printed artefact share the same underlying symbol library;
-// only the surrounding markup is duplicated, and the two must be kept in step. Layout as of S26:
+// only the surrounding markup is duplicated, and the two must be kept in step.
+//
+// S27.1 — there is now a THIRD renderer of the same label: lib/zpl.ts, for the thermal path.
+// All three must agree. This file moved out of pages/admin/products/components/ when the repair
+// dialog (a staff page) started using it — a shared component cannot live inside another page's
+// folder. Layout as of S26:
 // 50 x 25 mm, an optional store name running bottom-to-top down a 6 mm left column, a vertical
 // rule, then the optional caption, the symbol and its digits.
 //
@@ -25,7 +34,7 @@ interface BarcodeLabelProps {
 // This preview intentionally keeps `margin: 0` (no quiet zone) below — it is a visual reference at
 // a fixed on-screen size, not a scan target. The printed label adds the real quiet zone via
 // lib/barcode-svg.ts's `renderBarcodeSvg` (QUIET_ZONE_MODULES).
-export function BarcodeLabel({ value, storeName, topText }: BarcodeLabelProps) {
+export function BarcodeLabel({ value, storeName, topText, textLines }: BarcodeLabelProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -62,6 +71,18 @@ export function BarcodeLabel({ value, storeName, topText }: BarcodeLabelProps) {
       <div className="flex min-w-0 flex-1 flex-col justify-center">
         {topText?.trim() ? (
           <span className="truncate text-center text-[5pt] leading-none">{topText.trim()}</span>
+        ) : null}
+        {/* S27.1 — the text block is capped and clipped so it can never squeeze the symbol out of
+            the label; the barcode keeps the remaining height. Mirrors barcode-label-sheet.tsx's
+            own guard, which is the scan-safety floor rather than styling. */}
+        {textLines && textLines.length > 0 ? (
+          <div className="max-h-[55%] shrink overflow-hidden">
+            {textLines.map((line, index) => (
+              <div key={index} className="truncate text-[5pt] leading-[1.15]">
+                {line}
+              </div>
+            ))}
+          </div>
         ) : null}
         <svg ref={svgRef} className="h-auto w-full" />
       </div>

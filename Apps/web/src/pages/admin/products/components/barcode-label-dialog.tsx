@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Printer } from "lucide-react";
+import { toast } from "sonner";
 import {
   BARCODE_LABEL_MAX_QUANTITY,
   BARCODE_LABEL_TEXT_MAX,
@@ -18,9 +19,13 @@ import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/hooks/useTranslation";
 import { usePlatformSettings } from "@/hooks/usePlatform";
 import { useLabelSize } from "@/hooks/use-label-size";
+import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
 import { printLabelSheet } from "@/lib/print";
+import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
+import { buildZplLabel } from "@/lib/zpl";
+import { PrinterModeField } from "@/components/shared/printer-mode-field";
 import { renderBarcodeSvg } from "@/lib/barcode-svg";
-import { BarcodeLabel } from "@/pages/admin/products/components/barcode-label";
+import { BarcodeLabel } from "@/components/shared/barcode-label";
 import { BarcodeLabelSheet, type LabelSheetItem } from "@/components/shared/barcode-label-sheet";
 import { LabelSizeField } from "@/components/shared/label-size-field";
 import {
@@ -63,6 +68,9 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
   const { t } = useTranslation();
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useLabelSize();
+  const [mode, setMode] = usePrinterMode();
+  const { available: bridgeAvailable, labelDpi } = usePrintBridgeStatus();
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const settings = usePlatformSettings();
   const defaultStoreName = settings.data?.store.name ?? "";
@@ -126,8 +134,45 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
   // this is the matching guard.
   if (!barcode) return null;
 
-  const handlePrint = () => {
-    printLabelSheet(size.widthMm, size.heightMm);
+  // S27.1 — thermal first, browser fallback. The early return is deliberately synchronous:
+  // `window.print()` after an `await` leaves the user-gesture task, so the common "no thermal
+  // printing here" cases must reach it without awaiting anything.
+  const handlePrint = async () => {
+    const browserFallback = () => printLabelSheet(size.widthMm, size.heightMm);
+
+    if (mode === "browser" || bridgeAvailable !== true) {
+      browserFallback();
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      const zpl = buildZplLabel({
+        barcode,
+        totalModules,
+        widthMm: size.widthMm,
+        heightMm: size.heightMm,
+        copies: quantity,
+        dpi: labelDpi,
+        ...(effectiveTopText.trim() !== "" ? { topText: effectiveTopText.trim() } : {}),
+        ...(trimmedStoreName !== "" ? { storeName: trimmedStoreName } : {}),
+      });
+      const outcome = await printOrFallback(
+        {
+          jobId: newJobId(),
+          target: "label",
+          language: "ZPL",
+          encoding: "base64",
+          payload: bytesToBase64(new TextEncoder().encode(zpl)),
+          copies: quantity,
+        },
+        browserFallback,
+      );
+      if (outcome === "bridge") toast.success(t("common.print.bridge.sent"));
+      else toast.warning(t("common.print.bridge.fallback"));
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   return (
@@ -200,13 +245,15 @@ export function BarcodeLabelDialog({ product, open, onOpenChange }: BarcodeLabel
             </div>
 
             <LabelSizeField value={size} onChange={setSize} moduleMm={moduleMm} />
+
+            <PrinterModeField value={mode} onChange={setMode} bridgeAvailable={bridgeAvailable} />
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {t("common.actions.cancel")}
             </Button>
-            <Button onClick={handlePrint}>
+            <Button onClick={handlePrint} disabled={isPrinting}>
               <Printer className="mr-2 h-4 w-4" />
               {t("admin.productsList.printLabels.print")}
             </Button>

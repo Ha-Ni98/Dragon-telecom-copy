@@ -40,3 +40,20 @@ export const BARCODE_MIN_MODULE_MM = 0.25;
 /** localStorage key — "remember the last chosen size so the counter isn't re-picking it every
  *  time" (S27 brief). */
 export const LABEL_SIZE_STORAGE_KEY = "dt_label_size";
+
+/** S27.1 — the repair client label remembers its own size, separately from the product/supplier
+ *  labels: it is a different physical stock on a different bench. Same per-workstation reasoning
+ *  as LABEL_SIZE_STORAGE_KEY above. */
+export const REPAIR_LABEL_SIZE_STORAGE_KEY = "dt_repair_label_size";
+
+/** S27.1 — the repair label's raw-text block. 6 pt (2.12 mm) at 1.15 line-height gives ~2.4 mm a
+ *  line, so four lines cost ~9.7 mm of a 50 x 25 mm label's 23 mm content height, leaving ~13 mm
+ *  for the symbol and its readable value. Dropping below 6 pt stops being legible on a thermal
+ *  head; going above it starts eating the barcode. */
+export const REPAIR_LABEL_TEXT_PT = 6;
+export const REPAIR_LABEL_LINE_HEIGHT = 1.15;
+
+/** S27.1 — hard ceiling on the text block as a share of the label's content height, so a long
+ *  line list can never squeeze the symbol below a scannable height. This is a scan-safety floor
+ *  for the barcode, not a styling choice. */
+export const LABEL_TEXT_BLOCK_MAX_PCT = 55;

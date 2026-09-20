@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { AutocompleteInput } from "@/components/shared/autocomplete-input";
-import { Trash2, Plus, Printer } from "lucide-react";
+import { Trash2, Plus, Printer, Tag } from "lucide-react";
+import { toast } from "sonner";
 import {
   isRepairStatusTerminal,
   type RepairDto,
@@ -18,6 +19,10 @@ import {
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD, formatDateTime } from "@/lib/utils";
 import { printReceipt } from "@/lib/print";
+import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
+import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
+import { buildRepairReceiptEscPos } from "@/pages/staff/repairs/repair-receipt-escpos";
+import { RepairLabelDialog } from "@/pages/staff/repairs/components/RepairLabelDialog";
 import {
   addRepairPartSchema,
   type AddRepairPartFormValues,
@@ -84,6 +89,12 @@ export function RepairTicketDetail({
     defaultValues: { productId: "", quantity: 1, unitPrice: 0 },
   });
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [labelDialogOpen, setLabelDialogOpen] = useState(false);
+  // S27.1 — mounted here, not only inside the label dialog: the receipt button below needs the
+  // same already-resolved answer so its fallback can stay synchronous (see handlePrintReceipt).
+  const [printerMode] = usePrinterMode();
+  const { available: bridgeAvailable } = usePrintBridgeStatus();
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
 
   if (!repair) return null;
 
@@ -100,21 +111,70 @@ export function RepairTicketDetail({
     setPaymentDialogOpen(false);
   };
 
+  // S27.1 — thermal first, browser fallback. The two early returns are deliberately synchronous:
+  // `window.print()` after an `await` is no longer in the user-gesture task, so every common
+  // "not printing thermally" case must reach it without awaiting anything.
+  const handlePrintReceipt = async () => {
+    if (printerMode === "browser" || bridgeAvailable !== true) {
+      printReceipt();
+      return;
+    }
+
+    setIsPrintingReceipt(true);
+    try {
+      const bytes = buildRepairReceiptEscPos({ repair, store, t, language });
+      const logoUrl = store?.printLogoUrl ?? store?.logoUrl;
+      const outcome = await printOrFallback(
+        {
+          jobId: newJobId(),
+          target: "receipt",
+          language: "ESCPOS",
+          encoding: "base64",
+          payload: bytesToBase64(bytes),
+          copies: 1,
+          ...(logoUrl != null && logoUrl !== "" ? { logoUrl } : {}),
+        },
+        printReceipt,
+      );
+      // Nothing visible happens on the thermal path, so silence would read as a dead button and
+      // invite a second press — i.e. a real double print.
+      if (outcome === "bridge") toast.success(t("common.print.bridge.sent"));
+      else toast.warning(t("common.print.bridge.fallback"));
+    } finally {
+      setIsPrintingReceipt(false);
+    }
+  };
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           <SheetHeader>
             <div className="flex items-center justify-between gap-2">
-              <SheetTitle>
+              {/* min-w-0 + truncate: the title already carries the reference, and S27.1 added a
+                  second button beside it — without this the pair overflows a sm:max-w-lg sheet. */}
+              <SheetTitle className="min-w-0 truncate">
                 {t("staff.repairs.detail.title")} — {repair.reference}
               </SheetTitle>
-              {/* S25 — printable at every status, including PICKED_UP/CANCELLED (read-only), so
-                  this sits outside every `!readOnly` guard in this component. */}
-              <Button variant="outline" size="sm" onClick={printReceipt}>
-                <Printer className="mr-2 h-4 w-4" />
-                {t("staff.repairs.receipt.print")}
-              </Button>
+              {/* S25/S27.1 — both printable at every status, including PICKED_UP/CANCELLED
+                  (read-only), so these sit outside every `!readOnly` guard in this component: a
+                  collected device still needs a reprintable receipt, and a bench tag can be
+                  reprinted at any point in the repair. */}
+              <div className="flex shrink-0 items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setLabelDialogOpen(true)}>
+                  <Tag className="mr-2 h-4 w-4" />
+                  {t("staff.repairs.label.print")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrintReceipt}
+                  disabled={isPrintingReceipt}
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  {t("staff.repairs.receipt.print")}
+                </Button>
+              </div>
             </div>
           </SheetHeader>
 
@@ -330,6 +390,10 @@ export function RepairTicketDetail({
           SheetContent with a transform, which becomes the containing block for the receipt's
           position:absolute print rule and would print it clipped or off-page (see index.css). */}
       <RepairReceipt repair={repair} store={store} />
+
+      {/* S27.1 — same sibling placement, same Radix-transform reason: the dialog owns a
+          <BarcodeLabelSheet> whose print root must not sit under a transformed ancestor. */}
+      <RepairLabelDialog repair={repair} open={labelDialogOpen} onOpenChange={setLabelDialogOpen} />
     </>
   );
 }
