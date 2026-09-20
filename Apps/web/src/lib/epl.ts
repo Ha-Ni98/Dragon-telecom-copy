@@ -23,7 +23,8 @@ import {
 // (form length/gap): those are the shop's own media calibration, and on EPL a wrong `Q` actively
 // misfeeds labels. The printer's own calibration must survive our print jobs — the same rule
 // lib/zpl.ts states for ^MD/^PR/^MM/^MN, and the reason the test payload that proved this printer
-// works omitted `Q` too.
+// works omitted `Q` too. The one exception is `ZT` (print direction), which decides whether the
+// label reads upright rather than how the media feeds — see where it is emitted below.
 
 /** Dots per millimetre. 203 dpi ≈ 7.992, 300 dpi ≈ 11.811 — never hardcode 8. */
 const dotsPerMm = (dpi: number): number => dpi / 25.4;
@@ -149,23 +150,35 @@ export function buildEplLabel(input: LabelInput): string {
   const font = pickEplFont(dots((REPAIR_LABEL_TEXT_PT * 25.4) / 72, dpi));
   const linePitch = Math.round(font.h * 1.2);
 
-  // `N` clears the image buffer; `q` sets the printable width (EPL's analogue of ^PW).
-  const lines: string[] = ["N", `q${widthDots}`];
+  // `N` clears the image buffer; `ZT` sets the print direction; `q` sets the printable width
+  // (EPL's analogue of ^PW).
+  //
+  // ZT IS NOT OPTIONAL HERE. Without it this printer defaults to ZB and every thermal label came
+  // out rotated 180° from the browser-printed version of the same label — proven by printing both
+  // onto one continuous strip and comparing. That also put the store column on the wrong edge,
+  // since a 180° flip mirrors x as well as y. This is the one media-ish command the builder does
+  // emit, because it decides whether the label reads upright rather than how the media feeds; if a
+  // shop's printer ever needs the opposite, `ZB` is the single token to change.
+  const lines: string[] = ["N", "ZT", `q${widthDots}`];
 
   // --- Optional rotated store column, reading bottom-to-top down the left edge, matching the ZPL
   //     builder's ^A0B and the HTML's writing-mode: vertical-rl + rotate(180deg).
   //
-  //     ANCHORED AT THE TOP, NOT THE BOTTOM — and that difference is why this column silently
-  //     failed to print on the first hardware run. ZPL's ^FO with ^A0B anchors the baseline at the
-  //     BOTTOM of the text and grows upward, so the ZPL builder passes `heightDots - padDots`.
-  //     EPL's reference point is the top-left corner of the ROTATED block, which grows downward
-  //     from there: copying ZPL's anchor put a ~140-dot-long string at y=152 on a 160-dot label,
-  //     i.e. almost entirely past the bottom edge, and the printer simply clipped it. Nothing was
-  //     wrong with the rotation — the origin was. ---
+  //     ROTATION 3 ADVANCES TOWARD DECREASING Y — established on hardware with a probe label that
+  //     printed the same string at rotations 1 and 3 against a rotation-0 reference, not inferred
+  //     from the manual. The anchor is therefore the BOTTOM of the text's span, and both earlier
+  //     attempts failed for that one reason: anchoring at `heightDots - padDots` was nearly right
+  //     but ran off a label whose configured height was larger than the stock, and anchoring at
+  //     `padDots` sent a 140-dot string from y=8 up to y=-132, i.e. entirely off the top.
+  //
+  //     Centred within the label and clamped to the bottom padding, so a name far shorter than the
+  //     column sits in the middle like the HTML does, and a full-length one can never overrun. ---
   if (hasStoreColumn) {
     const columnHeight = heightDots - padDots * 2;
     const text = fitToWidth(storeName, columnHeight, font.w);
-    lines.push(`A${padDots},${padDots},3,${font.id},${font.mult},${font.mult},N,"${text}"`);
+    const textLengthDots = text.length * font.w;
+    const anchorY = Math.min(heightDots - padDots, Math.round((heightDots + textLengthDots) / 2));
+    lines.push(`A${padDots},${anchorY},3,${font.id},${font.mult},${font.mult},N,"${text}"`);
   }
 
   // --- Text above the symbol. EPL has no justification parameter, so the centred caption is
