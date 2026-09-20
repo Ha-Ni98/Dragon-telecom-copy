@@ -12,7 +12,10 @@ import (
 )
 
 var (
-	validLanguages  = []string{"ZPL", "ESCPOS"}
+	// EPL is the older Eltron label language. Pre-"Plus" Zebra desktop units (the LP 2824 among
+	// them) speak it and have no ZPL interpreter at all — sent ZPL they print nothing whatsoever,
+	// with no error to go on, which is why this is per-printer config rather than an assumption.
+	validLanguages  = []string{"ZPL", "EPL", "ESCPOS"}
 	validTransports = []string{"spooler", "tcp", "file"}
 	validCutCmds    = []string{"auto", "GSV66", "GSV0", "GSV1", "none"}
 	// validCodePages matches internal/escpos.RewriteCodePage's supported targets exactly — kept

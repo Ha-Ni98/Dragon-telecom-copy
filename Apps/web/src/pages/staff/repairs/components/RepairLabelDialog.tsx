@@ -19,12 +19,11 @@ import { PrinterModeField } from "@/components/shared/printer-mode-field";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLabelSize } from "@/hooks/use-label-size";
 import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
-import { renderBarcodeSvg } from "@/lib/barcode-svg";
 import { printLabelSheet } from "@/lib/print";
 import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
-import { buildZplLabel } from "@/lib/zpl";
+import { buildLabel } from "@/lib/label-language";
 import { buildRepairLabelLines } from "@/pages/staff/repairs/repair-label-lines";
-import { LABEL_PADDING_MM, REPAIR_LABEL_SIZE_STORAGE_KEY } from "@/types/label-print.types";
+import { REPAIR_LABEL_SIZE_STORAGE_KEY } from "@/types/label-print.types";
 
 interface RepairLabelDialogProps {
   repair: RepairDto;
@@ -37,40 +36,31 @@ interface RepairLabelDialogProps {
 const clampQuantity = (raw: number): number =>
   Number.isFinite(raw) ? Math.min(Math.max(Math.trunc(raw), 1), BARCODE_LABEL_MAX_QUANTITY) : 1;
 
-// S27.1 — the repair client label: a Code 128 of the repair reference plus the client and device
-// details as raw text lines, to stick on the device on the bench.
+// S27.1 — the repair client label: the client and device details as raw text lines, to stick on
+// the device on the bench.
 //
-// NO STORE COLUMN, and that is arithmetic rather than taste. A reference is 13 characters
-// (`REP-2026-0001`), which is 187-198 Code 128 modules including both quiet zones. On a 50 mm
-// label the 6 mm store column + 0.5 mm gap would leave 41.5 mm of barcode area = 0.21-0.22 mm per
-// module, well under the 0.25 mm scanning floor this project records in BARCODE_MIN_MODULE_MM.
-// Without the column it is 48 mm = 0.24-0.26 mm, which clears the floor. So the column is not
-// optional here — passing a storeName would make the label unscannable.
-//
-// It also means the label's own size picker matters more than usual: `moduleMm` below feeds
-// LabelSizeField's existing sub-floor warning, and 40 mm stock will (correctly) trip it.
+// NO BARCODE. The sticker only needs to be human-readable at the bench, not scanned, so the
+// reference and intake date/time are printed as plain text lines (via buildRepairLabelLines)
+// instead of riding along in a Code 128 symbol. That also means there is no module-width
+// arithmetic here, unlike the two catalog label dialogs — the label's own size picker is a plain
+// physical-stock choice, with no scan-floor warning to feed it.
 //
 // Like both catalog label dialogs, this does NOT self-close after Print: window.print() is not
 // reliably blocking, and unmounting the print root mid-print risks a blank page.
 export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDialogProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [quantity, setQuantity] = useState(1);
   // Its own storage key: a bench label is different physical stock from the product labels at the
   // counter, so the two sizes are remembered independently.
   const [size, setSize] = useLabelSize(REPAIR_LABEL_SIZE_STORAGE_KEY);
   const [mode, setMode] = usePrinterMode();
-  const { available: bridgeAvailable, labelDpi } = usePrintBridgeStatus();
+  const { available: bridgeAvailable, labelDpi, labelLanguage } = usePrintBridgeStatus();
   const [isPrinting, setIsPrinting] = useState(false);
 
-  const textLines = useMemo(() => buildRepairLabelLines(repair, t), [repair, t]);
-
-  const rendered = useMemo(() => renderBarcodeSvg(repair.reference), [repair.reference]);
-
-  // No store-column term — the only difference from the two catalog dialogs' identical formula.
-  const moduleMm = useMemo(() => {
-    if (rendered.totalModules === 0) return undefined;
-    return (size.widthMm - LABEL_PADDING_MM * 2) / rendered.totalModules;
-  }, [size, rendered.totalModules]);
+  const textLines = useMemo(
+    () => buildRepairLabelLines(repair, t, language),
+    [repair, t, language],
+  );
 
   const printItems: LabelSheetItem[] = useMemo(
     () => [{ barcode: repair.reference, quantity, textLines }],
@@ -90,9 +80,10 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
 
     setIsPrinting(true);
     try {
-      const zpl = buildZplLabel({
+      const labelBytes = buildLabel(labelLanguage, {
         barcode: repair.reference,
-        totalModules: rendered.totalModules,
+        totalModules: 0,
+        showBarcode: false,
         textLines,
         widthMm: size.widthMm,
         heightMm: size.heightMm,
@@ -103,9 +94,9 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
         {
           jobId: newJobId(),
           target: "label",
-          language: "ZPL",
+          language: labelLanguage,
           encoding: "base64",
-          payload: bytesToBase64(new TextEncoder().encode(zpl)),
+          payload: bytesToBase64(new TextEncoder().encode(labelBytes)),
           copies: quantity,
         },
         browserFallback,
@@ -131,7 +122,7 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
             <div className="space-y-1">
               <Label>{t("staff.repairs.label.preview")}</Label>
               <div className="flex justify-center">
-                <BarcodeLabel value={repair.reference} textLines={textLines} />
+                <BarcodeLabel value={repair.reference} textLines={textLines} showBarcode={false} />
               </div>
             </div>
 
@@ -152,7 +143,7 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
             {/* LabelSizeField hardcodes its element ids, so it must never be mounted twice at
                 once. Safe here: this dialog lives on /staff/repairs and /admin/repairs, the two
                 catalog label dialogs on products and supplier-invoices — never the same screen. */}
-            <LabelSizeField value={size} onChange={setSize} moduleMm={moduleMm} />
+            <LabelSizeField value={size} onChange={setSize} />
 
             <PrinterModeField value={mode} onChange={setMode} bridgeAvailable={bridgeAvailable} />
           </div>
@@ -169,7 +160,7 @@ export function RepairLabelDialog({ repair, open, onOpenChange }: RepairLabelDia
         </DialogContent>
       </Dialog>
 
-      <BarcodeLabelSheet items={printItems} size={size} />
+      <BarcodeLabelSheet items={printItems} size={size} showBarcode={false} />
     </>
   );
 }

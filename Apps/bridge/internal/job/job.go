@@ -63,8 +63,8 @@ func FromRequest(req Request, expectedLanguage map[string]string) (Job, error) {
 		return Job{}, invalid("target must be %q or %q, got %q", "label", "receipt", req.Target)
 	}
 
-	if req.Language != "ZPL" && req.Language != "ESCPOS" {
-		return Job{}, invalid("language must be %q or %q, got %q", "ZPL", "ESCPOS", req.Language)
+	if req.Language != "ZPL" && req.Language != "EPL" && req.Language != "ESCPOS" {
+		return Job{}, invalid("language must be one of %q, %q or %q, got %q", "ZPL", "EPL", "ESCPOS", req.Language)
 	}
 	if req.Language != want {
 		return Job{}, invalid("language mismatch: %s printer is configured for %s, got %s", req.Target, want, req.Language)

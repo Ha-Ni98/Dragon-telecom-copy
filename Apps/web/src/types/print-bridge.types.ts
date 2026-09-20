@@ -33,6 +33,11 @@ export const PRINT_BRIDGE_PROBE_TTL_MS = 30_000;
  *  the common Zebra desktop default; 300 dpi models exist and report themselves. */
 export const PRINT_BRIDGE_DEFAULT_LABEL_DPI = 203;
 
+/** Fallback when the helper's /status does not report the label printer's language. ZPL is what
+ *  every modern Zebra speaks and what the browser-fallback path assumes; an EPL2-only printer
+ *  declares itself in the helper's own config. */
+export const PRINT_BRIDGE_DEFAULT_LABEL_LANGUAGE = "ZPL";
+
 export const PRINT_BRIDGE_PATH = {
   STATUS: "/status",
   PRINT: "/print",
@@ -44,9 +49,15 @@ export type PrinterMode = "thermal" | "browser";
 
 export type PrintTarget = "label" | "receipt";
 
-/** ZPL drives the Zebra label printer; ESC/POS drives the 80 mm receipt printer. They are not
- *  interchangeable — a receipt printer does not understand ZPL. */
-export type PrintLanguage = "ZPL" | "ESCPOS";
+/** ZPL or EPL drives the label printer; ESC/POS drives the 80 mm receipt printer. None of the
+ *  three are interchangeable — a receipt printer does not understand ZPL, and a label printer
+ *  given the wrong one of ZPL/EPL typically prints NOTHING AT ALL rather than erroring.
+ *
+ *  EPL2 is the older Eltron language still used by pre-"Plus" Zebra desktop units such as the
+ *  shop's LP 2824, which has no ZPL interpreter whatsoever. Which one a label job is built in is
+ *  therefore read per printer from the helper's /status rather than assumed — see
+ *  use-print-bridge.ts's labelLanguage. */
+export type PrintLanguage = "ZPL" | "EPL" | "ESCPOS";
 
 export interface PrintJob {
   /** Client-generated, so the helper can de-duplicate a human double-click and correlate logs. */

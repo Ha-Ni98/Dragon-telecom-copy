@@ -47,8 +47,15 @@ type docInfo1 struct {
 type SpoolerWriter struct {
 	QueueName string
 
-	handle windows.Handle
+	handle    windows.Handle
+	lastJobID uint32
 }
+
+// LastJobID reports the Windows spooler job ID of the most recent successful Write — the same
+// number the Windows print queue shows — so a dtbridge log line can be correlated directly with
+// what Windows did with it. Zero before the first successful Write. With copies > 1 each Write is
+// its own spooler job, so this is the last of them. Satisfies device.JobIDReporter.
+func (w *SpoolerWriter) LastJobID() uint32 { return w.lastJobID }
 
 func (w *SpoolerWriter) Open() error {
 	name, err := windows.UTF16PtrFromString(w.QueueName)
@@ -66,7 +73,11 @@ func (w *SpoolerWriter) Open() error {
 	return nil
 }
 
-func (w *SpoolerWriter) Write(payload []byte) error {
+// Write is named-return so the deferred EndPagePrinter/EndDocPrinter calls can report their own
+// failures. Those two used to be bare `defer proc.Call(...)` with the result discarded, which was
+// a real hole: EndDocPrinter is what actually commits the job to the queue, so if it failed
+// nothing would print and Write would still have returned nil.
+func (w *SpoolerWriter) Write(payload []byte) (err error) {
 	if w.handle == 0 {
 		return fmt.Errorf("spooler writer: Write called before a successful Open")
 	}
@@ -84,32 +95,46 @@ func (w *SpoolerWriter) Write(payload []byte) error {
 	}
 	info := docInfo1{pDocName: docName, pOutputFile: nil, pDatatype: dataType}
 
-	r1, _, err := procStartDocPrinter.Call(uintptr(w.handle), 1, uintptr(unsafe.Pointer(&info)))
+	// StartDocPrinter returns the spooler job ID on success (0 = failure).
+	r1, _, callErr := procStartDocPrinter.Call(uintptr(w.handle), 1, uintptr(unsafe.Pointer(&info)))
 	if r1 == 0 {
-		return fmt.Errorf("StartDocPrinter: %w", err)
+		return fmt.Errorf("StartDocPrinter: %w", callErr)
 	}
-	// EndDocPrinter must run even if StartPagePrinter/WritePrinter/EndPagePrinter fails partway,
-	// or the job is left dangling in the spooler queue forever.
-	defer procEndDocPrinter.Call(uintptr(w.handle))
+	jobID := uint32(r1)
 
-	if r1, _, err := procStartPagePrinter.Call(uintptr(w.handle)); r1 == 0 {
-		return fmt.Errorf("StartPagePrinter: %w", err)
+	// Still deferred — it must run even if the steps below fail partway, or the job dangles in the
+	// spooler forever — but now reported. `err == nil` guards against masking an earlier, more
+	// specific failure with a cleanup error.
+	defer func() {
+		if r, _, e := procEndDocPrinter.Call(uintptr(w.handle)); r == 0 && err == nil {
+			err = fmt.Errorf("EndDocPrinter (spooler job %d): %w", jobID, e)
+		}
+	}()
+
+	if r, _, e := procStartPagePrinter.Call(uintptr(w.handle)); r == 0 {
+		return fmt.Errorf("StartPagePrinter (spooler job %d): %w", jobID, e)
 	}
-	defer procEndPagePrinter.Call(uintptr(w.handle))
+	defer func() {
+		if r, _, e := procEndPagePrinter.Call(uintptr(w.handle)); r == 0 && err == nil {
+			err = fmt.Errorf("EndPagePrinter (spooler job %d): %w", jobID, e)
+		}
+	}()
 
 	var written uint32
-	r1, _, err = procWritePrinter.Call(
+	r1, _, callErr = procWritePrinter.Call(
 		uintptr(w.handle),
 		uintptr(unsafe.Pointer(&payload[0])),
 		uintptr(len(payload)),
 		uintptr(unsafe.Pointer(&written)),
 	)
 	if r1 == 0 {
-		return fmt.Errorf("WritePrinter: %w", err)
+		return fmt.Errorf("WritePrinter (spooler job %d): %w", jobID, callErr)
 	}
 	if int(written) != len(payload) {
-		return fmt.Errorf("WritePrinter wrote %d of %d bytes", written, len(payload))
+		return fmt.Errorf("WritePrinter (spooler job %d) wrote %d of %d bytes", jobID, written, len(payload))
 	}
+
+	w.lastJobID = jobID
 	return nil
 }
 

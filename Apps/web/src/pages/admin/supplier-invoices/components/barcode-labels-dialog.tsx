@@ -34,7 +34,7 @@ import { useLabelSize } from "@/hooks/use-label-size";
 import { usePrinterMode, usePrintBridgeStatus } from "@/hooks/use-print-bridge";
 import { printLabelSheet } from "@/lib/print";
 import { bytesToBase64, newJobId, printOrFallback } from "@/lib/print-bridge";
-import { buildZplBatch } from "@/lib/zpl";
+import { buildLabelBatch } from "@/lib/label-language";
 import { PrinterModeField } from "@/components/shared/printer-mode-field";
 import { renderBarcodeSvg } from "@/lib/barcode-svg";
 import { BarcodeLabelSheet, type LabelSheetItem } from "@/components/shared/barcode-label-sheet";
@@ -95,7 +95,7 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
   const lookup = useBarcodeLookup(productIds, { enabled: open });
   const [size, setSize] = useLabelSize();
   const [mode, setMode] = usePrinterMode();
-  const { available: bridgeAvailable, labelDpi } = usePrintBridgeStatus();
+  const { available: bridgeAvailable, labelDpi, labelLanguage } = usePrintBridgeStatus();
   const [isPrinting, setIsPrinting] = useState(false);
 
   const settings = usePlatformSettings();
@@ -195,7 +195,8 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
 
     setIsPrinting(true);
     try {
-      const zpl = buildZplBatch(
+      const labelBytes = buildLabelBatch(
+        labelLanguage,
         printItems.map((item) => ({
           barcode: item.barcode,
           totalModules: renderBarcodeSvg(item.barcode).totalModules,
@@ -211,11 +212,11 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
         {
           jobId: newJobId(),
           target: "label",
-          language: "ZPL",
+          language: labelLanguage,
           encoding: "base64",
-          payload: bytesToBase64(new TextEncoder().encode(zpl)),
-          // ^PQ inside each block already carries the per-line count; the helper must send a ZPL
-          // payload exactly once.
+          payload: bytesToBase64(new TextEncoder().encode(labelBytes)),
+          // Each block already carries its own per-line count — ^PQ in ZPL, P in EPL — so the
+          // helper must send a label payload exactly once whichever language this is.
           copies: 1,
         },
         browserFallback,

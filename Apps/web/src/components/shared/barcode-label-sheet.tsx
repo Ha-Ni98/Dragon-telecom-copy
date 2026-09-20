@@ -26,6 +26,9 @@ interface BarcodeLabelSheetProps {
   items: LabelSheetItem[];
   storeName?: string;
   size: LabelSize;
+  /** Repair label only — drops the Code 128 symbol so `textLines` gets the full label height.
+   *  Defaults to true so the product/supplier-invoice dialogs are unaffected. */
+  showBarcode?: boolean;
 }
 
 // S27 — replaces S26's server-side PDF (pdf.utils.ts's renderBarcodeLabelsPdf, now deleted). The
@@ -45,7 +48,12 @@ interface BarcodeLabelSheetProps {
 // printing a real 14-label run). The portal lives in normal document flow, so index.css can hide
 // #root wholesale and let native pagination tile the labels correctly. See lib/print.ts's comment
 // for the full explanation; see index.css for the matching `#label-print-portal` rules.
-export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetProps) {
+export function BarcodeLabelSheet({
+  items,
+  storeName,
+  size,
+  showBarcode = true,
+}: BarcodeLabelSheetProps) {
   const trimmedStoreName = storeName?.trim();
 
   // The portal target must exist before we can render into it; grabbing it in an effect (not
@@ -62,11 +70,12 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
   const barcodeIds = useMemo(() => Array.from(new Set(items.map((item) => item.barcode))), [items]);
   const svgByBarcode = useMemo(() => {
     const map = new Map<string, string>();
+    if (!showBarcode) return map;
     for (const barcode of barcodeIds) {
       map.set(barcode, renderBarcodeSvg(barcode).svg);
     }
     return map;
-  }, [barcodeIds]);
+  }, [barcodeIds, showBarcode]);
 
   if (!portalNode) return null;
 
@@ -74,7 +83,7 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
     <div>
       {items.flatMap((item, index) =>
         Array.from({ length: item.quantity }, (_, copy) => {
-          const svg = svgByBarcode.get(item.barcode) ?? "";
+          const svg = showBarcode ? (svgByBarcode.get(item.barcode) ?? "") : "";
           const topText = item.topText?.trim();
           const textLines = item.textLines?.filter((line) => line.trim() !== "") ?? [];
           return (
@@ -163,8 +172,8 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
                 {textLines.length > 0 ? (
                   <div
                     style={{
-                      flex: "0 1 auto",
-                      maxHeight: `${LABEL_TEXT_BLOCK_MAX_PCT}%`,
+                      flex: showBarcode ? "0 1 auto" : "1 1 auto",
+                      maxHeight: showBarcode ? `${LABEL_TEXT_BLOCK_MAX_PCT}%` : "100%",
                       overflow: "hidden",
                     }}
                   >
@@ -190,10 +199,12 @@ export function BarcodeLabelSheet({ items, storeName, size }: BarcodeLabelSheetP
                     resolve against, and the symbol would fall back to its native pixel size and
                     overflow the label. The SVG string is our own JsBarcode output
                     (lib/barcode-svg.ts), never user-supplied markup. */}
-                <div
-                  style={{ flex: "1 1 auto", minHeight: 0, width: "100%" }}
-                  dangerouslySetInnerHTML={{ __html: svg }}
-                />
+                {showBarcode ? (
+                  <div
+                    style={{ flex: "1 1 auto", minHeight: 0, width: "100%" }}
+                    dangerouslySetInnerHTML={{ __html: svg }}
+                  />
+                ) : null}
               </div>
             </div>
           );

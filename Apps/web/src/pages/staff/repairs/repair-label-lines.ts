@@ -1,6 +1,8 @@
 import { ReportedIssue, type RepairDto } from "@dragon-telecom/contract";
 import { REPORTED_ISSUE_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
 import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-label";
+import { formatDateTime } from "@/lib/utils";
+import type { Language } from "@/lib/i18n";
 
 // S27.1 — the raw-text lines printed on the repair client label, in order. One source of truth
 // because three renderers consume it: the on-screen <BarcodeLabel> preview, the printed HTML
@@ -13,10 +15,14 @@ import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-lab
 // on a customer's device. Scope-independence by construction makes the leak impossible rather than
 // merely discouraged — do not add a scope parameter here.
 //
-// The barcode itself carries `repair.reference`, and `renderBarcodeSvg` is configured with
-// `displayValue: true`, so the reference prints readable inside the symbol. Deliberately NOT
-// repeated as a text line — that would waste ~2.4 mm of a 23 mm budget on a duplicate.
-export function buildRepairLabelLines(repair: RepairDto, t: (key: string) => string): string[] {
+// The label no longer carries a barcode (removed so the sticker only needs to be human-readable
+// at the bench, not scanned), so `repair.reference` and the intake date/time are now spelled out
+// as plain text lines instead of riding along in the symbol's human-readable line.
+export function buildRepairLabelLines(
+  repair: RepairDto,
+  t: (key: string) => string,
+  language: Language,
+): string[] {
   const issues =
     repair.reportedIssues.length > 0
       ? repair.reportedIssues.map((issue) => t(REPORTED_ISSUE_LABEL_KEY[issue])).join(" · ") +
@@ -34,5 +40,7 @@ export function buildRepairLabelLines(repair: RepairDto, t: (key: string) => str
     // an empty line.
     formatRepairDeviceLabel(repair.device),
     issues,
+    repair.reference,
+    formatDateTime(repair.intakeAt, language),
   ].filter((line) => line.trim() !== "");
 }

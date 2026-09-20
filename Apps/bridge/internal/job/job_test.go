@@ -88,6 +88,33 @@ func TestFromRequest_ESCPOSMatchesReceipt(t *testing.T) {
 	}
 }
 
+func TestFromRequest_AcceptsEPLWhenTheLabelPrinterIsConfiguredForIt(t *testing.T) {
+	eplLanguages := map[string]string{"label": "EPL", "receipt": "ESCPOS"}
+	req := validZPL()
+	req.Language = "EPL"
+	req.Payload = base64.StdEncoding.EncodeToString([]byte("N\r\nP1\r\n"))
+
+	j, err := FromRequest(req, eplLanguages)
+	if err != nil {
+		t.Fatalf("FromRequest: %v", err)
+	}
+	if j.Language != "EPL" {
+		t.Errorf("Language = %q, want EPL", j.Language)
+	}
+}
+
+func TestFromRequest_RejectsEPLWhenTheLabelPrinterSpeaksZPL(t *testing.T) {
+	// The guard that stops a mismatched label language reaching hardware that cannot read it —
+	// the failure mode that prints nothing at all and gives no error to diagnose.
+	req := validZPL()
+	req.Language = "EPL"
+
+	_, err := FromRequest(req, languages) // languages has label=ZPL
+	if err == nil || !strings.Contains(err.Error(), "language mismatch") {
+		t.Fatalf("FromRequest error = %v, want a language mismatch", err)
+	}
+}
+
 func TestFromRequest_LogoURLRoundTrips(t *testing.T) {
 	req := validZPL()
 	req.Target, req.Language = "receipt", "ESCPOS"
