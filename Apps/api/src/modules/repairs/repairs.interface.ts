@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type {
   AddRepairPartCommand,
+  AddRepairPartsCommand,
   CreateRepairCommand,
   JWTPayload,
   PaginatedResult,
@@ -60,6 +61,8 @@ export interface IRepairsService {
   updateRepair(id: string, cmd: UpdateRepairCommand, actor: JWTPayload): Promise<RepairDto>;
   // reserve(PENDING_REPAIR).
   addPart(id: string, cmd: AddRepairPartCommand, actor: JWTPayload): Promise<RepairDto>;
+  // S31 — reserve(PENDING_REPAIR) for every staged part in ONE transaction (all or nothing).
+  addParts(id: string, cmd: AddRepairPartsCommand, actor: JWTPayload): Promise<RepairDto>;
   // release.
   removePart(id: string, partId: string, actor: JWTPayload): Promise<RepairDto>;
   // transitions + history + events (INTAKE→PROCESSING→COMPLETED→PICKED_UP, or →CANCELLED from

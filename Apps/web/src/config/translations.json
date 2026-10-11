@@ -11719,16 +11719,6 @@
     "fr": "Chronologie du statut",
     "ar": ""
   },
-  "staff.repairs.addPart.title": {
-    "en": "Add part",
-    "fr": "Ajouter une pièce",
-    "ar": ""
-  },
-  "staff.repairs.addPart.productLabel": {
-    "en": "Product",
-    "fr": "Produit",
-    "ar": ""
-  },
   "staff.repairs.addPart.quantityLabel": {
     "en": "Quantity",
     "fr": "Quantité",
@@ -11760,8 +11750,8 @@
     "ar": ""
   },
   "staff.repairs.addPart.submit": {
-    "en": "Add part",
-    "fr": "Ajouter la pièce",
+    "en": "Add parts",
+    "fr": "Ajouter les pièces",
     "ar": ""
   },
   "staff.repairs.statusDialog.title": {
@@ -11922,21 +11912,6 @@
   "staff.repairs.detail.amountDue": {
     "en": "Amount due",
     "fr": "Montant dû",
-    "ar": ""
-  },
-  "staff.repairs.addPart.productPlaceholder": {
-    "en": "Search a product",
-    "fr": "Rechercher un produit",
-    "ar": ""
-  },
-  "staff.repairs.addPart.productRequired": {
-    "en": "Select a product",
-    "fr": "Sélectionnez un produit",
-    "ar": ""
-  },
-  "staff.repairs.addPart.noResults": {
-    "en": "No matching product",
-    "fr": "Aucun produit correspondant",
     "ar": ""
   },
   "staff.repairs.intake.brandPlaceholder": {
@@ -13347,16 +13322,6 @@
   "admin.supplierInvoices.editor.quantityMin": {
     "en": "Quantity must be at least 1",
     "fr": "La quantité doit être d'au moins 1",
-    "ar": ""
-  },
-  "admin.supplierInvoices.editor.addLine": {
-    "en": "Add line",
-    "fr": "Ajouter une ligne",
-    "ar": ""
-  },
-  "admin.supplierInvoices.editor.product": {
-    "en": "Product",
-    "fr": "Produit",
     "ar": ""
   },
   "admin.supplierInvoices.editor.quantity": {
@@ -15587,6 +15552,121 @@
   "admin.inventory.movements.legend.repairCancelled": {
     "en": "Reservation released because its repair was cancelled — nothing left the shelf.",
     "fr": "Réservation libérée car la réparation a été annulée — rien n'a quitté le rayon.",
+    "ar": ""
+  },
+  "common.productPicker.searchPlaceholder": {
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
+    "ar": ""
+  },
+  "common.productPicker.selectedCount": {
+    "en": "{count} selected",
+    "fr": "{count} sélectionné(s)",
+    "ar": ""
+  },
+  "common.productPicker.select": {
+    "en": "Select {name}",
+    "fr": "Sélectionner {name}",
+    "ar": ""
+  },
+  "common.productPicker.add": {
+    "en": "Add ({count})",
+    "fr": "Ajouter ({count})",
+    "ar": ""
+  },
+  "common.productPicker.previous": {
+    "en": "Previous",
+    "fr": "Précédent",
+    "ar": ""
+  },
+  "common.productPicker.next": {
+    "en": "Next",
+    "fr": "Suivant",
+    "ar": ""
+  },
+  "common.productPicker.empty": {
+    "en": "No products found",
+    "fr": "Aucun produit trouvé",
+    "ar": ""
+  },
+  "common.productPicker.error": {
+    "en": "Couldn't load products",
+    "fr": "Impossible de charger les produits",
+    "ar": ""
+  },
+  "common.productPicker.columns.name": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "common.productPicker.columns.available": {
+    "en": "Available",
+    "fr": "Disponible",
+    "ar": ""
+  },
+  "common.productPicker.columns.onHand": {
+    "en": "In stock",
+    "fr": "En stock",
+    "ar": ""
+  },
+  "common.productPicker.columns.defaultPrice": {
+    "en": "Default price",
+    "fr": "Prix par défaut",
+    "ar": ""
+  },
+  "common.productPicker.columns.avgPrice": {
+    "en": "Avg purchase price",
+    "fr": "Prix d'achat moyen",
+    "ar": ""
+  },
+  "common.productPicker.columns.avgStockPrice": {
+    "en": "Avg stock price",
+    "fr": "Prix moyen du stock",
+    "ar": ""
+  },
+  "staff.repairs.partPicker.title": {
+    "en": "Add parts",
+    "fr": "Ajouter des pièces",
+    "ar": ""
+  },
+  "staff.repairs.addPart.addProducts": {
+    "en": "Add products",
+    "fr": "Ajouter des produits",
+    "ar": ""
+  },
+  "staff.repairs.addPart.pendingTitle": {
+    "en": "Parts to add",
+    "fr": "Pièces à ajouter",
+    "ar": ""
+  },
+  "staff.repairs.addPart.availableHint": {
+    "en": "{qty} available",
+    "fr": "{qty} disponible(s)",
+    "ar": ""
+  },
+  "staff.repairs.addPart.outOfStock": {
+    "en": "Out of stock — cannot be fitted",
+    "fr": "Rupture de stock — impossible à poser",
+    "ar": ""
+  },
+  "staff.repairs.addPart.removeStaged": {
+    "en": "Remove {name}",
+    "fr": "Retirer {name}",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.addProducts": {
+    "en": "Add products",
+    "fr": "Ajouter des produits",
+    "ar": ""
+  },
+  "admin.supplierInvoices.productPicker.title": {
+    "en": "Add products to the invoice",
+    "fr": "Ajouter des produits à la facture",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.linesRequired": {
+    "en": "Add at least one product",
+    "fr": "Ajoutez au moins un produit",
     "ar": ""
   }
 }

@@ -12,6 +12,7 @@ import {
   isRepairTransitionAllowed,
   paginated,
   type AddRepairPartCommand,
+  type AddRepairPartsCommand,
   type CreateRepairCommand,
   type JWTPayload,
   type PaginatedResult,
@@ -181,18 +182,28 @@ export class RepairsService implements IRepairsService {
     return this.getRepairDto(id, { includeMargins: actor.type === UserType.ADMIN });
   }
 
+  // Single-part form of addParts; kept for API compatibility — the web client uses the batch
+  // (addParts) since S31. Same behaviour, errors and response as before.
+  async addPart(id: string, cmd: AddRepairPartCommand, actor: JWTPayload): Promise<RepairDto> {
+    return this.addParts(id, { parts: [cmd] }, actor);
+  }
+
   // reserve(PENDING_REPAIR) — shortfall throws ConflictError naming the productId (the
   // injected engine's own error, plan §II.3), rolling back the whole transaction. S30 (F6) — the
   // editable check runs on the locked row INSIDE the transaction: a part can no longer be
   // reserved onto a repair another tab has just picked up or cancelled (that reservation would
-  // never have been released).
-  async addPart(id: string, cmd: AddRepairPartCommand, actor: JWTPayload): Promise<RepairDto> {
+  // never have been released). S31 (P1) — the drawer's staged parts list arrives here as one
+  // batch; all or nothing, so a failed batch leaves no partial reservation behind.
+  async addParts(id: string, cmd: AddRepairPartsCommand, actor: JWTPayload): Promise<RepairDto> {
     const existing = await this.prisma.repair.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError('Repair');
     this.assertEditable(existing.status);
 
-    const product = await this.prisma.product.findUnique({ where: { id: cmd.productId }, select: { name: true } });
-    if (!product) throw new BadRequestError(`Unknown productId: ${cmd.productId}`);
+    const productIds = [...new Set(cmd.parts.map((part) => part.productId))];
+    const products = await this.prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, name: true } });
+    const nameById = new Map(products.map((product) => [product.id, product.name]));
+    const missingId = productIds.find((productId) => !nameById.has(productId));
+    if (missingId != null) throw new BadRequestError(`Unknown productId: ${missingId}`);
 
     const staffId = await this.movementStaffId(actor);
     let capturedTx: Prisma.TransactionClient | undefined;
@@ -202,10 +213,13 @@ export class RepairsService implements IRepairsService {
       const locked = await this.lockRepair(tx, id);
       this.assertEditable(locked.status);
 
-      await this.inventory.reserve(tx, cmd.productId, cmd.quantity, { referenceType: 'REPAIR', referenceId: id, staffId });
-      await tx.repairPart.create({
-        data: { repairId: id, ...RepairsMapper.toPartCreateInput(cmd, { productName: product.name }) },
-      });
+      // Command order — the first shortfall throws and rolls every earlier reservation back.
+      for (const part of cmd.parts) {
+        await this.inventory.reserve(tx, part.productId, part.quantity, { referenceType: 'REPAIR', referenceId: id, staffId });
+        await tx.repairPart.create({
+          data: { repairId: id, ...RepairsMapper.toPartCreateInput(part, { productName: nameById.get(part.productId)! }) },
+        });
+      }
 
       const partsTotal = await this.recomputePartsTotal(tx, id);
       await tx.repair.update({ where: { id }, data: { partsTotal, totalAmount: locked.labourPrice.toNumber() + partsTotal } });

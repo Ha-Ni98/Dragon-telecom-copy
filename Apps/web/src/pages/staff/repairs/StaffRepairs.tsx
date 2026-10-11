@@ -14,20 +14,22 @@ import {
   useRepair,
   useCreateRepair,
   useUpdateRepair,
-  useAddRepairPart,
+  useAddRepairParts,
   useRemoveRepairPart,
   useUpdateRepairStatus,
   useRecordRepairPayment,
   useReturnRepair,
 } from "@/hooks/useRepairs";
 import { useTechnicians } from "@/hooks/useIdentity";
-import { useStaffProducts } from "@/hooks/useCatalogProducts";
 import { usePublicSettings } from "@/hooks/usePlatform";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
-import { RepairStatus, type RepairDto, type ReturnRepairCommand } from "@dragon-telecom/contract";
+import {
+  RepairStatus,
+  type AddRepairPartsCommand,
+  type RepairDto,
+  type ReturnRepairCommand,
+} from "@dragon-telecom/contract";
 import type { IntakeRepairFormValues } from "@/pages/staff/repairs/intake-repair.schema";
-import type { AddRepairPartFormValues } from "@/pages/staff/repairs/add-repair-part.schema";
 import type { RepairStatusFormValues } from "@/pages/staff/repairs/repair-status.schema";
 import type { RecordRepairPaymentFormValues } from "@/pages/staff/repairs/record-repair-payment.schema";
 
@@ -88,16 +90,9 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
-  const [partSearchQuery, setPartSearchQuery] = useState("");
-  const debouncedPartSearch = useDebouncedValue(partSearchQuery, 300);
-  const { data: partSearchResult } = useStaffProducts(
-    { search: debouncedPartSearch || undefined, page: 1, limit: 10 },
-    { enabled: !!debouncedPartSearch.trim() },
-  );
-
   const createRepair = useCreateRepair();
   const updateRepair = useUpdateRepair();
-  const addPart = useAddRepairPart();
+  const addParts = useAddRepairParts();
   const removePart = useRemoveRepairPart();
   const updateStatus = useUpdateRepairStatus();
   const recordPayment = useRecordRepairPayment();
@@ -133,9 +128,11 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
     updateRepair.mutate({ scope, id: selectedRepairId, command: { labourPrice } });
   };
 
-  const handleAddPart = (values: AddRepairPartFormValues) => {
+  // S31 — the drawer's staged parts, reserved together (all or nothing). The staged list is
+  // cleared only on success; on failure it stays for correction.
+  const handleAddParts = (command: AddRepairPartsCommand, onSuccess: () => void) => {
     if (!selectedRepairId) return;
-    addPart.mutate({ scope, id: selectedRepairId, command: values });
+    addParts.mutate({ scope, id: selectedRepairId, command }, { onSuccess });
   };
 
   const handleRemovePart = (partId: string) => {
@@ -217,15 +214,17 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
       />
 
       <RepairTicketDetail
+        // S31 — fresh mount per ticket so a staged (not yet reserved) parts list never carries
+        // over to another repair; same per-ticket remount RepairStatusDialog uses below.
+        key={selectedRepair?.id ?? "none"}
         open={!!selectedRepairId}
         onOpenChange={(open) => !open && setSelectedRepairId(null)}
         repair={selectedRepair ?? null}
         isDiagnosisEditable={selectedRepair?.status === RepairStatus.PROCESSING}
         onDiagnosisChange={handleDiagnosisChange}
         onLabourPriceChange={handleLabourPriceChange}
-        productSearchResults={partSearchResult?.items}
-        onProductSearch={setPartSearchQuery}
-        onAddPart={handleAddPart}
+        onAddParts={handleAddParts}
+        isAddingParts={addParts.isPending}
         onRemovePart={handleRemovePart}
         onOpenStatusDialog={() => setStatusDialogOpen(true)}
         onRecordPayment={handleRecordPayment}

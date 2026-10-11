@@ -32,6 +32,15 @@ export const AddRepairPartSchema = z.object({
 });
 export type AddRepairPartCommand = z.infer<typeof AddRepairPartSchema>;
 
+// S31 (P1) — the ticket drawer stages parts client-side (picked from the shared product-picker
+// dialog, qty/price/serials still editable) and reserves them all at once with this command:
+// one transaction, all or nothing, so a shortfall on one part leaves nothing reserved. Capped
+// at 50 lines to bound one request's work.
+export const AddRepairPartsSchema = z.object({
+  parts: z.array(AddRepairPartSchema).min(1).max(50),
+});
+export type AddRepairPartsCommand = z.infer<typeof AddRepairPartsSchema>;
+
 // S13/D8 — `paymentAmount` is the money captured AT this transition (a DELTA, added to the
 // repair's cumulative paidAmount), not the repair's new total. Renamed from `paidAmount`, which
 // was an absolute overwrite and cannot survive D5's cumulative payments.

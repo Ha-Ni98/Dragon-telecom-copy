@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { sendSuccess } from '@common/http/response';
 import type {
   AddRepairPartCommand,
+  AddRepairPartsCommand,
   CreateRepairCommand,
   RecordRepairPaymentCommand,
   RepairIdParams,
@@ -62,6 +63,17 @@ export class RepairsController {
     try {
       const { id } = req.validated.params as RepairIdParams;
       const result = await this.service.addPart(id, req.validated.body as AddRepairPartCommand, req.user!);
+      sendSuccess(res, result, 201);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // S31 — the staged parts batch. Serves both STAFF_PARTS_BATCH and ADMIN_PARTS_BATCH.
+  addParts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as RepairIdParams;
+      const result = await this.service.addParts(id, req.validated.body as AddRepairPartsCommand, req.user!);
       sendSuccess(res, result, 201);
     } catch (error) {
       next(error);

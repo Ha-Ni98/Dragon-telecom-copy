@@ -1,22 +1,19 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { AutocompleteInput } from "@/components/shared/autocomplete-input";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Printer, Tag } from "lucide-react";
+import { Trash2, Printer, Tag } from "lucide-react";
 import { toast } from "sonner";
 import {
   RepairStatus,
   isRepairReadOnly,
   type RepairDto,
+  type AddRepairPartsCommand,
   type ReturnRepairCommand,
-  type StaffProductDto,
   type PublicSettingsDto,
 } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -24,14 +21,11 @@ import { formatDZD, formatDateTime } from "@/lib/utils";
 import { useReceiptPrint } from "@/hooks/use-receipt-print";
 import { buildRepairReceiptEscPos } from "@/pages/staff/repairs/repair-receipt-escpos";
 import { RepairLabelDialog } from "@/pages/staff/repairs/components/RepairLabelDialog";
-import {
-  addRepairPartSchema,
-  type AddRepairPartFormValues,
-} from "@/pages/staff/repairs/add-repair-part.schema";
 import { REPAIR_STATUS_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
 import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-label";
 import { RecordRepairPaymentDialog } from "@/pages/staff/repairs/components/RecordRepairPaymentDialog";
 import { RepairReturnDialog } from "@/pages/staff/repairs/components/RepairReturnDialog";
+import { RepairPartsStaging } from "@/pages/staff/repairs/components/RepairPartsStaging";
 import { RepairReceipt } from "@/pages/staff/repairs/components/RepairReceipt";
 import type { RecordRepairPaymentFormValues } from "@/pages/staff/repairs/record-repair-payment.schema";
 
@@ -42,9 +36,9 @@ interface RepairTicketDetailProps {
   isDiagnosisEditable?: boolean;
   onDiagnosisChange: (diagnosis: string) => void;
   onLabourPriceChange: (labourPrice: number) => void;
-  productSearchResults?: StaffProductDto[];
-  onProductSearch: (query: string) => void;
-  onAddPart: (values: AddRepairPartFormValues) => void;
+  /** S31 — the staged parts, reserved together; `onSuccess` clears the staged list. */
+  onAddParts: (command: AddRepairPartsCommand, onSuccess: () => void) => void;
+  isAddingParts?: boolean;
   onRemovePart: (partId: string) => void;
   onOpenStatusDialog: () => void;
   onRecordPayment: (values: RecordRepairPaymentFormValues) => void;
@@ -63,9 +57,9 @@ interface RepairTicketDetailProps {
 // labour/diagnosis edits, no add-part form, driven off the contract's isRepairReadOnly. S30 — a
 // PICKED_UP ticket instead offers the Return action (RepairReturnDialog), and a cancelled or
 // returned ticket shows what was refunded, each part's restock outcome and which payment each
-// refund row reverses. F1 — the spare-part picker was a raw text input whose text never
-// updated on selection and whose "no product chosen" error was never rendered; both fixed here
-// (AutocompleteInput shows the picked product's name, and errors.productId now renders).
+// refund row reverses. S31 — parts are picked through the shared product-picker dialog and
+// staged (RepairPartsStaging) before being reserved together; the old inline autocomplete is
+// gone.
 export function RepairTicketDetail({
   open,
   onOpenChange,
@@ -73,9 +67,8 @@ export function RepairTicketDetail({
   isDiagnosisEditable,
   onDiagnosisChange,
   onLabourPriceChange,
-  productSearchResults,
-  onProductSearch,
-  onAddPart,
+  onAddParts,
+  isAddingParts,
   onRemovePart,
   onOpenStatusDialog,
   onRecordPayment,
@@ -86,17 +79,6 @@ export function RepairTicketDetail({
   store,
 }: RepairTicketDetailProps) {
   const { t, language } = useTranslation();
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm<AddRepairPartFormValues>({
-    resolver: zodResolver(addRepairPartSchema(t)),
-    defaultValues: { productId: "", quantity: 1, unitPrice: 0 },
-  });
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [labelDialogOpen, setLabelDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
@@ -109,11 +91,6 @@ export function RepairTicketDetail({
 
   const readOnly = isRepairReadOnly(repair.status);
   const amountDue = repair.totalAmount - repair.paidAmount;
-
-  const submitAddPart = handleSubmit((values) => {
-    onAddPart(values);
-    reset();
-  });
 
   const handleRecordPayment = (values: RecordRepairPaymentFormValues) => {
     onRecordPayment(values);
@@ -239,57 +216,7 @@ export function RepairTicketDetail({
               ))}
 
               {!readOnly && (
-                <form
-                  onSubmit={submitAddPart}
-                  className="space-y-2 rounded-lg border border-dashed border-border p-2"
-                >
-                  <AutocompleteInput
-                    value={watch("productId") ?? ""}
-                    onChange={(value) => {
-                      const product = productSearchResults?.find((p) => p.id === value);
-                      setValue("productId", value, { shouldValidate: true });
-                      if (product) setValue("unitPrice", product.defaultSalePrice ?? 0);
-                    }}
-                    suggestions={(productSearchResults ?? []).map((p) => ({
-                      value: p.id,
-                      label: p.name,
-                    }))}
-                    onSearch={onProductSearch}
-                    label={t("staff.repairs.addPart.productLabel")}
-                    placeholder={t("staff.repairs.addPart.productPlaceholder")}
-                    emptyMessage={t("staff.repairs.addPart.noResults")}
-                    error={errors.productId?.message}
-                    showCreateNew={false}
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="number"
-                      min={1}
-                      placeholder={t("staff.repairs.addPart.quantityLabel")}
-                      {...register("quantity", { valueAsNumber: true })}
-                    />
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder={t("staff.repairs.addPart.unitPriceLabel")}
-                      {...register("unitPrice", { valueAsNumber: true })}
-                    />
-                  </div>
-                  {errors.quantity && (
-                    <p className="text-sm text-destructive">{errors.quantity.message}</p>
-                  )}
-                  {errors.unitPrice && (
-                    <p className="text-sm text-destructive">{errors.unitPrice.message}</p>
-                  )}
-                  <Input
-                    placeholder={t("staff.repairs.addPart.serialsLabel")}
-                    {...register("serialNumbers")}
-                  />
-                  <Button type="submit" size="sm" variant="outline">
-                    <Plus className="mr-1 h-3.5 w-3.5" />
-                    {t("staff.repairs.addPart.submit")}
-                  </Button>
-                </form>
+                <RepairPartsStaging onSubmit={onAddParts} isSubmitting={isAddingParts} />
               )}
             </div>
 

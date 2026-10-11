@@ -7,6 +7,7 @@ import {
   UserType,
   PageKey,
   AddRepairPartSchema,
+  AddRepairPartsSchema,
   CreateRepairSchema,
   RecordRepairPaymentSchema,
   RepairIdParamsSchema,
@@ -82,6 +83,20 @@ router.post(
   adminOnly,
   validateRequest({ params: RepairIdParamsSchema, body: AddRepairPartSchema }),
   controller.addPart,
+);
+
+// S31 — every staged part reserved in one transaction (all or nothing).
+router.post(
+  REPAIR_ROUTES.STAFF_PARTS_BATCH,
+  staffRepairsOrAdmin,
+  validateRequest({ params: RepairIdParamsSchema, body: AddRepairPartsSchema }),
+  controller.addParts,
+);
+router.post(
+  REPAIR_ROUTES.ADMIN_PARTS_BATCH,
+  adminOnly,
+  validateRequest({ params: RepairIdParamsSchema, body: AddRepairPartsSchema }),
+  controller.addParts,
 );
 
 router.delete(

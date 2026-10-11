@@ -13,6 +13,7 @@ import {
   type CreateRepairCommand,
   type UpdateRepairCommand,
   type AddRepairPartCommand,
+  type AddRepairPartsCommand,
   type RepairStatusCommand,
   type ReturnRepairCommand,
   type TechnicianRepairStatsDto,
@@ -74,6 +75,20 @@ export async function addRepairPart(
   command: AddRepairPartCommand,
 ): Promise<RepairDto> {
   const route = scope === "admin" ? REPAIR_ROUTES.ADMIN_PARTS : REPAIR_ROUTES.STAFF_PARTS;
+  const res = await api.post<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }), command);
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// S31 — every staged part reserved in one backend transaction (all or nothing). The ticket
+// drawer uses this since S31; addRepairPart above is kept for API compatibility.
+export async function addRepairParts(
+  scope: RepairsScope,
+  id: string,
+  command: AddRepairPartsCommand,
+): Promise<RepairDto> {
+  const route =
+    scope === "admin" ? REPAIR_ROUTES.ADMIN_PARTS_BATCH : REPAIR_ROUTES.STAFF_PARTS_BATCH;
   const res = await api.post<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;

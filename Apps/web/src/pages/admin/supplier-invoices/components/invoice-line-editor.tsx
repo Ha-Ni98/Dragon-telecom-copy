@@ -1,47 +1,41 @@
 import { Controller, type Control } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AutocompleteInput, type AutocompleteOption } from "@/components/shared/autocomplete-input";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import type { SupplierInvoiceFormValues } from "@/pages/admin/supplier-invoices/components/supplier-invoice.schema";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface InvoiceLineEditorProps {
   index: number;
   control: Control<SupplierInvoiceFormValues>;
-  productOptions: AutocompleteOption[];
   quantity: number;
   unitCost: number;
   onRemove: () => void;
-  /** Opens the quick-add-product dialog for this row (I5) — a button, not the autocomplete's
-   *  own create-on-no-result, which this row no longer offers. */
-  onQuickAddProduct?: () => void;
-  /** The selected product's live stock figures, for the two helper texts under quantity (I6).
-   *  Undefined until a product is picked, or when the product is outside the loaded page. */
+  /** The picked product's stock figures, for the two helper texts under quantity (I6). Known for
+   *  lines picked in this session; undefined on a saved invoice's own lines. */
   productStock?: { quantityOnHand: number; avgPrice: number };
-  /** Read-only rows render this snapshot instead of a disabled autocomplete (I10) — the editor
-   *  only loads the first page of products, so a confirmed invoice's product may fall outside
-   *  it and render an empty box otherwise. */
-  productNameSnapshot?: string;
+  /** S31 — the line's product name: from the product picked in this session, or the invoice's own
+   *  productNameSnapshot on a saved invoice (I10's reason still applies — the editor never loads
+   *  the whole catalog, so the snapshot is the only reliable name for a saved line). */
+  productName?: string;
   disabled?: boolean;
 }
 
 // ADM-08 editor — one invoice line row: product/qty/unit cost/serials, with a live landed-
 // unit-cost readout (per-line unit cost only here — the shipping-cost apportionment across all
-// lines happens once at the footer level, computed from the full line set, not per-row). S7:
-// the product cell gains a quick-add button (I5) and drops create-on-no-result; read-only rows
-// render the invoice's own productNameSnapshot instead of a disabled autocomplete (I10); two
+// lines happens once at the footer level, computed from the full line set, not per-row). S31 —
+// the product is chosen only through InvoiceProductPickerDialog, so the per-row autocomplete and
+// the per-row quick-add (S7 I5, now in the picker's footer) are gone: the product cell just shows
+// the line's product name (I10). To change a line's product, remove the line and pick again. Two
 // helper texts under quantity surface qty-in-stock and the unweighted avgPrice (I6).
 export function InvoiceLineEditor({
   index,
   control,
-  productOptions,
   quantity,
   unitCost,
   onRemove,
-  onQuickAddProduct,
   productStock,
-  productNameSnapshot,
+  productName,
   disabled = false,
 }: InvoiceLineEditorProps) {
   const { t } = useTranslation();
@@ -49,40 +43,9 @@ export function InvoiceLineEditor({
 
   return (
     <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
-      {disabled ? (
-        <div className="text-sm font-medium">
-          {productNameSnapshot ?? t("admin.supplierInvoices.editor.unknownProduct")}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2">
-          {onQuickAddProduct && (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 shrink-0"
-              onClick={onQuickAddProduct}
-              aria-label={t("admin.supplierInvoices.editor.quickAddProduct")}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          )}
-          <Controller
-            control={control}
-            name={`lines.${index}.productId`}
-            render={({ field }) => (
-              <AutocompleteInput
-                inputId={`invoice-line-${index}-product`}
-                value={field.value ?? ""}
-                onChange={field.onChange}
-                suggestions={productOptions}
-                placeholder={t("admin.supplierInvoices.editor.product")}
-                showCreateNew={false}
-              />
-            )}
-          />
-        </div>
-      )}
+      <div className="self-center text-sm font-medium">
+        {productName ?? t("admin.supplierInvoices.editor.unknownProduct")}
+      </div>
       <div className="space-y-1">
         <Controller
           control={control}
@@ -149,15 +112,5 @@ export function InvoiceLineEditor({
         </Button>
       )}
     </div>
-  );
-}
-
-export function AddLineButton({ onClick }: { onClick: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <Button type="button" variant="outline" onClick={onClick}>
-      <Plus className="mr-2 h-4 w-4" />
-      {t("admin.supplierInvoices.editor.addLine")}
-    </Button>
   );
 }

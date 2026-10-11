@@ -17,6 +17,7 @@ Back-office only — no public surface, no repair invoices. Technicians have no 
 | `REPAIR_ROUTES.CREATE` | POST `/api/(staff|admin)/repairs` | staff(STAFF_REPAIRS)\|admin | intake + claim slip |
 | `REPAIR_ROUTES.UPDATE` | PATCH `.../repairs/:id` | staff\|admin | diagnosis?, labourPrice, technicianId |
 | `REPAIR_ROUTES.PARTS` | POST/DELETE `.../repairs/:id/parts(/:partId)` | staff\|admin | reserve / release |
+| `REPAIR_ROUTES.*_PARTS_BATCH` | POST `.../repairs/:id/parts/batch` | staff\|admin | S31 — reserve every staged part in one transaction (all or nothing); `AddRepairPartsCommand { parts: AddRepairPartCommand[1..50] }` |
 | `REPAIR_ROUTES.STATUS` | POST `.../repairs/:id/status` | staff\|admin | transitions (not RETURNED) |
 | `REPAIR_ROUTES.*_RETURN` | POST `.../repairs/:id/return` | staff\|admin | S30 — PICKED_UP → RETURNED; `ReturnRepairCommand { restockPartIds; note? }` |
 

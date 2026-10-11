@@ -4,6 +4,7 @@ import type {
   CreateRepairCommand,
   UpdateRepairCommand,
   AddRepairPartCommand,
+  AddRepairPartsCommand,
   RecordRepairPaymentCommand,
   RepairStatusCommand,
   ReturnRepairCommand,
@@ -79,6 +80,28 @@ export function useAddRepairPart() {
       id: string;
       command: AddRepairPartCommand;
     }) => repairsService.addRepairPart(scope, id, command),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.repairs.all() });
+      queryClient.invalidateQueries({ queryKey: qk.inventory.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.all() });
+    },
+  });
+}
+
+// S31 — the ticket drawer's staged parts, reserved all at once (all or nothing). Same
+// cross-invalidation as useAddRepairPart above, which the drawer no longer uses but is kept.
+export function useAddRepairParts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      scope,
+      id,
+      command,
+    }: {
+      scope: RepairsScope;
+      id: string;
+      command: AddRepairPartsCommand;
+    }) => repairsService.addRepairParts(scope, id, command),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.repairs.all() });
       queryClient.invalidateQueries({ queryKey: qk.inventory.all() });

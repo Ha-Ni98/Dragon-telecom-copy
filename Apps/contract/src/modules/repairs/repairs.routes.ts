@@ -13,6 +13,9 @@ export const REPAIR_ROUTES = {
   ADMIN_UPDATE: '/admin/repairs/:id',
   STAFF_PARTS: '/staff/repairs/:id/parts',
   ADMIN_PARTS: '/admin/repairs/:id/parts',
+  // S31 — stage-then-reserve: every staged part in one transaction (all or nothing).
+  STAFF_PARTS_BATCH: '/staff/repairs/:id/parts/batch',
+  ADMIN_PARTS_BATCH: '/admin/repairs/:id/parts/batch',
   STAFF_PART_BY_ID: '/staff/repairs/:id/parts/:partId',
   ADMIN_PART_BY_ID: '/admin/repairs/:id/parts/:partId',
   STAFF_STATUS: '/staff/repairs/:id/status',
