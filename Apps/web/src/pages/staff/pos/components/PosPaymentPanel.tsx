@@ -3,18 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CreditMovementPreview } from "@/components/shared/CreditMovementPreview";
 import { useTranslation } from "@/hooks/useTranslation";
-import { formatDZD } from "@/lib/utils";
 
 interface PosPaymentPanelProps {
-  total: number;
-  paidAmount: number;
-  onPaidAmountChange: (paidAmount: number) => void;
+  /** S32 — null while the field is empty: the paid amount is never pre-filled. */
+  paidAmount: number | null;
+  onPaidAmountChange: (paidAmount: number | null) => void;
   onConfirm: () => void;
   isConfirming?: boolean;
   /** INSUFFICIENT_STOCK, surfaced elsewhere on the named line — this only carries payment-panel-local errors (paidAmount validation). */
   paidAmountError?: string;
   /** The attached POS client's credit before this sale — omitted for a walk-in, where no credit
-   *  exists to move (S5/D5). */
+   *  exists to move (S5/D5), and while no amount has been entered yet (S32). */
   previousCredit?: number;
   /** Credit after this sale: previousCredit + (total − paidAmount), computed by the caller with
    *  S5's arithmetic. */
@@ -22,11 +21,11 @@ interface PosPaymentPanelProps {
 }
 
 // Dumb, props-only (Sprint 4) — Sprint 7 wires useConfirmSale() + the F4/Enter shortcuts
-// (STF-02 §UI) around this. changeDue is computed here; the credit preview (S6/I3) now lives in
-// this panel too, above the paid-amount field, but the arithmetic itself is still the caller's
-// job (depends on whether a POS client is attached) — this only renders what's passed in.
+// (STF-02 §UI) around this. The credit preview (S6/I3) lives in this panel, above the paid-amount
+// field, but the arithmetic itself is the caller's job (depends on whether a POS client is
+// attached) — this only renders what's passed in. S32 — no "change due" line any more: a walk-in
+// must pay the exact total and a client's overpayment goes to credit, so it was always 0 (P9).
 export function PosPaymentPanel({
-  total,
   paidAmount,
   onPaidAmountChange,
   onConfirm,
@@ -35,8 +34,7 @@ export function PosPaymentPanel({
   previousCredit,
   newCredit,
 }: PosPaymentPanelProps) {
-  const { t, language } = useTranslation();
-  const changeDue = Math.max(0, paidAmount - total);
+  const { t } = useTranslation();
 
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)]">
@@ -57,15 +55,13 @@ export function PosPaymentPanel({
           id="pos-paid-amount"
           type="number"
           min={0}
-          value={paidAmount}
-          onChange={(e) => onPaidAmountChange(Number(e.target.value))}
+          step="0.01"
+          value={paidAmount ?? ""}
+          onChange={(e) =>
+            onPaidAmountChange(e.target.value === "" ? null : Number(e.target.value))
+          }
         />
         {paidAmountError && <p className="text-sm text-destructive">{paidAmountError}</p>}
-      </div>
-
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{t("staff.pos.payment.changeDue")}</span>
-        <span className="font-medium">{formatDZD(changeDue, language)}</span>
       </div>
 
       <Button className="w-full" onClick={onConfirm} disabled={isConfirming}>

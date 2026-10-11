@@ -14,7 +14,7 @@ import {
 type Money = Prisma.Decimal | number;
 
 export type SaleRow = Sale & {
-  posClient: Pick<PosClient, 'name'> | null;
+  posClient: Pick<PosClient, 'name' | 'credit'> | null;
   staff: Pick<Staff, 'firstName' | 'lastName'>;
   lines: SaleLine[];
 };
@@ -43,7 +43,7 @@ export type ReturnRow = Omit<Return, 'saleId'> & {
 export type DraftMapContext = { staffId: string; reference: string; productNames: Map<string, string> };
 
 export class SalesMapper {
-  static toSaleDto(sale: SaleRow, ctx: { includeMargins: boolean; refundedAmount?: number }): SaleDto {
+  static toSaleDto(sale: SaleRow, ctx: { includeMargins: boolean; refundedAmount?: number; posClientCredit?: number }): SaleDto {
     const dto: SaleDto = {
       id: sale.id,
       reference: sale.reference,
@@ -59,6 +59,7 @@ export class SalesMapper {
       totalAmount: SalesMapper.toMoney(sale.totalAmount),
       paidAmount: SalesMapper.toMoney(sale.paidAmount),
       ...(ctx.refundedAmount != null ? { refundedAmount: ctx.refundedAmount } : {}),
+      ...(ctx.posClientCredit != null ? { posClientCredit: ctx.posClientCredit } : {}),
       ...(sale.previousCredit != null ? { previousCredit: SalesMapper.toMoney(sale.previousCredit) } : {}),
       ...(sale.newCredit != null ? { newCredit: SalesMapper.toMoney(sale.newCredit) } : {}),
       // Margin-gated (spec Data Mapping): staff mapping strips these, admin keeps them.

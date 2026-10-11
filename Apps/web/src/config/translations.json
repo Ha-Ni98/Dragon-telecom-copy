@@ -10564,11 +10564,6 @@
     "fr": "Le montant payé doit être égal ou supérieur à zéro",
     "ar": ""
   },
-  "staff.pos.payment.changeDue": {
-    "en": "Change due",
-    "fr": "Monnaie à rendre",
-    "ar": ""
-  },
   "staff.pos.payment.newCredit": {
     "en": "New credit",
     "fr": "Nouveau crédit",
@@ -10582,6 +10577,21 @@
   "staff.pos.payment.insufficientStock": {
     "en": "Not enough stock for this line",
     "fr": "Stock insuffisant pour cette ligne",
+    "ar": ""
+  },
+  "staff.pos.payment.paidAmountRequired": {
+    "en": "Enter the amount the customer paid",
+    "fr": "Saisissez le montant payé par le client",
+    "ar": ""
+  },
+  "staff.pos.payment.walkInMustMatch": {
+    "en": "Without a client, the amount paid must equal the total ({total})",
+    "fr": "Sans client, le montant payé doit être égal au total ({total})",
+    "ar": ""
+  },
+  "staff.pos.payment.totalDue": {
+    "en": "Total due",
+    "fr": "Total dû",
     "ar": ""
   },
   "staff.pos.drafts.title": {
@@ -11144,6 +11154,16 @@
     "fr": "Statut",
     "ar": ""
   },
+  "admin.sales.filters.productSearch": {
+    "en": "Product name or barcode",
+    "fr": "Nom du produit ou code-barres",
+    "ar": ""
+  },
+  "admin.sales.filters.today": {
+    "en": "Today's sales",
+    "fr": "Ventes du jour",
+    "ar": ""
+  },
   "admin.sales.table.seller": {
     "en": "Seller",
     "fr": "Vendeur",
@@ -11177,6 +11197,11 @@
   "admin.sales.detail.issueReturn": {
     "en": "Issue return",
     "fr": "Émettre un retour",
+    "ar": ""
+  },
+  "admin.sales.detail.returnWholeSale": {
+    "en": "Return whole sale",
+    "fr": "Retourner toute la vente",
     "ar": ""
   },
   "admin.sales.returnDialog.title": {
@@ -15134,24 +15159,39 @@
     "fr": "Remboursement saisi",
     "ar": ""
   },
-  "admin.sales.returnDialog.summaryCashRefundable": {
-    "en": "Cash refundable",
-    "fr": "Remboursable en espèces",
+  "admin.sales.returnDialog.refundRequired": {
+    "en": "Enter the refund amount (0 is allowed)",
+    "fr": "Saisissez le montant remboursé (0 est accepté)",
     "ar": ""
   },
-  "admin.sales.returnDialog.summaryCashCapped": {
-    "en": "Only the refundable cash will be paid back; the remainder reduces what the client owes.",
-    "fr": "Seul le montant remboursable sera rendu en espèces ; le reste réduit ce que le client doit.",
+  "admin.sales.returnDialog.walkInRefundMustMatch": {
+    "en": "Without a client, the refund must equal the sold price of the returned quantity",
+    "fr": "Sans client, le remboursement doit être égal au prix de vente de la quantité retournée",
     "ar": ""
   },
-  "admin.sales.returnDialog.creditEffectPartial": {
-    "en": "Partial return — the client's credit is unchanged.",
-    "fr": "Retour partiel — le crédit du client reste inchangé.",
+  "admin.sales.returnDialog.soldPriceHint": {
+    "en": "Sold price: {amount}",
+    "fr": "Prix de vente : {amount}",
     "ar": ""
   },
-  "admin.sales.returnDialog.creditEffectFull": {
-    "en": "Full return — this sale's credit is reversed.",
-    "fr": "Retour complet — le crédit de cette vente est annulé.",
+  "admin.sales.returnDialog.summaryGoodsValue": {
+    "en": "Sold price of returned items",
+    "fr": "Prix de vente des articles retournés",
+    "ar": ""
+  },
+  "admin.sales.wholeReturnDialog.title": {
+    "en": "Return whole sale",
+    "fr": "Retourner toute la vente",
+    "ar": ""
+  },
+  "admin.sales.wholeReturnDialog.description": {
+    "en": "Every item still on this sale is returned at once.",
+    "fr": "Tous les articles restants de cette vente sont retournés en une fois.",
+    "ar": ""
+  },
+  "admin.sales.wholeReturnDialog.submit": {
+    "en": "Return whole sale",
+    "fr": "Retourner toute la vente",
     "ar": ""
   },
   "search.loading": {
@@ -15424,6 +15464,26 @@
     "fr": "L'historique de stock de cette pièce est introuvable — retournez-la sans la remettre en stock",
     "ar": ""
   },
+  "common.errors.sentinel.saleWalkInOverpayment": {
+    "en": "Without a client, the amount paid must equal the total",
+    "fr": "Sans client, le montant payé doit être égal au total",
+    "ar": ""
+  },
+  "common.errors.sentinel.saleWalkInRefundMismatch": {
+    "en": "Without a client, the refund must equal the sold price",
+    "fr": "Sans client, le remboursement doit être égal au prix de vente",
+    "ar": ""
+  },
+  "common.errors.sentinel.saleWholeReturnLinesMismatch": {
+    "en": "This sale changed since the dialog opened — reopen it and try again",
+    "fr": "Cette vente a changé depuis l'ouverture — rouvrez-la et réessayez",
+    "ar": ""
+  },
+  "common.errors.sentinel.saleNothingToReturn": {
+    "en": "Nothing left to return on this sale",
+    "fr": "Plus rien à retourner sur cette vente",
+    "ar": ""
+  },
   "admin.inventory.movements.types.supplierInvoice": {
     "en": "Supplier invoice",
     "fr": "Facture fournisseur",
@@ -15622,6 +15682,21 @@
   "common.productPicker.columns.avgStockPrice": {
     "en": "Avg stock price",
     "fr": "Prix moyen du stock",
+    "ar": ""
+  },
+  "common.creditConfirm.title": {
+    "en": "Confirm the credit change",
+    "fr": "Confirmer le changement de crédit",
+    "ar": ""
+  },
+  "common.creditConfirm.description": {
+    "en": "The amount entered differs from the amount due. The client's credit will change as shown below.",
+    "fr": "Le montant saisi diffère du montant dû. Le crédit du client changera comme indiqué ci-dessous.",
+    "ar": ""
+  },
+  "common.creditConfirm.confirm": {
+    "en": "Confirm",
+    "fr": "Confirmer",
     "ar": ""
   },
   "staff.repairs.partPicker.title": {

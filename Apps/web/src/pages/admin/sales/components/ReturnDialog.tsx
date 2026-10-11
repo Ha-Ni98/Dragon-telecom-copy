@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -20,11 +21,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { CreditMovementPreview } from "@/components/shared/CreditMovementPreview";
+import { CreditChangeConfirmDialog } from "@/components/shared/CreditChangeConfirmDialog";
 import { ReturnType, type SaleDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
+import { sameMoney } from "@/lib/settlement";
 import {
   createReturnSchema,
+  type CreateReturnFormInput,
   type CreateReturnFormValues,
 } from "@/pages/admin/sales/components/create-return.schema";
 
@@ -38,10 +43,14 @@ interface ReturnDialogProps {
   isSubmitting?: boolean;
 }
 
-// Admin-only (ADM-10 §Forms). Dumb (owns only local form state) — Sprint 6 wires useCreateReturn().
-// Each sale line starts unchecked (not in the `lines` field array) — only checked lines are
-// appended, since the schema requires every entry to have quantity >= 1 (a 0-qty placeholder
-// row for every sold line would always fail that bound).
+// ADM-10 §Forms, opened to staff holding the sales page by S18. Dumb (owns only local form state)
+// — StaffSales wires useCreateReturn(). Each sale line starts unchecked (not in the `lines` field
+// array) — only checked lines are appended, since the schema requires every entry to have
+// quantity >= 1 (a 0-qty placeholder row for every sold line would always fail that bound).
+// S32 — each checked line's refund starts EMPTY. A walk-in sale must refund exactly the sold
+// price of the returned quantity (schema-enforced). For an attached client any amount is
+// accepted, but if any line's refund differs from its sold price the credit change
+// (refund − sold price, applied to the client's current credit) is confirmed first.
 export function ReturnDialog({
   open,
   onOpenChange,
@@ -53,9 +62,13 @@ export function ReturnDialog({
   const { t, language } = useTranslation();
 
   const lineBounds: Record<string, number> = {};
+  const linePrices: Record<string, number> = {};
   for (const line of sale?.lines ?? []) {
     lineBounds[line.id] = line.quantity - (alreadyReturnedByLine[line.id] ?? 0);
+    linePrices[line.id] = line.unitPrice;
   }
+  const hasClient = sale?.posClientId != null;
+  const previousCredit = sale?.posClientCredit ?? 0;
 
   const {
     register,
@@ -63,36 +76,51 @@ export function ReturnDialog({
     control,
     watch,
     formState: { errors },
-  } = useForm<CreateReturnFormValues>({
-    resolver: zodResolver(createReturnSchema(t, lineBounds)),
+  } = useForm<CreateReturnFormInput, unknown, CreateReturnFormValues>({
+    resolver: zodResolver(createReturnSchema(t, lineBounds, linePrices, hasClient)),
     defaultValues: { saleId: sale?.id ?? "", type: ReturnType.REFUND, lines: [] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
 
-  // S12/R2 — read-only refund summary: what the operator entered, what will actually come back in
-  // cash (the backend silently caps it at paid − already-refunded, F2), and whether this return is
-  // full or partial (D7 — only a full return reverses the sale's own credit delta).
+  // S32 — the values awaiting the client credit-change confirmation, if any.
+  const [pending, setPending] = useState<CreateReturnFormValues | null>(null);
+
+  const lineValue = (saleLineId: string, quantity: number) =>
+    (linePrices[saleLineId] ?? 0) * (Number(quantity) || 0);
+
   const watchedLines = watch("lines");
+  const goodsValue = watchedLines.reduce((sum, l) => sum + lineValue(l.saleLineId, l.quantity), 0);
   const refundTotal = watchedLines.reduce((sum, l) => sum + (Number(l.refundAmount) || 0), 0);
-  const cashRefundable = sale ? Math.max(0, sale.paidAmount - (sale.refundedAmount ?? 0)) : 0;
-  const isFullReturn = sale
-    ? sale.lines.every((saleLine) => {
-        const entered = watchedLines.find((l) => l.saleLineId === saleLine.id)?.quantity ?? 0;
-        return (alreadyReturnedByLine[saleLine.id] ?? 0) + Number(entered) >= saleLine.quantity;
-      })
-    : false;
+  const allRefundsFilled =
+    watchedLines.length > 0 &&
+    watchedLines.every((l) => l.refundAmount != null && !Number.isNaN(l.refundAmount));
 
   const fieldIndexForLine = (saleLineId: string) =>
     fields.findIndex((f) => f.saleLineId === saleLineId);
 
-  const toggleLine = (saleLineId: string, checked: boolean, unitPrice: number) => {
+  const toggleLine = (saleLineId: string, checked: boolean) => {
     const index = fieldIndexForLine(saleLineId);
     if (checked && index === -1) {
-      append({ saleLineId, quantity: 1, restock: true, refundAmount: unitPrice });
+      append({ saleLineId, quantity: 1, restock: true, refundAmount: undefined });
     } else if (!checked && index !== -1) {
       remove(index);
     }
   };
+
+  const onValid = (values: CreateReturnFormValues) => {
+    // Walk-in exactness is already enforced by the schema; for a client, any line whose refund
+    // differs from its sold price is confirmed against the resulting credit first.
+    const differs = values.lines.some(
+      (l) => !sameMoney(l.refundAmount, lineValue(l.saleLineId, l.quantity)),
+    );
+    if (hasClient && differs) setPending(values);
+    else onSubmit(values);
+  };
+
+  const pendingDue = pending
+    ? pending.lines.reduce((sum, l) => sum + lineValue(l.saleLineId, l.quantity), 0)
+    : 0;
+  const pendingRefund = pending ? pending.lines.reduce((sum, l) => sum + l.refundAmount, 0) : 0;
 
   if (!sale) return null;
 
@@ -102,7 +130,7 @@ export function ReturnDialog({
         <DialogHeader>
           <DialogTitle>{t("admin.sales.returnDialog.title")}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onValid)} className="space-y-4">
           <div className="max-h-64 space-y-3 overflow-y-auto">
             {sale.lines
               .filter((saleLine) => lineBounds[saleLine.id] > 0)
@@ -114,16 +142,14 @@ export function ReturnDialog({
                     <label className="flex items-center gap-2 text-sm font-medium">
                       <Checkbox
                         checked={checked}
-                        onCheckedChange={(v) =>
-                          toggleLine(saleLine.id, v === true, saleLine.unitPrice)
-                        }
+                        onCheckedChange={(v) => toggleLine(saleLine.id, v === true)}
                       />
                       {saleLine.productName}
                     </label>
 
                     {checked && (
                       <>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start gap-3">
                           <div className="flex-1 space-y-1">
                             <Label htmlFor={`return-qty-${index}`}>
                               {t("admin.sales.returnDialog.quantityLabel")}
@@ -148,9 +174,25 @@ export function ReturnDialog({
                             <Input
                               id={`return-refund-${index}`}
                               type="number"
+                              min={0}
                               step="0.01"
-                              {...register(`lines.${index}.refundAmount`, { valueAsNumber: true })}
+                              {...register(`lines.${index}.refundAmount`, {
+                                setValueAs: (raw: string) => (raw === "" ? undefined : Number(raw)),
+                              })}
                             />
+                            <p className="text-xs text-muted-foreground">
+                              {t("admin.sales.returnDialog.soldPriceHint", {
+                                amount: formatDZD(
+                                  lineValue(saleLine.id, watchedLines[index]?.quantity ?? 0),
+                                  language,
+                                ),
+                              })}
+                            </p>
+                            {errors.lines?.[index]?.refundAmount && (
+                              <p className="text-sm text-destructive">
+                                {errors.lines[index]?.refundAmount?.message}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
@@ -175,8 +217,10 @@ export function ReturnDialog({
                 );
               })}
           </div>
-          {errors.lines?.message && (
-            <p className="text-sm text-destructive">{errors.lines.message}</p>
+          {(errors.lines?.message || errors.lines?.root?.message) && (
+            <p className="text-sm text-destructive">
+              {errors.lines?.message ?? errors.lines?.root?.message}
+            </p>
           )}
 
           <div className="space-y-1">
@@ -212,24 +256,22 @@ export function ReturnDialog({
               <div className="font-medium">{t("admin.sales.returnDialog.summaryTitle")}</div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
+                  {t("admin.sales.returnDialog.summaryGoodsValue")}
+                </span>
+                <span>{formatDZD(goodsValue, language)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
                   {t("admin.sales.returnDialog.summaryRefundTotal")}
                 </span>
                 <span>{formatDZD(refundTotal, language)}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {t("admin.sales.returnDialog.summaryCashRefundable")}
-                </span>
-                <span>{formatDZD(cashRefundable, language)}</span>
-              </div>
-              {refundTotal > cashRefundable && (
-                <p className="text-warning">{t("admin.sales.returnDialog.summaryCashCapped")}</p>
+              {hasClient && allRefundsFilled && (
+                <CreditMovementPreview
+                  previousCredit={previousCredit}
+                  newCredit={previousCredit + (refundTotal - goodsValue)}
+                />
               )}
-              <p className="text-muted-foreground">
-                {isFullReturn
-                  ? t("admin.sales.returnDialog.creditEffectFull")
-                  : t("admin.sales.returnDialog.creditEffectPartial")}
-              </p>
             </div>
           )}
 
@@ -240,6 +282,24 @@ export function ReturnDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {hasClient && (
+        <CreditChangeConfirmDialog
+          open={pending != null}
+          onOpenChange={(next) => !next && setPending(null)}
+          dueLabel={t("admin.sales.returnDialog.summaryGoodsValue")}
+          dueAmount={pendingDue}
+          enteredLabel={t("admin.sales.returnDialog.summaryRefundTotal")}
+          enteredAmount={pendingRefund}
+          previousCredit={previousCredit}
+          newCredit={previousCredit + (pendingRefund - pendingDue)}
+          onConfirm={() => {
+            if (pending) onSubmit(pending);
+            setPending(null);
+          }}
+          isConfirming={isSubmitting}
+        />
+      )}
     </Dialog>
   );
 }

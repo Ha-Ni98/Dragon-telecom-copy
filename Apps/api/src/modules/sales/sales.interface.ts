@@ -7,6 +7,7 @@ import type {
   ReceiptDto,
   ReturnDto,
   ReturnListQuery,
+  ReturnWholeSaleCommand,
   SaleDraftCommand,
   SaleDto,
   SaleListQuery,
@@ -25,6 +26,8 @@ export interface ISalesService {
   listAdminSales(query: SaleListQuery): Promise<PaginatedResult<SaleDto>>;
   getSale(reference: string, actor: JWTPayload): Promise<SaleDto>;
   createReturn(cmd: CreateReturnCommand, staffId: string): Promise<SaleDto>;
+  // S32 (P2) — splits one refund across every remaining line and delegates to createReturn.
+  returnWholeSale(cmd: ReturnWholeSaleCommand, staffId: string): Promise<SaleDto>;
   // S12 — the admin Returns tab's read side (createReturn above is write-only).
   listReturns(query: ReturnListQuery): Promise<PaginatedResult<ReturnDto>>;
 }

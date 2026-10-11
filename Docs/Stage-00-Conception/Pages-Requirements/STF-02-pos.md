@@ -5,7 +5,7 @@
 
 ## UI
 - Left: product search with **barcode-scanner focus** (`F2`) + family quick-pick grid.
-- Right: the ticket — lines (name, qty stepper, resolved price shown beside the editable charged price, line total, serials field, remove), discount, total; POS-client attach zone; payment panel (`F4`): paid amount, change due / new credit preview; Confirm (`Enter`).
+- Right: the ticket — lines (name, qty stepper, resolved price shown beside the editable charged price, line total, serials field, remove), discount, total; POS-client attach zone; payment panel (`F4`): paid amount (S32: starts empty, never pre-filled; no change-due line), new credit preview; Confirm (`Enter`).
 - "My drafts" drawer.
 
 ## Interactions
@@ -13,7 +13,7 @@
 - Per-line price override edits `unitPrice`; `resolvedPrice` stays displayed. Saving without confirming keeps a DRAFT (no stock, no money). Confirm runs the sale; then a receipt view (total · previous credit · grand total · paid · new credit) with print.
 
 ## Forms
-- Draft: `SaleDraftCommand` (built incrementally; PATCH on change). Quick-add client: `CreatePosClientCommand` dialog (RHF + zodResolver). Confirm: `ConfirmSaleCommand { paidAmount }` — underpayment with no client attached surfaces `CREDIT_REQUIRES_CLIENT` on the client zone; stock shortfall surfaces `INSUFFICIENT_STOCK` on the named line.
+- Draft: `SaleDraftCommand` (built incrementally; PATCH on change). Quick-add client: `CreatePosClientCommand` dialog (RHF + zodResolver). Confirm: `ConfirmSaleCommand { paidAmount }` — S32: empty blocks; with no client attached paid must equal the total exactly (underpayment from the server still surfaces `CREDIT_REQUIRES_CLIENT` on the client zone); with a client, any difference opens a confirmation showing previous → new credit; stock shortfall surfaces `INSUFFICIENT_STOCK` on the named line.
 
 ## Data dependencies
 - `useStaffProducts(search)` → `['staff','products',search]`; `usePosClientSearch(q)` → `['pos-clients','search',q]`; `useMyDrafts()` → `['sales','me','DRAFT']`.

@@ -6,6 +6,7 @@ import type {
   SaleListQuery,
   CreateReturnCommand,
   ReturnListQuery,
+  ReturnWholeSaleCommand,
 } from "@dragon-telecom/contract";
 import * as salesService from "@/services/sales.service";
 import type { SalesScope } from "@/services/sales.service";
@@ -107,6 +108,23 @@ export function useCreateReturn() {
   return useMutation({
     mutationFn: ({ scope, command }: { scope: SalesScope; command: CreateReturnCommand }) =>
       salesService.createReturn(scope, command),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.sales.all() });
+      queryClient.invalidateQueries({ queryKey: qk.inventory.all() });
+      queryClient.invalidateQueries({ queryKey: qk.billing.all() });
+      queryClient.invalidateQueries({ queryKey: qk.clients.all() });
+      queryClient.invalidateQueries({ queryKey: qk.posClients.all() });
+      queryClient.invalidateQueries({ queryKey: qk.stats.all() });
+    },
+  });
+}
+
+// S32 (P2) — same ripple as useCreateReturn: it is the same return, with one refund figure.
+export function useReturnWholeSale() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ scope, command }: { scope: SalesScope; command: ReturnWholeSaleCommand }) =>
+      salesService.returnWholeSale(scope, command),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.sales.all() });
       queryClient.invalidateQueries({ queryKey: qk.inventory.all() });

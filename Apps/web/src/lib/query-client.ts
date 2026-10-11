@@ -6,6 +6,7 @@ import {
   EXPORT_ERROR,
   MEDIA_ERROR,
   REPAIR_ERROR,
+  SALE_ERROR,
   type ApiResponse,
 } from "@dragon-telecom/contract";
 import { translate, getLanguage } from "@/lib/i18n";
@@ -29,6 +30,12 @@ const SENTINEL_TRANSLATION_KEYS: Record<string, string> = {
   [REPAIR_ERROR.RETURN_VIA_RETURN_ACTION]: "common.errors.sentinel.repairReturnViaReturnAction",
   [REPAIR_ERROR.UNKNOWN_PART]: "common.errors.sentinel.repairUnknownPart",
   [REPAIR_ERROR.CONSUMPTION_NOT_FOUND]: "common.errors.sentinel.repairConsumptionNotFound",
+  // S32 — sales sentinels (sales.constants.ts SALE_ERROR). CREDIT_REQUIRES_CLIENT is deliberately
+  // not mapped: the POS, orders and repairs each surface it inline.
+  [SALE_ERROR.WALK_IN_OVERPAYMENT]: "common.errors.sentinel.saleWalkInOverpayment",
+  [SALE_ERROR.WALK_IN_REFUND_MISMATCH]: "common.errors.sentinel.saleWalkInRefundMismatch",
+  [SALE_ERROR.WHOLE_RETURN_LINES_MISMATCH]: "common.errors.sentinel.saleWholeReturnLinesMismatch",
+  [SALE_ERROR.NOTHING_TO_RETURN]: "common.errors.sentinel.saleNothingToReturn",
 };
 
 export const message = (err: unknown): string => {

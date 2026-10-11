@@ -495,8 +495,10 @@ export class StatisticsService implements IStatisticsService {
   }
 
   // S24 (A1) — every returned line, enriched with everything any consumer needs to subtract it
-  // from the right bucket. Owner rule Q1: revenue falls by the refund actually given; cost falls
-  // only if the goods came back (restock); profit is the difference; quantity always falls. The
+  // from the right bucket. Revenue: an ORDER return falls by the refund actually given (S24 owner
+  // rule Q1); a SALE return falls by the line's sold value, unitPrice × returned quantity (S32/Q1
+  // — the refund-vs-price difference went to the client's credit). Cost falls only if the goods
+  // came back (restock); profit is the difference; quantity always falls. The
   // row is dated by the PARENT document's own recognition date, not returnedAt — a return
   // restates the period in which the sale happened ("as if never bought"), it is not a contra
   // entry in the period the refund was issued. Repairs have no return path, so `source ===
@@ -535,10 +537,10 @@ export class StatisticsService implements IStatisticsService {
         select: {
           quantity: true,
           restock: true,
-          refundAmount: true,
           saleLine: {
             select: {
               quantity: true,
+              unitPrice: true,
               costOfGoods: true,
               productId: true,
               product: { select: { familyId: true } },
@@ -602,7 +604,9 @@ export class StatisticsService implements IStatisticsService {
 
     for (const rl of saleReturnLines) {
       const line = rl.saleLine!;
-      const revenue = rl.refundAmount.toNumber();
+      // S32/Q1 — a sale return reverses the goods' sold value, whatever cash came back: the refund
+      // vs. line-price difference went to the client's credit, which is a ledger matter, not revenue.
+      const revenue = Math.round(line.unitPrice.toNumber() * rl.quantity * 100) / 100;
       // Proportional share of the line's stored FIFO cost — reversed only when the goods actually
       // re-entered stock. Not restocked => the store lost them, so the cost stands.
       const cost = rl.restock && line.quantity > 0 ? line.costOfGoods.toNumber() * (rl.quantity / line.quantity) : 0;
