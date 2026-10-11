@@ -81,7 +81,7 @@ Resolution: tier row for the viewer's POS-client category → storefront `guestP
 ## 5. Inventory — the FIFO ledger
 
 **StockMovement** — append-only; audit spine and cost layers in one table:
-`productId` FK · `direction` enum `IN | OUT | PENDING` · `type` enum (IN: `SUPPLIER_INVOICE`, `INITIAL_STOCK`, `ADJUSTMENT_IN`, `RETURN_IN` — OUT: `SALE`, `ORDER_OUT`, `REPAIR_CONSUMPTION`, `ADJUSTMENT_OUT` — PENDING: `PENDING_ORDER`, `PENDING_REPAIR`, `PENDING_RELEASE`) · `quantity` signed · `unitCost?` (IN — the layer's landed cost) · `remainingQuantity?` (IN — starts = quantity, drained FIFO) · `costOfGoods?` (OUT — Σ consumed qty × layer cost) · `profit?` (OUT — revenue − costOfGoods; null for ADJUSTMENT_OUT) · `balanceAfter` · `referenceType` + `referenceId` (must always resolve: SALE | ORDER | SUPPLIER_INVOICE | REPAIR | RETURN | ADJUSTMENT | PRODUCT) · `reason?` · `staffId` FK · `createdAt` (immutable).
+`productId` FK · `direction` enum `IN | OUT | PENDING` · `type` enum (IN: `SUPPLIER_INVOICE`, `INITIAL_STOCK`, `ADJUSTMENT_IN`, `RETURN_IN`, `REPAIR_RETURN` (S30 — a returned repair's part restocked at its consumed cost) — OUT: `SALE`, `ORDER_OUT`, `REPAIR_CONSUMPTION`, `ADJUSTMENT_OUT` — PENDING: `PENDING_ORDER`, `PENDING_REPAIR`, `PENDING_RELEASE`, `REPAIR_CANCELLED` (S30 — reservation released because its repair was cancelled; on-hand untouched)) · `quantity` signed · `unitCost?` (IN — the layer's landed cost) · `remainingQuantity?` (IN — starts = quantity, drained FIFO) · `costOfGoods?` (OUT — Σ consumed qty × layer cost) · `profit?` (OUT — revenue − costOfGoods; null for ADJUSTMENT_OUT) · `balanceAfter` · `referenceType` + `referenceId` (must always resolve: SALE | ORDER | SUPPLIER_INVOICE | REPAIR | RETURN | ADJUSTMENT | PRODUCT) · `reason?` · `staffId` FK · `createdAt` (immutable).
 
 **StockMovementConsumption** — which layers an OUT drained: `outMovementId` FK · `inMovementId` FK · `quantityConsumed` · `unitCost` snapshot. Makes costOfGoods auditable line-by-line and gives RETURN_IN its correct cost (restocked returns re-enter at the consumed cost).
 
@@ -147,9 +147,9 @@ negative-amount `ClientPayment` row, reversing credit only on a full return.
 
 ## 9. Repairs (back-office only)
 
-**Repair** — `reference` unique (`REP-2026-0001`, the claim slip — the customer's only handle) · `posClientId?` FK · `customerName` · `customerPhone` · `brandId?` + `deviceModelId?` FK · `deviceLabel?` (free text fallback) · `deviceImei?` · `reportedIssues` string[] from `charging | display | battery | camera | speaker | microphone | water-damage | software | other` · `reportedIssueOther?` · `diagnosis?` (**optional**) · `status` enum `INTAKE | PROCESSING | COMPLETED | PICKED_UP | CANCELLED` · `technicianId?` FK → Technician (required for PROCESSING) · `labourPrice` · `partsTotal` · `totalAmount` · `paidAmount` · `totalCost?` + `totalProfit?` · `intakeAt` · `completedAt?` · `pickedUpAt?` · `saleId?` FK (the repair-origin sale recorded at pickup).
+**Repair** — `reference` unique (`REP-2026-0001`, the claim slip — the customer's only handle) · `posClientId?` FK · `customerName` · `customerPhone` · `brandId?` + `deviceModelId?` FK · `deviceLabel?` (free text fallback) · `deviceImei?` · `reportedIssues` string[] from `charging | display | battery | camera | speaker | microphone | water-damage | software | other` · `reportedIssueOther?` · `diagnosis?` (**optional**) · `status` enum `INTAKE | PROCESSING | COMPLETED | PICKED_UP | CANCELLED | RETURNED` (S30 — RETURNED only from PICKED_UP) · `technicianId?` FK → Technician (required for PROCESSING) · `labourPrice` · `partsTotal` · `totalAmount` · `paidAmount` (net of refunds) · `refundedAmount` (S30 — cash given back at CANCELLED/RETURNED) · `totalCost?` + `totalProfit?` · `intakeAt` · `completedAt?` · `pickedUpAt?` · `cancelledAt?` + `returnedAt?` (S30) · `saleId?` FK (the repair-origin sale recorded at pickup).
 
-**RepairPart** — `repairId` FK · `productId` FK · `productNameSnapshot` · `quantity` (adding **reserves** via PENDING_REPAIR) · `unitPrice` · `costOfGoods?` · `profit?` · `lineTotal` · `serialNumbers?`.
+**RepairPart** — `repairId` FK · `productId` FK · `productNameSnapshot` · `quantity` (adding **reserves** via PENDING_REPAIR) · `unitPrice` · `costOfGoods?` · `profit?` · `lineTotal` · `serialNumbers?` · `consumptionMovementId?` FK → StockMovement (S30 — the REPAIR_CONSUMPTION row written at pickup; a return restocks from its layers) · `restockedOnReturn?` (S30 — set at RETURNED).
 COMPLETED consumes parts (FIFO, idempotent; shortfall names the product). CANCELLED releases pending; consumed parts return explicitly.
 
 **RepairStatusHistory** — `repairId` FK · `fromStatus` · `toStatus` · `note?` · `staffId` FK · `changedAt`.
@@ -163,7 +163,7 @@ COMPLETED consumes parts (FIFO, idempotent; shortfall names the product). CANCEL
 
 **InvoiceLine** — snapshots; renders identically forever: `invoiceId` FK · `label` · `quantity` · `unitPrice` · `costSnapshot` · `profit` · `lineTotal` · `serialNumbers?`.
 
-**ClientPayment** — `reference` unique · `posClientId` FK · `invoiceId?` FK (on account allowed) · `amount` · `previousCredit` + `newCredit` snapshots (shown in the dialog) · `paidAt` · `staffId` FK.
+**ClientPayment** — `reference` unique · `posClientId` FK · `invoiceId?` FK (on account allowed) · `repairId?` FK (S13 — a repair's pre-pickup payment, re-linked to its invoice at pickup) · `reversalOfId?` self-FK (S30 — a negative row reversing the payment it points to; repairs reverse payment by payment) · `amount` (signed; refunds are negative) · `previousCredit` + `newCredit` snapshots (shown in the dialog) · `paidAt` · `staffId` FK.
 
 ---
 

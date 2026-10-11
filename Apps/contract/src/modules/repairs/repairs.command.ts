@@ -39,6 +39,7 @@ export type AddRepairPartCommand = z.infer<typeof AddRepairPartSchema>;
 // (D6 — recorded as a negative-amount ClientPayment row for a known client).
 // `consumedPartReturns` is GONE: under D8 nothing is ever consumed before PICKED_UP, and cancel
 // is unreachable from PICKED_UP, so no consumed part can exist at cancel time.
+// S30 — `toStatus: RETURNED` is rejected here; a return goes through ReturnRepairSchema below.
 export const RepairStatusSchema = z.object({
   toStatus: z.enum(RepairStatus),
   note: z.string().optional(),
@@ -54,3 +55,13 @@ export const RecordRepairPaymentSchema = z.object({
   amount: z.number().positive(),
 });
 export type RecordRepairPaymentCommand = z.infer<typeof RecordRepairPaymentSchema>;
+
+// S30 — return a PICKED_UP repair (→ RETURNED, terminal). `restockPartIds` lists the parts that
+// go back on the shelf (REPAIR_RETURN at their consumed cost); a part not listed produces no
+// movement (fitted then removed, not resellable). No refund field: every payment is reversed in
+// full (owner decision Q4). `note` is the reason, written to the status history.
+export const ReturnRepairSchema = z.object({
+  restockPartIds: z.array(z.uuid()),
+  note: z.string().optional(),
+});
+export type ReturnRepairCommand = z.infer<typeof ReturnRepairSchema>;

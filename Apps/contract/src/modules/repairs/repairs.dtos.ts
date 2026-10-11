@@ -25,13 +25,18 @@ export const RepairResponseSchema = z.object({
   partsTotal: z.number(),
   totalAmount: z.number(),
   paidAmount: z.number(),
+  // S30 — cash given back at CANCELLED/RETURNED; paidAmount is already net of it.
+  refundedAmount: z.number(),
   totalCost: z.number().optional(),
   totalProfit: z.number().optional(),
   intakeAt: z.iso.datetime(),
   completedAt: z.iso.datetime().optional(),
   pickedUpAt: z.iso.datetime().optional(),
+  cancelledAt: z.iso.datetime().optional(), // S30
+  returnedAt: z.iso.datetime().optional(), // S30
   ageHours: z.number(),
-  // S13/D9 — the invoice issued at PICKED_UP. Absent before pickup and on cancelled repairs.
+  // S13/D9 — the invoice issued at PICKED_UP. Absent before pickup and on cancelled repairs;
+  // still present (now CANCELLED) on a returned repair (S30).
   invoiceNumber: z.string().optional(),
   // S13/D5 — the ledger rows taken for this repair (on-account before pickup, invoice-linked
   // after). Empty for a walk-in repair: no PosClient means no ledger row is possible, and the
@@ -43,6 +48,8 @@ export const RepairResponseSchema = z.object({
       amount: z.number(),
       paidAt: z.iso.datetime(),
       invoiceId: z.uuid().optional(),
+      // S30/Q1 — on a negative row, the reference of the payment it reverses.
+      reversesReference: z.string().optional(),
     }),
   ),
   parts: z.array(
@@ -56,6 +63,8 @@ export const RepairResponseSchema = z.object({
       profit: z.number().optional(),
       lineTotal: z.number(),
       serialNumbers: z.string().optional(),
+      // S30 — absent until RETURNED; then whether this part went back on the shelf.
+      restockedOnReturn: z.boolean().optional(),
     }),
   ),
   history: z.array(
@@ -82,6 +91,7 @@ export const TechnicianRepairStatsResponseSchema = z.object({
   completedCount: z.number().int(),
   pickedUpCount: z.number().int(),
   cancelledCount: z.number().int(),
+  returnedCount: z.number().int(), // S30
   revenue: z.number(),
 });
 export type TechnicianRepairStatsDto = z.infer<typeof TechnicianRepairStatsResponseSchema>;

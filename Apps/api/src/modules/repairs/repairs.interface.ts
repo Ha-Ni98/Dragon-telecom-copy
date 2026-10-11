@@ -8,6 +8,7 @@ import type {
   RepairDto,
   RepairListQuery,
   RepairStatusCommand,
+  ReturnRepairCommand,
   TechnicianRepairStatsDto,
   UpdateRepairCommand,
 } from '@dragon-telecom/contract';
@@ -33,9 +34,11 @@ export interface IBillingIssuePort {
   issueInvoiceInTx(tx: Prisma.TransactionClient, input: InvoiceIssueRequest): Promise<{ invoiceId: string; number: string }>;
   captureClientPaymentInTx(
     tx: Prisma.TransactionClient,
-    input: { posClientId: string; invoiceId?: string; repairId?: string; amount: number; paidAt?: Date; staffId: string },
+    input: { posClientId: string; invoiceId?: string; repairId?: string; reversalOfId?: string; amount: number; paidAt?: Date; staffId: string },
   ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }>;
   linkRepairPaymentsToInvoiceInTx(tx: Prisma.TransactionClient, input: { repairId: string; invoiceId: string }): Promise<void>;
+  // S30 — a return cancels the pickup invoice (status only) inside the return's own transaction.
+  cancelInvoiceInTx(tx: Prisma.TransactionClient, input: { invoiceId: string }): Promise<{ number: string }>;
 }
 
 // S13 — RepairListQuerySchema now carries page/limit + an intake-date range (R2: the board is
@@ -59,12 +62,16 @@ export interface IRepairsService {
   addPart(id: string, cmd: AddRepairPartCommand, actor: JWTPayload): Promise<RepairDto>;
   // release.
   removePart(id: string, partId: string, actor: JWTPayload): Promise<RepairDto>;
-  // transitions + history + events (INTAKE→PROCESSING→COMPLETED→PICKED_UP, or →CANCELLED).
+  // transitions + history + events (INTAKE→PROCESSING→COMPLETED→PICKED_UP, or →CANCELLED from
+  // INTAKE/PROCESSING/COMPLETED). S30 — RETURNED is not accepted here (returnRepair below).
   // D8/D9 (S13) — PICKED_UP is now the single money moment: parts consumed, invoice issued,
   // revenue recognised, all inside one transaction.
   changeStatus(id: string, cmd: RepairStatusCommand, actor: JWTPayload): Promise<RepairDto>;
   // S13/D5 — a cumulative payment at any pre-pickup step.
   recordPayment(id: string, cmd: RecordRepairPaymentCommand, actor: JWTPayload): Promise<RepairDto>;
+  // S30 — PICKED_UP → RETURNED: restock chosen parts at consumed cost, reverse every payment,
+  // cancel the invoice.
+  returnRepair(id: string, cmd: ReturnRepairCommand, actor: JWTPayload): Promise<RepairDto>;
   // S13/R1 — the admin Technicians tab.
   listTechnicianStats(): Promise<TechnicianRepairStatsDto[]>;
 }

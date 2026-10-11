@@ -20,6 +20,9 @@ export const REPAIR_ROUTES = {
   // S13/D5 — cumulative payment at any pre-pickup step.
   STAFF_PAYMENTS: '/staff/repairs/:id/payments',
   ADMIN_PAYMENTS: '/admin/repairs/:id/payments',
+  // S30 — PICKED_UP → RETURNED (per-part restock, full refund, invoice cancelled).
+  STAFF_RETURN: '/staff/repairs/:id/return',
+  ADMIN_RETURN: '/admin/repairs/:id/return',
   // S13/R1 — the admin Technicians tab. Mounted OUTSIDE /admin/repairs on purpose: a
   // /admin/repairs/technicians path would be swallowed by ADMIN_BY_ID's uuid-validated :id.
   ADMIN_TECHNICIAN_STATS: '/admin/repair-technicians',

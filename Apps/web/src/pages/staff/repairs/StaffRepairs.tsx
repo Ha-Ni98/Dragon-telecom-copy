@@ -18,13 +18,14 @@ import {
   useRemoveRepairPart,
   useUpdateRepairStatus,
   useRecordRepairPayment,
+  useReturnRepair,
 } from "@/hooks/useRepairs";
 import { useTechnicians } from "@/hooks/useIdentity";
 import { useStaffProducts } from "@/hooks/useCatalogProducts";
 import { usePublicSettings } from "@/hooks/usePlatform";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
-import { RepairStatus, type RepairDto } from "@dragon-telecom/contract";
+import { RepairStatus, type RepairDto, type ReturnRepairCommand } from "@dragon-telecom/contract";
 import type { IntakeRepairFormValues } from "@/pages/staff/repairs/intake-repair.schema";
 import type { AddRepairPartFormValues } from "@/pages/staff/repairs/add-repair-part.schema";
 import type { RepairStatusFormValues } from "@/pages/staff/repairs/repair-status.schema";
@@ -44,7 +45,8 @@ interface Props {
 // RepairStatusDialog) succeed normally. This is a real, intentional UX gap: dragging onto
 // Processing/Picked-up/Cancelled(with money collected) always bounces; only the click flow
 // works for those three. Documented in report-S13.md rather than built around with speculative
-// dialog-routing logic.
+// dialog-routing logic. S30 — dropping a card on Returned always bounces too: a return needs
+// per-part restock choices, so it goes through the ticket's own Return action (RepairReturnDialog).
 export default function StaffRepairs({ scope = "staff" }: Props) {
   const { t } = useTranslation();
 
@@ -99,6 +101,7 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
   const removePart = useRemoveRepairPart();
   const updateStatus = useUpdateRepairStatus();
   const recordPayment = useRecordRepairPayment();
+  const returnRepair = useReturnRepair();
 
   const handleIntakeSubmit = (values: IntakeRepairFormValues) => {
     createRepair.mutate(
@@ -168,6 +171,15 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
     );
   };
 
+  // S30 — PICKED_UP → RETURNED from the ticket's Return action.
+  const handleReturn = (command: ReturnRepairCommand) => {
+    if (!selectedRepairId) return;
+    returnRepair.mutate(
+      { scope, id: selectedRepairId, command },
+      { onSuccess: () => toast.success(t("staff.repairs.return.success")) },
+    );
+  };
+
   const board = (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -218,6 +230,8 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
         onOpenStatusDialog={() => setStatusDialogOpen(true)}
         onRecordPayment={handleRecordPayment}
         isRecordingPayment={recordPayment.isPending}
+        onReturn={handleReturn}
+        isReturning={returnRepair.isPending}
         scope={scope}
         store={publicSettings.data?.store}
       />

@@ -8,11 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { AutocompleteInput } from "@/components/shared/autocomplete-input";
+import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Printer, Tag } from "lucide-react";
 import { toast } from "sonner";
 import {
-  isRepairStatusTerminal,
+  RepairStatus,
+  isRepairReadOnly,
   type RepairDto,
+  type ReturnRepairCommand,
   type StaffProductDto,
   type PublicSettingsDto,
 } from "@dragon-telecom/contract";
@@ -28,6 +31,7 @@ import {
 import { REPAIR_STATUS_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
 import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-label";
 import { RecordRepairPaymentDialog } from "@/pages/staff/repairs/components/RecordRepairPaymentDialog";
+import { RepairReturnDialog } from "@/pages/staff/repairs/components/RepairReturnDialog";
 import { RepairReceipt } from "@/pages/staff/repairs/components/RepairReceipt";
 import type { RecordRepairPaymentFormValues } from "@/pages/staff/repairs/record-repair-payment.schema";
 
@@ -45,6 +49,9 @@ interface RepairTicketDetailProps {
   onOpenStatusDialog: () => void;
   onRecordPayment: (values: RecordRepairPaymentFormValues) => void;
   isRecordingPayment?: boolean;
+  /** S30 — PICKED_UP → RETURNED (RepairReturnDialog). */
+  onReturn: (command: ReturnRepairCommand) => void;
+  isReturning?: boolean;
   /** ADM-13 §UI — cost/profit per part is admin-only. */
   scope?: "staff" | "admin";
   /** S25 — the repair receipt's store header. Optional: the settings query may still be in flight. */
@@ -52,9 +59,11 @@ interface RepairTicketDetailProps {
 }
 
 // Dumb (owns only local form state) — Sprint 7 wires useRepair(scope, id) + the mutations around
-// this. S13/D8 — once picked up or cancelled a repair is read-only: no part/labour/diagnosis
-// edits, no add-part form, driven off isRepairStatusTerminal (the same contract machine
-// RepairStatusDialog reads). F1 — the spare-part picker was a raw text input whose text never
+// this. S13/D8 — once picked up, cancelled or (S30) returned a repair is read-only: no part/
+// labour/diagnosis edits, no add-part form, driven off the contract's isRepairReadOnly. S30 — a
+// PICKED_UP ticket instead offers the Return action (RepairReturnDialog), and a cancelled or
+// returned ticket shows what was refunded, each part's restock outcome and which payment each
+// refund row reverses. F1 — the spare-part picker was a raw text input whose text never
 // updated on selection and whose "no product chosen" error was never rendered; both fixed here
 // (AutocompleteInput shows the picked product's name, and errors.productId now renders).
 export function RepairTicketDetail({
@@ -71,6 +80,8 @@ export function RepairTicketDetail({
   onOpenStatusDialog,
   onRecordPayment,
   isRecordingPayment,
+  onReturn,
+  isReturning,
   scope = "staff",
   store,
 }: RepairTicketDetailProps) {
@@ -88,6 +99,7 @@ export function RepairTicketDetail({
   });
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [labelDialogOpen, setLabelDialogOpen] = useState(false);
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   // S27.1 — mounted here, not only inside the label dialog: the receipt button below needs the
   // same already-resolved answer so its fallback can stay synchronous (see handlePrintReceipt).
   const { print: printReceiptDocument } = useReceiptPrint();
@@ -95,7 +107,7 @@ export function RepairTicketDetail({
 
   if (!repair) return null;
 
-  const readOnly = isRepairStatusTerminal(repair.status);
+  const readOnly = isRepairReadOnly(repair.status);
   const amountDue = repair.totalAmount - repair.paidAmount;
 
   const submitAddPart = handleSubmit((values) => {
@@ -106,6 +118,11 @@ export function RepairTicketDetail({
   const handleRecordPayment = (values: RecordRepairPaymentFormValues) => {
     onRecordPayment(values);
     setPaymentDialogOpen(false);
+  };
+
+  const handleReturn = (command: ReturnRepairCommand) => {
+    onReturn(command);
+    setReturnDialogOpen(false);
   };
 
   // Thermal first, browser fallback — shared with the POS and the sales drawer via
@@ -134,7 +151,7 @@ export function RepairTicketDetail({
               <SheetTitle className="min-w-0 truncate">
                 {t("staff.repairs.detail.title")} — {repair.reference}
               </SheetTitle>
-              {/* S25/S27.1 — both printable at every status, including PICKED_UP/CANCELLED
+              {/* S25/S27.1 — both printable at every status, including PICKED_UP/CANCELLED/RETURNED
                   (read-only), so these sit outside every `!readOnly` guard in this component: a
                   collected device still needs a reprintable receipt, and a bench tag can be
                   reprinted at any point in the repair. */}
@@ -192,7 +209,16 @@ export function RepairTicketDetail({
                   className="flex items-center justify-between gap-2 rounded-lg border border-border p-2"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{part.productName}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-medium">{part.productName}</span>
+                      {part.restockedOnReturn != null && (
+                        <Badge variant="outline" className="shrink-0">
+                          {part.restockedOnReturn
+                            ? t("staff.repairs.detail.partRestocked")
+                            : t("staff.repairs.detail.partNotRestocked")}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {part.quantity} × {formatDZD(part.unitPrice, language)}
                       {scope === "admin" && part.profit != null && (
@@ -291,6 +317,12 @@ export function RepairTicketDetail({
               <span>{t("staff.repairs.detail.paid")}</span>
               <span>{formatDZD(repair.paidAmount, language)}</span>
             </div>
+            {repair.refundedAmount > 0 && (
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>{t("staff.repairs.detail.refunded")}</span>
+                <span>{formatDZD(repair.refundedAmount, language)}</span>
+              </div>
+            )}
             {repair.invoiceNumber != null && (
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>{t("staff.repairs.detail.invoiceNumber")}</span>
@@ -322,6 +354,9 @@ export function RepairTicketDetail({
                       <span className="font-mono text-xs text-muted-foreground">
                         {payment.reference} · {formatDateTime(payment.paidAt, language)}
                         {payment.amount < 0 ? ` · ${t("staff.repairs.payments.refundRow")}` : ""}
+                        {payment.reversesReference
+                          ? ` · ${t("staff.repairs.payments.reverses", { reference: payment.reversesReference })}`
+                          : ""}
                       </span>
                       <span className={payment.amount < 0 ? "text-destructive" : ""}>
                         {formatDZD(payment.amount, language)}
@@ -352,6 +387,17 @@ export function RepairTicketDetail({
                 {t("staff.repairs.statusDialog.title")}
               </Button>
             )}
+            {/* S30 — PICKED_UP is read-only (no Update-status button above) but can be returned. */}
+            {repair.status === RepairStatus.PICKED_UP && (
+              <Button
+                className="w-full"
+                variant="destructive"
+                onClick={() => setReturnDialogOpen(true)}
+                disabled={isReturning}
+              >
+                {t("staff.repairs.return.action")}
+              </Button>
+            )}
           </div>
         </SheetContent>
       </Sheet>
@@ -362,6 +408,15 @@ export function RepairTicketDetail({
         amountDue={amountDue}
         onSubmit={handleRecordPayment}
         isSubmitting={isRecordingPayment}
+      />
+
+      <RepairReturnDialog
+        key={repair.id}
+        open={returnDialogOpen}
+        onOpenChange={setReturnDialogOpen}
+        repair={repair}
+        onSubmit={handleReturn}
+        isSubmitting={isReturning}
       />
 
       {/* S25 — sibling of <Sheet>, deliberately NOT inside <SheetContent>: Radix animates

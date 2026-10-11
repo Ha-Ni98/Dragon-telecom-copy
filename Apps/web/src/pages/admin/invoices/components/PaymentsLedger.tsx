@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Wallet } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -26,6 +26,31 @@ export function PaymentsLedger({
 }: PaymentsLedgerProps) {
   const { t, language } = useTranslation();
 
+  // S30 — a row with no invoice yet (a repair's on-account payment, or its refund on
+  // cancellation) names its repair instead of a bare "On account"; a reversal row (Q1) also
+  // names the payment it reverses, so what was taken and what was returned read side by side.
+  const clientPaymentDocument = useCallback(
+    (payment: ClientPaymentDto) =>
+      payment.invoiceNumber ??
+      (payment.repairReference
+        ? t("admin.invoices.payments.table.repairRef", { reference: payment.repairReference })
+        : t("admin.invoices.payments.table.onAccount")),
+    [t],
+  );
+  const clientPaymentAmount = useCallback(
+    (payment: ClientPaymentDto) => (
+      <div>
+        <div>{formatDZD(payment.amount, language)}</div>
+        {payment.reversesReference && (
+          <div className="text-xs text-muted-foreground">
+            {t("admin.invoices.payments.table.reverses", { reference: payment.reversesReference })}
+          </div>
+        )}
+      </div>
+    ),
+    [t, language],
+  );
+
   const clientColumns = useMemo<ColumnDef<ClientPaymentDto>[]>(
     () => [
       { accessorKey: "reference", header: t("admin.invoices.payments.table.reference") },
@@ -33,13 +58,12 @@ export function PaymentsLedger({
       {
         id: "invoice",
         header: t("admin.invoices.payments.table.invoice"),
-        cell: ({ row }) =>
-          row.original.invoiceNumber ?? t("admin.invoices.payments.table.onAccount"),
+        cell: ({ row }) => clientPaymentDocument(row.original),
       },
       {
         accessorKey: "amount",
         header: t("admin.invoices.payments.table.amount"),
-        cell: ({ row }) => formatDZD(row.original.amount, language),
+        cell: ({ row }) => clientPaymentAmount(row.original),
       },
       {
         id: "creditMovement",
@@ -54,7 +78,7 @@ export function PaymentsLedger({
       },
       { accessorKey: "staffName", header: t("admin.invoices.payments.table.staff") },
     ],
-    [t, language],
+    [t, language, clientPaymentDocument, clientPaymentAmount],
   );
 
   const supplierColumns = useMemo<ColumnDef<SupplierPaymentDto>[]>(
@@ -105,7 +129,8 @@ export function PaymentsLedger({
             renderMobileRow={(payment) => (
               <div className="space-y-1 p-4 text-sm">
                 <div className="font-medium">{payment.posClientName}</div>
-                <div>{formatDZD(payment.amount, language)}</div>
+                <div className="text-muted-foreground">{clientPaymentDocument(payment)}</div>
+                {clientPaymentAmount(payment)}
               </div>
             )}
             emptyState={

@@ -17,10 +17,11 @@ Back-office only — no public surface, no repair invoices. Technicians have no 
 | `REPAIR_ROUTES.CREATE` | POST `/api/(staff|admin)/repairs` | staff(STAFF_REPAIRS)\|admin | intake + claim slip |
 | `REPAIR_ROUTES.UPDATE` | PATCH `.../repairs/:id` | staff\|admin | diagnosis?, labourPrice, technicianId |
 | `REPAIR_ROUTES.PARTS` | POST/DELETE `.../repairs/:id/parts(/:partId)` | staff\|admin | reserve / release |
-| `REPAIR_ROUTES.STATUS` | POST `.../repairs/:id/status` | staff\|admin | transitions |
+| `REPAIR_ROUTES.STATUS` | POST `.../repairs/:id/status` | staff\|admin | transitions (not RETURNED) |
+| `REPAIR_ROUTES.*_RETURN` | POST `.../repairs/:id/return` | staff\|admin | S30 — PICKED_UP → RETURNED; `ReturnRepairCommand { restockPartIds; note? }` |
 
 ```
-RepairStatus = 'INTAKE'|'PROCESSING'|'COMPLETED'|'PICKED_UP'|'CANCELLED'
+RepairStatus = 'INTAKE'|'PROCESSING'|'COMPLETED'|'PICKED_UP'|'CANCELLED'|'RETURNED'
 ReportedIssue = 'charging'|'display'|'battery'|'camera'|'speaker'|'microphone'|'water-damage'|'software'|'other'
 CreateRepairCommand { posClientId?; customerName; customerPhone;
   brandId?; deviceModelId?; deviceLabel?; deviceImei?;
@@ -39,14 +40,15 @@ RepairDto { id; reference; status; customerName; customerPhone; posClientId?;
 
 ## Events [CONTRACT]
 - Emits `repair.pickedUp { repairId; posClientId?; totalAmount; paidAmount; totalCost; totalProfit; snapshotParts; labourPrice }` — **sales module** records the repair-origin sale (no invoice).
-- Emits `repair.statusChanged`, `repair.cancelled` (audit).
+- Emits `repair.statusChanged`, `repair.cancelled`, `repair.returned { repairId; invoiceNumber; refundAmount; restockedPartCount; reason? }` (S30) (audit).
 - Listens: none — stock via injected `InventoryService`.
 
 ## Business Logic [BACKEND]
 1. Intake: `SequenceService('REPAIR')`; claim slip printed with the reference — the customer's only handle. Attaching a POS client prefills name/phone.
 2. Parts: add → `reserve(PENDING_REPAIR)` (shortfall 409 names the product); remove → `release`. `partsTotal`/`totalAmount = labour + parts` maintained.
-3. Transitions — `INTAKE→PROCESSING`: technicianId required (400). `PROCESSING→COMPLETED` (**idempotent**): per part `release` + `consumeFifo(REPAIR_CONSUMPTION, revenue = unitPrice×qty)` → part costOfGoods/profit, repair totals. `COMPLETED→PICKED_UP`: cash paidAmount, pickedUpAt, `saleId` back-link written by the sales listener → emit. `CANCELLED` from any state (reason optional): release pending parts; **already-consumed parts return only through explicit `consumedPartReturns`** (restock ⇒ returnIn at consumed cost).
+3. Transitions — `INTAKE→PROCESSING`: technicianId required (400). `PROCESSING→COMPLETED` (**idempotent**): per part `release` + `consumeFifo(REPAIR_CONSUMPTION, revenue = unitPrice×qty)` → part costOfGoods/profit, repair totals. `COMPLETED→PICKED_UP`: cash paidAmount, pickedUpAt, `saleId` back-link written by the sales listener → emit. `CANCELLED` from INTAKE/PROCESSING/COMPLETED only, never PICKED_UP (reason optional) — S30: every reserved part is released as a `REPAIR_CANCELLED` row (quantityReserved down, on-hand untouched — nothing was consumed); money collected is reversed payment by payment by negative `ClientPayment` rows linked through `reversalOfId` (newest first, partially when the refund prompt is lowered); `paidAmount` drops and `refundedAmount` rises.
 4. Diagnosis and every note optional. reportedIssues validated against the enum; `other` unlocks free text.
+5. **Return (S30)** — `PICKED_UP → RETURNED` only, terminal and read-only. Per part: restocked ⇒ `returnIn(REPAIR_RETURN)` at the cost it was consumed at (the part's `consumptionMovementId` layers); not restocked ⇒ no movement. Every payment is reversed in full by linked negative ledger rows, the document charge is reversed through the credit port (credit/totalPaid/totalSold back to their pre-repair values), and the invoice is CANCELLED (status only, number never reused). Returned repairs leave revenue, cost and profit entirely.
 
 ## Test Scenarios [BACKEND]
 Processing without technician 400. Part add reserves; delete releases. Double COMPLETE: one consumption. Pickup emits once; sales replay-safe. Cancel post-consumption without the returns block leaves stock untouched; with restock re-enters at consumed cost. Staff sees only tickets he created; admin all.

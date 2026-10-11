@@ -10,6 +10,7 @@ import { ExportMenu } from "@/components/shared/ExportMenu";
 import { ClipboardList } from "lucide-react";
 import { MovementDirection, type MovementDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MOVEMENT_TYPE_LABEL_KEY } from "@/pages/admin/inventory/movement-type-labels";
 
 interface MovementLedgerTableProps {
   data: MovementDto[];
@@ -34,10 +35,11 @@ function referenceCell(movement: MovementDto) {
   return <span>{movement.referenceLabel}</span>;
 }
 
-// ADM-06 Movement ledger tab — MovementDto (inventory.dtos.ts). `type` is a closed enum with 11
-// members (SUPPLIER_INVOICE/INITIAL_STOCK/ADJUSTMENT_IN/.../PENDING_RELEASE) — rendered as its
-// raw value rather than 11 new translation keys. `referenceType` (MovementReferenceType) is a
-// closed enum too now (S1, RC-4) — the resolved referenceLabel is what this table actually shows.
+// ADM-06 Movement ledger tab — MovementDto (inventory.dtos.ts). `type` is a closed enum, rendered
+// through MOVEMENT_TYPE_LABEL_KEY (S30 — it used to print the raw enum value, and an untranslated
+// PENDING_RELEASE with no visible tie to its reservation read as a leaked reservation; the
+// filter row's legend now explains every type). `referenceType` (MovementReferenceType) is a
+// closed enum too (S1, RC-4) — the resolved referenceLabel is what this table actually shows.
 export function MovementLedgerTable({
   data,
   isLoading = false,
@@ -60,7 +62,10 @@ export function MovementLedgerTable({
         accessorKey: "direction",
         header: t("admin.inventory.movements.table.type"),
         cell: ({ row }) => (
-          <StatusPill tone={DIRECTION_TONE[row.original.direction]} label={row.original.type} />
+          <StatusPill
+            tone={DIRECTION_TONE[row.original.direction]}
+            label={t(MOVEMENT_TYPE_LABEL_KEY[row.original.type])}
+          />
         ),
       },
       {
@@ -98,7 +103,10 @@ export function MovementLedgerTable({
     <div className="space-y-1 p-4">
       <div className="flex items-center justify-between">
         <span className="font-medium">{row.productName}</span>
-        <StatusPill tone={DIRECTION_TONE[row.direction]} label={row.type} />
+        <StatusPill
+          tone={DIRECTION_TONE[row.direction]}
+          label={t(MOVEMENT_TYPE_LABEL_KEY[row.type])}
+        />
       </div>
       <div className="text-sm text-muted-foreground">
         {row.quantity} · {referenceCell(row)}

@@ -17,8 +17,11 @@ import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-lab
 // (lib/escpos.ts's `twoColumns`), and its dashed rules become a row of hyphens.
 //
 // Section order deliberately mirrors RepairReceipt.tsx exactly: store block, rule, title,
-// reference/intake/status, rule, customer, device/IMEI, issues, diagnosis, technician, parts,
-// labour, rule, totals, paid-status stamp, invoice number, footer.
+// reference/intake/status, rule, customer, device/IMEI, issues, diagnosis, technician, rule,
+// totals (total / paid / due / refunded), paid-status stamp, invoice number, footer.
+//
+// S30/Q3 — no breakdown at any stage (no parts, no labour, no parts total), and no money figure
+// at all while the ticket is unpriced (total 0) — except Paid when something was prepaid.
 //
 // HARD RULE, inherited from RepairReceipt.tsx: no `scope` parameter and NO money-cost field.
 // repairs.mapper.ts genuinely populates `totalCost`, `totalProfit` and each part's `costOfGoods`
@@ -86,51 +89,38 @@ export function buildRepairReceiptEscPos(args: {
     b.line(`${t("staff.repairs.receipt.technician")}: ${repair.technician.name}`);
   }
 
-  // --- Parts ---
-  if (repair.parts.length > 0) {
-    b.divider();
-    b.bold(true).line(t("staff.repairs.receipt.parts")).bold(false);
-    for (const part of repair.parts) {
-      for (const l of wrap(part.productName)) b.line(l);
-      b.line(twoColumns(`  ${part.quantity} x ${money(part.unitPrice)}`, money(part.lineTotal)));
-      if (part.serialNumbers) {
-        for (const l of wrap(`  ${t("staff.repairs.receipt.serials")}: ${part.serialNumbers}`)) {
-          b.line(l);
-        }
-      }
-    }
-  }
-
-  if (repair.labourPrice > 0) {
-    b.line(twoColumns(t("staff.repairs.receipt.labour"), money(repair.labourPrice)));
-  }
-
   b.divider();
 
-  // --- Totals ---
-  if (repair.parts.length > 0) {
-    b.line(twoColumns(t("staff.repairs.receipt.partsTotal"), money(repair.partsTotal)));
-  }
-  b.bold(true).line(twoColumns(t("staff.repairs.receipt.total"), money(repair.totalAmount)));
-  b.bold(false);
-  b.line(twoColumns(t("staff.repairs.receipt.paid"), money(repair.paidAmount)));
-
+  // --- Totals (S30/Q3) ---
+  const priced = repair.totalAmount > 0;
   const amountDue = repair.totalAmount - repair.paidAmount;
-  if (amountDue > 0) {
+  if (priced) {
+    b.bold(true).line(twoColumns(t("staff.repairs.receipt.total"), money(repair.totalAmount)));
+    b.bold(false);
+  }
+  if (priced || repair.paidAmount > 0) {
+    b.line(twoColumns(t("staff.repairs.receipt.paid"), money(repair.paidAmount)));
+  }
+  if (priced && amountDue > 0) {
     b.line(twoColumns(t("staff.repairs.receipt.due"), money(amountDue)));
   }
+  if (repair.refundedAmount > 0) {
+    b.line(twoColumns(t("staff.repairs.receipt.refunded"), money(repair.refundedAmount)));
+  }
 
-  // --- Paid-status stamp. A fresh INTAKE ticket has total=0 and paid=0; stamping that "PAID"
-  //     would be wrong, so it stays UNPAID until there is something to pay (same rule as the
-  //     HTML receipt). The HTML draws a 1px box; ESC/POS has no box, so it is centred + bold. ---
-  const paidStatusKey =
-    repair.paidAmount >= repair.totalAmount && repair.totalAmount > 0
-      ? "staff.repairs.receipt.statusPaid"
-      : repair.paidAmount > 0
-        ? "staff.repairs.receipt.statusPartial"
-        : "staff.repairs.receipt.statusUnpaid";
-  b.line();
-  b.align("center").bold(true).line(t(paidStatusKey)).bold(false).align("left");
+  // --- Paid-status stamp — only once the ticket is priced (an unpriced ticket prints no money
+  //     figure at all, S30/Q3). The HTML draws a 1px box; ESC/POS has no box, so it is centred +
+  //     bold. ---
+  if (priced) {
+    const paidStatusKey =
+      repair.paidAmount >= repair.totalAmount
+        ? "staff.repairs.receipt.statusPaid"
+        : repair.paidAmount > 0
+          ? "staff.repairs.receipt.statusPartial"
+          : "staff.repairs.receipt.statusUnpaid";
+    b.line();
+    b.align("center").bold(true).line(t(paidStatusKey)).bold(false).align("left");
+  }
 
   if (repair.invoiceNumber) {
     b.line(`${t("staff.repairs.receipt.invoiceNumber")}: ${repair.invoiceNumber}`);

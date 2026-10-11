@@ -326,6 +326,16 @@ export class ObservabilityListener {
         description: p.reason ? `Cancelled: ${p.reason}` : 'Cancelled',
       })),
     );
+
+    // S30 — the return document (PICKED_UP → RETURNED).
+    eventBus.on('repair.returned', (payload) =>
+      this.handle('repair.returned', payload, (p) => ({
+        actionType: 'repair.returned',
+        entityType: 'Repair',
+        entityId: p.repairId,
+        description: `Returned: refund ${p.refundAmount}, ${p.restockedPartCount} part(s) restocked`,
+      })),
+    );
   }
 
   private registerBilling(): void {

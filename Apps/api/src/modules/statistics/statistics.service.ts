@@ -74,8 +74,10 @@ const SALE_RECOGNIZED_STATUSES = ['COMPLETED', 'PARTIALLY_RETURNED', 'RETURNED']
 
 // D8/D9 (S13/S14 R1) — a repair recognises revenue, cost and profit together at PICKED_UP, and
 // produces no Sale row at all (D9). Every figure below that used to arrive through the deleted
-// REPAIR-origin Sale is read directly off Repair here, dated on pickedUpAt. Repairs have no
-// return path (terminal at PICKED_UP), so nothing is ever netted out of them.
+// REPAIR-origin Sale is read directly off Repair here, dated on pickedUpAt. S30/Q2 — a returned
+// repair moves PICKED_UP → RETURNED and so leaves revenue, cost and profit entirely (restocked or
+// not), exactly like a CANCELLED one: this status filter alone excludes both, and nothing is ever
+// netted out of a repair at read time.
 const REPAIR_RECOGNIZED_STATUS = 'PICKED_UP' as const;
 
 // D-b (S14) — orders have no owning seller (Order.confirmedByStaffId is who CONFIRMED it, not
@@ -1267,10 +1269,10 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
-  // S24 (A3) — IN/OUT only. The three PENDING types (PENDING_ORDER, PENDING_REPAIR,
-  // PENDING_RELEASE) are reservations: they move no layers and must never be reported as stock
-  // in or out. Previously ungated, so a reservation and its later release both appeared as if
-  // they were real movements.
+  // S24 (A3) — IN/OUT only. The PENDING types (PENDING_ORDER, PENDING_REPAIR, PENDING_RELEASE
+  // and, since S30, REPAIR_CANCELLED) are reservations: they move no layers and must never be
+  // reported as stock in or out. Previously ungated, so a reservation and its later release both
+  // appeared as if they were real movements.
   private async reportStockMovements(range: { from?: Date; to?: Date }): Promise<ReportDto> {
     const createdAtFilter = this.dateRangeFilter(range);
     const groups = await this.prisma.stockMovement.groupBy({

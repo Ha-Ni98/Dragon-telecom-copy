@@ -8,6 +8,7 @@ import type {
   RepairListQuery,
   RepairPartParams,
   RepairStatusCommand,
+  ReturnRepairCommand,
   UpdateRepairCommand,
 } from '@dragon-telecom/contract';
 import type { IRepairsService } from './repairs.interface';
@@ -81,6 +82,17 @@ export class RepairsController {
     try {
       const { id } = req.validated.params as RepairIdParams;
       const result = await this.service.changeStatus(id, req.validated.body as RepairStatusCommand, req.user!);
+      sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // S30 — PICKED_UP → RETURNED. Serves both STAFF_RETURN and ADMIN_RETURN.
+  returnRepair = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as RepairIdParams;
+      const result = await this.service.returnRepair(id, req.validated.body as ReturnRepairCommand, req.user!);
       sendSuccess(res, result, 200);
     } catch (error) {
       next(error);

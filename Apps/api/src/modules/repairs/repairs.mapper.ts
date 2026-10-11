@@ -34,6 +34,7 @@ export type TechnicianStatsRow = {
   completedCount: number;
   pickedUpCount: number;
   cancelledCount: number;
+  returnedCount: number; // S30
   revenue: number;
 };
 
@@ -48,6 +49,8 @@ export type IntakeContext = { reference: string; customerName: string; customerP
 export class RepairsMapper {
   static toRepairDto(repair: RepairRow, ctx: RepairDtoContext): RepairDto {
     const now = ctx.now ?? new Date();
+    // S30/Q1 — a reversal row names the payment it reverses; both always belong to this repair.
+    const paymentReferenceById = new Map(repair.payments.map((payment) => [payment.id, payment.reference]));
     const dto: RepairDto = {
       id: repair.id,
       reference: repair.reference,
@@ -72,6 +75,7 @@ export class RepairsMapper {
       partsTotal: RepairsMapper.toMoney(repair.partsTotal),
       totalAmount: RepairsMapper.toMoney(repair.totalAmount),
       paidAmount: RepairsMapper.toMoney(repair.paidAmount),
+      refundedAmount: RepairsMapper.toMoney(repair.refundedAmount),
       // Margin-gated (plan §II.1/§D-3): staff mapping strips these, admin keeps them. Both
       // columns are nullable (unset until COMPLETED) *and* the DTO fields are .optional() —
       // omission is correct in both the staff-gated case and the pre-completion case.
@@ -80,6 +84,8 @@ export class RepairsMapper {
       intakeAt: repair.intakeAt.toISOString(),
       ...(repair.completedAt != null ? { completedAt: repair.completedAt.toISOString() } : {}),
       ...(repair.pickedUpAt != null ? { pickedUpAt: repair.pickedUpAt.toISOString() } : {}),
+      ...(repair.cancelledAt != null ? { cancelledAt: repair.cancelledAt.toISOString() } : {}),
+      ...(repair.returnedAt != null ? { returnedAt: repair.returnedAt.toISOString() } : {}),
       ageHours: RepairsMapper.ageHours(repair.intakeAt, now),
       ...(repair.invoice != null ? { invoiceNumber: repair.invoice.number } : {}),
       payments: repair.payments.map((payment) => ({
@@ -88,6 +94,9 @@ export class RepairsMapper {
         amount: RepairsMapper.toMoney(payment.amount),
         paidAt: payment.paidAt.toISOString(),
         ...(payment.invoiceId != null ? { invoiceId: payment.invoiceId } : {}),
+        ...(payment.reversalOfId != null && paymentReferenceById.has(payment.reversalOfId)
+          ? { reversesReference: paymentReferenceById.get(payment.reversalOfId)! }
+          : {}),
       })),
       parts: repair.parts.map((part) => ({
         id: part.id,
@@ -99,6 +108,7 @@ export class RepairsMapper {
         ...(ctx.includeMargins && part.profit != null ? { profit: RepairsMapper.toMoney(part.profit) } : {}),
         lineTotal: RepairsMapper.toMoney(part.lineTotal),
         ...(part.serialNumbers != null ? { serialNumbers: part.serialNumbers } : {}),
+        ...(part.restockedOnReturn != null ? { restockedOnReturn: part.restockedOnReturn } : {}),
       })),
       // The intake row (fromStatus===toStatus===INTAKE, written at createRepair — plan §C-1)
       // is kept in the surfaced history rather than filtered out: it reads naturally as
@@ -158,19 +168,21 @@ export class RepairsMapper {
     return (now.getTime() - since.getTime()) / 3_600_000;
   }
 
-  // R1 — the admin Technicians tab. totalRepairs is derived (sum of the five status counts)
-  // rather than a separate query, since every repair has exactly one of those five statuses.
+  // R1 — the admin Technicians tab. totalRepairs is derived (sum of the six status counts)
+  // rather than a separate query, since every repair has exactly one of those six statuses.
   static toTechnicianStatsDto(row: TechnicianStatsRow): TechnicianRepairStatsDto {
     const dto: TechnicianRepairStatsDto = {
       technicianId: row.technicianId,
       technicianName: row.technicianName,
       isEnabled: row.isEnabled,
-      totalRepairs: row.intakeCount + row.processingCount + row.completedCount + row.pickedUpCount + row.cancelledCount,
+      totalRepairs:
+        row.intakeCount + row.processingCount + row.completedCount + row.pickedUpCount + row.cancelledCount + row.returnedCount,
       intakeCount: row.intakeCount,
       processingCount: row.processingCount,
       completedCount: row.completedCount,
       pickedUpCount: row.pickedUpCount,
       cancelledCount: row.cancelledCount,
+      returnedCount: row.returnedCount,
       revenue: row.revenue,
     };
     return TechnicianRepairStatsResponseSchema.parse(dto);

@@ -17,6 +17,11 @@ interface RepairReceiptProps {
 // S25 — print-only, mirrors PosReceiptView's print subtree. No on-screen markup of its own: the
 // repair detail sheet already shows all of this; this component exists only to be printed.
 //
+// S30/Q3 — the receipt never itemises, at any stage: no parts lines, no labour line, no parts
+// total. It prints one Total plus the settlement (Paid, Amount due, the PAID/UNPAID stamp) and,
+// on a cancelled or returned ticket, what was Refunded. While nothing is priced (total 0) no
+// money figure prints at all — not even a zero — except Paid when something was prepaid.
+//
 // Hard rule — NEVER print margins. repairs.mapper.ts gates `totalProfit` and per-part
 // `costOfGoods`/`profit` behind `includeMargins`, so an ADMIN viewing the sheet genuinely
 // receives them on `repair`. This receipt is handed to the customer and must render none of
@@ -31,8 +36,8 @@ export function RepairReceipt({ repair, store }: RepairReceiptProps) {
   const deviceLabel = formatRepairDeviceLabel(repair.device);
 
   const amountDue = repair.totalAmount - repair.paidAmount;
-  // A fresh INTAKE ticket has total=0 and paid=0 — stamping that "PAID" would be wrong, it is
-  // UNPAID until there is something to pay.
+  // S30/Q3 — an unpriced ticket prints no money figure at all (and therefore no stamp either).
+  const priced = repair.totalAmount > 0;
   const paidStatus =
     repair.paidAmount >= repair.totalAmount && repair.totalAmount > 0
       ? "paid"
@@ -119,70 +124,45 @@ export function RepairReceipt({ repair, store }: RepairReceiptProps) {
         </div>
       )}
 
-      {repair.parts.length > 0 && (
-        <>
-          <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
-          <div style={{ fontWeight: "bold" }}>{t("staff.repairs.receipt.parts")}</div>
-          {repair.parts.map((part) => (
-            <div key={part.id} style={{ marginBottom: "2px" }}>
-              <div>{part.productName}</div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>
-                  {part.quantity} × {formatDZD(part.unitPrice, language)}
-                </span>
-                <span>{formatDZD(part.lineTotal, language)}</span>
-              </div>
-              {part.serialNumbers && (
-                <div style={{ paddingLeft: "8px", fontSize: "10px" }}>
-                  {t("staff.repairs.receipt.serials")}: {part.serialNumbers}
-                </div>
-              )}
-            </div>
-          ))}
-        </>
-      )}
-
-      {repair.labourPrice > 0 && (
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span>{t("staff.repairs.receipt.labour")}</span>
-          <span>{formatDZD(repair.labourPrice, language)}</span>
-        </div>
-      )}
-
       <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
 
-      {repair.parts.length > 0 && (
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span>{t("staff.repairs.receipt.partsTotal")}</span>
-          <span>{formatDZD(repair.partsTotal, language)}</span>
+      {priced && (
+        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+          <span>{t("staff.repairs.receipt.total")}</span>
+          <span>{formatDZD(repair.totalAmount, language)}</span>
         </div>
       )}
-      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
-        <span>{t("staff.repairs.receipt.total")}</span>
-        <span>{formatDZD(repair.totalAmount, language)}</span>
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <span>{t("staff.repairs.receipt.paid")}</span>
-        <span>{formatDZD(repair.paidAmount, language)}</span>
-      </div>
-      {amountDue > 0 && (
+      {(priced || repair.paidAmount > 0) && (
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <span>{t("staff.repairs.receipt.paid")}</span>
+          <span>{formatDZD(repair.paidAmount, language)}</span>
+        </div>
+      )}
+      {priced && amountDue > 0 && (
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <span>{t("staff.repairs.receipt.due")}</span>
           <span>{formatDZD(amountDue, language)}</span>
         </div>
       )}
-      <div
-        style={{
-          textAlign: "center",
-          fontWeight: "bold",
-          border: "1px solid #000",
-          padding: "2px",
-          marginTop: "4px",
-        }}
-      >
-        {t(paidStatusKey)}
-      </div>
+      {repair.refundedAmount > 0 && (
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <span>{t("staff.repairs.receipt.refunded")}</span>
+          <span>{formatDZD(repair.refundedAmount, language)}</span>
+        </div>
+      )}
+      {priced && (
+        <div
+          style={{
+            textAlign: "center",
+            fontWeight: "bold",
+            border: "1px solid #000",
+            padding: "2px",
+            marginTop: "4px",
+          }}
+        >
+          {t(paidStatusKey)}
+        </div>
+      )}
 
       {repair.invoiceNumber && (
         <div>

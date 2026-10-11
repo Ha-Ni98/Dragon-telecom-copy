@@ -11879,21 +11879,6 @@
     "fr": "Technicien",
     "ar": ""
   },
-  "staff.repairs.receipt.parts": {
-    "en": "Parts",
-    "fr": "Pièces",
-    "ar": ""
-  },
-  "staff.repairs.receipt.labour": {
-    "en": "Labour",
-    "fr": "Main-d'œuvre",
-    "ar": ""
-  },
-  "staff.repairs.receipt.partsTotal": {
-    "en": "Parts total",
-    "fr": "Total pièces",
-    "ar": ""
-  },
   "staff.repairs.receipt.total": {
     "en": "Total",
     "fr": "Total",
@@ -11927,11 +11912,6 @@
   "staff.repairs.receipt.invoiceNumber": {
     "en": "Invoice no.",
     "fr": "Facture n°",
-    "ar": ""
-  },
-  "staff.repairs.receipt.serials": {
-    "en": "Serial no.",
-    "fr": "N° de série",
     "ar": ""
   },
   "staff.repairs.receipt.footer": {
@@ -15317,6 +15297,296 @@
   "common.print.bridge.fallback": {
     "en": "Thermal printer unreachable — printing via the browser.",
     "fr": "Imprimante thermique injoignable — impression via le navigateur.",
+    "ar": ""
+  },
+  "staff.repairs.board.returned": {
+    "en": "Returned",
+    "fr": "Retournée",
+    "ar": ""
+  },
+  "repairs.status.returned": {
+    "en": "Returned",
+    "fr": "Retournée",
+    "ar": ""
+  },
+  "staff.repairs.return.action": {
+    "en": "Return repair",
+    "fr": "Retourner la réparation",
+    "ar": ""
+  },
+  "staff.repairs.return.title": {
+    "en": "Return repair",
+    "fr": "Retour de réparation",
+    "ar": ""
+  },
+  "staff.repairs.return.description": {
+    "en": "The device was picked up. Returning it cancels invoice {invoice} and reverses every payment.",
+    "fr": "L'appareil a été récupéré. Le retour annule la facture {invoice} et rembourse chaque paiement.",
+    "ar": ""
+  },
+  "staff.repairs.return.restockLabel": {
+    "en": "Back in stock",
+    "fr": "Remettre en stock",
+    "ar": ""
+  },
+  "staff.repairs.return.noParts": {
+    "en": "No parts on this repair — nothing to restock",
+    "fr": "Aucune pièce sur cette réparation — rien à remettre en stock",
+    "ar": ""
+  },
+  "staff.repairs.return.refundTotal": {
+    "en": "Refund to the customer",
+    "fr": "Remboursement au client",
+    "ar": ""
+  },
+  "staff.repairs.return.accountNote": {
+    "en": "The client's account returns to its balance before this repair.",
+    "fr": "Le compte du client revient à son solde d'avant cette réparation.",
+    "ar": ""
+  },
+  "staff.repairs.return.walkInNote": {
+    "en": "Walk-in customer — hand the amount back in cash.",
+    "fr": "Client de passage — rendez le montant en espèces.",
+    "ar": ""
+  },
+  "staff.repairs.return.noteLabel": {
+    "en": "Reason (optional)",
+    "fr": "Motif (facultatif)",
+    "ar": ""
+  },
+  "staff.repairs.return.confirm": {
+    "en": "Confirm return",
+    "fr": "Confirmer le retour",
+    "ar": ""
+  },
+  "staff.repairs.return.success": {
+    "en": "Repair returned",
+    "fr": "Réparation retournée",
+    "ar": ""
+  },
+  "staff.repairs.detail.refunded": {
+    "en": "Refunded",
+    "fr": "Remboursé",
+    "ar": ""
+  },
+  "staff.repairs.detail.partRestocked": {
+    "en": "Restocked",
+    "fr": "Remis en stock",
+    "ar": ""
+  },
+  "staff.repairs.detail.partNotRestocked": {
+    "en": "Not restocked",
+    "fr": "Non remis en stock",
+    "ar": ""
+  },
+  "staff.repairs.payments.reverses": {
+    "en": "reverses {reference}",
+    "fr": "annule {reference}",
+    "ar": ""
+  },
+  "staff.repairs.receipt.refunded": {
+    "en": "Refunded",
+    "fr": "Remboursé",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.repairRef": {
+    "en": "Repair {reference}",
+    "fr": "Réparation {reference}",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.reverses": {
+    "en": "Reverses {reference}",
+    "fr": "Annule {reference}",
+    "ar": ""
+  },
+  "admin.inventory.movements.filters.allTypes": {
+    "en": "All types",
+    "fr": "Tous les types",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.open": {
+    "en": "What do the movement types mean?",
+    "fr": "Que signifient les types de mouvement ?",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.title": {
+    "en": "Movement types",
+    "fr": "Types de mouvement",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.group.in": {
+    "en": "Stock in",
+    "fr": "Entrées",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.group.out": {
+    "en": "Stock out",
+    "fr": "Sorties",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.group.pending": {
+    "en": "Reservations (on-hand unchanged)",
+    "fr": "Réservations (stock physique inchangé)",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairReadOnly": {
+    "en": "This repair is closed and can no longer be edited",
+    "fr": "Cette réparation est clôturée et ne peut plus être modifiée",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairStatusChanged": {
+    "en": "This repair was just changed elsewhere — reopen it and try again",
+    "fr": "Cette réparation vient d'être modifiée ailleurs — rouvrez-la et réessayez",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairReturnRequiresPickedUp": {
+    "en": "Only a picked-up repair can be returned",
+    "fr": "Seule une réparation récupérée peut être retournée",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairReturnViaReturnAction": {
+    "en": "Use the ticket's Return action to return a repair",
+    "fr": "Utilisez l'action Retour du ticket pour retourner une réparation",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairUnknownPart": {
+    "en": "A selected part does not belong to this repair",
+    "fr": "Une pièce sélectionnée n'appartient pas à cette réparation",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairConsumptionNotFound": {
+    "en": "This part's stock history can't be found, so it can't be restocked — return it without restocking",
+    "fr": "L'historique de stock de cette pièce est introuvable — retournez-la sans la remettre en stock",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.supplierInvoice": {
+    "en": "Supplier invoice",
+    "fr": "Facture fournisseur",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.supplierInvoice": {
+    "en": "Stock received on a confirmed supplier invoice.",
+    "fr": "Stock reçu sur une facture fournisseur confirmée.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.initialStock": {
+    "en": "Initial stock",
+    "fr": "Stock initial",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.initialStock": {
+    "en": "Opening quantity entered when the product was created.",
+    "fr": "Quantité de départ saisie à la création du produit.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.adjustmentIn": {
+    "en": "Adjustment (in)",
+    "fr": "Ajustement (entrée)",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.adjustmentIn": {
+    "en": "Stock added by an inventory count or correction.",
+    "fr": "Stock ajouté par un inventaire ou une correction.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.returnIn": {
+    "en": "Sale/order return",
+    "fr": "Retour vente/commande",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.returnIn": {
+    "en": "A returned sale or order item put back on the shelf at its original cost.",
+    "fr": "Article de vente ou commande retourné, remis en rayon à son coût d'origine.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.repairReturn": {
+    "en": "Repair return",
+    "fr": "Retour de réparation",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.repairReturn": {
+    "en": "A part from a returned repair put back on the shelf at the cost it was consumed at.",
+    "fr": "Pièce d'une réparation retournée, remise en rayon au coût auquel elle avait été consommée.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.sale": {
+    "en": "Sale",
+    "fr": "Vente",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.sale": {
+    "en": "Stock sold at the POS.",
+    "fr": "Stock vendu en caisse.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.orderOut": {
+    "en": "Order",
+    "fr": "Commande",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.orderOut": {
+    "en": "Stock shipped or handed over on a completed online order.",
+    "fr": "Stock remis sur une commande en ligne terminée.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.repairConsumption": {
+    "en": "Repair consumption",
+    "fr": "Consommation réparation",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.repairConsumption": {
+    "en": "A part fitted in a repair, consumed when the device was picked up.",
+    "fr": "Pièce posée sur une réparation, consommée à la récupération de l'appareil.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.adjustmentOut": {
+    "en": "Adjustment (out)",
+    "fr": "Ajustement (sortie)",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.adjustmentOut": {
+    "en": "Stock removed by an inventory count, damage or loss.",
+    "fr": "Stock retiré par un inventaire, une casse ou une perte.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.pendingOrder": {
+    "en": "Order reservation",
+    "fr": "Réservation commande",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.pendingOrder": {
+    "en": "Held for an online order; still on the shelf.",
+    "fr": "Réservé pour une commande en ligne ; toujours en rayon.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.pendingRepair": {
+    "en": "Repair reservation",
+    "fr": "Réservation réparation",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.pendingRepair": {
+    "en": "Held for a repair part; still on the shelf.",
+    "fr": "Réservé pour une pièce de réparation ; toujours en rayon.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.pendingRelease": {
+    "en": "Reservation released",
+    "fr": "Réservation libérée",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.pendingRelease": {
+    "en": "A reservation given back: part removed, order cancelled, or released just before consumption.",
+    "fr": "Réservation rendue : pièce retirée, commande annulée, ou libérée juste avant consommation.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.repairCancelled": {
+    "en": "Repair cancelled",
+    "fr": "Réparation annulée",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.repairCancelled": {
+    "en": "Reservation released because its repair was cancelled — nothing left the shelf.",
+    "fr": "Réservation libérée car la réparation a été annulée — rien n'a quitté le rayon.",
     "ar": ""
   }
 }

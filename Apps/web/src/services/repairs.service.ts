@@ -14,6 +14,7 @@ import {
   type UpdateRepairCommand,
   type AddRepairPartCommand,
   type RepairStatusCommand,
+  type ReturnRepairCommand,
   type TechnicianRepairStatsDto,
 } from "@dragon-telecom/contract";
 
@@ -100,6 +101,18 @@ export async function updateRepairStatus(
   command: RepairStatusCommand,
 ): Promise<RepairDto> {
   const route = scope === "admin" ? REPAIR_ROUTES.ADMIN_STATUS : REPAIR_ROUTES.STAFF_STATUS;
+  const res = await api.post<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }), command);
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// S30 — PICKED_UP → RETURNED (per-part restock, every payment reversed, invoice cancelled).
+export async function returnRepair(
+  scope: RepairsScope,
+  id: string,
+  command: ReturnRepairCommand,
+): Promise<RepairDto> {
+  const route = scope === "admin" ? REPAIR_ROUTES.ADMIN_RETURN : REPAIR_ROUTES.STAFF_RETURN;
   const res = await api.post<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
