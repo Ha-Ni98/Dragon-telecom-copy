@@ -7,12 +7,14 @@ import {
   UserType,
   PageKey,
   AddRepairPartSchema,
+  AddRepairPartsSchema,
   CreateRepairSchema,
   RecordRepairPaymentSchema,
   RepairIdParamsSchema,
   RepairListQuerySchema,
   RepairPartParamsSchema,
   RepairStatusSchema,
+  ReturnRepairSchema,
   UpdateRepairSchema,
 } from '@dragon-telecom/contract';
 // Direct sibling-module imports — repairs depends one-directionally on platform/inventory/
@@ -83,6 +85,20 @@ router.post(
   controller.addPart,
 );
 
+// S31 — every staged part reserved in one transaction (all or nothing).
+router.post(
+  REPAIR_ROUTES.STAFF_PARTS_BATCH,
+  staffRepairsOrAdmin,
+  validateRequest({ params: RepairIdParamsSchema, body: AddRepairPartsSchema }),
+  controller.addParts,
+);
+router.post(
+  REPAIR_ROUTES.ADMIN_PARTS_BATCH,
+  adminOnly,
+  validateRequest({ params: RepairIdParamsSchema, body: AddRepairPartsSchema }),
+  controller.addParts,
+);
+
 router.delete(
   REPAIR_ROUTES.STAFF_PART_BY_ID,
   staffRepairsOrAdmin,
@@ -107,6 +123,20 @@ router.post(
   adminOnly,
   validateRequest({ params: RepairIdParamsSchema, body: RepairStatusSchema }),
   controller.changeStatus,
+);
+
+// S30 — PICKED_UP → RETURNED (per-part restock, every payment reversed, invoice cancelled).
+router.post(
+  REPAIR_ROUTES.STAFF_RETURN,
+  staffRepairsOrAdmin,
+  validateRequest({ params: RepairIdParamsSchema, body: ReturnRepairSchema }),
+  controller.returnRepair,
+);
+router.post(
+  REPAIR_ROUTES.ADMIN_RETURN,
+  adminOnly,
+  validateRequest({ params: RepairIdParamsSchema, body: ReturnRepairSchema }),
+  controller.returnRepair,
 );
 
 // S13/D5 — cumulative payment at any pre-pickup step.

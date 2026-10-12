@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { MovementType } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { MOVEMENT_TYPE_LABEL_KEY } from "@/pages/admin/inventory/movement-type-labels";
+import { MovementTypeLegend } from "@/pages/admin/inventory/components/movement-type-legend";
 
 export interface MovementFiltersValue {
   type?: MovementType;
@@ -61,14 +63,16 @@ export function InventoryFilters({
           <SelectValue placeholder={t("admin.inventory.movements.filters.type")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{t("common.labels.status")}</SelectItem>
+          <SelectItem value="all">{t("admin.inventory.movements.filters.allTypes")}</SelectItem>
           {Object.values(MovementType).map((type) => (
             <SelectItem key={type} value={type}>
-              {type}
+              {t(MOVEMENT_TYPE_LABEL_KEY[type])}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
+      {/* S30 — what each movement type means (translated labels + a legend line each). */}
+      <MovementTypeLegend />
       <Input
         type="date"
         value={value.from ?? ""}

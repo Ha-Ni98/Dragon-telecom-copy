@@ -25,6 +25,8 @@ import type {
   IInventoryReadService,
   IInventoryService,
   MovementRef,
+  ReleaseMovementType,
+  ReturnInMovementType,
   ReturnInResult,
 } from './inventory.interface';
 // Platform is already-built infrastructure (SequenceService's own interface, not a contract
@@ -37,8 +39,9 @@ type BufferedEvent =
   | { name: 'inventory.lowStock'; payload: { productId: string; available: number; threshold: number } };
 
 // Which IN movements count as a "purchase receipt" for Product.avgPrice (D10, plan S1 R1).
-// RETURN_IN re-enters stock at the original consumed cost (not a purchase) and ADJUSTMENT_IN's
-// unit cost defaults to avgStockPrice (which would make avgPrice circular) — both excluded.
+// RETURN_IN and REPAIR_RETURN (S30) re-enter stock at the original consumed cost (not a purchase)
+// and ADJUSTMENT_IN's unit cost defaults to avgStockPrice (which would make avgPrice circular) —
+// all excluded.
 const PURCHASE_RECEIPT_TYPES: MovementType[] = [MovementType.SUPPLIER_INVOICE, MovementType.INITIAL_STOCK];
 
 // The FIFO ledger engine — the injected service every document module receives (spec "Injected
@@ -85,13 +88,25 @@ export class InventoryService implements IInventoryService {
     });
   }
 
-  async release(tx: Prisma.TransactionClient, productId: string, qty: number, ref: MovementRef): Promise<void> {
+  async release(
+    tx: Prisma.TransactionClient,
+    productId: string,
+    qty: number,
+    ref: MovementRef,
+    type: ReleaseMovementType = MovementType.PENDING_RELEASE,
+  ): Promise<void> {
     const product = await this.lockProduct(tx, productId);
 
-    // Idempotent by source-document id (spec connection rule): clamp rather than go negative, and
-    // skip entirely (no row, no event) when there is nothing left to release — a repeated release
-    // for an already-released holder is a true no-op, not a zero-effect ledger entry.
-    const actualQty = Math.min(qty, product.quantityReserved);
+    // Idempotent by source-document id (spec connection rule). S30 (P1) — clamped to THIS holder's
+    // own outstanding reservation (Σ of its PENDING rows for this product, read under the product
+    // lock held above), not just the product-wide figure: a stale or repeated release can never
+    // eat into another order's or repair's reservation. Nothing left → skip entirely (no row, no
+    // event) — a repeated release for an already-released holder is a true no-op.
+    const holder = await tx.stockMovement.aggregate({
+      where: { productId, direction: 'PENDING', referenceType: ref.referenceType, referenceId: ref.referenceId },
+      _sum: { quantity: true },
+    });
+    const actualQty = Math.min(qty, holder._sum.quantity ?? 0, product.quantityReserved);
     if (actualQty <= 0) return;
 
     const newReserved = product.quantityReserved - actualQty;
@@ -100,7 +115,7 @@ export class InventoryService implements IInventoryService {
       data: {
         productId,
         direction: 'PENDING',
-        type: MovementType.PENDING_RELEASE,
+        type,
         quantity: -actualQty,
         balanceAfter: product.quantityOnHand,
         referenceType: ref.referenceType,
@@ -252,6 +267,7 @@ export class InventoryService implements IInventoryService {
     originalConsumptions: ConsumptionLine[],
     qty: number,
     ref: MovementRef,
+    type: ReturnInMovementType = MovementType.RETURN_IN,
   ): Promise<ReturnInResult> {
     const [firstConsumption] = originalConsumptions;
     if (!firstConsumption) throw new Error('returnIn(): originalConsumptions must not be empty');
@@ -274,7 +290,7 @@ export class InventoryService implements IInventoryService {
 
     let lastMovementId = '';
     for (const [unitCost, groupQty] of groups) {
-      const { movementId } = await this.addLayerCore(tx, productId, groupQty, unitCost, MovementType.RETURN_IN, ref);
+      const { movementId } = await this.addLayerCore(tx, productId, groupQty, unitCost, type, ref);
       lastMovementId = movementId;
     }
 
@@ -292,11 +308,12 @@ export class InventoryService implements IInventoryService {
   }
 
   // Shared by public addLayer and returnIn's per-cost-group loop — both are IN-direction writes
-  // that recompute avgStockPrice the same way, for every IN type including RETURN_IN (which
-  // re-enters at the ORIGINAL consumed cost, not the current average). Since S23 the OUT side
-  // recomputes too, from the layer identity in consumeFifo — the column is maintained on IN *and*
-  // OUT, and left alone by the three PENDING types. avgPrice (D10) only moves for purchase-receipt
-  // types (PURCHASE_RECEIPT_TYPES) — RETURN_IN and ADJUSTMENT_IN never touch it.
+  // that recompute avgStockPrice the same way, for every IN type including RETURN_IN and
+  // REPAIR_RETURN (which re-enter at the ORIGINAL consumed cost, not the current average). Since
+  // S23 the OUT side recomputes too, from the layer identity in consumeFifo — the column is
+  // maintained on IN *and* OUT, and left alone by the four PENDING types. avgPrice (D10) only
+  // moves for purchase-receipt types (PURCHASE_RECEIPT_TYPES) — RETURN_IN, REPAIR_RETURN and
+  // ADJUSTMENT_IN never touch it.
   private async addLayerCore(
     tx: Prisma.TransactionClient,
     productId: string,

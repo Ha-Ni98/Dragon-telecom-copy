@@ -6,6 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { SaleStatus } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -20,7 +21,14 @@ const STATUS_LABEL_KEY: Record<SaleStatus, string> = {
 interface SalesFiltersProps {
   status?: SaleStatus;
   onStatusChange: (status?: SaleStatus) => void;
-  /** Admin-only extras (ADM-10 §UI) — omitted entirely for STF-05 (status only). */
+  /** S32 — search by sold product (name or barcode). Both scopes. */
+  productQuery: string;
+  onProductQueryChange: (query: string) => void;
+  /** S32 — the one-click "Today's sales" toggle (Africa/Algiers day). Both scopes. */
+  todayActive: boolean;
+  onToggleToday: () => void;
+  /** Admin-only extras (ADM-10 §UI: date range, seller, POS client) — omitted for STF-05. Product
+   * search and Today (S32) are not admin-only. */
   scope?: "staff" | "admin";
   from?: string;
   onFromChange?: (from: string) => void;
@@ -36,6 +44,10 @@ interface SalesFiltersProps {
 export function SalesFilters({
   status,
   onStatusChange,
+  productQuery,
+  onProductQueryChange,
+  todayActive,
+  onToggleToday,
   scope = "staff",
   from,
   onFromChange,
@@ -66,6 +78,21 @@ export function SalesFilters({
           ))}
         </SelectContent>
       </Select>
+
+      <Input
+        value={productQuery}
+        onChange={(e) => onProductQueryChange(e.target.value)}
+        placeholder={t("admin.sales.filters.productSearch")}
+        className="w-56"
+      />
+      <Button
+        variant={todayActive ? "default" : "outline"}
+        size="sm"
+        aria-pressed={todayActive}
+        onClick={onToggleToday}
+      >
+        {t("admin.sales.filters.today")}
+      </Button>
 
       {scope === "admin" && (
         <>

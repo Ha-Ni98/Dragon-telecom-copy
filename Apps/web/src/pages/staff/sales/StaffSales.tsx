@@ -10,7 +10,14 @@ import { SaleDetailDrawer } from "@/pages/staff/sales/components/SaleDetailDrawe
 import { ReturnDialog } from "@/pages/admin/sales/components/ReturnDialog";
 import { ReturnsTable } from "@/pages/admin/sales/components/ReturnsTable";
 import { ReturnDetailDialog } from "@/pages/admin/sales/components/ReturnDetailDialog";
-import { useSales, useSale, useCreateReturn, useReturns } from "@/hooks/useSales";
+import { ReturnWholeSaleDialog } from "@/pages/admin/sales/components/ReturnWholeSaleDialog";
+import {
+  useSales,
+  useSale,
+  useCreateReturn,
+  useReturns,
+  useReturnWholeSale,
+} from "@/hooks/useSales";
 import { usePublicSettings } from "@/hooks/usePlatform";
 import { useReceiptPrint } from "@/hooks/use-receipt-print";
 import { PosReceiptPrintable } from "@/pages/staff/pos/components/PosReceiptPrintable";
@@ -22,12 +29,14 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
   SaleStatus,
+  storeLocalDate,
   type ReturnDto,
   type ReturnListQuery,
   type SaleDto,
   type SaleListQuery,
 } from "@dragon-telecom/contract";
 import type { CreateReturnFormValues } from "@/pages/admin/sales/components/create-return.schema";
+import type { ReturnWholeSaleFormValues } from "@/pages/admin/sales/components/return-whole-sale.schema";
 
 interface Props {
   scope?: "staff" | "admin";
@@ -42,6 +51,9 @@ interface Props {
 // S18/D-2 — the Returns tab and issue-return are no longer admin-only: staff holding the sales
 // page gets both, hitting the staff-mounted returns routes. Profit, the seller column and the
 // footer total stay admin-only (margin data, gated inside SaleDetailDrawer/SalesTable directly).
+// S32 — product search and the Today's sales toggle apply in both scopes (staff results stay
+// limited to their own sales — enforced server-side); the date filter is on soldAt, in
+// Africa/Algiers days. "Return whole sale" sits beside Issue return.
 export default function StaffSales({ scope = "staff" }: Props) {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
@@ -51,7 +63,18 @@ export default function StaffSales({ scope = "staff" }: Props) {
   const [to, setTo] = useState<string | undefined>();
   const [sellerNameInput, setSellerNameInput] = useState("");
   const [posClientNameInput, setPosClientNameInput] = useState("");
+  const [productInput, setProductInput] = useState("");
   const [page, setPage] = useState(1);
+  const debouncedProduct = useDebouncedValue(productInput, 300);
+
+  // S32 — the store's day (Africa/Algiers), not the browser's or UTC.
+  const today = storeLocalDate();
+  const todayActive = from === today && to === today;
+  const handleToggleToday = () => {
+    setFrom(todayActive ? undefined : today);
+    setTo(todayActive ? undefined : today);
+    setPage(1);
+  };
 
   const debouncedSeller = useDebouncedValue(sellerNameInput, 300);
   const debouncedPosClient = useDebouncedValue(posClientNameInput, 300);
@@ -80,14 +103,16 @@ export default function StaffSales({ scope = "staff" }: Props) {
   const query: SaleListQuery = useMemo(
     () => ({
       status,
-      from: scope === "admin" ? from : undefined,
-      to: scope === "admin" ? to : undefined,
+      // S32 (P7) — no longer admin-only: staff reach them through the Today toggle.
+      from,
+      to,
       sellerId,
       posClientId,
+      product: debouncedProduct.trim() || undefined,
       page,
       limit: 20,
     }),
-    [status, from, to, sellerId, posClientId, page, scope],
+    [status, from, to, sellerId, posClientId, debouncedProduct, page],
   );
 
   const {
@@ -170,6 +195,16 @@ export default function StaffSales({ scope = "staff" }: Props) {
     );
   };
 
+  // S32 (P2) — return every remaining line with one refund figure.
+  const [wholeReturnOpen, setWholeReturnOpen] = useState(false);
+  const wholeReturnMutation = useReturnWholeSale();
+  const handleWholeReturnSubmit = (values: ReturnWholeSaleFormValues) => {
+    wholeReturnMutation.mutate(
+      { scope, command: values },
+      { onSuccess: () => setWholeReturnOpen(false) },
+    );
+  };
+
   // S12, opened to staff by S18/D-2 — the Returns tab.
   const [returnsPage, setReturnsPage] = useState(1);
   const [selectedReturn, setSelectedReturn] = useState<ReturnDto | null>(null);
@@ -192,6 +227,13 @@ export default function StaffSales({ scope = "staff" }: Props) {
           setStatus(next);
           setPage(1);
         }}
+        productQuery={productInput}
+        onProductQueryChange={(next) => {
+          setProductInput(next);
+          setPage(1);
+        }}
+        todayActive={todayActive}
+        onToggleToday={handleToggleToday}
         scope={scope}
         from={from}
         onFromChange={(next) => {
@@ -282,6 +324,7 @@ export default function StaffSales({ scope = "staff" }: Props) {
           selectedSale ? () => navigate(`/${scope}/pos?draftId=${selectedSale.id}`) : undefined
         }
         onIssueReturn={canReturn ? () => setReturnDialogOpen(true) : undefined}
+        onReturnWholeSale={canReturn ? () => setWholeReturnOpen(true) : undefined}
         scope={scope}
         forbidden={forbidden}
       />
@@ -320,6 +363,16 @@ export default function StaffSales({ scope = "staff" }: Props) {
         alreadyReturnedByLine={alreadyReturnedByLine}
         onSubmit={handleReturnSubmit}
         isSubmitting={returnMutation.isPending}
+      />
+      <ReturnWholeSaleDialog
+        // Same fresh-mount-per-sale-and-return-count key as ReturnDialog above.
+        key={`whole-${selectedSale?.id ?? "none"}-${saleReturns?.meta.total ?? 0}`}
+        open={wholeReturnOpen}
+        onOpenChange={setWholeReturnOpen}
+        sale={selectedSale ?? null}
+        alreadyReturnedByLine={alreadyReturnedByLine}
+        onSubmit={handleWholeReturnSubmit}
+        isSubmitting={wholeReturnMutation.isPending}
       />
       <ReturnDetailDialog
         open={!!selectedReturn}

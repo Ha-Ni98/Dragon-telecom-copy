@@ -1,12 +1,22 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import {
+  CashRegisterDocumentResponseSchema,
+  CashRegisterDrill,
   ChartType,
   EXPORT_ERROR,
   EXPORT_MAX_ROWS,
   ReportFormat,
   ReportType,
   RevenueSource,
+  paginated,
+  storeDayRangeUtc,
+  storeLocalDate,
   type AdminDashboardDto,
+  type CashRegisterDocumentDto,
+  type CashRegisterDocumentsQuery,
+  type CashRegisterDto,
+  type CashRegisterQuery,
+  type PaginatedResult,
   type ChartsQuery,
   type FilteredDto,
   type FilteredQuery,
@@ -74,9 +84,20 @@ const SALE_RECOGNIZED_STATUSES = ['COMPLETED', 'PARTIALLY_RETURNED', 'RETURNED']
 
 // D8/D9 (S13/S14 R1) — a repair recognises revenue, cost and profit together at PICKED_UP, and
 // produces no Sale row at all (D9). Every figure below that used to arrive through the deleted
-// REPAIR-origin Sale is read directly off Repair here, dated on pickedUpAt. Repairs have no
-// return path (terminal at PICKED_UP), so nothing is ever netted out of them.
+// REPAIR-origin Sale is read directly off Repair here, dated on pickedUpAt. S30/Q2 — a returned
+// repair moves PICKED_UP → RETURNED and so leaves revenue, cost and profit entirely (restocked or
+// not), exactly like a CANCELLED one: this status filter alone excludes both, and nothing is ever
+// netted out of a repair at read time.
 const REPAIR_RECOGNIZED_STATUS = 'PICKED_UP' as const;
+
+// S33 — the Caisse's repair population: every repair picked up that day, including one returned
+// since (its refund is dated on returnedAt; its gross paid stays on the pickup day, plan S33 P3).
+const CASH_REGISTER_REPAIR_PICKED_STATUSES = ['PICKED_UP', 'RETURNED'] as const;
+
+// S33 — the half-open UTC bounds of one store-local day (storeDayRangeUtc's return shape).
+type StoreDayRange = { gte?: Date; lt?: Date };
+
+const round2 = (amount: number): number => Math.round(amount * 100) / 100;
 
 // D-b (S14) — orders have no owning seller (Order.confirmedByStaffId is who CONFIRMED it, not
 // who sold it, and is nullable). They aggregate into one bucket in sales-by-seller rather than
@@ -367,6 +388,349 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
+  // --- Cash register / Caisse (S33) ---
+
+  // One Africa/Algiers day (plan S33 §0.3): `range` is computed ONCE here and handed to every
+  // where-builder below — the same builders getCashRegisterDocuments uses, so a drill list always
+  // equals its figure. Nine SQL aggregates over stored values; no document row is loaded.
+  async getCashRegister(query: CashRegisterQuery): Promise<CashRegisterDto> {
+    const date = query.date ?? storeLocalDate();
+    const range = storeDayRangeUtc(date, date);
+
+    const [sales, returns, repairs, repairRefunds, confirmedCount, inDeliveryCount, completed, invoices, payments] = await Promise.all([
+      this.prisma.sale.aggregate({
+        where: this.cashSalesWhere(range),
+        _count: { _all: true },
+        _sum: { totalAmount: true, paidAmount: true },
+      }),
+      this.prisma.return.aggregate({ where: this.cashReturnsWhere(range), _count: { _all: true }, _sum: { refundAmount: true } }),
+      this.prisma.repair.aggregate({
+        where: this.cashRepairsPickedUpWhere(range),
+        _count: { _all: true },
+        _sum: { totalAmount: true, paidAmount: true, refundedAmount: true },
+      }),
+      this.prisma.repair.aggregate({ where: this.cashRepairRefundsWhere(range), _count: { _all: true }, _sum: { refundedAmount: true } }),
+      this.prisma.order.count({ where: this.cashOrdersConfirmedWhere(range) }),
+      this.prisma.order.count({ where: this.cashOrdersInDeliveryWhere(range) }),
+      this.prisma.order.aggregate({ where: this.cashOrdersCompletedWhere(range), _count: { _all: true }, _sum: { paidAmount: true } }),
+      this.prisma.supplierInvoice.aggregate({
+        where: this.cashSupplierInvoicesWhere(range),
+        _count: { _all: true },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.supplierPayment.aggregate({ where: this.cashSupplierPaymentsWhere(range), _count: { _all: true }, _sum: { amount: true } }),
+    ]);
+
+    const totalSold = sales._sum.totalAmount?.toNumber() ?? 0;
+    const salesPaid = sales._sum.paidAmount?.toNumber() ?? 0;
+    // P3 — gross paid at pickup: Repair.paidAmount is net of refunds (S30), so a repair returned
+    // on a later day would otherwise rewrite this day's figure retroactively.
+    const repairsGrossPaid = (repairs._sum.paidAmount?.toNumber() ?? 0) + (repairs._sum.refundedAmount?.toNumber() ?? 0);
+    const totalInvoiced = invoices._sum.totalAmount?.toNumber() ?? 0;
+    const suppliersPaid = payments._sum.amount?.toNumber() ?? 0;
+
+    return StatisticsMapper.toCashRegisterDto({
+      date,
+      sales: {
+        count: sales._count._all,
+        totalSold: round2(totalSold),
+        totalPaid: round2(salesPaid),
+        newCredit: round2(totalSold - salesPaid),
+      },
+      returns: { count: returns._count._all, totalRefunded: round2(returns._sum.refundAmount?.toNumber() ?? 0) },
+      repairs: {
+        count: repairs._count._all,
+        paidAmount: round2(repairsGrossPaid),
+        unpaidAmount: round2((repairs._sum.totalAmount?.toNumber() ?? 0) - repairsGrossPaid),
+        refundCount: repairRefunds._count._all,
+        refundedAmount: round2(repairRefunds._sum.refundedAmount?.toNumber() ?? 0),
+      },
+      orders: {
+        confirmedCount,
+        inDeliveryCount,
+        completedCount: completed._count._all,
+        completedPaid: round2(completed._sum.paidAmount?.toNumber() ?? 0),
+      },
+      suppliers: {
+        invoiceCount: invoices._count._all,
+        totalInvoiced: round2(totalInvoiced),
+        paymentCount: payments._count._all,
+        totalPaid: round2(suppliersPaid),
+        newCredit: round2(totalInvoiced - suppliersPaid),
+      },
+    });
+  }
+
+  // The documents behind one Caisse figure — same day bounds, same where-builder, paginated
+  // (bounded result set), oldest first like a till roll.
+  async getCashRegisterDocuments(query: CashRegisterDocumentsQuery): Promise<PaginatedResult<CashRegisterDocumentDto>> {
+    const date = query.date ?? storeLocalDate();
+    const range = storeDayRangeUtc(date, date);
+    const skip = (query.page - 1) * query.limit;
+    const take = query.limit;
+
+    let total = 0;
+    let items: CashRegisterDocumentDto[] = [];
+
+    // Every anchor below is non-null for the rows its builder selects (the builder filters on it).
+    switch (query.drill) {
+      case CashRegisterDrill.SALES: {
+        const where = this.cashSalesWhere(range);
+        const [count, rows] = await this.prisma.$transaction([
+          this.prisma.sale.count({ where }),
+          this.prisma.sale.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { soldAt: 'asc' },
+            select: { id: true, reference: true, soldAt: true, totalAmount: true, paidAmount: true, posClient: { select: { name: true } } },
+          }),
+        ]);
+        total = count;
+        items = rows.map((row) => ({
+          id: row.id,
+          reference: row.reference,
+          at: row.soldAt!.toISOString(),
+          ...(row.posClient != null ? { partyName: row.posClient.name } : {}),
+          amount: row.totalAmount.toNumber(),
+          paid: row.paidAmount.toNumber(),
+        }));
+        break;
+      }
+      case CashRegisterDrill.RETURNS: {
+        const where = this.cashReturnsWhere(range);
+        const [count, rows] = await this.prisma.$transaction([
+          this.prisma.return.count({ where }),
+          this.prisma.return.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { returnedAt: 'asc' },
+            select: {
+              id: true,
+              reference: true,
+              returnedAt: true,
+              refundAmount: true,
+              sale: { select: { reference: true, posClient: { select: { name: true } } } },
+              order: { select: { reference: true, contactName: true } },
+            },
+          }),
+        ]);
+        total = count;
+        items = rows.map((row) => {
+          const partyName = row.sale?.posClient?.name ?? row.order?.contactName;
+          const sourceReference = row.sale?.reference ?? row.order?.reference;
+          return {
+            id: row.id,
+            reference: row.reference,
+            at: row.returnedAt.toISOString(),
+            ...(partyName != null ? { partyName } : {}),
+            amount: row.refundAmount.toNumber(),
+            ...(sourceReference != null ? { sourceReference } : {}),
+          };
+        });
+        break;
+      }
+      case CashRegisterDrill.REPAIRS_PICKED_UP: {
+        const where = this.cashRepairsPickedUpWhere(range);
+        const [count, rows] = await this.prisma.$transaction([
+          this.prisma.repair.count({ where }),
+          this.prisma.repair.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { pickedUpAt: 'asc' },
+            select: { id: true, reference: true, pickedUpAt: true, customerName: true, totalAmount: true, paidAmount: true, refundedAmount: true },
+          }),
+        ]);
+        total = count;
+        items = rows.map((row) => ({
+          id: row.id,
+          reference: row.reference,
+          at: row.pickedUpAt!.toISOString(),
+          partyName: row.customerName,
+          amount: row.totalAmount.toNumber(),
+          paid: round2(row.paidAmount.toNumber() + row.refundedAmount.toNumber()), // gross (P3)
+        }));
+        break;
+      }
+      case CashRegisterDrill.REPAIR_REFUNDS: {
+        const where = this.cashRepairRefundsWhere(range);
+        const [count, rows] = await this.prisma.$transaction([
+          this.prisma.repair.count({ where }),
+          // Two possible anchors (cancelledAt or returnedAt), so a stable reference order instead.
+          this.prisma.repair.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { reference: 'asc' },
+            select: { id: true, reference: true, cancelledAt: true, returnedAt: true, customerName: true, refundedAmount: true },
+          }),
+        ]);
+        total = count;
+        items = rows.map((row) => ({
+          id: row.id,
+          reference: row.reference,
+          at: (row.cancelledAt ?? row.returnedAt)!.toISOString(),
+          partyName: row.customerName,
+          amount: row.refundedAmount.toNumber(),
+        }));
+        break;
+      }
+      case CashRegisterDrill.ORDERS_CONFIRMED:
+      case CashRegisterDrill.ORDERS_IN_DELIVERY:
+      case CashRegisterDrill.ORDERS_COMPLETED: {
+        const anchor =
+          query.drill === CashRegisterDrill.ORDERS_CONFIRMED
+            ? 'confirmedAt'
+            : query.drill === CashRegisterDrill.ORDERS_IN_DELIVERY
+              ? 'inDeliveryAt'
+              : 'deliveredAt';
+        const where =
+          query.drill === CashRegisterDrill.ORDERS_CONFIRMED
+            ? this.cashOrdersConfirmedWhere(range)
+            : query.drill === CashRegisterDrill.ORDERS_IN_DELIVERY
+              ? this.cashOrdersInDeliveryWhere(range)
+              : this.cashOrdersCompletedWhere(range);
+        const [count, rows] = await this.prisma.$transaction([
+          this.prisma.order.count({ where }),
+          this.prisma.order.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { [anchor]: 'asc' },
+            select: {
+              id: true,
+              reference: true,
+              confirmedAt: true,
+              inDeliveryAt: true,
+              deliveredAt: true,
+              contactName: true,
+              totalAmount: true,
+              paidAmount: true,
+            },
+          }),
+        ]);
+        total = count;
+        const withPaid = query.drill === CashRegisterDrill.ORDERS_COMPLETED;
+        items = rows.map((row) => ({
+          id: row.id,
+          reference: row.reference,
+          at: row[anchor]!.toISOString(),
+          partyName: row.contactName,
+          amount: row.totalAmount.toNumber(),
+          ...(withPaid ? { paid: row.paidAmount.toNumber() } : {}),
+        }));
+        break;
+      }
+      case CashRegisterDrill.SUPPLIER_INVOICES: {
+        const where = this.cashSupplierInvoicesWhere(range);
+        const [count, rows] = await this.prisma.$transaction([
+          this.prisma.supplierInvoice.count({ where }),
+          this.prisma.supplierInvoice.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { confirmedAt: 'asc' },
+            select: { id: true, reference: true, confirmedAt: true, totalAmount: true, supplier: { select: { name: true } } },
+          }),
+        ]);
+        total = count;
+        items = rows.map((row) => ({
+          id: row.id,
+          reference: row.reference,
+          at: row.confirmedAt!.toISOString(),
+          partyName: row.supplier.name,
+          amount: row.totalAmount.toNumber(),
+        }));
+        break;
+      }
+      case CashRegisterDrill.SUPPLIER_PAYMENTS: {
+        const where = this.cashSupplierPaymentsWhere(range);
+        const [count, rows] = await this.prisma.$transaction([
+          this.prisma.supplierPayment.count({ where }),
+          this.prisma.supplierPayment.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { paidAt: 'asc' },
+            select: {
+              id: true,
+              reference: true,
+              paidAt: true,
+              amount: true,
+              supplier: { select: { name: true } },
+              supplierInvoice: { select: { reference: true } },
+            },
+          }),
+        ]);
+        total = count;
+        items = rows.map((row) => ({
+          id: row.id,
+          reference: row.reference,
+          at: row.paidAt.toISOString(),
+          partyName: row.supplier.name,
+          amount: row.amount.toNumber(),
+          ...(row.supplierInvoice != null ? { sourceReference: row.supplierInvoice.reference } : {}),
+        }));
+        break;
+      }
+    }
+
+    return paginated(CashRegisterDocumentResponseSchema).parse({
+      items,
+      meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) },
+    });
+  }
+
+  // One where-builder per Caisse figure (plan S33 §0.4). Each takes the day's bounds and nothing
+  // else; never createdAt/updatedAt/invoiceDate, never a UTC day.
+  private cashSalesWhere(range: StoreDayRange): Prisma.SaleWhereInput {
+    return { status: { in: [...SALE_RECOGNIZED_STATUSES] }, soldAt: range };
+  }
+
+  // Q4 — sale and order returns alike, dated on the return itself.
+  private cashReturnsWhere(range: StoreDayRange): Prisma.ReturnWhereInput {
+    return { returnedAt: range };
+  }
+
+  private cashRepairsPickedUpWhere(range: StoreDayRange): Prisma.RepairWhereInput {
+    return { status: { in: [...CASH_REGISTER_REPAIR_PICKED_STATUSES] }, pickedUpAt: range };
+  }
+
+  // P4 — refunds are dated on the refund itself, read off Repair.refundedAmount (covers walk-in
+  // repairs, which have no ledger rows — S30 P7).
+  private cashRepairRefundsWhere(range: StoreDayRange): Prisma.RepairWhereInput {
+    return {
+      refundedAmount: { gt: 0 },
+      OR: [
+        { status: 'CANCELLED', cancelledAt: range },
+        { status: 'RETURNED', returnedAt: range },
+      ],
+    };
+  }
+
+  private cashOrdersConfirmedWhere(range: StoreDayRange): Prisma.OrderWhereInput {
+    return { confirmedAt: range };
+  }
+
+  private cashOrdersInDeliveryWhere(range: StoreDayRange): Prisma.OrderWhereInput {
+    return { inDeliveryAt: range };
+  }
+
+  private cashOrdersCompletedWhere(range: StoreDayRange): Prisma.OrderWhereInput {
+    return { status: { in: [...ORDER_RECOGNIZED_STATUSES] }, deliveredAt: range };
+  }
+
+  private cashSupplierInvoicesWhere(range: StoreDayRange): Prisma.SupplierInvoiceWhereInput {
+    return { status: 'CONFIRMED', confirmedAt: range };
+  }
+
+  // Q1 — the cash that left the register that day, whichever invoice it settles (or none).
+  private cashSupplierPaymentsWhere(range: StoreDayRange): Prisma.SupplierPaymentWhereInput {
+    return { paidAt: range };
+  }
+
   // --- Shared aggregation core ---
 
   // Revenue/profit = Σ recognised Sale + Σ recognised Order (D2) + Σ PICKED_UP Repair (D8/D9,
@@ -493,8 +857,10 @@ export class StatisticsService implements IStatisticsService {
   }
 
   // S24 (A1) — every returned line, enriched with everything any consumer needs to subtract it
-  // from the right bucket. Owner rule Q1: revenue falls by the refund actually given; cost falls
-  // only if the goods came back (restock); profit is the difference; quantity always falls. The
+  // from the right bucket. Revenue: an ORDER return falls by the refund actually given (S24 owner
+  // rule Q1); a SALE return falls by the line's sold value, unitPrice × returned quantity (S32/Q1
+  // — the refund-vs-price difference went to the client's credit). Cost falls only if the goods
+  // came back (restock); profit is the difference; quantity always falls. The
   // row is dated by the PARENT document's own recognition date, not returnedAt — a return
   // restates the period in which the sale happened ("as if never bought"), it is not a contra
   // entry in the period the refund was issued. Repairs have no return path, so `source ===
@@ -533,10 +899,10 @@ export class StatisticsService implements IStatisticsService {
         select: {
           quantity: true,
           restock: true,
-          refundAmount: true,
           saleLine: {
             select: {
               quantity: true,
+              unitPrice: true,
               costOfGoods: true,
               productId: true,
               product: { select: { familyId: true } },
@@ -600,7 +966,9 @@ export class StatisticsService implements IStatisticsService {
 
     for (const rl of saleReturnLines) {
       const line = rl.saleLine!;
-      const revenue = rl.refundAmount.toNumber();
+      // S32/Q1 — a sale return reverses the goods' sold value, whatever cash came back: the refund
+      // vs. line-price difference went to the client's credit, which is a ledger matter, not revenue.
+      const revenue = Math.round(line.unitPrice.toNumber() * rl.quantity * 100) / 100;
       // Proportional share of the line's stored FIFO cost — reversed only when the goods actually
       // re-entered stock. Not restocked => the store lost them, so the cost stands.
       const cost = rl.restock && line.quantity > 0 ? line.costOfGoods.toNumber() * (rl.quantity / line.quantity) : 0;
@@ -1267,10 +1635,10 @@ export class StatisticsService implements IStatisticsService {
     });
   }
 
-  // S24 (A3) — IN/OUT only. The three PENDING types (PENDING_ORDER, PENDING_REPAIR,
-  // PENDING_RELEASE) are reservations: they move no layers and must never be reported as stock
-  // in or out. Previously ungated, so a reservation and its later release both appeared as if
-  // they were real movements.
+  // S24 (A3) — IN/OUT only. The PENDING types (PENDING_ORDER, PENDING_REPAIR, PENDING_RELEASE
+  // and, since S30, REPAIR_CANCELLED) are reservations: they move no layers and must never be
+  // reported as stock in or out. Previously ungated, so a reservation and its later release both
+  // appeared as if they were real movements.
   private async reportStockMovements(range: { from?: Date; to?: Date }): Promise<ReportDto> {
     const createdAtFilter = this.dateRangeFilter(range);
     const groups = await this.prisma.stockMovement.groupBy({

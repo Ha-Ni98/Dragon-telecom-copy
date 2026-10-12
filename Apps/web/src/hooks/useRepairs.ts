@@ -4,8 +4,10 @@ import type {
   CreateRepairCommand,
   UpdateRepairCommand,
   AddRepairPartCommand,
+  AddRepairPartsCommand,
   RecordRepairPaymentCommand,
   RepairStatusCommand,
+  ReturnRepairCommand,
 } from "@dragon-telecom/contract";
 import * as repairsService from "@/services/repairs.service";
 import type { RepairsScope } from "@/services/repairs.service";
@@ -63,7 +65,9 @@ export function useUpdateRepair() {
 }
 
 // "reserve(PENDING_REPAIR)" (plan §3 cross-domain invalidation matrix: adding a part
-// cross-invalidates inventory).
+// cross-invalidates inventory). S30 (F4) — and catalog too: product lists carry
+// quantityReserved/availableQuantity, so a reservation change must refresh them (before S30 they
+// kept showing the old figures, which read as "the reservation was never released").
 export function useAddRepairPart() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -79,11 +83,34 @@ export function useAddRepairPart() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.repairs.all() });
       queryClient.invalidateQueries({ queryKey: qk.inventory.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.all() });
     },
   });
 }
 
-// "release" — the inverse of addPart, same inventory cross-invalidation.
+// S31 — the ticket drawer's staged parts, reserved all at once (all or nothing). Same
+// cross-invalidation as useAddRepairPart above, which the drawer no longer uses but is kept.
+export function useAddRepairParts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      scope,
+      id,
+      command,
+    }: {
+      scope: RepairsScope;
+      id: string;
+      command: AddRepairPartsCommand;
+    }) => repairsService.addRepairParts(scope, id, command),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.repairs.all() });
+      queryClient.invalidateQueries({ queryKey: qk.inventory.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.all() });
+    },
+  });
+}
+
+// "release" — the inverse of addPart, same inventory + catalog cross-invalidation (S30/F4).
 export function useRemoveRepairPart() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -92,6 +119,7 @@ export function useRemoveRepairPart() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.repairs.all() });
       queryClient.invalidateQueries({ queryKey: qk.inventory.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.all() });
     },
   });
 }
@@ -99,7 +127,8 @@ export function useRemoveRepairPart() {
 // S13/D8/D9 — PICKED_UP is now the single money moment: parts are consumed, an invoice is
 // issued and a ledger payment may be captured, all inside one backend transaction. No repair-
 // origin sale exists any more (D9) — cross-invalidates inventory (consumption), billing
-// (the new invoice/payments) and clients (credit/totalSold/totalPaid moved).
+// (the new invoice/payments) and clients (credit/totalSold/totalPaid moved). S30/F4 — and catalog
+// (pickup consumes and cancel releases, both of which product lists display).
 export function useUpdateRepairStatus() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -115,6 +144,31 @@ export function useUpdateRepairStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.repairs.all() });
       queryClient.invalidateQueries({ queryKey: qk.inventory.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.all() });
+      queryClient.invalidateQueries({ queryKey: qk.billing.all() });
+      queryClient.invalidateQueries({ queryKey: qk.clients.all() });
+    },
+  });
+}
+
+// S30 — PICKED_UP → RETURNED: restocked parts move inventory + catalog, the invoice is cancelled
+// and every payment reversed (billing), and the client's credit/totalPaid/totalSold move (clients).
+export function useReturnRepair() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      scope,
+      id,
+      command,
+    }: {
+      scope: RepairsScope;
+      id: string;
+      command: ReturnRepairCommand;
+    }) => repairsService.returnRepair(scope, id, command),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.repairs.all() });
+      queryClient.invalidateQueries({ queryKey: qk.inventory.all() });
+      queryClient.invalidateQueries({ queryKey: qk.catalog.all() });
       queryClient.invalidateQueries({ queryKey: qk.billing.all() });
       queryClient.invalidateQueries({ queryKey: qk.clients.all() });
     },

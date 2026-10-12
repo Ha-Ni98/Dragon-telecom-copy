@@ -10564,11 +10564,6 @@
     "fr": "Le montant payé doit être égal ou supérieur à zéro",
     "ar": ""
   },
-  "staff.pos.payment.changeDue": {
-    "en": "Change due",
-    "fr": "Monnaie à rendre",
-    "ar": ""
-  },
   "staff.pos.payment.newCredit": {
     "en": "New credit",
     "fr": "Nouveau crédit",
@@ -10582,6 +10577,21 @@
   "staff.pos.payment.insufficientStock": {
     "en": "Not enough stock for this line",
     "fr": "Stock insuffisant pour cette ligne",
+    "ar": ""
+  },
+  "staff.pos.payment.paidAmountRequired": {
+    "en": "Enter the amount the customer paid",
+    "fr": "Saisissez le montant payé par le client",
+    "ar": ""
+  },
+  "staff.pos.payment.walkInMustMatch": {
+    "en": "Without a client, the amount paid must equal the total ({total})",
+    "fr": "Sans client, le montant payé doit être égal au total ({total})",
+    "ar": ""
+  },
+  "staff.pos.payment.totalDue": {
+    "en": "Total due",
+    "fr": "Total dû",
     "ar": ""
   },
   "staff.pos.drafts.title": {
@@ -11144,6 +11154,16 @@
     "fr": "Statut",
     "ar": ""
   },
+  "admin.sales.filters.productSearch": {
+    "en": "Product name or barcode",
+    "fr": "Nom du produit ou code-barres",
+    "ar": ""
+  },
+  "admin.sales.filters.today": {
+    "en": "Today's sales",
+    "fr": "Ventes du jour",
+    "ar": ""
+  },
   "admin.sales.table.seller": {
     "en": "Seller",
     "fr": "Vendeur",
@@ -11177,6 +11197,11 @@
   "admin.sales.detail.issueReturn": {
     "en": "Issue return",
     "fr": "Émettre un retour",
+    "ar": ""
+  },
+  "admin.sales.detail.returnWholeSale": {
+    "en": "Return whole sale",
+    "fr": "Retourner toute la vente",
     "ar": ""
   },
   "admin.sales.returnDialog.title": {
@@ -11719,16 +11744,6 @@
     "fr": "Chronologie du statut",
     "ar": ""
   },
-  "staff.repairs.addPart.title": {
-    "en": "Add part",
-    "fr": "Ajouter une pièce",
-    "ar": ""
-  },
-  "staff.repairs.addPart.productLabel": {
-    "en": "Product",
-    "fr": "Produit",
-    "ar": ""
-  },
   "staff.repairs.addPart.quantityLabel": {
     "en": "Quantity",
     "fr": "Quantité",
@@ -11760,8 +11775,8 @@
     "ar": ""
   },
   "staff.repairs.addPart.submit": {
-    "en": "Add part",
-    "fr": "Ajouter la pièce",
+    "en": "Add parts",
+    "fr": "Ajouter les pièces",
     "ar": ""
   },
   "staff.repairs.statusDialog.title": {
@@ -11879,21 +11894,6 @@
     "fr": "Technicien",
     "ar": ""
   },
-  "staff.repairs.receipt.parts": {
-    "en": "Parts",
-    "fr": "Pièces",
-    "ar": ""
-  },
-  "staff.repairs.receipt.labour": {
-    "en": "Labour",
-    "fr": "Main-d'œuvre",
-    "ar": ""
-  },
-  "staff.repairs.receipt.partsTotal": {
-    "en": "Parts total",
-    "fr": "Total pièces",
-    "ar": ""
-  },
   "staff.repairs.receipt.total": {
     "en": "Total",
     "fr": "Total",
@@ -11929,11 +11929,6 @@
     "fr": "Facture n°",
     "ar": ""
   },
-  "staff.repairs.receipt.serials": {
-    "en": "Serial no.",
-    "fr": "N° de série",
-    "ar": ""
-  },
   "staff.repairs.receipt.footer": {
     "en": "Please keep this ticket — it is required to collect your device",
     "fr": "Conservez ce bon — il est exigé pour retirer votre appareil",
@@ -11942,21 +11937,6 @@
   "staff.repairs.detail.amountDue": {
     "en": "Amount due",
     "fr": "Montant dû",
-    "ar": ""
-  },
-  "staff.repairs.addPart.productPlaceholder": {
-    "en": "Search a product",
-    "fr": "Rechercher un produit",
-    "ar": ""
-  },
-  "staff.repairs.addPart.productRequired": {
-    "en": "Select a product",
-    "fr": "Sélectionnez un produit",
-    "ar": ""
-  },
-  "staff.repairs.addPart.noResults": {
-    "en": "No matching product",
-    "fr": "Aucun produit correspondant",
     "ar": ""
   },
   "staff.repairs.intake.brandPlaceholder": {
@@ -13367,16 +13347,6 @@
   "admin.supplierInvoices.editor.quantityMin": {
     "en": "Quantity must be at least 1",
     "fr": "La quantité doit être d'au moins 1",
-    "ar": ""
-  },
-  "admin.supplierInvoices.editor.addLine": {
-    "en": "Add line",
-    "fr": "Ajouter une ligne",
-    "ar": ""
-  },
-  "admin.supplierInvoices.editor.product": {
-    "en": "Product",
-    "fr": "Produit",
     "ar": ""
   },
   "admin.supplierInvoices.editor.quantity": {
@@ -14924,6 +14894,11 @@
     "fr": "Recherches du personnel",
     "ar": ""
   },
+  "admin.nav.cashRegister": {
+    "en": "Cash register",
+    "fr": "Caisse",
+    "ar": ""
+  },
   "admin.suppliers.stats.totalInvoiced": {
     "en": "Total Invoiced",
     "fr": "Total facturé",
@@ -15189,24 +15164,39 @@
     "fr": "Remboursement saisi",
     "ar": ""
   },
-  "admin.sales.returnDialog.summaryCashRefundable": {
-    "en": "Cash refundable",
-    "fr": "Remboursable en espèces",
+  "admin.sales.returnDialog.refundRequired": {
+    "en": "Enter the refund amount (0 is allowed)",
+    "fr": "Saisissez le montant remboursé (0 est accepté)",
     "ar": ""
   },
-  "admin.sales.returnDialog.summaryCashCapped": {
-    "en": "Only the refundable cash will be paid back; the remainder reduces what the client owes.",
-    "fr": "Seul le montant remboursable sera rendu en espèces ; le reste réduit ce que le client doit.",
+  "admin.sales.returnDialog.walkInRefundMustMatch": {
+    "en": "Without a client, the refund must equal the sold price of the returned quantity",
+    "fr": "Sans client, le remboursement doit être égal au prix de vente de la quantité retournée",
     "ar": ""
   },
-  "admin.sales.returnDialog.creditEffectPartial": {
-    "en": "Partial return — the client's credit is unchanged.",
-    "fr": "Retour partiel — le crédit du client reste inchangé.",
+  "admin.sales.returnDialog.soldPriceHint": {
+    "en": "Sold price: {amount}",
+    "fr": "Prix de vente : {amount}",
     "ar": ""
   },
-  "admin.sales.returnDialog.creditEffectFull": {
-    "en": "Full return — this sale's credit is reversed.",
-    "fr": "Retour complet — le crédit de cette vente est annulé.",
+  "admin.sales.returnDialog.summaryGoodsValue": {
+    "en": "Sold price of returned items",
+    "fr": "Prix de vente des articles retournés",
+    "ar": ""
+  },
+  "admin.sales.wholeReturnDialog.title": {
+    "en": "Return whole sale",
+    "fr": "Retourner toute la vente",
+    "ar": ""
+  },
+  "admin.sales.wholeReturnDialog.description": {
+    "en": "Every item still on this sale is returned at once.",
+    "fr": "Tous les articles restants de cette vente sont retournés en une fois.",
+    "ar": ""
+  },
+  "admin.sales.wholeReturnDialog.submit": {
+    "en": "Return whole sale",
+    "fr": "Retourner toute la vente",
     "ar": ""
   },
   "search.loading": {
@@ -15317,6 +15307,636 @@
   "common.print.bridge.fallback": {
     "en": "Thermal printer unreachable — printing via the browser.",
     "fr": "Imprimante thermique injoignable — impression via le navigateur.",
+    "ar": ""
+  },
+  "staff.repairs.board.returned": {
+    "en": "Returned",
+    "fr": "Retournée",
+    "ar": ""
+  },
+  "repairs.status.returned": {
+    "en": "Returned",
+    "fr": "Retournée",
+    "ar": ""
+  },
+  "staff.repairs.return.action": {
+    "en": "Return repair",
+    "fr": "Retourner la réparation",
+    "ar": ""
+  },
+  "staff.repairs.return.title": {
+    "en": "Return repair",
+    "fr": "Retour de réparation",
+    "ar": ""
+  },
+  "staff.repairs.return.description": {
+    "en": "The device was picked up. Returning it cancels invoice {invoice} and reverses every payment.",
+    "fr": "L'appareil a été récupéré. Le retour annule la facture {invoice} et rembourse chaque paiement.",
+    "ar": ""
+  },
+  "staff.repairs.return.restockLabel": {
+    "en": "Back in stock",
+    "fr": "Remettre en stock",
+    "ar": ""
+  },
+  "staff.repairs.return.noParts": {
+    "en": "No parts on this repair — nothing to restock",
+    "fr": "Aucune pièce sur cette réparation — rien à remettre en stock",
+    "ar": ""
+  },
+  "staff.repairs.return.refundTotal": {
+    "en": "Refund to the customer",
+    "fr": "Remboursement au client",
+    "ar": ""
+  },
+  "staff.repairs.return.accountNote": {
+    "en": "The client's account returns to its balance before this repair.",
+    "fr": "Le compte du client revient à son solde d'avant cette réparation.",
+    "ar": ""
+  },
+  "staff.repairs.return.walkInNote": {
+    "en": "Walk-in customer — hand the amount back in cash.",
+    "fr": "Client de passage — rendez le montant en espèces.",
+    "ar": ""
+  },
+  "staff.repairs.return.noteLabel": {
+    "en": "Reason (optional)",
+    "fr": "Motif (facultatif)",
+    "ar": ""
+  },
+  "staff.repairs.return.confirm": {
+    "en": "Confirm return",
+    "fr": "Confirmer le retour",
+    "ar": ""
+  },
+  "staff.repairs.return.success": {
+    "en": "Repair returned",
+    "fr": "Réparation retournée",
+    "ar": ""
+  },
+  "staff.repairs.detail.refunded": {
+    "en": "Refunded",
+    "fr": "Remboursé",
+    "ar": ""
+  },
+  "staff.repairs.detail.partRestocked": {
+    "en": "Restocked",
+    "fr": "Remis en stock",
+    "ar": ""
+  },
+  "staff.repairs.detail.partNotRestocked": {
+    "en": "Not restocked",
+    "fr": "Non remis en stock",
+    "ar": ""
+  },
+  "staff.repairs.payments.reverses": {
+    "en": "reverses {reference}",
+    "fr": "annule {reference}",
+    "ar": ""
+  },
+  "staff.repairs.receipt.refunded": {
+    "en": "Refunded",
+    "fr": "Remboursé",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.repairRef": {
+    "en": "Repair {reference}",
+    "fr": "Réparation {reference}",
+    "ar": ""
+  },
+  "admin.invoices.payments.table.reverses": {
+    "en": "Reverses {reference}",
+    "fr": "Annule {reference}",
+    "ar": ""
+  },
+  "admin.inventory.movements.filters.allTypes": {
+    "en": "All types",
+    "fr": "Tous les types",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.open": {
+    "en": "What do the movement types mean?",
+    "fr": "Que signifient les types de mouvement ?",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.title": {
+    "en": "Movement types",
+    "fr": "Types de mouvement",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.group.in": {
+    "en": "Stock in",
+    "fr": "Entrées",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.group.out": {
+    "en": "Stock out",
+    "fr": "Sorties",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.group.pending": {
+    "en": "Reservations (on-hand unchanged)",
+    "fr": "Réservations (stock physique inchangé)",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairReadOnly": {
+    "en": "This repair is closed and can no longer be edited",
+    "fr": "Cette réparation est clôturée et ne peut plus être modifiée",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairStatusChanged": {
+    "en": "This repair was just changed elsewhere — reopen it and try again",
+    "fr": "Cette réparation vient d'être modifiée ailleurs — rouvrez-la et réessayez",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairReturnRequiresPickedUp": {
+    "en": "Only a picked-up repair can be returned",
+    "fr": "Seule une réparation récupérée peut être retournée",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairReturnViaReturnAction": {
+    "en": "Use the ticket's Return action to return a repair",
+    "fr": "Utilisez l'action Retour du ticket pour retourner une réparation",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairUnknownPart": {
+    "en": "A selected part does not belong to this repair",
+    "fr": "Une pièce sélectionnée n'appartient pas à cette réparation",
+    "ar": ""
+  },
+  "common.errors.sentinel.repairConsumptionNotFound": {
+    "en": "This part's stock history can't be found, so it can't be restocked — return it without restocking",
+    "fr": "L'historique de stock de cette pièce est introuvable — retournez-la sans la remettre en stock",
+    "ar": ""
+  },
+  "common.errors.sentinel.saleWalkInOverpayment": {
+    "en": "Without a client, the amount paid must equal the total",
+    "fr": "Sans client, le montant payé doit être égal au total",
+    "ar": ""
+  },
+  "common.errors.sentinel.saleWalkInRefundMismatch": {
+    "en": "Without a client, the refund must equal the sold price",
+    "fr": "Sans client, le remboursement doit être égal au prix de vente",
+    "ar": ""
+  },
+  "common.errors.sentinel.saleWholeReturnLinesMismatch": {
+    "en": "This sale changed since the dialog opened — reopen it and try again",
+    "fr": "Cette vente a changé depuis l'ouverture — rouvrez-la et réessayez",
+    "ar": ""
+  },
+  "common.errors.sentinel.saleNothingToReturn": {
+    "en": "Nothing left to return on this sale",
+    "fr": "Plus rien à retourner sur cette vente",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.supplierInvoice": {
+    "en": "Supplier invoice",
+    "fr": "Facture fournisseur",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.supplierInvoice": {
+    "en": "Stock received on a confirmed supplier invoice.",
+    "fr": "Stock reçu sur une facture fournisseur confirmée.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.initialStock": {
+    "en": "Initial stock",
+    "fr": "Stock initial",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.initialStock": {
+    "en": "Opening quantity entered when the product was created.",
+    "fr": "Quantité de départ saisie à la création du produit.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.adjustmentIn": {
+    "en": "Adjustment (in)",
+    "fr": "Ajustement (entrée)",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.adjustmentIn": {
+    "en": "Stock added by an inventory count or correction.",
+    "fr": "Stock ajouté par un inventaire ou une correction.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.returnIn": {
+    "en": "Sale/order return",
+    "fr": "Retour vente/commande",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.returnIn": {
+    "en": "A returned sale or order item put back on the shelf at its original cost.",
+    "fr": "Article de vente ou commande retourné, remis en rayon à son coût d'origine.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.repairReturn": {
+    "en": "Repair return",
+    "fr": "Retour de réparation",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.repairReturn": {
+    "en": "A part from a returned repair put back on the shelf at the cost it was consumed at.",
+    "fr": "Pièce d'une réparation retournée, remise en rayon au coût auquel elle avait été consommée.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.sale": {
+    "en": "Sale",
+    "fr": "Vente",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.sale": {
+    "en": "Stock sold at the POS.",
+    "fr": "Stock vendu en caisse.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.orderOut": {
+    "en": "Order",
+    "fr": "Commande",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.orderOut": {
+    "en": "Stock shipped or handed over on a completed online order.",
+    "fr": "Stock remis sur une commande en ligne terminée.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.repairConsumption": {
+    "en": "Repair consumption",
+    "fr": "Consommation réparation",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.repairConsumption": {
+    "en": "A part fitted in a repair, consumed when the device was picked up.",
+    "fr": "Pièce posée sur une réparation, consommée à la récupération de l'appareil.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.adjustmentOut": {
+    "en": "Adjustment (out)",
+    "fr": "Ajustement (sortie)",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.adjustmentOut": {
+    "en": "Stock removed by an inventory count, damage or loss.",
+    "fr": "Stock retiré par un inventaire, une casse ou une perte.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.pendingOrder": {
+    "en": "Order reservation",
+    "fr": "Réservation commande",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.pendingOrder": {
+    "en": "Held for an online order; still on the shelf.",
+    "fr": "Réservé pour une commande en ligne ; toujours en rayon.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.pendingRepair": {
+    "en": "Repair reservation",
+    "fr": "Réservation réparation",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.pendingRepair": {
+    "en": "Held for a repair part; still on the shelf.",
+    "fr": "Réservé pour une pièce de réparation ; toujours en rayon.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.pendingRelease": {
+    "en": "Reservation released",
+    "fr": "Réservation libérée",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.pendingRelease": {
+    "en": "A reservation given back: part removed, order cancelled, or released just before consumption.",
+    "fr": "Réservation rendue : pièce retirée, commande annulée, ou libérée juste avant consommation.",
+    "ar": ""
+  },
+  "admin.inventory.movements.types.repairCancelled": {
+    "en": "Repair cancelled",
+    "fr": "Réparation annulée",
+    "ar": ""
+  },
+  "admin.inventory.movements.legend.repairCancelled": {
+    "en": "Reservation released because its repair was cancelled — nothing left the shelf.",
+    "fr": "Réservation libérée car la réparation a été annulée — rien n'a quitté le rayon.",
+    "ar": ""
+  },
+  "common.productPicker.searchPlaceholder": {
+    "en": "Search by name or barcode",
+    "fr": "Rechercher par nom ou code-barres",
+    "ar": ""
+  },
+  "common.productPicker.selectedCount": {
+    "en": "{count} selected",
+    "fr": "{count} sélectionné(s)",
+    "ar": ""
+  },
+  "common.productPicker.select": {
+    "en": "Select {name}",
+    "fr": "Sélectionner {name}",
+    "ar": ""
+  },
+  "common.productPicker.add": {
+    "en": "Add ({count})",
+    "fr": "Ajouter ({count})",
+    "ar": ""
+  },
+  "common.productPicker.previous": {
+    "en": "Previous",
+    "fr": "Précédent",
+    "ar": ""
+  },
+  "common.productPicker.next": {
+    "en": "Next",
+    "fr": "Suivant",
+    "ar": ""
+  },
+  "common.productPicker.empty": {
+    "en": "No products found",
+    "fr": "Aucun produit trouvé",
+    "ar": ""
+  },
+  "common.productPicker.error": {
+    "en": "Couldn't load products",
+    "fr": "Impossible de charger les produits",
+    "ar": ""
+  },
+  "common.productPicker.columns.name": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "common.productPicker.columns.available": {
+    "en": "Available",
+    "fr": "Disponible",
+    "ar": ""
+  },
+  "common.productPicker.columns.onHand": {
+    "en": "In stock",
+    "fr": "En stock",
+    "ar": ""
+  },
+  "common.productPicker.columns.defaultPrice": {
+    "en": "Default price",
+    "fr": "Prix par défaut",
+    "ar": ""
+  },
+  "common.productPicker.columns.avgPrice": {
+    "en": "Avg purchase price",
+    "fr": "Prix d'achat moyen",
+    "ar": ""
+  },
+  "common.productPicker.columns.avgStockPrice": {
+    "en": "Avg stock price",
+    "fr": "Prix moyen du stock",
+    "ar": ""
+  },
+  "common.creditConfirm.title": {
+    "en": "Confirm the credit change",
+    "fr": "Confirmer le changement de crédit",
+    "ar": ""
+  },
+  "common.creditConfirm.description": {
+    "en": "The amount entered differs from the amount due. The client's credit will change as shown below.",
+    "fr": "Le montant saisi diffère du montant dû. Le crédit du client changera comme indiqué ci-dessous.",
+    "ar": ""
+  },
+  "common.creditConfirm.confirm": {
+    "en": "Confirm",
+    "fr": "Confirmer",
+    "ar": ""
+  },
+  "staff.repairs.partPicker.title": {
+    "en": "Add parts",
+    "fr": "Ajouter des pièces",
+    "ar": ""
+  },
+  "staff.repairs.addPart.addProducts": {
+    "en": "Add products",
+    "fr": "Ajouter des produits",
+    "ar": ""
+  },
+  "staff.repairs.addPart.pendingTitle": {
+    "en": "Parts to add",
+    "fr": "Pièces à ajouter",
+    "ar": ""
+  },
+  "staff.repairs.addPart.availableHint": {
+    "en": "{qty} available",
+    "fr": "{qty} disponible(s)",
+    "ar": ""
+  },
+  "staff.repairs.addPart.outOfStock": {
+    "en": "Out of stock — cannot be fitted",
+    "fr": "Rupture de stock — impossible à poser",
+    "ar": ""
+  },
+  "staff.repairs.addPart.removeStaged": {
+    "en": "Remove {name}",
+    "fr": "Retirer {name}",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.addProducts": {
+    "en": "Add products",
+    "fr": "Ajouter des produits",
+    "ar": ""
+  },
+  "admin.supplierInvoices.productPicker.title": {
+    "en": "Add products to the invoice",
+    "fr": "Ajouter des produits à la facture",
+    "ar": ""
+  },
+  "admin.supplierInvoices.editor.linesRequired": {
+    "en": "Add at least one product",
+    "fr": "Ajoutez au moins un produit",
+    "ar": ""
+  },
+  "admin.cashRegister.pageTitle": {
+    "en": "Cash register",
+    "fr": "Caisse",
+    "ar": ""
+  },
+  "admin.cashRegister.dateLabel": {
+    "en": "Day",
+    "fr": "Jour",
+    "ar": ""
+  },
+  "admin.cashRegister.today": {
+    "en": "Today",
+    "fr": "Aujourd'hui",
+    "ar": ""
+  },
+  "admin.cashRegister.boundaryNote": {
+    "en": "Days run from midnight to midnight, Algiers time.",
+    "fr": "Les journées vont de minuit à minuit, heure d'Alger.",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.title": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.count": {
+    "en": "Number of sales",
+    "fr": "Nombre de ventes",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.totalSold": {
+    "en": "Total sold",
+    "fr": "Total vendu",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.totalPaid": {
+    "en": "Total paid",
+    "fr": "Total payé",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.newCredit": {
+    "en": "New client credit",
+    "fr": "Nouveau crédit client",
+    "ar": ""
+  },
+  "admin.cashRegister.returns.title": {
+    "en": "Returns",
+    "fr": "Retours",
+    "ar": ""
+  },
+  "admin.cashRegister.returns.count": {
+    "en": "Number of returns",
+    "fr": "Nombre de retours",
+    "ar": ""
+  },
+  "admin.cashRegister.returns.totalRefunded": {
+    "en": "Total refunded",
+    "fr": "Total remboursé",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.title": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.count": {
+    "en": "Repairs picked up",
+    "fr": "Réparations récupérées",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.unpaid": {
+    "en": "Unpaid",
+    "fr": "Impayé",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.refunded": {
+    "en": "Refunded (cancelled / returned)",
+    "fr": "Remboursé (annulées / retournées)",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.refundedValue": {
+    "en": "{amount} · {count}",
+    "fr": "{amount} · {count}",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.title": {
+    "en": "Orders",
+    "fr": "Commandes",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.confirmed": {
+    "en": "Confirmed",
+    "fr": "Confirmées",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.inDelivery": {
+    "en": "Sent out for delivery",
+    "fr": "Mises en livraison",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.completed": {
+    "en": "Completed",
+    "fr": "Terminées",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.completedPaid": {
+    "en": "Paid on completed orders",
+    "fr": "Payé sur commandes terminées",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.title": {
+    "en": "Suppliers",
+    "fr": "Fournisseurs",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.invoiceCount": {
+    "en": "Invoices confirmed",
+    "fr": "Factures confirmées",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.totalInvoiced": {
+    "en": "Total invoiced",
+    "fr": "Total facturé",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.totalPaid": {
+    "en": "Paid to suppliers",
+    "fr": "Payé aux fournisseurs",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.newCredit": {
+    "en": "New supplier credit",
+    "fr": "Nouveau crédit fournisseur",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.hint": {
+    "en": "Click to see the documents",
+    "fr": "Cliquez pour voir les documents",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.open": {
+    "en": "Show documents for {label}",
+    "fr": "Afficher les documents : {label}",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.reference": {
+    "en": "Reference",
+    "fr": "Référence",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.time": {
+    "en": "Time",
+    "fr": "Heure",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.party": {
+    "en": "Client / supplier",
+    "fr": "Client / fournisseur",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.amount": {
+    "en": "Amount",
+    "fr": "Montant",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.source": {
+    "en": "Source document",
+    "fr": "Document d'origine",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.empty": {
+    "en": "No documents on this day",
+    "fr": "Aucun document ce jour-là",
+    "ar": ""
+  },
+  "staff.repairs.receipt.parts": {
+    "en": "Parts used",
+    "fr": "Pièces utilisées",
     "ar": ""
   }
 }

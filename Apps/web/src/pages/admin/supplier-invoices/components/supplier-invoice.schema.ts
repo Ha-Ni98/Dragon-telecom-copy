@@ -16,21 +16,30 @@ const SupplierInvoiceLineSchema = (t: ReturnType<typeof useTranslation>["t"]) =>
 // re-declares the same shape + refine with a localized message (ADM-08 §4's amount-only
 // switch surfaces this on the `amountOnly` field, matching the contract's own `path`).
 export function supplierInvoiceSchema(t: ReturnType<typeof useTranslation>["t"]) {
-  return z
-    .object({
-      supplierId: z.uuid(),
-      supplierReference: z.string().optional(),
-      invoiceDate: z.iso.date(),
-      dueDate: z.iso.date().optional(),
-      shippingCost: z.number().min(0, t("common.validation.nonNegativeNumber")).optional(),
-      amountOnly: z.number().min(0, t("common.validation.nonNegativeNumber")).optional(),
-      note: z.string().optional(),
-      lines: z.array(SupplierInvoiceLineSchema(t)).optional(),
-    })
-    .refine((d) => (d.amountOnly === undefined) !== (d.lines === undefined), {
-      message: t("admin.supplierInvoices.editor.amountOnlyXorLines"),
-      path: ["amountOnly"],
-    });
+  return (
+    z
+      .object({
+        supplierId: z.uuid(),
+        supplierReference: z.string().optional(),
+        invoiceDate: z.iso.date(),
+        dueDate: z.iso.date().optional(),
+        shippingCost: z.number().min(0, t("common.validation.nonNegativeNumber")).optional(),
+        amountOnly: z.number().min(0, t("common.validation.nonNegativeNumber")).optional(),
+        note: z.string().optional(),
+        lines: z.array(SupplierInvoiceLineSchema(t)).optional(),
+      })
+      .refine((d) => (d.amountOnly === undefined) !== (d.lines === undefined), {
+        message: t("admin.supplierInvoices.editor.amountOnlyXorLines"),
+        path: ["amountOnly"],
+      })
+      // S31 (plan P7) — lines are picker-only now and the form starts with none; the backend has no
+      // empty-lines guard, so without this an empty line list would save and confirm a zero
+      // invoice. (Before S31 the form's blank starter line failed z.uuid() and hid this case.)
+      .refine((d) => d.amountOnly !== undefined || (d.lines?.length ?? 0) > 0, {
+        message: t("admin.supplierInvoices.editor.linesRequired"),
+        path: ["lines"],
+      })
+  );
 }
 
 export type SupplierInvoiceFormValues = z.infer<ReturnType<typeof supplierInvoiceSchema>>;

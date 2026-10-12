@@ -59,10 +59,11 @@ export interface IBillingService {
   issueInvoiceInTx(tx: Prisma.TransactionClient, input: InvoiceIssueRequest): Promise<{ invoiceId: string; number: string }>;
   // `repairId` (S13) tags an on-account row (`invoiceId` still null) with the repair it was
   // collected for, so it can be found again by linkRepairPaymentsToInvoiceInTx below once that
-  // repair's invoice is issued at PICKED_UP.
+  // repair's invoice is issued at PICKED_UP. `reversalOfId` (S30/Q1) links a negative row to the
+  // payment it reverses.
   captureClientPaymentInTx(
     tx: Prisma.TransactionClient,
-    input: { posClientId: string; invoiceId?: string; repairId?: string; amount: number; paidAt?: Date; staffId: string },
+    input: { posClientId: string; invoiceId?: string; repairId?: string; reversalOfId?: string; amount: number; paidAt?: Date; staffId: string },
   ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }>;
   // S13/D5/R3 — at PICKED_UP the repair's on-account rows (invoiceId null) are re-pointed at the
   // invoice just issued, then the invoice's paidAmount/status are recomputed from the ledger, so
@@ -71,6 +72,9 @@ export interface IBillingService {
   // at all, and recomputing from an empty ledger would wipe the paidAmount the invoice was issued
   // with.
   linkRepairPaymentsToInvoiceInTx(tx: Prisma.TransactionClient, input: { repairId: string; invoiceId: string }): Promise<void>;
+  // S30 — status-only cancellation inside the caller's transaction (repairs' return). Idempotent;
+  // never emits — the caller emits `invoice.cancelled` after its own commit.
+  cancelInvoiceInTx(tx: Prisma.TransactionClient, input: { invoiceId: string }): Promise<{ number: string }>;
 }
 
 // Injected port (dependency inversion) — real implementation is platform's own PlatformService,

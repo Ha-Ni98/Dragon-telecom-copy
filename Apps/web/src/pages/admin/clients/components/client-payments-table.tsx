@@ -16,7 +16,9 @@ interface ClientPaymentsTableProps {
 // S8 J4 — the client-detail Payments tab. Reuses the existing
 // `admin.invoices.payments.table.*` keys PaymentsLedger's client sub-tab already uses, but drops
 // the counterpart column (every row on this page is the same client). A refund shows as a
-// negative amount (D6) — never `Math.abs`'d.
+// negative amount (D6) — never `Math.abs`'d. S30 — same document/reversal rendering as
+// PaymentsLedger: an invoice-less row names its repair, and a reversal row names the payment it
+// reverses (owner decision Q1).
 export function ClientPaymentsTable({ payments, isLoading = false }: ClientPaymentsTableProps) {
   const { t, language } = useTranslation();
 
@@ -27,12 +29,28 @@ export function ClientPaymentsTable({ payments, isLoading = false }: ClientPayme
         id: "invoice",
         header: t("admin.invoices.payments.table.invoice"),
         cell: ({ row }) =>
-          row.original.invoiceNumber ?? t("admin.invoices.payments.table.onAccount"),
+          row.original.invoiceNumber ??
+          (row.original.repairReference
+            ? t("admin.invoices.payments.table.repairRef", {
+                reference: row.original.repairReference,
+              })
+            : t("admin.invoices.payments.table.onAccount")),
       },
       {
         accessorKey: "amount",
         header: t("admin.invoices.payments.table.amount"),
-        cell: ({ row }) => formatDZD(row.original.amount, language),
+        cell: ({ row }) => (
+          <div>
+            <div>{formatDZD(row.original.amount, language)}</div>
+            {row.original.reversesReference && (
+              <div className="text-xs text-muted-foreground">
+                {t("admin.invoices.payments.table.reverses", {
+                  reference: row.original.reversesReference,
+                })}
+              </div>
+            )}
+          </div>
+        ),
       },
       {
         id: "creditMovement",

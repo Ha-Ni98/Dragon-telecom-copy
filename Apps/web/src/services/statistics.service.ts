@@ -8,6 +8,11 @@ import {
   STATS_ROUTES,
   ReportFormat,
   type ApiResponse,
+  type CashRegisterDocumentDto,
+  type CashRegisterDocumentsQuery,
+  type CashRegisterDto,
+  type CashRegisterQuery,
+  type PaginatedResult,
   type AdminDashboardDto,
   type StaffDashboardDto,
   type OverviewDto,
@@ -110,4 +115,24 @@ export async function exportReport(
     responseType: "blob",
   });
   return res.data;
+}
+
+// S33 — the Caisse: one Africa/Algiers day's summary, and the documents behind one figure.
+export async function getCashRegister(query: CashRegisterQuery): Promise<CashRegisterDto> {
+  const res = await api.get<ApiResponse<CashRegisterDto>>(apiPath(STATS_ROUTES.CASH_REGISTER), {
+    params: query,
+  });
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+export async function getCashRegisterDocuments(
+  query: CashRegisterDocumentsQuery,
+): Promise<PaginatedResult<CashRegisterDocumentDto>> {
+  const res = await api.get<ApiResponse<PaginatedResult<CashRegisterDocumentDto>>>(
+    apiPath(STATS_ROUTES.CASH_REGISTER_DOCUMENTS),
+    { params: query },
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
 }

@@ -1,4 +1,4 @@
-import type { ClientPayment, Invoice, InvoiceLine, PosClient, Prisma, Staff } from '@prisma/client';
+import type { ClientPayment, Invoice, InvoiceLine, PosClient, Prisma, Repair, Staff } from '@prisma/client';
 import {
   ClientPaymentResponseSchema,
   InvoiceResponseSchema,
@@ -32,6 +32,8 @@ export type ClientPaymentRow = ClientPayment & {
   posClient: Pick<PosClient, 'name'>;
   invoice: Pick<Invoice, 'number'> | null;
   staff: Pick<Staff, 'firstName' | 'lastName'>;
+  repair: Pick<Repair, 'reference'> | null; // S30
+  reversalOf: Pick<ClientPayment, 'reference'> | null; // S30/Q1
 };
 
 export type InvoiceLineIssueInput = {
@@ -119,6 +121,8 @@ export class BillingMapper {
       reference: payment.reference,
       posClientName: payment.posClient.name,
       ...(payment.invoice?.number != null ? { invoiceNumber: payment.invoice.number } : {}),
+      ...(payment.repair != null ? { repairReference: payment.repair.reference } : {}),
+      ...(payment.reversalOf != null ? { reversesReference: payment.reversalOf.reference } : {}),
       amount: BillingMapper.toMoney(payment.amount),
       previousCredit: BillingMapper.toMoney(payment.previousCredit),
       newCredit: BillingMapper.toMoney(payment.newCredit),

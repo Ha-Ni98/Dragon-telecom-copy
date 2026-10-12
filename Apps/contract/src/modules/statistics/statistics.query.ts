@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ChartType, ReportFormat, ReportType, RevenueSource } from './statistics.enums';
+import { CashRegisterDrill, ChartType, ReportFormat, ReportType, RevenueSource } from './statistics.enums';
 
 export const FilteredQuerySchema = z.object({
   from: z.iso.date().optional(),
@@ -38,3 +38,20 @@ export type ReportQuery = z.infer<typeof ReportQuerySchema>;
 
 export const ReportParamsSchema = z.object({ type: z.enum(ReportType) });
 export type ReportParams = z.infer<typeof ReportParamsSchema>;
+
+// S33 — one store-local (Africa/Algiers) day; omitted means today. Every section reads the same
+// storeDayRangeUtc(date, date) bounds.
+export const CashRegisterQuerySchema = z.object({
+  date: z.iso.date().optional(),
+});
+export type CashRegisterQuery = z.infer<typeof CashRegisterQuerySchema>;
+
+// S33 — one drill-through list of the Caisse: the documents behind one headline figure, filtered
+// exactly as that figure is. Bounded page (max 100).
+export const CashRegisterDocumentsQuerySchema = z.object({
+  date: z.iso.date().optional(),
+  drill: z.enum(CashRegisterDrill),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type CashRegisterDocumentsQuery = z.infer<typeof CashRegisterDocumentsQuerySchema>;

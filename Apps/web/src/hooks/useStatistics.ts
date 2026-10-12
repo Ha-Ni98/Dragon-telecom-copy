@@ -7,6 +7,8 @@ import {
   type TopProductsQuery,
   type ReportQuery,
   type ReportType,
+  type CashRegisterQuery,
+  type CashRegisterDocumentsQuery,
 } from "@dragon-telecom/contract";
 import * as statisticsService from "@/services/statistics.service";
 import { qk } from "@/lib/query-keys";
@@ -83,5 +85,27 @@ export function useExportReport() {
       query: Omit<ReportQuery, "format">;
       format: ReportFormat.CSV | ReportFormat.PDF;
     }) => statisticsService.exportReport(type, query, format),
+  });
+}
+
+// S33 — staleTime 0: repairs, supplier invoices and supplier payments don't invalidate
+// qk.stats.all() (S33/F4), so the Caisse refetches every time it is opened.
+export function useCashRegister(query: CashRegisterQuery) {
+  return useQuery({
+    queryKey: qk.stats.cashRegister(query),
+    queryFn: () => statisticsService.getCashRegister(query),
+    staleTime: 0,
+  });
+}
+
+export function useCashRegisterDocuments(
+  query: CashRegisterDocumentsQuery,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: qk.stats.cashRegisterDocuments(query),
+    queryFn: () => statisticsService.getCashRegisterDocuments(query),
+    enabled: options?.enabled,
+    staleTime: 0,
   });
 }

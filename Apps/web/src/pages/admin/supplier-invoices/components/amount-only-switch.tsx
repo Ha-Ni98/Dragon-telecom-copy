@@ -28,7 +28,8 @@ export function AmountOnlySwitch({
       setValue("amountOnly", 0);
     } else {
       setValue("amountOnly", undefined);
-      setValue("lines", [{ productId: "", quantity: 1, unitCost: 0 }]);
+      // S31 — back to line mode with no line: lines are added through the product picker only.
+      setValue("lines", []);
     }
   };
 

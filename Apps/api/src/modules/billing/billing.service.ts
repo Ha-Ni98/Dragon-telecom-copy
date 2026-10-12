@@ -30,6 +30,9 @@ const PAYMENT_INCLUDE = {
   posClient: { select: { name: true } },
   invoice: { select: { number: true } },
   staff: { select: { firstName: true, lastName: true } },
+  // S30 — the repair a row belongs to, and on a reversal row the payment it reverses.
+  repair: { select: { reference: true } },
+  reversalOf: { select: { reference: true } },
 } satisfies Prisma.ClientPaymentInclude;
 
 export class BillingService implements IBillingService {
@@ -125,11 +128,12 @@ export class BillingService implements IBillingService {
   // `invoiceId` is optional on purpose: money can be captured before an invoice exists — a repair
   // collects payments across several steps while its invoice only appears at PICKED_UP (D5) — and
   // such rows are "on account" (ClientPayment.invoiceId null), still counted in totalPaid.
-  // `amount` is signed; a negative amount is a refund row (D6).
+  // `amount` is signed; a negative amount is a refund row (D6). `reversalOfId` (S30/Q1) points a
+  // negative row at the payment it reverses (repairs' cancel/return reverse payment by payment).
   // Returns everything the caller needs to emit `payment.clientRecorded` after IT commits.
   async captureClientPaymentInTx(
     tx: Prisma.TransactionClient,
-    input: { posClientId: string; invoiceId?: string; repairId?: string; amount: number; paidAt?: Date; staffId: string },
+    input: { posClientId: string; invoiceId?: string; repairId?: string; reversalOfId?: string; amount: number; paidAt?: Date; staffId: string },
   ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }> {
     // Written here, inside the caller's own transaction, via the injected credit port
     // (credit-serialization fix, plan §C5) — no post-commit listener applies it. Overpayment
@@ -146,6 +150,7 @@ export class BillingService implements IBillingService {
         posClientId: input.posClientId,
         ...(input.invoiceId != null ? { invoiceId: input.invoiceId } : {}),
         ...(input.repairId != null ? { repairId: input.repairId } : {}),
+        ...(input.reversalOfId != null ? { reversalOfId: input.reversalOfId } : {}),
         amount: input.amount,
         previousCredit,
         newCredit,
@@ -292,6 +297,19 @@ export class BillingService implements IBillingService {
       }),
     });
     return { invoiceId: invoice.id, number };
+  }
+
+  // S30 — status only (numbers never reused, gaps never closed — the sequence is untouched);
+  // paidAmount and every other column are left alone. Idempotent: an already-CANCELLED invoice is
+  // a no-op. Never emits — the caller emits `invoice.cancelled` after IT commits. The caller must
+  // capture any reversal rows BEFORE cancelling: captureClientPaymentInTx deliberately does not
+  // recompute a CANCELLED invoice. Callers: repairs' return (S30).
+  async cancelInvoiceInTx(tx: Prisma.TransactionClient, input: { invoiceId: string }): Promise<{ number: string }> {
+    const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: input.invoiceId }, select: { number: true, status: true } });
+    if (invoice.status !== PrismaInvoiceStatus.CANCELLED) {
+      await tx.invoice.update({ where: { id: input.invoiceId }, data: { status: PrismaInvoiceStatus.CANCELLED } });
+    }
+    return { number: invoice.number };
   }
 
   // S13/D5/R3 — at PICKED_UP the repair's on-account rows (invoiceId null) are re-pointed at the

@@ -9,6 +9,8 @@ export enum MovementType {
   INITIAL_STOCK = 'INITIAL_STOCK',
   ADJUSTMENT_IN = 'ADJUSTMENT_IN',
   RETURN_IN = 'RETURN_IN',
+  // S30 — IN: a part of a RETURNED repair put back on the shelf at the cost it was consumed at.
+  REPAIR_RETURN = 'REPAIR_RETURN',
   SALE = 'SALE',
   ORDER_OUT = 'ORDER_OUT',
   REPAIR_CONSUMPTION = 'REPAIR_CONSUMPTION',
@@ -16,6 +18,9 @@ export enum MovementType {
   PENDING_ORDER = 'PENDING_ORDER',
   PENDING_REPAIR = 'PENDING_REPAIR',
   PENDING_RELEASE = 'PENDING_RELEASE',
+  // S30 — PENDING: a reservation released because its repair was cancelled. Changes
+  // quantityReserved only, never on-hand — a repair cancelled before pickup consumed nothing.
+  REPAIR_CANCELLED = 'REPAIR_CANCELLED',
 }
 
 export enum AdjustmentReason {

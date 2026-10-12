@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { STORE_TIME_ZONE } from "@dragon-telecom/contract";
 import type { Language } from "@/lib/i18n";
 
 export function cn(...inputs: ClassValue[]) {
@@ -26,6 +27,16 @@ export function formatDateTime(iso: string, language: Language = "en"): string {
   return new Intl.DateTimeFormat(LOCALE_TAG[language], {
     dateStyle: "medium",
     timeStyle: "short",
+  }).format(new Date(iso));
+}
+
+// S33 — a time of day in the store's own zone (Africa/Algiers), never the browser's — the Caisse
+// lists documents of one store-local day.
+export function formatStoreTime(iso: string, language: Language = "en"): string {
+  return new Intl.DateTimeFormat(LOCALE_TAG[language], {
+    timeZone: STORE_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(iso));
 }
 

@@ -8,9 +8,10 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Printer } from "lucide-react";
+import { CreditCard, Plus, Printer } from "lucide-react";
 import {
   SupplierInvoiceStatus,
+  type AdminProductDto,
   type ConfirmResultDto,
   type UpdatePricingCommand,
 } from "@dragon-telecom/contract";
@@ -20,14 +21,10 @@ import {
 } from "@/pages/admin/supplier-invoices/components/supplier-invoice.schema";
 import { InvoiceHeaderForm } from "@/pages/admin/supplier-invoices/components/invoice-header-form";
 import { AmountOnlySwitch } from "@/pages/admin/supplier-invoices/components/amount-only-switch";
-import {
-  InvoiceLineEditor,
-  AddLineButton,
-} from "@/pages/admin/supplier-invoices/components/invoice-line-editor";
+import { InvoiceLineEditor } from "@/pages/admin/supplier-invoices/components/invoice-line-editor";
+import { InvoiceProductPickerDialog } from "@/pages/admin/supplier-invoices/components/invoice-product-picker-dialog";
 import { ConfirmBar } from "@/pages/admin/supplier-invoices/components/confirm-bar";
 import { RepricePrompt } from "@/pages/admin/supplier-invoices/components/reprice-prompt";
-import { QuickAddProductDialog } from "@/pages/admin/supplier-invoices/components/quick-add-product-dialog";
-import type { QuickAddProductFormValues } from "@/pages/admin/supplier-invoices/components/quick-add-product.schema";
 import { SupplierPaymentDialog } from "@/pages/admin/invoices/components/SupplierPaymentDialog";
 import type { RecordSupplierPaymentFormValues } from "@/pages/admin/invoices/components/record-supplier-payment.schema";
 import { BarcodeLabelsDialog } from "@/pages/admin/supplier-invoices/components/barcode-labels-dialog";
@@ -40,11 +37,7 @@ import {
 } from "@/hooks/usePurchasingInvoices";
 import { useCreatePurchasingPayment } from "@/hooks/usePurchasingPayments";
 import { usePurchasingSuppliers } from "@/hooks/usePurchasingSuppliers";
-import {
-  useAdminCatalogProducts,
-  useCreateProduct,
-  useUpdatePricing,
-} from "@/hooks/useCatalogProducts";
+import { useUpdatePricing } from "@/hooks/useCatalogProducts";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -62,6 +55,10 @@ type RepriceCandidate = ConfirmResultDto["repriceCandidates"][number];
 // S22: a Print-barcodes action sits in the header on every saved invoice regardless of status —
 // it opens a dialog listing the invoice's product lines with an editable label count per line and
 // downloads a server-rendered PDF; lines whose product has no barcode are omitted and counted.
+// S31: products are added only through the shared product-picker dialog
+// (InvoiceProductPickerDialog — server-side search over the whole catalog, where the old per-row
+// autocomplete filtered a first-100 slice in the browser), and the quick-add-product dialog moved
+// into that picker. The form starts with no line; at least one product line is required.
 export default function AdminSupplierInvoiceEditor() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -69,8 +66,13 @@ export default function AdminSupplierInvoiceEditor() {
   const { t } = useTranslation();
   const isCreate = id === "new";
 
-  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [quickAddLineIndex, setQuickAddLineIndex] = useState<number | null>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  // S31 — name + the I6 helper figures of every product picked in this session, keyed by id. I6's
+  // two helper texts read the *unweighted* avgPrice (D10 — the supplier-invoice-context figure),
+  // never avgStockPrice, which drives margins instead.
+  const [pickedById, setPickedById] = useState(
+    () => new Map<string, { name: string; quantityOnHand: number; avgPrice: number }>(),
+  );
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   // S22 — the print-barcodes dialog. Unlike the payment button below it is shown on *every* saved
   // invoice regardless of status: labels are about the goods received, not the money.
@@ -90,24 +92,6 @@ export default function AdminSupplierInvoiceEditor() {
     [suppliers.data],
   );
 
-  const products = useAdminCatalogProducts({ page: 1, limit: 100 });
-  const productOptions: AutocompleteOption[] = useMemo(
-    () => (products.data?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
-    [products.data],
-  );
-  // I6's two helper texts read the *unweighted* avgPrice (D10 — the supplier-invoice-context
-  // figure), never avgStockPrice, which drives margins instead.
-  const productStockById = useMemo(
-    () =>
-      new Map(
-        (products.data?.items ?? []).map((p) => [
-          p.id,
-          { quantityOnHand: p.quantityOnHand, avgPrice: p.avgPrice },
-        ]),
-      ),
-    [products.data],
-  );
-
   const clientCategories = useCatalogClientCategories();
 
   const form = useForm<SupplierInvoiceFormValues>({
@@ -116,7 +100,7 @@ export default function AdminSupplierInvoiceEditor() {
       supplierId: searchParams.get("supplierId") ?? "",
       invoiceDate: new Date().toISOString().slice(0, 10),
       shippingCost: 0,
-      lines: [{ productId: "", quantity: 1, unitCost: 0 }],
+      lines: [],
     },
     values:
       !isCreate && invoice
@@ -161,7 +145,6 @@ export default function AdminSupplierInvoiceEditor() {
   const updateInvoice = useUpdatePurchasingInvoice();
   const confirmInvoice = useConfirmPurchasingInvoice();
   const createPayment = useCreatePurchasingPayment();
-  const createProduct = useCreateProduct();
   const updatePricing = useUpdatePricing();
 
   // R1 — DRAFT is no longer a UI state: Save creates the invoice and immediately confirms it, so
@@ -217,22 +200,22 @@ export default function AdminSupplierInvoiceEditor() {
     setRepriceCandidates((prev) => prev.filter((c) => c.productId !== productId));
   const handleSkipAllReprice = () => setRepriceCandidates([]);
 
-  const handleQuickAddProduct = (index: number) => {
-    setQuickAddLineIndex(index);
-    setIsQuickAddOpen(true);
-  };
-  const handleSaveNewProduct = (values: QuickAddProductFormValues) => {
-    createProduct.mutate(
-      { command: values, images: [] },
-      {
-        onSuccess: (product) => {
-          if (quickAddLineIndex !== null) {
-            setValue(`lines.${quickAddLineIndex}.productId`, product.id);
-          }
-          setIsQuickAddOpen(false);
-        },
-      },
-    );
+  // S31 — one new line per picked product (qty 1, unit cost 0 — plan P3: the buyer types the
+  // cost; the picker only showed past costs for recall). A product already on a line is not added
+  // twice (plan P4) — raise that line's quantity instead.
+  const handlePickProducts = (products: AdminProductDto[]) => {
+    setPickedById((prev) => {
+      const next = new Map(prev);
+      for (const p of products) {
+        next.set(p.id, { name: p.name, quantityOnHand: p.quantityOnHand, avgPrice: p.avgPrice });
+      }
+      return next;
+    });
+    const onLines = new Set((form.getValues("lines") ?? []).map((line) => line.productId));
+    for (const p of products) {
+      if (onLines.has(p.id)) continue;
+      append({ productId: p.id, quantity: 1, unitCost: 0 });
+    }
   };
 
   const handleSubmitPayment = (values: RecordSupplierPaymentFormValues) => {
@@ -319,23 +302,40 @@ export default function AdminSupplierInvoiceEditor() {
 
         {!isAmountOnly && (
           <div className="space-y-3">
-            {fields.map((field, index) => (
-              <InvoiceLineEditor
-                key={field.id}
-                index={index}
-                control={control}
-                productOptions={productOptions}
-                quantity={watchedLines?.[index]?.quantity ?? 0}
-                unitCost={watchedLines?.[index]?.unitCost ?? 0}
-                onRemove={() => remove(index)}
-                onQuickAddProduct={isEditable ? () => handleQuickAddProduct(index) : undefined}
-                productStock={productStockById.get(watchedLines?.[index]?.productId ?? "")}
-                productNameSnapshot={invoice?.lines[index]?.productNameSnapshot}
-                disabled={!isEditable}
-              />
-            ))}
+            {fields.map((field, index) => {
+              const productId = watchedLines?.[index]?.productId ?? "";
+              const picked = pickedById.get(productId);
+              return (
+                <InvoiceLineEditor
+                  key={field.id}
+                  index={index}
+                  control={control}
+                  quantity={watchedLines?.[index]?.quantity ?? 0}
+                  unitCost={watchedLines?.[index]?.unitCost ?? 0}
+                  onRemove={() => remove(index)}
+                  productStock={picked}
+                  // Matched by productId, not by index: lines can now be removed and re-added.
+                  productName={
+                    picked?.name ??
+                    invoice?.lines.find((line) => line.productId === productId)?.productNameSnapshot
+                  }
+                  disabled={!isEditable}
+                />
+              );
+            })}
+            {/* The resolver files an array-level refine under `lines` or `lines.root` depending
+                on whether `lines` is registered as a field array — read both. */}
+            {(form.formState.errors.lines?.message ??
+              form.formState.errors.lines?.root?.message) && (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.lines?.message ?? form.formState.errors.lines?.root?.message}
+              </p>
+            )}
             {isEditable && (
-              <AddLineButton onClick={() => append({ productId: "", quantity: 1, unitCost: 0 })} />
+              <Button type="button" variant="outline" onClick={() => setIsPickerOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("admin.supplierInvoices.editor.addProducts")}
+              </Button>
             )}
             <div className="space-y-1 text-right text-sm text-muted-foreground">
               <div>
@@ -362,11 +362,10 @@ export default function AdminSupplierInvoiceEditor() {
         />
       </form>
 
-      <QuickAddProductDialog
-        open={isQuickAddOpen}
-        onOpenChange={setIsQuickAddOpen}
-        onSave={handleSaveNewProduct}
-        isSaving={createProduct.isPending}
+      <InvoiceProductPickerDialog
+        open={isPickerOpen}
+        onOpenChange={setIsPickerOpen}
+        onAdd={handlePickProducts}
       />
 
       {!isCreate && invoice && (
