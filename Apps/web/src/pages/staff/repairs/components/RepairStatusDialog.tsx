@@ -62,7 +62,10 @@ export function RepairStatusDialog({
 }: RepairStatusDialogProps) {
   const { t, language } = useTranslation();
   const amountDue = repair ? repair.totalAmount - repair.paidAmount : 0;
-  const targets = repair ? repairTransitionsFrom(repair.status) : [];
+  // S30 — RETURNED needs per-part restock choices; it has its own dialog (RepairReturnDialog).
+  const targets = repair
+    ? repairTransitionsFrom(repair.status).filter((status) => status !== RepairStatus.RETURNED)
+    : [];
   const {
     register,
     handleSubmit,

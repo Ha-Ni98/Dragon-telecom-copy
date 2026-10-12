@@ -11,6 +11,7 @@ import { PosPaymentPanel } from "@/pages/staff/pos/components/PosPaymentPanel";
 import { MyDraftsDrawer } from "@/pages/staff/pos/components/MyDraftsDrawer";
 import { PosReceiptView } from "@/pages/staff/pos/components/PosReceiptView";
 import { QuickAddPosClientDialog } from "@/pages/staff/pos/components/QuickAddPosClientDialog";
+import { CreditChangeConfirmDialog } from "@/components/shared/CreditChangeConfirmDialog";
 import { useStaffProducts } from "@/hooks/useCatalogProducts";
 import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
@@ -31,11 +32,14 @@ import { apiErrorMessage } from "@/lib/query-client";
 import { printReceipt } from "@/lib/print";
 import { useReceiptPrint } from "@/hooks/use-receipt-print";
 import { buildPosReceiptEscPos } from "@/pages/staff/pos/pos-receipt-escpos";
-import { cn } from "@/lib/utils";
+import { cn, formatDZD } from "@/lib/utils";
+import { checkSettlement } from "@/lib/settlement";
+import { SETTLEMENT_CHECK } from "@/types/settlement.types";
 import { resolvePosPrice } from "@/pages/staff/pos/pos-pricing";
 import { useWorkspaceFocusScope } from "@/components/providers/WorkspaceFocusProvider";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
 import {
+  SALE_ERROR,
   SaleStatus,
   type PosClientDto,
   type StaffProductDto,
@@ -116,10 +120,11 @@ export default function StaffPos({ scope = "staff" }: Props) {
   const [lines, setLines] = useState<TicketLineState[]>([]);
   const [attachedClient, setAttachedClient] = useState<PosClientDto | undefined>();
   const [draftId, setDraftId] = useState<string | null>(null);
-  const [paidAmount, setPaidAmount] = useState(0);
-  // S6/I5/R1 — paidAmount auto-tracks the ticket total until the cashier types their own figure;
-  // set true by the payment panel's onChange, reset on a fresh ticket or a resumed draft.
-  const [paidAmountTouched, setPaidAmountTouched] = useState(false);
+  // S32 — starts empty (null) and is never pre-filled with the total: the cashier must enter what
+  // the customer actually handed over. Replaces S6/I5's auto-tracking of the total.
+  const [paidAmount, setPaidAmount] = useState<number | null>(null);
+  // S32 — an attached client paying a different amount than the total confirms the credit change.
+  const [creditConfirmOpen, setCreditConfirmOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptDto | null>(null);
   // S25 — captured once when the receipt is set, not derived at render: the receipt view stays
   // mounted until "New sale", so a render-time `new Date()` would creep forward on every re-render.
@@ -154,13 +159,8 @@ export default function StaffPos({ scope = "staff" }: Props) {
   // The discount is no longer settable from the POS (S6/I6) — the total is simply the subtotal.
   const total = subtotal;
 
-  // The paid amount defaults to the ticket total — the cashier's most common case is exact
-  // payment — and keeps following it until they type their own figure (S6/I5/R1). The client's
-  // outstanding credit is deliberately NOT added in: this field is what is being paid for THIS
-  // sale; settling an older balance is the separate record-payment flow.
-  useEffect(() => {
-    if (!paidAmountTouched) setPaidAmount(total);
-  }, [total, paidAmountTouched]);
+  // The paid amount is what is being paid for THIS sale. The client's outstanding credit is
+  // deliberately NOT added in: settling an older balance is the separate record-payment flow.
 
   const handleSelectProduct = (product: StaffProductDto) => {
     setLines((prev) => {
@@ -344,8 +344,8 @@ export default function StaffPos({ scope = "staff" }: Props) {
     setLines([]);
     setAttachedClient(undefined);
     setClientSearchQuery("");
-    setPaidAmount(0);
-    setPaidAmountTouched(false);
+    setPaidAmount(null);
+    setCreditConfirmOpen(false);
     setDraftId(null);
     setClientZoneError(undefined);
     setPaymentError(undefined);
@@ -360,14 +360,13 @@ export default function StaffPos({ scope = "staff" }: Props) {
     resetTicketState();
   };
 
-  const handleConfirm = () => {
+  // Runs the sale — reached directly on an exact payment, or from the credit-change dialog.
+  const submitConfirm = () => {
     if (lines.length === 0) return;
-    setClientZoneError(undefined);
-    setPaymentError(undefined);
     const command = buildDraftCommand();
     const runConfirm = (id: string) =>
       confirmSale.mutate(
-        { id, command: { paidAmount } },
+        { id, command: { paidAmount: paidAmount ?? 0 } },
         {
           onSuccess: (receiptResult) => {
             setReceipt(receiptResult);
@@ -375,9 +374,14 @@ export default function StaffPos({ scope = "staff" }: Props) {
             resetTicketState();
           },
           onError: (err) => {
+            setCreditConfirmOpen(false);
             const serverMessage = apiErrorMessage(err);
-            if (serverMessage === "CREDIT_REQUIRES_CLIENT") {
+            if (serverMessage === SALE_ERROR.CREDIT_REQUIRES_CLIENT) {
               setClientZoneError(t("staff.pos.clientZone.creditRequiresClient"));
+            } else if (serverMessage === SALE_ERROR.WALK_IN_OVERPAYMENT) {
+              setPaymentError(
+                t("staff.pos.payment.walkInMustMatch", { total: formatDZD(total, language) }),
+              );
             } else if (serverMessage === "INSUFFICIENT_STOCK") {
               setPaymentError(t("staff.pos.payment.insufficientStock"));
             }
@@ -393,6 +397,29 @@ export default function StaffPos({ scope = "staff" }: Props) {
       });
     } else {
       updateDraft.mutate({ id: draftId, command }, { onSuccess: () => runConfirm(draftId) });
+    }
+  };
+
+  const handleConfirm = () => {
+    if (lines.length === 0) return;
+    setClientZoneError(undefined);
+    setPaymentError(undefined);
+    // S32 — paid starts empty; a walk-in must pay the exact total; an attached client may pay
+    // any amount, but a difference is confirmed against the credit it will leave.
+    switch (checkSettlement(paidAmount, total, !!attachedClient)) {
+      case SETTLEMENT_CHECK.EMPTY:
+        setPaymentError(t("staff.pos.payment.paidAmountRequired"));
+        return;
+      case SETTLEMENT_CHECK.WALK_IN_MISMATCH:
+        setPaymentError(
+          t("staff.pos.payment.walkInMustMatch", { total: formatDZD(total, language) }),
+        );
+        return;
+      case SETTLEMENT_CHECK.NEEDS_CREDIT_CONFIRM:
+        setCreditConfirmOpen(true);
+        return;
+      case SETTLEMENT_CHECK.MATCH:
+        submitConfirm();
     }
   };
 
@@ -417,8 +444,8 @@ export default function StaffPos({ scope = "staff" }: Props) {
     setDraftId(draft.id);
     // The stored discount is not re-editable from the POS (S6/I6) — the resumed ticket's total is
     // simply its lines' subtotal.
-    setPaidAmount(0);
-    setPaidAmountTouched(false);
+    setPaidAmount(null);
+    setCreditConfirmOpen(false);
     setAttachedClient(undefined);
     setClientSearchQuery(draft.posClientName ?? "");
     setClientZoneError(undefined);
@@ -585,16 +612,12 @@ export default function StaffPos({ scope = "staff" }: Props) {
             />
 
             <PosPaymentPanel
-              total={total}
               paidAmount={paidAmount}
-              onPaidAmountChange={(value) => {
-                setPaidAmountTouched(true);
-                setPaidAmount(value);
-              }}
+              onPaidAmountChange={setPaidAmount}
               onConfirm={handleConfirm}
               isConfirming={confirmSale.isPending || isSyncing}
               paidAmountError={paymentError}
-              {...(attachedClient
+              {...(attachedClient && paidAmount != null
                 ? {
                     previousCredit: attachedClient.credit,
                     // S5: credit += (total − paid). The old inline preview here subtracted this,
@@ -614,6 +637,21 @@ export default function StaffPos({ scope = "staff" }: Props) {
         onSubmit={handleQuickAddSubmit}
         isSubmitting={quickCreateClient.isPending}
       />
+
+      {attachedClient && paidAmount != null && (
+        <CreditChangeConfirmDialog
+          open={creditConfirmOpen}
+          onOpenChange={setCreditConfirmOpen}
+          dueLabel={t("staff.pos.payment.totalDue")}
+          dueAmount={total}
+          enteredLabel={t("staff.pos.payment.paidAmountLabel")}
+          enteredAmount={paidAmount}
+          previousCredit={attachedClient.credit}
+          newCredit={attachedClient.credit + (total - paidAmount)}
+          onConfirm={submitConfirm}
+          isConfirming={confirmSale.isPending || isSyncing}
+        />
+      )}
     </div>
   );
 }

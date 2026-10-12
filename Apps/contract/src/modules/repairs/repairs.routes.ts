@@ -13,6 +13,9 @@ export const REPAIR_ROUTES = {
   ADMIN_UPDATE: '/admin/repairs/:id',
   STAFF_PARTS: '/staff/repairs/:id/parts',
   ADMIN_PARTS: '/admin/repairs/:id/parts',
+  // S31 — stage-then-reserve: every staged part in one transaction (all or nothing).
+  STAFF_PARTS_BATCH: '/staff/repairs/:id/parts/batch',
+  ADMIN_PARTS_BATCH: '/admin/repairs/:id/parts/batch',
   STAFF_PART_BY_ID: '/staff/repairs/:id/parts/:partId',
   ADMIN_PART_BY_ID: '/admin/repairs/:id/parts/:partId',
   STAFF_STATUS: '/staff/repairs/:id/status',
@@ -20,6 +23,9 @@ export const REPAIR_ROUTES = {
   // S13/D5 — cumulative payment at any pre-pickup step.
   STAFF_PAYMENTS: '/staff/repairs/:id/payments',
   ADMIN_PAYMENTS: '/admin/repairs/:id/payments',
+  // S30 — PICKED_UP → RETURNED (per-part restock, full refund, invoice cancelled).
+  STAFF_RETURN: '/staff/repairs/:id/return',
+  ADMIN_RETURN: '/admin/repairs/:id/return',
   // S13/R1 — the admin Technicians tab. Mounted OUTSIDE /admin/repairs on purpose: a
   // /admin/repairs/technicians path would be swallowed by ADMIN_BY_ID's uuid-validated :id.
   ADMIN_TECHNICIAN_STATS: '/admin/repair-technicians',

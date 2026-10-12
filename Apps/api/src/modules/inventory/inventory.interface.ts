@@ -51,6 +51,13 @@ export type ConsumeFifoResult = {
 };
 export type ReturnInResult = { movementId: string };
 
+// S30 — the PENDING types a release may write: the generic PENDING_RELEASE, or REPAIR_CANCELLED
+// for a release caused by cancelling a repair (ledger traceability only; the arithmetic is
+// identical — quantityReserved down, on-hand untouched).
+export type ReleaseMovementType = MovementType.PENDING_RELEASE | MovementType.REPAIR_CANCELLED;
+// S30 — the IN types a returnIn may write: RETURN_IN (sales/orders) or REPAIR_RETURN (repairs).
+export type ReturnInMovementType = MovementType.RETURN_IN | MovementType.REPAIR_RETURN;
+
 // The injected engine — the spec's "Injected service [CONTRACT]" block. Every document module
 // (catalog, purchasing, orders, sales, repairs) receives this. Returns the spec-mandated internal
 // transactional shapes rather than DTOs (plan §8 #1): events can't carry FIFO results back into
@@ -58,7 +65,9 @@ export type ReturnInResult = { movementId: string };
 // movement. All methods run inside the *caller's* `tx` — the engine never opens its own.
 export interface IInventoryService {
   reserve(tx: Prisma.TransactionClient, productId: string, qty: number, ref: MovementRef): Promise<void>;
-  release(tx: Prisma.TransactionClient, productId: string, qty: number, ref: MovementRef): Promise<void>;
+  // S30 — `type` defaults to PENDING_RELEASE; the release is clamped to this holder's own
+  // outstanding reservation (ref.referenceType + ref.referenceId), never another document's.
+  release(tx: Prisma.TransactionClient, productId: string, qty: number, ref: MovementRef, type?: ReleaseMovementType): Promise<void>;
   addLayer(
     tx: Prisma.TransactionClient,
     productId: string,
@@ -80,6 +89,7 @@ export interface IInventoryService {
     originalConsumptions: ConsumptionLine[],
     qty: number,
     ref: MovementRef,
+    type?: ReturnInMovementType, // S30 — defaults to RETURN_IN
   ): Promise<ReturnInResult>;
 
   // The post-commit flush seam (plan §7.3, §8 #6): the engine never owns the caller's

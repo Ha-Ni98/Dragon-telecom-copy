@@ -4,6 +4,7 @@ import type {
   ConfirmSaleCommand,
   CreateReturnCommand,
   ReturnListQuery,
+  ReturnWholeSaleCommand,
   SaleDraftCommand,
   SaleIdParams,
   SaleListQuery,
@@ -87,6 +88,16 @@ export class SalesController {
   createReturn = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const result = await this.service.createReturn(req.validated.body as CreateReturnCommand, req.user!.staffId!);
+      sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // S32 (P2) — one refund figure for every remaining line; the split lives in the service.
+  returnWholeSale = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await this.service.returnWholeSale(req.validated.body as ReturnWholeSaleCommand, req.user!.staffId!);
       sendSuccess(res, result, 200);
     } catch (error) {
       next(error);

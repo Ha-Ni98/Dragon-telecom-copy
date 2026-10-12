@@ -20,6 +20,8 @@ Read-only aggregation: admin + staff dashboards, the merged statistics page, dri
 | `STATS_ROUTES.CHARTS` | GET `/api/admin/statistics/charts/:chart?from=&to=&familyId=` | admin | revenue \| orders \| clients \| sales-by-family |
 | `STATS_ROUTES.TOP_PRODUCTS` | GET `/api/admin/statistics/top-products?period=` | admin | |
 | `STATS_ROUTES.REPORT` | GET `/api/admin/reports/:type?from=&to=&groupBy=&format=` | admin | table + chart + CSV |
+| `STATS_ROUTES.CASH_REGISTER` | GET `/api/admin/cash-register?date=` | admin | S33 — the Caisse: one Africa/Algiers day (today when omitted), five sections |
+| `STATS_ROUTES.CASH_REGISTER_DOCUMENTS` | GET `/api/admin/cash-register/documents?date=&drill=&page=&limit=` | admin | S33 — the documents behind one Caisse figure (paginated, max 100) |
 
 ```
 OverviewDto { totalRevenue; totalProfit; stockValue; totalClientCredit; totalSupplierCredit }
@@ -42,6 +44,7 @@ StaffDashboardDto { mySalesToday; myRevenueToday; myDrafts[]; myPendingOrdersCou
 3. `stock-movements` totals per type; large ADJUSTMENT_OUT flagged (shrinkage signal). `ageing` buckets client + supplier credit by document age. `client-browsing` joins observability: top searches; most-viewed products with zero purchases.
 4. stockValue = Σ quantityOnHand × avgStockPrice. Every report row carries a drill id to its documents. `format=csv` streams the rows.
 5. Staff dashboard strictly `staffId = me`; nothing global except low stock (read-only alert).
+6. **Caisse (S33):** one Africa/Algiers day via `storeDayRangeUtc(date, date)`, computed once. Sales by `soldAt` (count, Σ total, Σ paid, new credit = total − paid); returns (sale + order) by `returnedAt` (count, Σ refundAmount); repairs picked up (`pickedUpAt`, PICKED_UP|RETURNED: count, gross paid = paid + refunded, unpaid) plus refunds dated on `cancelledAt`/`returnedAt` from `Repair.refundedAmount`; orders: confirmed (`confirmedAt`), sent out (`inDeliveryAt`), completed (`deliveredAt`, Σ paidAmount); suppliers: invoices confirmed (`confirmedAt`, Σ total), payments made (`SupplierPayment.paidAt`, Σ amount), new credit = invoiced − paid. All SQL aggregates over stored values; each drill list reuses its figure's own where-builder.
 
 ## Test Scenarios [BACKEND]
 Profit = Σ stored line profits (no drift vs FIFO). Period-comparison math incl. empty previous period. Repair sale counted once. Discount column matches overrides. Staff dashboard leak test. CSV shape = rows.

@@ -26,6 +26,7 @@ const LANES = [
   RepairStatus.COMPLETED,
   RepairStatus.PICKED_UP,
   RepairStatus.CANCELLED,
+  RepairStatus.RETURNED, // S30 — PICKED_UP → RETURNED; dropping a card here always bounces (P4)
 ] as const;
 
 interface RepairBoardProps {
@@ -39,8 +40,9 @@ interface RepairBoardProps {
   from?: string;
   to?: string;
   onDateRangeChange: (from?: string, to?: string) => void;
-  /** S13/R2 — the board is now one paginated page (≤10 tickets) spread across its five lanes; a
-   * lane can legitimately be empty on a page whose tickets all share one status. */
+  /** S13/R2 — the board is now one paginated page (≤10 tickets) spread across its lanes; a
+   * lane can legitimately be empty on a page whose tickets all share one status. S30 — six lanes
+   * now (Returned added), so the grid wraps to three columns below xl. */
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -87,7 +89,7 @@ export function RepairBoard({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {LANES.map((lane) => (
           <div key={lane} className="space-y-3">
             <Skeleton className="h-6 w-24" />
@@ -164,7 +166,7 @@ export function RepairBoard({
           body=""
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {LANES.map((lane) => {
             const laneRepairs = repairsByLane.get(lane) ?? [];
             return (

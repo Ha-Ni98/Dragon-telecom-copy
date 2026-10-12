@@ -16,6 +16,7 @@ const STATUS_ORDER = [
   RepairStatus.COMPLETED,
   RepairStatus.PICKED_UP,
   RepairStatus.CANCELLED,
+  RepairStatus.RETURNED, // S30
 ];
 
 const STATUS_LABEL_KEY: Record<RepairStatus, string> = {
@@ -24,6 +25,7 @@ const STATUS_LABEL_KEY: Record<RepairStatus, string> = {
   [RepairStatus.COMPLETED]: "repairs.status.completed",
   [RepairStatus.PICKED_UP]: "repairs.status.pickedUp",
   [RepairStatus.CANCELLED]: "repairs.status.cancelled",
+  [RepairStatus.RETURNED]: "repairs.status.returned",
 };
 
 interface RepairsByStatusWidgetProps {

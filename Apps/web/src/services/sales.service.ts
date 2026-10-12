@@ -16,6 +16,7 @@ import {
   type CreateReturnCommand,
   type ReturnDto,
   type ReturnListQuery,
+  type ReturnWholeSaleCommand,
 } from "@dragon-telecom/contract";
 
 // CREATE_DRAFT/UPDATE_DRAFT/CONFIRM/RETURN are single (non-dual-mounted) routes — only
@@ -82,6 +83,18 @@ export async function createReturn(
   command: CreateReturnCommand,
 ): Promise<SaleDto> {
   const route = scope === "admin" ? SALE_ROUTES.ADMIN_RETURN : SALE_ROUTES.STAFF_RETURN;
+  const res = await api.post<ApiResponse<SaleDto>>(apiPath(route), command);
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// S32 (P2) — return every remaining line with one refund figure; the server splits it.
+export async function returnWholeSale(
+  scope: SalesScope,
+  command: ReturnWholeSaleCommand,
+): Promise<SaleDto> {
+  const route =
+    scope === "admin" ? SALE_ROUTES.ADMIN_RETURN_WHOLE_SALE : SALE_ROUTES.STAFF_RETURN_WHOLE_SALE;
   const res = await api.post<ApiResponse<SaleDto>>(apiPath(route), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;

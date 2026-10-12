@@ -15,12 +15,14 @@ export const SaleResponseSchema = z.object({
   discountAmount: z.number(),
   totalAmount: z.number(),
   paidAmount: z.number(),
-  // S12 — cash actually refunded against this sale so far (Σ of the negative ClientPayment rows on
-  // its invoice), so the return dialog can show what is still refundable before the backend
-  // silently caps it (sales.service.ts's cashRefundable). Present on the **detail** read only:
-  // populating it on the list would cost a per-row ledger aggregate for a figure no list column
-  // shows.
+  // S12 — cash refunded against this sale so far (Σ of the negative ClientPayment rows on its
+  // invoice). Informational since S32: returns are no longer capped by it. Present on the
+  // **detail** read only: populating it on the list would cost a per-row ledger aggregate for a
+  // figure no list column shows.
   refundedAmount: z.number().optional(),
+  // S32 (P6) — the attached POS client's CURRENT credit (not the sale's snapshot), so the return
+  // dialogs can preview previous → new credit. Detail read only; absent for a walk-in sale.
+  posClientCredit: z.number().optional(),
   previousCredit: z.number().optional(),
   newCredit: z.number().optional(),
   totalCost: z.number().optional(),

@@ -51,6 +51,7 @@ const AdminSupplierInformation = lazy(
   () => import("@/pages/admin/suppliers/AdminSupplierInformation"),
 );
 const AdminStatistics = lazy(() => import("@/pages/admin/statistics/AdminStatistics"));
+const AdminCashRegister = lazy(() => import("@/pages/admin/cash-register/AdminCashRegister"));
 const AdminLogs = lazy(() => import("@/pages/admin/logs/AdminLogs"));
 const AdminSettings = lazy(() => import("@/pages/admin/settings/AdminSettings"));
 const AdminPos = lazy(() => import("@/pages/admin/pos/AdminPos"));
@@ -291,6 +292,17 @@ const router = createBrowserRouter([
             path: "/admin/sales",
             element: withSuspense(AdminSales),
             errorElement: <RouteErrorBoundary />,
+          },
+          {
+            // S33 (P9) — the Caisse is admin-only; the surrounding /admin group also admits STAFF.
+            element: <RoleGuard allow={[UserType.ADMIN]} fallbackPath="/admin" />,
+            children: [
+              {
+                path: "/admin/cash-register",
+                element: withSuspense(AdminCashRegister),
+                errorElement: <RouteErrorBoundary />,
+              },
+            ],
           },
           {
             path: "/admin/invoices",

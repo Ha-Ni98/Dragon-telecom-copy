@@ -13,7 +13,9 @@ import {
   type CreateRepairCommand,
   type UpdateRepairCommand,
   type AddRepairPartCommand,
+  type AddRepairPartsCommand,
   type RepairStatusCommand,
+  type ReturnRepairCommand,
   type TechnicianRepairStatsDto,
 } from "@dragon-telecom/contract";
 
@@ -78,6 +80,20 @@ export async function addRepairPart(
   return res.data.data;
 }
 
+// S31 — every staged part reserved in one backend transaction (all or nothing). The ticket
+// drawer uses this since S31; addRepairPart above is kept for API compatibility.
+export async function addRepairParts(
+  scope: RepairsScope,
+  id: string,
+  command: AddRepairPartsCommand,
+): Promise<RepairDto> {
+  const route =
+    scope === "admin" ? REPAIR_ROUTES.ADMIN_PARTS_BATCH : REPAIR_ROUTES.STAFF_PARTS_BATCH;
+  const res = await api.post<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }), command);
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
 // "release" per the backend interface comment — returns the updated RepairDto (200), not void
 // (confirmed against repairs.controller.ts's removePart), and like addPart cross-invalidates
 // inventory.
@@ -100,6 +116,18 @@ export async function updateRepairStatus(
   command: RepairStatusCommand,
 ): Promise<RepairDto> {
   const route = scope === "admin" ? REPAIR_ROUTES.ADMIN_STATUS : REPAIR_ROUTES.STAFF_STATUS;
+  const res = await api.post<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }), command);
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// S30 — PICKED_UP → RETURNED (per-part restock, every payment reversed, invoice cancelled).
+export async function returnRepair(
+  scope: RepairsScope,
+  id: string,
+  command: ReturnRepairCommand,
+): Promise<RepairDto> {
+  const route = scope === "admin" ? REPAIR_ROUTES.ADMIN_RETURN : REPAIR_ROUTES.STAFF_RETURN;
   const res = await api.post<ApiResponse<RepairDto>>(withParams(apiPath(route), { id }), command);
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;

@@ -17,6 +17,7 @@ import {
   Contact,
   ShieldCheck,
   Search,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { PageKey } from "@dragon-telecom/contract";
@@ -54,6 +55,8 @@ export const ADMIN_NAV_LINKS: AdminNavItem[] = [
   { to: "/admin/supplier-invoices", labelKey: "admin.nav.supplierInvoices", icon: FileStack },
   { to: "/admin/orders", labelKey: "admin.nav.orders", icon: ShoppingCart },
   { to: "/admin/sales", labelKey: "admin.nav.sales", icon: Receipt },
+  // S33 — the Caisse (admin only; this sidebar is the admin one).
+  { to: "/admin/cash-register", labelKey: "admin.nav.cashRegister", icon: Wallet },
   { to: "/admin/invoices", labelKey: "admin.nav.invoices", icon: FileSpreadsheet },
   { to: "/admin/repairs", labelKey: "admin.nav.repairs", icon: Wrench },
   { to: "/admin/statistics", labelKey: "admin.nav.statistics", icon: BarChart3 },

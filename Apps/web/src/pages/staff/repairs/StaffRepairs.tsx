@@ -14,19 +14,22 @@ import {
   useRepair,
   useCreateRepair,
   useUpdateRepair,
-  useAddRepairPart,
+  useAddRepairParts,
   useRemoveRepairPart,
   useUpdateRepairStatus,
   useRecordRepairPayment,
+  useReturnRepair,
 } from "@/hooks/useRepairs";
 import { useTechnicians } from "@/hooks/useIdentity";
-import { useStaffProducts } from "@/hooks/useCatalogProducts";
 import { usePublicSettings } from "@/hooks/usePlatform";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
-import { RepairStatus, type RepairDto } from "@dragon-telecom/contract";
+import {
+  RepairStatus,
+  type AddRepairPartsCommand,
+  type RepairDto,
+  type ReturnRepairCommand,
+} from "@dragon-telecom/contract";
 import type { IntakeRepairFormValues } from "@/pages/staff/repairs/intake-repair.schema";
-import type { AddRepairPartFormValues } from "@/pages/staff/repairs/add-repair-part.schema";
 import type { RepairStatusFormValues } from "@/pages/staff/repairs/repair-status.schema";
 import type { RecordRepairPaymentFormValues } from "@/pages/staff/repairs/record-repair-payment.schema";
 
@@ -44,7 +47,8 @@ interface Props {
 // RepairStatusDialog) succeed normally. This is a real, intentional UX gap: dragging onto
 // Processing/Picked-up/Cancelled(with money collected) always bounces; only the click flow
 // works for those three. Documented in report-S13.md rather than built around with speculative
-// dialog-routing logic.
+// dialog-routing logic. S30 — dropping a card on Returned always bounces too: a return needs
+// per-part restock choices, so it goes through the ticket's own Return action (RepairReturnDialog).
 export default function StaffRepairs({ scope = "staff" }: Props) {
   const { t } = useTranslation();
 
@@ -86,19 +90,13 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
-  const [partSearchQuery, setPartSearchQuery] = useState("");
-  const debouncedPartSearch = useDebouncedValue(partSearchQuery, 300);
-  const { data: partSearchResult } = useStaffProducts(
-    { search: debouncedPartSearch || undefined, page: 1, limit: 10 },
-    { enabled: !!debouncedPartSearch.trim() },
-  );
-
   const createRepair = useCreateRepair();
   const updateRepair = useUpdateRepair();
-  const addPart = useAddRepairPart();
+  const addParts = useAddRepairParts();
   const removePart = useRemoveRepairPart();
   const updateStatus = useUpdateRepairStatus();
   const recordPayment = useRecordRepairPayment();
+  const returnRepair = useReturnRepair();
 
   const handleIntakeSubmit = (values: IntakeRepairFormValues) => {
     createRepair.mutate(
@@ -130,9 +128,11 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
     updateRepair.mutate({ scope, id: selectedRepairId, command: { labourPrice } });
   };
 
-  const handleAddPart = (values: AddRepairPartFormValues) => {
+  // S31 — the drawer's staged parts, reserved together (all or nothing). The staged list is
+  // cleared only on success; on failure it stays for correction.
+  const handleAddParts = (command: AddRepairPartsCommand, onSuccess: () => void) => {
     if (!selectedRepairId) return;
-    addPart.mutate({ scope, id: selectedRepairId, command: values });
+    addParts.mutate({ scope, id: selectedRepairId, command }, { onSuccess });
   };
 
   const handleRemovePart = (partId: string) => {
@@ -165,6 +165,15 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
     recordPayment.mutate(
       { scope, id: selectedRepairId, command: values },
       { onSuccess: () => toast.success(t("staff.repairs.payments.success")) },
+    );
+  };
+
+  // S30 — PICKED_UP → RETURNED from the ticket's Return action.
+  const handleReturn = (command: ReturnRepairCommand) => {
+    if (!selectedRepairId) return;
+    returnRepair.mutate(
+      { scope, id: selectedRepairId, command },
+      { onSuccess: () => toast.success(t("staff.repairs.return.success")) },
     );
   };
 
@@ -204,6 +213,11 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
         scope={scope}
       />
 
+      {/* NOT keyed. S31 keyed this drawer with the same expression as RepairStatusDialog below,
+          so the two siblings always shared a key ("none", or the same repair id) — React then
+          cannot tell them apart and kept a stale drawer mounted and open ("can't close the
+          repair"). The per-ticket reset S31 wanted lives on RepairPartsStaging inside the drawer
+          instead (key={repair.id}), which is the only state that must not carry over. */}
       <RepairTicketDetail
         open={!!selectedRepairId}
         onOpenChange={(open) => !open && setSelectedRepairId(null)}
@@ -211,13 +225,14 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
         isDiagnosisEditable={selectedRepair?.status === RepairStatus.PROCESSING}
         onDiagnosisChange={handleDiagnosisChange}
         onLabourPriceChange={handleLabourPriceChange}
-        productSearchResults={partSearchResult?.items}
-        onProductSearch={setPartSearchQuery}
-        onAddPart={handleAddPart}
+        onAddParts={handleAddParts}
+        isAddingParts={addParts.isPending}
         onRemovePart={handleRemovePart}
         onOpenStatusDialog={() => setStatusDialogOpen(true)}
         onRecordPayment={handleRecordPayment}
         isRecordingPayment={recordPayment.isPending}
+        onReturn={handleReturn}
+        isReturning={returnRepair.isPending}
         scope={scope}
         store={publicSettings.data?.store}
       />
@@ -225,7 +240,8 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
       <RepairStatusDialog
         // Forces a fresh mount per ticket — same defaultValues-frozen-at-first-render bug as
         // OrderConfirmDialog (StaffOrders.tsx), found while writing set-03 Sprint 9's tests.
-        key={selectedRepair?.id ?? "none"}
+        // Prefixed so it can never collide with another keyed sibling of this parent.
+        key={`status-dialog-${selectedRepair?.id ?? "none"}`}
         open={statusDialogOpen}
         onOpenChange={setStatusDialogOpen}
         repair={selectedRepair ?? null}

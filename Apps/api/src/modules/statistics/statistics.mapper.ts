@@ -2,11 +2,13 @@ import type { Prisma, Product } from '@prisma/client';
 import { z } from 'zod';
 import {
   AdminDashboardResponseSchema,
+  CashRegisterResponseSchema,
   FilteredResponseSchema,
   OverviewResponseSchema,
   ReportResponseSchema,
   StaffDashboardResponseSchema,
   type AdminDashboardDto,
+  type CashRegisterDto,
   type FilteredDto,
   type OverviewDto,
   type ReportDto,
@@ -111,6 +113,11 @@ export class StatisticsMapper {
     totalSupplierCredit: number;
   }): OverviewDto {
     return OverviewResponseSchema.parse(input);
+  }
+
+  // S33 — the Caisse summary; every figure arrives pre-summed from SQL aggregates.
+  static toCashRegisterDto(input: CashRegisterDto): CashRegisterDto {
+    return CashRegisterResponseSchema.parse(input);
   }
 
   static toFilteredDto(input: {

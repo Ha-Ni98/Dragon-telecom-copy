@@ -46,7 +46,7 @@ Stop and ask when something would change the meaning of an existing money or sto
 One file per set: `Docs/Stage-04-Fixes/plans/plan-S<NN>-<slug>.md`.
 
 ## Execution protocol (state at the end of every plan)
-Sets execute **one at a time**. After finishing a set the executing agent writes `Docs/Stage-04-Fixes/results/report-S<NN>.md` describing what changed, ending with the **verification checklist**. The owner reviews and approves before the next set begins.
+Start Sets execution. After finishing a set the executing writes `Docs/Stage-04-Fixes/results/report-S<NN>.md` describing what changed, ending with the **verification checklist**. I will reviews and approves before the next set begins.
 
 ---
 

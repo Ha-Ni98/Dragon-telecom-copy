@@ -10,9 +10,11 @@ import {
   InvoiceSource,
   MovementType,
   ReturnResponseSchema,
+  SALE_ERROR,
   SaleResponseSchema,
   UserType,
   paginated,
+  storeDayRangeUtc,
   type ConfirmSaleCommand,
   type CreateReturnCommand,
   type JWTPayload,
@@ -20,6 +22,7 @@ import {
   type ReceiptDto,
   type ReturnDto,
   type ReturnListQuery,
+  type ReturnWholeSaleCommand,
   type SaleDraftCommand,
   type SaleDto,
   type SaleListQuery,
@@ -33,7 +36,7 @@ import type { IBillingIssuePort, ICatalogPosPricingPort, IClientCreditPort, ISal
 import { SalesMapper, type ReturnRow, type SaleRow } from './sales.mapper';
 
 const SALE_INCLUDE = {
-  posClient: { select: { name: true, categoryId: true } },
+  posClient: { select: { name: true, categoryId: true, credit: true } },
   staff: { select: { firstName: true, lastName: true } },
   lines: true,
 } satisfies Prisma.SaleInclude;
@@ -128,13 +131,18 @@ export class SalesService implements ISalesService {
     }
 
     // subtotal/totalAmount only depend on the already-stored lines (unitPrice/quantity never
-    // change between draft and confirm) — computable, and the CREDIT_REQUIRES_CLIENT gate
-    // checkable, before touching the catalog or inventory at all (fail fast, no wasted FIFO work).
+    // change between draft and confirm) — computable, and the walk-in exactness gate checkable,
+    // before touching the catalog or inventory at all (fail fast, no wasted FIFO work).
     const subtotal = existing.lines.reduce((sum, line) => sum + line.lineTotal.toNumber(), 0);
     const totalAmount = subtotal - existing.discountAmount.toNumber();
 
-    if (totalAmount > cmd.paidAmount && existing.posClientId == null) {
-      throw new BadRequestError('CREDIT_REQUIRES_CLIENT');
+    // S32 — a walk-in sale has nowhere to post a credit or an overpayment, so the till must
+    // balance exactly: under-payment keeps its historic sentinel, over-payment gets its own.
+    if (existing.posClientId == null) {
+      const paidCents = SalesService.cents(cmd.paidAmount);
+      const totalCents = SalesService.cents(totalAmount);
+      if (paidCents < totalCents) throw new BadRequestError(SALE_ERROR.CREDIT_REQUIRES_CLIENT);
+      if (paidCents > totalCents) throw new BadRequestError(SALE_ERROR.WALK_IN_OVERPAYMENT);
     }
 
     const categoryId = existing.posClient?.categoryId ?? null;
@@ -171,7 +179,7 @@ export class SalesService implements ISalesService {
         }));
       } else {
         // Walk-in: no PosClient row exists, so no credit and no ledger row are possible (D5). The
-        // CREDIT_REQUIRES_CLIENT guard above already forces paidAmount >= totalAmount here, so the
+        // walk-in exactness guard above (S32) forces paidAmount == totalAmount here, so the
         // receipt's own previousCredit/newCredit stay 0 → 0; the Sale row's paidAmount is the only
         // record that money changed hands.
         newCredit = previousCredit + (totalAmount - cmd.paidAmount);
@@ -311,16 +319,19 @@ export class SalesService implements ISalesService {
     if (!sale) throw new NotFoundError('Sale');
     const isAdmin = actor.type === UserType.ADMIN;
     if (!isAdmin && sale.staffId !== actor.staffId) throw new ForbiddenError();
-    // S12/F2 — cash actually refunded so far, so the return dialog can show what is still
-    // refundable. Same source of truth createReturn's own cap reads (the negative-amount ledger
-    // rows on this sale's invoice) — kept as a separate helper rather than extracted out of
-    // createReturn, to avoid touching S5's money-path transaction while adding a read-only field.
+    // S12/F2 — cash refunded so far (the negative-amount ledger rows on this sale's invoice).
+    // Informational only since S32 (P8): returns are no longer capped by it.
     const refundedAmount = await this.cashRefundedSoFar(sale.id);
-    return SalesMapper.toSaleDto(sale as SaleRow, { includeMargins: isAdmin, refundedAmount });
+    return SalesMapper.toSaleDto(sale as SaleRow, {
+      includeMargins: isAdmin,
+      refundedAmount,
+      // S32 (P6) — the client's CURRENT credit, for the return dialogs' previous → new preview.
+      ...(sale.posClient != null ? { posClientCredit: sale.posClient.credit.toNumber() } : {}),
+    });
   }
 
-  // Admin-only route (contract). Read-only: no transaction, no stock, no money — the return
-  // document was fully applied by createReturn (S5's D6/D7 arithmetic).
+  // Admin route, opened to staff holding the sales page by S18. Read-only: no transaction, no
+  // stock, no money — the return document was fully applied by createReturn (S32 arithmetic).
   async listReturns(query: ReturnListQuery): Promise<PaginatedResult<ReturnDto>> {
     // S24 — Return is now polymorphic over Sale and Order (orders.service.ts returnOrder also
     // writes rows here). This route is sales' own returns tab, so it stays scoped to
@@ -355,10 +366,13 @@ export class SalesService implements ISalesService {
     });
   }
 
-  // Admin-only route (contract) — quantity ≤ sold − already-returned is checked before opening
-  // the transaction; restock lines reconstruct the original FIFO consumption from the stored
-  // StockMovement/StockMovementConsumption rows (see buildOriginalConsumptions) and hand it to
-  // the injected engine's returnIn, at the line's consumed cost (spec BL#3).
+  // Admin route, opened to staff holding the sales page by S18 — quantity ≤ sold − already-returned
+  // is checked before opening the transaction; restock lines reconstruct the original FIFO
+  // consumption from the stored StockMovement/StockMovementConsumption rows (see
+  // buildOriginalConsumptions) and hand it to the injected engine's returnIn, at the line's
+  // consumed cost (spec BL#3). S32 — money: per returned line, totalSold −= linePrice,
+  // credit += (refund − linePrice), totalPaid −= refund (one negative ledger row); a walk-in must
+  // refund exactly the line price. No cap on the refund any more (S5's D7/R3 rule is superseded).
   async createReturn(cmd: CreateReturnCommand, staffId: string): Promise<SaleDto> {
     const sale = await this.prisma.sale.findUnique({ where: { id: cmd.saleId }, include: SALE_INCLUDE });
     if (!sale) throw new NotFoundError('Sale');
@@ -367,20 +381,11 @@ export class SalesService implements ISalesService {
     }
 
     const saleLineById = new Map(sale.lines.map((line) => [line.id, line]));
-    const existingReturnLines = await this.prisma.returnLine.findMany({
-      where: { saleLine: { saleId: sale.id } },
-      select: { saleLineId: true, quantity: true },
-    });
-    const returnedSoFar = new Map<string, number>();
-    for (const returnLine of existingReturnLines) {
-      // S24 — saleLineId is nullable at the schema level (Return/ReturnLine are now polymorphic
-      // over Sale and Order), but the query above filters on the `saleLine` relation existing, so
-      // every row reaching this loop is guaranteed to have one.
-      const saleLineId = returnLine.saleLineId!;
-      returnedSoFar.set(saleLineId, (returnedSoFar.get(saleLineId) ?? 0) + returnLine.quantity);
-    }
+    const returnedSoFar = await this.returnedQuantities(sale.id);
 
     let refundAmount = 0;
+    // S32 — Σ unitPrice × returned quantity: the sold value of the goods coming back.
+    let goodsValue = 0;
     for (const line of cmd.lines) {
       const saleLine = saleLineById.get(line.saleLineId);
       if (!saleLine) throw new BadRequestError(`Unknown saleLineId: ${line.saleLineId}`);
@@ -388,36 +393,27 @@ export class SalesService implements ISalesService {
       if (line.quantity > saleLine.quantity - alreadyReturned) {
         throw new BadRequestError(`Return quantity exceeds sold minus already-returned for saleLine ${line.saleLineId}`);
       }
+      const lineValue = saleLine.unitPrice.toNumber() * line.quantity;
+      // S32 — a walk-in has no account to absorb a difference, so the refund must be the line price.
+      if (sale.posClientId == null && SalesService.cents(line.refundAmount) !== SalesService.cents(lineValue)) {
+        throw new BadRequestError(SALE_ERROR.WALK_IN_REFUND_MISMATCH);
+      }
       refundAmount += line.refundAmount;
+      goodsValue += lineValue;
     }
+    refundAmount = SalesService.cents(refundAmount) / 100;
+    goodsValue = SalesService.cents(goodsValue) / 100;
 
-    // R3/8a — the cash a return can give back is capped by what was actually collected on this
-    // sale, minus cash already refunded for it. The ledger is the source of truth for both: the
-    // sale's own payment row(s) and any earlier refund rows all hang off this sale's invoice.
-    // Without the cap, refunding a sale taken on credit would invent cash that never moved and
-    // drive PosClient.totalPaid negative.
+    // The refund row hangs off the sale's invoice (issued in the confirm transaction since S5).
     const invoice = await this.prisma.invoice.findUnique({
       where: { sourceType_sourceId: { sourceType: PrismaInvoiceSource.SALE, sourceId: sale.id } },
       select: { id: true, number: true },
     });
-    const refundedSoFar = invoice
-      ? Math.abs(
-          (
-            await this.prisma.clientPayment.aggregate({
-              where: { invoiceId: invoice.id, amount: { lt: 0 } },
-              _sum: { amount: true },
-            })
-          )._sum.amount?.toNumber() ?? 0,
-        )
-      : 0;
-    const cashRefundable = Math.max(0, sale.paidAmount.toNumber() - refundedSoFar);
-    const cashRefunded = Math.min(refundAmount, cashRefundable);
 
     let capturedTx: Prisma.TransactionClient | undefined;
     let returnId = '';
-    // D7 — net credit delta applied to the client's account by this return (0 on a partial
-    // return, the sale's own credit delta reversed on a full one). Not the raw refund amount any
-    // more (that was the pre-S5 semantics) — see the composed form below.
+    // S32 — net credit delta applied to the client's account by this return:
+    // Σ(refund − linePrice) over the returned lines.
     let creditEffect = 0;
     let refundPayment: { paymentId: string; previousCredit: number; newCredit: number } | undefined;
 
@@ -468,30 +464,26 @@ export class SalesService implements ISalesService {
       });
 
       if (sale.posClientId != null) {
-        // D6 — the refund is a NEGATIVE-amount ClientPayment row, so totalPaid stays Σ ledger by
-        // construction. It also recomputes the invoice's paidAmount/status downward.
-        // Skipped entirely when no cash is refundable (a sale taken wholly on credit): there is no
-        // payment to reverse, and a zero-amount ledger row would be noise.
-        if (cashRefunded > 0 && invoice != null) {
-          const captured = await this.billing.captureClientPaymentInTx(tx, {
+        // S32 — per returned line: totalSold −= linePrice; credit += (refund − linePrice);
+        // totalPaid −= refund. Applied here as the aggregate over the returned lines (the formula
+        // is linear). Document charge first (P4), mirroring confirm: it reverses the goods' value
+        // on credit and totalSold (never totalPaid). Then the cash handed back is a NEGATIVE
+        // ledger row (D6), which raises credit by the refund and lowers totalPaid by it, and
+        // recomputes the invoice's paidAmount/status. totalSold is computed directly — never
+        // derived from credit + totalPaid (that identity breaks with an opening initialCredit).
+        await this.clientCredit.applyDocumentCharge(tx, sale.posClientId, {
+          totalSoldDelta: -goodsValue,
+          creditDelta: -goodsValue,
+        });
+        if (refundAmount > 0) {
+          refundPayment = await this.billing.captureClientPaymentInTx(tx, {
             posClientId: sale.posClientId,
-            invoiceId: invoice.id,
-            amount: -cashRefunded,
+            ...(invoice != null ? { invoiceId: invoice.id } : {}),
+            amount: -refundAmount,
             staffId,
           });
-          refundPayment = captured;
         }
-
-        // D7 — totalSold always falls by the refunded goods. Credit is deliberately left where it
-        // was on a PARTIAL return, so the -cashRefunded term below exactly cancels the credit rise
-        // the negative ledger row above just applied. A FULL return additionally reverses this
-        // sale's own credit delta (newCredit - previousCredit == totalAmount - paidAmount).
-        const saleCreditDelta = (sale.newCredit?.toNumber() ?? 0) - (sale.previousCredit?.toNumber() ?? 0);
-        creditEffect = -cashRefunded + (allFullyReturned ? -saleCreditDelta : 0);
-        await this.clientCredit.applyDocumentCharge(tx, sale.posClientId, {
-          totalSoldDelta: -refundAmount,
-          creditDelta: creditEffect,
-        });
+        creditEffect = refundAmount - goodsValue;
       }
     });
 
@@ -502,7 +494,7 @@ export class SalesService implements ISalesService {
         paymentId: refundPayment.paymentId,
         posClientId: sale.posClientId,
         ...(invoice != null ? { invoiceNumber: invoice.number } : {}),
-        amount: -cashRefunded,
+        amount: -refundAmount,
         previousCredit: refundPayment.previousCredit,
         newCredit: refundPayment.newCredit,
       });
@@ -520,25 +512,77 @@ export class SalesService implements ISalesService {
     return SalesMapper.toSaleDto(updated as SaleRow, { includeMargins: true });
   }
 
+  // S32 (P2/P3) — every line with a remaining returnable quantity, at that full quantity, with one
+  // refund figure split by line value (floor for all but the last, remainder on the last — shares
+  // always sum exactly and never go negative). All money/stock work is createReturn's; its
+  // per-line walk-in exactness check still passes for an exact total, since each share then equals
+  // its own line value.
+  async returnWholeSale(cmd: ReturnWholeSaleCommand, staffId: string): Promise<SaleDto> {
+    const sale = await this.prisma.sale.findUnique({ where: { id: cmd.saleId }, include: SALE_INCLUDE });
+    if (!sale) throw new NotFoundError('Sale');
+    if (sale.status !== PrismaSaleStatus.COMPLETED && sale.status !== PrismaSaleStatus.PARTIALLY_RETURNED) {
+      throw new ConflictError('Sale is not eligible for a return');
+    }
+    const returned = await this.returnedQuantities(sale.id);
+    const open = sale.lines
+      .map((line) => ({ line, remaining: line.quantity - (returned.get(line.id) ?? 0) }))
+      .filter((entry) => entry.remaining > 0);
+    if (open.length === 0) throw new ConflictError(SALE_ERROR.NOTHING_TO_RETURN);
+
+    // The client must name every open line exactly once (its restock choice) — a mismatch means the
+    // sale changed since the dialog opened.
+    const restockById = new Map(cmd.lines.map((line) => [line.saleLineId, line.restock]));
+    if (
+      restockById.size !== cmd.lines.length ||
+      restockById.size !== open.length ||
+      open.some((entry) => !restockById.has(entry.line.id))
+    ) {
+      throw new BadRequestError(SALE_ERROR.WHOLE_RETURN_LINES_MISMATCH);
+    }
+
+    const refundCents = SalesService.cents(cmd.refundAmount);
+    const valueCents = open.map((entry) => SalesService.cents(entry.line.unitPrice.toNumber() * entry.remaining));
+    const totalValueCents = valueCents.reduce((sum, value) => sum + value, 0);
+    let allocated = 0;
+    const lines = open.map((entry, index) => {
+      const isLast = index === open.length - 1;
+      const share = isLast
+        ? refundCents - allocated
+        : totalValueCents === 0
+          ? 0
+          : Math.floor((refundCents * valueCents[index]!) / totalValueCents);
+      allocated += share;
+      return {
+        saleLineId: entry.line.id,
+        quantity: entry.remaining,
+        restock: restockById.get(entry.line.id)!,
+        refundAmount: share / 100,
+      };
+    });
+
+    return this.createReturn(
+      { saleId: sale.id, type: cmd.type, ...(cmd.reason != null ? { reason: cmd.reason } : {}), lines },
+      staffId,
+    );
+  }
+
   private async listSales(
     query: SaleListQuery,
     opts: { includeMargins: boolean; extraWhere?: Prisma.SaleWhereInput },
   ): Promise<PaginatedResult<SaleDto>> {
     const where: Prisma.SaleWhereInput = {
-      ...opts.extraWhere,
       ...(query.status != null ? { status: query.status } : {}),
-      ...(query.from != null || query.to != null
-        ? {
-            createdAt: {
-              ...(query.from != null ? { gte: new Date(query.from) } : {}),
-              ...(query.to != null ? { lte: new Date(query.to) } : {}),
-            },
-          }
-        : {}),
-      // set-03 A3 — admin-only filters (ADM-10's seller/POS-client dropdowns); listMySales
-      // never forwards these, so they can't clash with its own extraWhere.staffId scoping.
+      // S32/Q2 — store-local (Africa/Algiers) days on soldAt, `to` inclusive. Drafts carry no
+      // soldAt and therefore drop out of any date-filtered list.
+      ...(query.from != null || query.to != null ? { soldAt: storeDayRangeUtc(query.from, query.to) } : {}),
+      // set-03 A3 — admin filters (ADM-10's seller/POS-client dropdowns).
       ...(query.sellerId != null ? { staffId: query.sellerId } : {}),
       ...(query.posClientId != null ? { posClientId: query.posClientId } : {}),
+      // S32 — search by sold product; `some` returns each sale once however many lines match.
+      ...(query.product != null ? { lines: { some: SalesService.productLineWhere(query.product) } } : {}),
+      // S32/F3 — spread LAST so a staff caller's own-sales scoping can never be overridden by a
+      // sellerId in the query string (it used to be spread first, and sellerId replaced it).
+      ...opts.extraWhere,
     };
 
     const [total, sales] = await this.prisma.$transaction([
@@ -570,9 +614,8 @@ export class SalesService implements ISalesService {
   }
 
   // S12 — cash actually refunded so far against a sale (Σ of the negative-amount ClientPayment
-  // rows on its invoice), read-only. Mirrors createReturn's own inline cap computation (R3/8a)
-  // rather than replacing it — the two must never drift, but this getter serves getSale alone and
-  // does not touch createReturn's transaction.
+  // rows on its invoice), read-only. Since S32 it only feeds the informational
+  // SaleDto.refundedAmount (P8) — createReturn no longer caps refunds by it.
   private async cashRefundedSoFar(saleId: string): Promise<number> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { sourceType_sourceId: { sourceType: PrismaInvoiceSource.SALE, sourceId: saleId } },
@@ -620,6 +663,43 @@ export class SalesService implements ISalesService {
       throw new Error(`Could not reconstruct ${qty} units of consumption history for product ${productId} on sale ${saleId}`);
     }
     return result;
+  }
+
+  // Σ returned quantity per saleLineId across every earlier return of this sale (shared by
+  // createReturn's bounds check and returnWholeSale's remaining-quantity computation, S32).
+  private async returnedQuantities(saleId: string): Promise<Map<string, number>> {
+    const existingReturnLines = await this.prisma.returnLine.findMany({
+      where: { saleLine: { saleId } },
+      select: { saleLineId: true, quantity: true },
+    });
+    const returnedSoFar = new Map<string, number>();
+    for (const returnLine of existingReturnLines) {
+      // S24 — saleLineId is nullable at the schema level (Return/ReturnLine are now polymorphic
+      // over Sale and Order), but the query above filters on the `saleLine` relation existing, so
+      // every row reaching this loop is guaranteed to have one.
+      const saleLineId = returnLine.saleLineId!;
+      returnedSoFar.set(saleLineId, (returnedSoFar.get(saleLineId) ?? 0) + returnLine.quantity);
+    }
+    return returnedSoFar;
+  }
+
+  // S32 — one sale line matches when its product's barcode starts with the text (btree-indexable,
+  // same choice as catalog's staff search) or its snapshot name — the name the sale was rung up
+  // under — contains every whitespace token.
+  private static productLineWhere(search: string): Prisma.SaleLineWhereInput {
+    const trimmed = search.trim();
+    const tokens = trimmed.split(/\s+/).filter(Boolean);
+    return {
+      OR: [
+        { product: { barcode: { startsWith: trimmed, mode: 'insensitive' } } },
+        { AND: tokens.map((token) => ({ productNameSnapshot: { contains: token, mode: 'insensitive' as const } })) },
+      ],
+    };
+  }
+
+  // S32 (P1) — money equality in cents, so a float total like 0.1 + 0.2 still matches exactly.
+  private static cents(amount: number): number {
+    return Math.round(amount * 100);
   }
 
   // DRAFT rows need *some* value for the NOT NULL/unique `reference` column before a real

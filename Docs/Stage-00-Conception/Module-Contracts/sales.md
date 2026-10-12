@@ -20,11 +20,15 @@ POS drafts + confirmation (FIFO, credit, invoice event), returns/exchanges, repa
 | `SALE_ROUTES.ADMIN_LIST` | GET `/api/admin/sales` | admin | all sellers, DRAFTs included |
 | `SALE_ROUTES.DETAIL` | GET `/api/(staff|admin)/sales/:reference` | owner staff\|admin | |
 | `SALE_ROUTES.RETURN` | POST `/api/admin/returns` | admin | returns are admin-only |
+| `SALE_ROUTES.*_RETURN_WHOLE_SALE` | POST `/api/(admin|staff)/returns/whole-sale` | admin\|staff(STAFF_SALES) | S32 — every remaining line with ONE refund figure, split by line value, then the ordinary return |
 
 ```
 SaleDraftCommand { posClientId?; discountAmount?; note?;
   lines: { productId; quantity; unitPrice; serialNumbers?: string[] }[].min(1) }
 ConfirmSaleCommand { paidAmount: number.min(0) }
+SaleListQuery { status?; from?; to?; sellerId?; posClientId?; product?; page; limit }
+  // S32 — from/to = Africa/Algiers calendar days on soldAt, `to` inclusive; product = line
+  // snapshot name (all tokens) or product barcode prefix
 SaleDto { id; reference; origin: 'POS'|'REPAIR'; status: 'DRAFT'|'COMPLETED'|'RETURNED'|'PARTIALLY_RETURNED'|'CANCELLED';
   posClientId?; posClientName?; subtotal; discountAmount; totalAmount; paidAmount;
   previousCredit?; newCredit?; totalCost?; totalProfit?;     // cost/profit stripped for staff mapping? NO — seller sees own profit? admin-only: see mapping
@@ -34,6 +38,8 @@ SaleDto { id; reference; origin: 'POS'|'REPAIR'; status: 'DRAFT'|'COMPLETED'|'RE
 ReceiptDto { reference; lines; total; previousCredit; grandTotal; totalPaid; newCredit }
 CreateReturnCommand { saleId; type: 'REFUND'|'EXCHANGE'; reason?;
   lines: { saleLineId; quantity; restock: boolean; refundAmount }[].min(1) }
+ReturnWholeSaleCommand { saleId; type; reason?; refundAmount;          // S32
+  lines: { saleLineId; restock: boolean }[].min(1) }                   // every remaining line, once
 ```
 
 ## Events [CONTRACT]
@@ -43,8 +49,8 @@ CreateReturnCommand { saleId; type: 'REFUND'|'EXCHANGE'; reason?;
 
 ## Business Logic [BACKEND]
 1. DRAFT holds no stock (a parallel sale can exhaust it — confirm then 409s) and is visible only to its creator + admin.
-2. **Confirm (one transaction, idempotent):** per line resolve price via catalog (attached POS client's category, else `defaultSalePrice`) keeping resolved **and** charged → **injected** `InventoryService.consumeFifo(SALE, revenue = unitPrice×qty)` → line costOfGoods/profit + document totals → credit: `newCredit = previousCredit + (totalAmount − paidAmount)`; underpayment without posClientId → 400 `CREDIT_REQUIRES_CLIENT` → `SequenceService('SALE')` → COMPLETED, soldAt → commit → emit. Receipt built from the stored snapshot (total · previous credit · grand total · paid · new credit).
-3. Returns: qty ≤ sold − already returned; `restock` ⇒ `InventoryService.returnIn` at the line's consumed cost; else no movement. Sale flips (PARTIALLY_)RETURNED. Refund defaults to charged price, reducible.
+2. **Confirm (one transaction, idempotent):** per line resolve price via catalog (attached POS client's category, else `defaultSalePrice`) keeping resolved **and** charged → **injected** `InventoryService.consumeFifo(SALE, revenue = unitPrice×qty)` → line costOfGoods/profit + document totals → credit: `newCredit = previousCredit + (totalAmount − paidAmount)`; a walk-in (no posClientId) must pay the total exactly — under → 400 `CREDIT_REQUIRES_CLIENT`, over → 400 `SALE_WALK_IN_OVERPAYMENT` (S32) → `SequenceService('SALE')` → COMPLETED, soldAt → commit → emit. Receipt built from the stored snapshot (total · previous credit · grand total · paid · new credit).
+3. Returns: qty ≤ sold − already returned; `restock` ⇒ `InventoryService.returnIn` at the line's consumed cost; else no movement. Sale flips (PARTIALLY_)RETURNED. **S32:** the refund (cash handed back) starts empty; a walk-in must refund exactly `unitPrice × qty` per line (400 `SALE_WALK_IN_REFUND_MISMATCH`). For a POS client, per returned line, in-transaction on the locked PosClient: `totalSold −= linePrice`, `credit += refund − linePrice`, `totalPaid −= refund` through one negative-amount `ClientPayment` row on the sale's invoice (none when the refund is 0). No refund cap.
 4. Per-line price override is just `unitPrice ≠ resolvedPrice` — measurable, never written back to the catalog.
 
 ## Data Mapping [BACKEND]

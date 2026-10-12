@@ -17,6 +17,9 @@ export const SALE_ROUTES = {
   // Same path as ADMIN_RETURN, distinguished only by HTTP verb (GET vs POST) — its own constant
   // so no call site hardcodes the string (same convention as UPDATE_DRAFT/DELETE_DRAFT above).
   ADMIN_RETURNS_LIST: '/admin/returns',
+  // S32 (P2) — return every remaining line of one sale with a single refund figure.
+  ADMIN_RETURN_WHOLE_SALE: '/admin/returns/whole-sale',
   STAFF_RETURN: '/staff/returns',
   STAFF_RETURNS_LIST: '/staff/returns',
+  STAFF_RETURN_WHOLE_SALE: '/staff/returns/whole-sale',
 } as const;

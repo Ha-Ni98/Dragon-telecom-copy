@@ -4,7 +4,8 @@ import type { RepairStatus } from './repairs.enums';
 // there, not at COMPLETED), so snapshotParts' costOfGoods/profit really are computed at emit
 // time, unlike RepairDto.parts' optional versions elsewhere in the ticket's lifecycle.
 // repair.statusChanged has no payload beyond the status pair; repair.cancelled carries an
-// optional refundAmount (D6) when money already collected was returned.
+// optional refundAmount (D6) when money already collected was returned. S30 adds
+// repair.returned (the return document: refund total, how many parts were restocked).
 export type RepairsEvents = {
   'repair.pickedUp': {
     repairId: string;
@@ -27,4 +28,6 @@ export type RepairsEvents = {
   };
   'repair.statusChanged': { repairId: string; fromStatus: RepairStatus; toStatus: RepairStatus };
   'repair.cancelled': { repairId: string; reason?: string; refundAmount?: number };
+  // S30 — PICKED_UP → RETURNED: the invoice was cancelled and every payment reversed.
+  'repair.returned': { repairId: string; invoiceNumber: string; refundAmount: number; restockedPartCount: number; reason?: string };
 };

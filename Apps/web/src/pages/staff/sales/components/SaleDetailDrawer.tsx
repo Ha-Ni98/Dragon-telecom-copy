@@ -16,6 +16,8 @@ interface SaleDetailDrawerProps {
   onReprint: () => void;
   onResumeDraft?: () => void;
   onIssueReturn?: () => void;
+  /** S32 — "Return whole sale": every remaining line with one refund figure. */
+  onReturnWholeSale?: () => void;
   /** ADM-10 §UI — cost/profit per line, credit snapshot, invoice link, Issue return — admin only. */
   scope?: "staff" | "admin";
   /** 403 view (STF-05 §Data dependencies: "defense in depth"). */
@@ -31,6 +33,7 @@ export function SaleDetailDrawer({
   onReprint,
   onResumeDraft,
   onIssueReturn,
+  onReturnWholeSale,
   scope = "staff",
   forbidden,
   invoiceNumber,
@@ -119,6 +122,11 @@ export function SaleDetailDrawer({
                 {onIssueReturn && (
                   <Button size="sm" onClick={onIssueReturn}>
                     {t("admin.sales.detail.issueReturn")}
+                  </Button>
+                )}
+                {onReturnWholeSale && (
+                  <Button variant="outline" size="sm" onClick={onReturnWholeSale}>
+                    {t("admin.sales.detail.returnWholeSale")}
                   </Button>
                 )}
               </div>

@@ -46,6 +46,10 @@ export const ClientPaymentResponseSchema = z.object({
   reference: z.string(),
   posClientName: z.string(),
   invoiceNumber: z.string().optional(),
+  // S30 — the repair this row was taken or refunded for (REP-…), and on a reversal row the
+  // payment it reverses (PAY-…, owner decision Q1).
+  repairReference: z.string().optional(),
+  reversesReference: z.string().optional(),
   amount: z.number(),
   previousCredit: z.number(),
   newCredit: z.number(),

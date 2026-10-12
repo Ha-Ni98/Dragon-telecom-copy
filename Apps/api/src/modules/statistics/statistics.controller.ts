@@ -1,6 +1,15 @@
 import type { NextFunction, Request, Response } from 'express';
 import { sendSuccess } from '@common/http/response';
-import type { ChartParams, ChartsQuery, FilteredQuery, ReportParams, ReportQuery, TopProductsQuery } from '@dragon-telecom/contract';
+import type {
+  CashRegisterDocumentsQuery,
+  CashRegisterQuery,
+  ChartParams,
+  ChartsQuery,
+  FilteredQuery,
+  ReportParams,
+  ReportQuery,
+  TopProductsQuery,
+} from '@dragon-telecom/contract';
 import type { IStatisticsService } from './statistics.interface';
 
 export class StatisticsController {
@@ -70,6 +79,24 @@ export class StatisticsController {
         return;
       }
       sendSuccess(res, result, 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // S33 — the Caisse summary for one store-local day (today when `date` is omitted).
+  getCashRegister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.service.getCashRegister(req.validated.query as CashRegisterQuery), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // S33 — the drill-through list behind one Caisse figure.
+  getCashRegisterDocuments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.service.getCashRegisterDocuments(req.validated.query as CashRegisterDocumentsQuery), 200);
     } catch (error) {
       next(error);
     }

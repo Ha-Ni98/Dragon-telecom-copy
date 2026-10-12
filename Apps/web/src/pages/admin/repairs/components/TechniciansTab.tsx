@@ -109,6 +109,11 @@ export function TechniciansTab({ scope = "admin" }: TechniciansTabProps) {
         header: t(REPAIR_STATUS_LABEL_KEY[RepairStatus.CANCELLED]),
       },
       {
+        // S30 — returned repairs count here, never in revenue (PICKED_UP only).
+        accessorKey: "returnedCount",
+        header: t(REPAIR_STATUS_LABEL_KEY[RepairStatus.RETURNED]),
+      },
+      {
         accessorKey: "revenue",
         header: t("admin.repairs.technicians.columns.revenue"),
         cell: ({ row }) => formatDZD(row.original.revenue, language),

@@ -9,6 +9,7 @@ import {
   ConfirmSaleSchema,
   CreateReturnSchema,
   ReturnListQuerySchema,
+  ReturnWholeSaleSchema,
   SaleDraftSchema,
   SaleIdParamsSchema,
   SaleListQuerySchema,
@@ -79,9 +80,22 @@ router.get(SALE_ROUTES.STAFF_DETAIL, staffOrAdmin, validateRequest({ params: Sal
 router.get(SALE_ROUTES.ADMIN_DETAIL, adminOnly, validateRequest({ params: SaleReferenceParamsSchema }), controller.getSale);
 router.get(SALE_ROUTES.ADMIN_RETURNS_LIST, adminOnly, validateRequest({ query: ReturnListQuerySchema }), controller.listReturns);
 router.post(SALE_ROUTES.ADMIN_RETURN, adminOnly, validateRequest({ body: CreateReturnSchema }), controller.createReturn);
+// S32 (P2) — return the whole sale with one refund figure.
+router.post(
+  SALE_ROUTES.ADMIN_RETURN_WHOLE_SALE,
+  adminOnly,
+  validateRequest({ body: ReturnWholeSaleSchema }),
+  controller.returnWholeSale,
+);
 
 // S18/D-2 — staff holding the sales page gets the Returns tab + issue-return, same as admin.
 router.get(SALE_ROUTES.STAFF_RETURNS_LIST, staffSalesOrAdmin, validateRequest({ query: ReturnListQuerySchema }), controller.listReturns);
 router.post(SALE_ROUTES.STAFF_RETURN, staffSalesOrAdmin, validateRequest({ body: CreateReturnSchema }), controller.createReturn);
+router.post(
+  SALE_ROUTES.STAFF_RETURN_WHOLE_SALE,
+  staffSalesOrAdmin,
+  validateRequest({ body: ReturnWholeSaleSchema }),
+  controller.returnWholeSale,
+);
 
 export { router };

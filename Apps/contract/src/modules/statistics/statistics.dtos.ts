@@ -101,3 +101,54 @@ export const StaffDashboardResponseSchema = z.object({
   lowStock: z.array(DashboardLowStockItemSchema),
 });
 export type StaffDashboardDto = z.infer<typeof StaffDashboardResponseSchema>;
+
+// S33 — the Caisse. Every figure is a stored value summed in SQL over one Africa/Algiers day
+// (plan S33 §0.4). `date` echoes the day actually used (today when the query omitted it).
+// Repairs' paidAmount is GROSS (paid + since-refunded) so a later return never rewrites the
+// pickup day; refunds are dated on the cancellation/return itself.
+export const CashRegisterResponseSchema = z.object({
+  date: z.iso.date(),
+  sales: z.object({
+    count: z.number().int(),
+    totalSold: z.number(),
+    totalPaid: z.number(),
+    newCredit: z.number(),
+  }),
+  returns: z.object({ count: z.number().int(), totalRefunded: z.number() }),
+  repairs: z.object({
+    count: z.number().int(),
+    paidAmount: z.number(),
+    unpaidAmount: z.number(),
+    refundCount: z.number().int(),
+    refundedAmount: z.number(),
+  }),
+  orders: z.object({
+    confirmedCount: z.number().int(),
+    inDeliveryCount: z.number().int(),
+    completedCount: z.number().int(),
+    completedPaid: z.number(),
+  }),
+  suppliers: z.object({
+    invoiceCount: z.number().int(),
+    totalInvoiced: z.number(),
+    paymentCount: z.number().int(),
+    totalPaid: z.number(),
+    newCredit: z.number(),
+  }),
+});
+export type CashRegisterDto = z.infer<typeof CashRegisterResponseSchema>;
+
+// S33 — one row of a drill-through list, uniform across every CashRegisterDrill target.
+// `at` is the anchoring timestamp; `paid` is set for SALES, REPAIRS_PICKED_UP (gross) and
+// ORDERS_COMPLETED; `sourceReference` is the sale/order of a return, or the invoice a supplier
+// payment settles. `partyName` is absent for a walk-in sale.
+export const CashRegisterDocumentResponseSchema = z.object({
+  id: z.uuid(),
+  reference: z.string(),
+  at: z.iso.datetime(),
+  partyName: z.string().optional(),
+  amount: z.number(),
+  paid: z.number().optional(),
+  sourceReference: z.string().optional(),
+});
+export type CashRegisterDocumentDto = z.infer<typeof CashRegisterDocumentResponseSchema>;

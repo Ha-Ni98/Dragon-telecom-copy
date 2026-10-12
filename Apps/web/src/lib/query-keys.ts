@@ -197,6 +197,11 @@ export const qk = {
     chart: (chart: string, query?: unknown) => ["stats", "chart", chart, query] as const,
     topProducts: (query?: unknown) => ["stats", "top-products", query] as const,
     report: (type: string, query?: unknown) => ["stats", "report", type, query] as const,
+    // S33 — the Caisse; nested under `stats` so every existing qk.stats.all() invalidation
+    // (sales, orders, inventory) also refreshes it.
+    cashRegister: (query?: unknown) => ["stats", "cash-register", query] as const,
+    cashRegisterDocuments: (query?: unknown) =>
+      ["stats", "cash-register", "documents", query] as const,
   },
   observability: {
     all: () => ["observability"] as const,

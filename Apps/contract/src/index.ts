@@ -3,6 +3,7 @@ export * from './common/types';
 export * from './common/auth';
 export * from './common/exports';
 export * from './common/media';
+export * from './common/store-time';
 export * from './modules/identity';
 export * from './modules/catalog';
 export * from './modules/clients';
