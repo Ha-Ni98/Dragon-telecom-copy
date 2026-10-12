@@ -1,7 +1,7 @@
 import { ReportedIssue, type RepairDto } from "@dragon-telecom/contract";
 import { REPORTED_ISSUE_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
 import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-label";
-import { formatDateTime } from "@/lib/utils";
+import { formatDZD, formatDateTime } from "@/lib/utils";
 import type { Language } from "@/lib/i18n";
 
 // S27.1 — the raw-text lines printed on the repair client label, in order. One source of truth
@@ -9,11 +9,15 @@ import type { Language } from "@/lib/i18n";
 // <BarcodeLabelSheet>, and the ZPL builder for the thermal path. If they ever disagreed, the
 // label the counter previews would not be the label the bench gets.
 //
-// Hard rule, inherited from RepairReceipt.tsx: this takes NO `scope` argument and reads NO money
-// field. `repair.totalCost` / `totalProfit` and each part's `costOfGoods` / `profit` genuinely ARE
-// populated for an ADMIN (repairs.mapper.ts gates them on includeMargins), and this label is stuck
-// on a customer's device. Scope-independence by construction makes the leak impossible rather than
-// merely discouraged — do not add a scope parameter here.
+// Hard rule, inherited from RepairReceipt.tsx: this takes NO `scope` argument and reads NO cost or
+// margin field. `repair.totalCost` / `totalProfit` and each part's `costOfGoods` / `profit`
+// genuinely ARE populated for an ADMIN (repairs.mapper.ts gates them on includeMargins), and this
+// label is stuck on a customer's device. Scope-independence by construction makes the leak
+// impossible rather than merely discouraged — do not add a scope parameter here.
+// Owner request (2026-10-12, after S31): the label now also carries the customer-facing TOTAL —
+// the same figure the receipt prints — and, by the same rule as the receipt (S30/Q3), only once
+// something is priced: an unpriced ticket prints no money line at all rather than a zero. At 6 pt
+// the default 40 x 20 mm stock holds seven lines, so this seventh line still fits.
 //
 // The label no longer carries a barcode (removed so the sticker only needs to be human-readable
 // at the bench, not scanned), so `repair.reference` and the intake date/time are now spelled out
@@ -40,6 +44,9 @@ export function buildRepairLabelLines(
     // an empty line.
     formatRepairDeviceLabel(repair.device),
     issues,
+    repair.totalAmount > 0
+      ? `${t("staff.repairs.receipt.total")}: ${formatDZD(repair.totalAmount, language)}`
+      : "",
     repair.reference,
     formatDateTime(repair.intakeAt, language),
   ].filter((line) => line.trim() !== "");

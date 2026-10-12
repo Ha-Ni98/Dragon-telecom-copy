@@ -216,7 +216,13 @@ export function RepairTicketDetail({
               ))}
 
               {!readOnly && (
-                <RepairPartsStaging onSubmit={onAddParts} isSubmitting={isAddingParts} />
+                // Keyed per ticket: a staged (not yet reserved) parts list must never carry over
+                // to another repair when the drawer switches tickets.
+                <RepairPartsStaging
+                  key={repair.id}
+                  onSubmit={onAddParts}
+                  isSubmitting={isAddingParts}
+                />
               )}
             </div>
 
@@ -338,7 +344,7 @@ export function RepairTicketDetail({
       />
 
       <RepairReturnDialog
-        key={repair.id}
+        key={`return-dialog-${repair.id}`}
         open={returnDialogOpen}
         onOpenChange={setReturnDialogOpen}
         repair={repair}

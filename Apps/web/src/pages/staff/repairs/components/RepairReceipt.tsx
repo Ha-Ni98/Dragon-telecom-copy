@@ -17,10 +17,12 @@ interface RepairReceiptProps {
 // S25 — print-only, mirrors PosReceiptView's print subtree. No on-screen markup of its own: the
 // repair detail sheet already shows all of this; this component exists only to be printed.
 //
-// S30/Q3 — the receipt never itemises, at any stage: no parts lines, no labour line, no parts
-// total. It prints one Total plus the settlement (Paid, Amount due, the PAID/UNPAID stamp) and,
-// on a cancelled or returned ticket, what was Refunded. While nothing is priced (total 0) no
-// money figure prints at all — not even a zero — except Paid when something was prepaid.
+// S30/Q3 — the receipt never prices the breakdown, at any stage: no per-part price, no labour
+// line, no parts total. It prints one Total plus the settlement (Paid, Amount due, the
+// PAID/UNPAID stamp) and, on a cancelled or returned ticket, what was Refunded. While nothing is
+// priced (total 0) no money figure prints at all — not even a zero — except Paid when something
+// was prepaid. Owner request (2026-10-12, after S31): the parts used ARE listed again, by name
+// only (with "x N" when more than one was fitted) — never with a price.
 //
 // Hard rule — NEVER print margins. repairs.mapper.ts gates `totalProfit` and per-part
 // `costOfGoods`/`profit` behind `includeMargins`, so an ADMIN viewing the sheet genuinely
@@ -122,6 +124,20 @@ export function RepairReceipt({ repair, store }: RepairReceiptProps) {
         <div>
           {t("staff.repairs.receipt.technician")}: {repair.technician.name}
         </div>
+      )}
+
+      {/* Parts used — names only, never a price (owner request after S31; S30/Q3 still holds). */}
+      {repair.parts.length > 0 && (
+        <>
+          <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
+          <div style={{ fontWeight: "bold" }}>{t("staff.repairs.receipt.parts")}</div>
+          {repair.parts.map((part) => (
+            <div key={part.id}>
+              {part.productName}
+              {part.quantity > 1 ? ` x ${part.quantity}` : ""}
+            </div>
+          ))}
+        </>
       )}
 
       <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />

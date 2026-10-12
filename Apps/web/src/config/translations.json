@@ -15933,5 +15933,10 @@
     "en": "No documents on this day",
     "fr": "Aucun document ce jour-là",
     "ar": ""
+  },
+  "staff.repairs.receipt.parts": {
+    "en": "Parts used",
+    "fr": "Pièces utilisées",
+    "ar": ""
   }
 }

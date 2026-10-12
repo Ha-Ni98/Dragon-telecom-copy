@@ -17,11 +17,14 @@ import { formatRepairDeviceLabel } from "@/pages/staff/repairs/repair-device-lab
 // (lib/escpos.ts's `twoColumns`), and its dashed rules become a row of hyphens.
 //
 // Section order deliberately mirrors RepairReceipt.tsx exactly: store block, rule, title,
-// reference/intake/status, rule, customer, device/IMEI, issues, diagnosis, technician, rule,
-// totals (total / paid / due / refunded), paid-status stamp, invoice number, footer.
+// reference/intake/status, rule, customer, device/IMEI, issues, diagnosis, technician, parts used
+// (names only), rule, totals (total / paid / due / refunded), paid-status stamp, invoice number,
+// footer.
 //
-// S30/Q3 — no breakdown at any stage (no parts, no labour, no parts total), and no money figure
-// at all while the ticket is unpriced (total 0) — except Paid when something was prepaid.
+// S30/Q3 — no priced breakdown at any stage (no per-part price, no labour, no parts total), and no
+// money figure at all while the ticket is unpriced (total 0) — except Paid when something was
+// prepaid. Owner request (2026-10-12, after S31): the parts used are listed again, by name only
+// ("x N" when more than one) — never with a price.
 //
 // HARD RULE, inherited from RepairReceipt.tsx: no `scope` parameter and NO money-cost field.
 // repairs.mapper.ts genuinely populates `totalCost`, `totalProfit` and each part's `costOfGoods`
@@ -87,6 +90,16 @@ export function buildRepairReceiptEscPos(args: {
   }
   if (repair.technician) {
     b.line(`${t("staff.repairs.receipt.technician")}: ${repair.technician.name}`);
+  }
+
+  // --- Parts used — names only, never a price (mirrors RepairReceipt.tsx). ---
+  if (repair.parts.length > 0) {
+    b.divider();
+    b.bold(true).line(t("staff.repairs.receipt.parts")).bold(false);
+    for (const part of repair.parts) {
+      const label = part.quantity > 1 ? `${part.productName} x ${part.quantity}` : part.productName;
+      for (const l of wrap(label)) b.line(l);
+    }
   }
 
   b.divider();

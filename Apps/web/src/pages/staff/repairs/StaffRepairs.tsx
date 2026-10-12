@@ -213,10 +213,12 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
         scope={scope}
       />
 
+      {/* NOT keyed. S31 keyed this drawer with the same expression as RepairStatusDialog below,
+          so the two siblings always shared a key ("none", or the same repair id) — React then
+          cannot tell them apart and kept a stale drawer mounted and open ("can't close the
+          repair"). The per-ticket reset S31 wanted lives on RepairPartsStaging inside the drawer
+          instead (key={repair.id}), which is the only state that must not carry over. */}
       <RepairTicketDetail
-        // S31 — fresh mount per ticket so a staged (not yet reserved) parts list never carries
-        // over to another repair; same per-ticket remount RepairStatusDialog uses below.
-        key={selectedRepair?.id ?? "none"}
         open={!!selectedRepairId}
         onOpenChange={(open) => !open && setSelectedRepairId(null)}
         repair={selectedRepair ?? null}
@@ -238,7 +240,8 @@ export default function StaffRepairs({ scope = "staff" }: Props) {
       <RepairStatusDialog
         // Forces a fresh mount per ticket — same defaultValues-frozen-at-first-render bug as
         // OrderConfirmDialog (StaffOrders.tsx), found while writing set-03 Sprint 9's tests.
-        key={selectedRepair?.id ?? "none"}
+        // Prefixed so it can never collide with another keyed sibling of this parent.
+        key={`status-dialog-${selectedRepair?.id ?? "none"}`}
         open={statusDialogOpen}
         onOpenChange={setStatusDialogOpen}
         repair={selectedRepair ?? null}
