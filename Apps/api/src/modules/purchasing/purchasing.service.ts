@@ -389,9 +389,11 @@ export class PurchasingService implements IPurchasingService {
 
       reference = await this.sequence.nextNumber(tx, DocType.SUPPLIER_INVOICE);
 
+      // S33 — confirmedAt anchors the invoice in the Caisse (the double-confirm paths above
+      // return before reaching here, so the first confirm's stamp is never overwritten).
       await tx.supplierInvoice.update({
         where: { id },
-        data: { reference, status: PrismaSupplierInvoiceStatus.CONFIRMED, previousCredit, newCredit },
+        data: { reference, status: PrismaSupplierInvoiceStatus.CONFIRMED, previousCredit, newCredit, confirmedAt: new Date() },
       });
 
       repriceCandidates = productIds.length ? await this.catalogReprice.getRepriceCandidates(tx, productIds) : [];
@@ -615,8 +617,9 @@ export class PurchasingService implements IPurchasingService {
   }
 
   // lastDeliveryAt isn't a Supplier column (Sprint 5's schema-gap resolution) — derived as the
-  // most recent CONFIRMED invoice's updatedAt (== its confirm timestamp; invoices are immutable
-  // after confirm).
+  // most recent CONFIRMED invoice's updatedAt. updatedAt approximates the confirm time but also
+  // moves when a payment updates paidAmount/paidDate (S33/F1). confirmedAt (S33) is exact, but is
+  // null for invoices confirmed before S33, so these readers keep updatedAt for now.
   private async getLastDeliveryAt(supplierId: string): Promise<Date | undefined> {
     const aggregate = await this.prisma.supplierInvoice.aggregate({
       where: { supplierId, status: PrismaSupplierInvoiceStatus.CONFIRMED },
@@ -633,6 +636,7 @@ export class PurchasingService implements IPurchasingService {
 
     const byProduct = new Map<string, { productName: string; totalQuantity: number; lastPurchaseAt: Date }>();
     for (const line of lines) {
+      // updatedAt ≈ confirm time, but a later payment moves it too (S33/F1 — see getLastDeliveryAt).
       const purchaseAt = line.supplierInvoice.updatedAt;
       const existing = byProduct.get(line.productId);
       if (existing) {

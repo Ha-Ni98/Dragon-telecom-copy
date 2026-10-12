@@ -37,3 +37,16 @@ export enum RevenueSource {
   PRODUCTS = 'products',
   REPAIRS = 'repairs',
 }
+
+// S33 — the Caisse's drill-through targets: one per headline figure (plan S33 §0.4).
+export enum CashRegisterDrill {
+  SALES = 'SALES',
+  RETURNS = 'RETURNS',
+  REPAIRS_PICKED_UP = 'REPAIRS_PICKED_UP',
+  REPAIR_REFUNDS = 'REPAIR_REFUNDS',
+  ORDERS_CONFIRMED = 'ORDERS_CONFIRMED',
+  ORDERS_IN_DELIVERY = 'ORDERS_IN_DELIVERY',
+  ORDERS_COMPLETED = 'ORDERS_COMPLETED',
+  SUPPLIER_INVOICES = 'SUPPLIER_INVOICES',
+  SUPPLIER_PAYMENTS = 'SUPPLIER_PAYMENTS',
+}

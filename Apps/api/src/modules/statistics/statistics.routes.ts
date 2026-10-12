@@ -5,6 +5,8 @@ import { requireAuth } from '@common/middlewares/auth.middleware';
 import {
   STATS_ROUTES,
   UserType,
+  CashRegisterDocumentsQuerySchema,
+  CashRegisterQuerySchema,
   ChartParamsSchema,
   ChartsQuerySchema,
   FilteredQuerySchema,
@@ -48,5 +50,14 @@ router.get(
   validateRequest({ params: ReportParamsSchema, query: ReportQuerySchema }),
   controller.getReport,
 );
+
+// S33 — the Caisse (admin only). The more specific path first, by habit.
+router.get(
+  STATS_ROUTES.CASH_REGISTER_DOCUMENTS,
+  adminOnly,
+  validateRequest({ query: CashRegisterDocumentsQuerySchema }),
+  controller.getCashRegisterDocuments,
+);
+router.get(STATS_ROUTES.CASH_REGISTER, adminOnly, validateRequest({ query: CashRegisterQuerySchema }), controller.getCashRegister);
 
 export { router };

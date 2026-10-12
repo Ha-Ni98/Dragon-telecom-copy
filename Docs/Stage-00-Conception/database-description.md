@@ -96,7 +96,7 @@ Resolution: tier row for the viewer's POS-client category → storefront `guestP
 **Supplier** — `code` unique · `name` · `contactName?` · `phone?` · `email?` · `location?` · `credit` (store owes; `initialCredit` at creation becomes the opening value) · `totalPaid` · `totalInvoiced` (lifetime) · `isEnabled`.
 
 **SupplierInvoice** — the only stock entry besides adjustments:
-`reference` unique (`SIN-2026-0001`) · `supplierReference?` · `supplierId` FK · `status` enum `DRAFT | CONFIRMED | CANCELLED` · `invoiceDate` · `dueDate?` · `shippingCost` (apportioned into landed cost) · `amountOnly?` (**zero-line invoice** — pure amount, raises credit, XOR with lines) · `totalAmount` · `paidAmount` · `previousCredit?` + `newCredit?` (snapshot at confirmation) · `note?` · `staffId` FK.
+`reference` unique (`SIN-2026-0001`) · `supplierReference?` · `supplierId` FK · `status` enum `DRAFT | CONFIRMED | CANCELLED` · `invoiceDate` · `dueDate?` · `shippingCost` (apportioned into landed cost) · `amountOnly?` (**zero-line invoice** — pure amount, raises credit, XOR with lines) · `totalAmount` · `paidAmount` · `paidDate?` · `previousCredit?` + `newCredit?` (snapshot at confirmation) · `confirmedAt?` (S33 — set at confirm; anchors the Caisse) · `note?` · `staffId` FK.
 DRAFT touches nothing. Confirm (one transaction): one IN layer per line at landed cost, avg-cost recompute, credit snapshot, sequence number — then the skippable reprice prompt. Immutable after; cancel reverses credit only (stock reversal is a deliberate adjustment).
 
 **SupplierInvoiceLine** — `supplierInvoiceId` FK · `productId` FK (inline create allowed) · `productNameSnapshot` · `quantity` · `unitCost` · `landedUnitCost` · `lineTotal` · `serialNumbers?` text.
@@ -123,7 +123,7 @@ DRAFT holds no stock and no money; visible only to its creator (+admin). Confirm
 **Order** — multi-line (`OrderLine`); reserves stock at placement, one reservation per line:
 `reference` unique (`ORD-2026-0001`) · `clientId?` FK nullable (**null for guests** — no auto client row; contact fields carry the identity) · `status` enum `PENDING | CONFIRMED | PACKAGED | IN_DELIVERY | COMPLETED | CANCELLED | CANCELLED_BY_CLIENT | RETURNED` · `orderType` enum `PICKUP | DELIVERY_HOME | DELIVERY_OFFICE` (PICKUP requires a client token) · `contactName` · `contactPhone` · `wilayaId?` + `communeId?` FK (null when pickup; prefilled from profile, editable) · `address?` · `deliveryCompany?` · `trackingNumber?` (set at IN_DELIVERY) ·
 `subtotal` · `deliveryFee` (server-resolved: commune override → wilaya → default; 0 pickup) · `totalAmount` · `paidAmount` · `totalCost?` + `totalProfit?` (set at COMPLETED, FIFO) ·
-`placedAt` · `confirmedAt?` · `deliveredAt?` (at COMPLETED) · `cancelledAt?` · `confirmedByStaffId?` FK · `cancellationReason?`.
+`placedAt` · `confirmedAt?` · `inDeliveryAt?` (S33 — set at IN_DELIVERY) · `deliveredAt?` (at COMPLETED) · `cancelledAt?` · `confirmedByStaffId?` FK · `cancellationReason?`.
 
 **OrderLine** — `orderId` FK · `productId` FK · `productNameSnapshot` · `quantity` · `resolvedPrice` (frozen at placement) · `unitPrice` (staff may adjust — pickup: at COMPLETED; delivery: at PACKAGED) · `costOfGoods?` + `profit?` (set at COMPLETED, FIFO) · `lineTotal` · `serialNumbers?` (entered at confirmation).
 

@@ -14894,6 +14894,11 @@
     "fr": "Recherches du personnel",
     "ar": ""
   },
+  "admin.nav.cashRegister": {
+    "en": "Cash register",
+    "fr": "Caisse",
+    "ar": ""
+  },
   "admin.suppliers.stats.totalInvoiced": {
     "en": "Total Invoiced",
     "fr": "Total facturé",
@@ -15742,6 +15747,191 @@
   "admin.supplierInvoices.editor.linesRequired": {
     "en": "Add at least one product",
     "fr": "Ajoutez au moins un produit",
+    "ar": ""
+  },
+  "admin.cashRegister.pageTitle": {
+    "en": "Cash register",
+    "fr": "Caisse",
+    "ar": ""
+  },
+  "admin.cashRegister.dateLabel": {
+    "en": "Day",
+    "fr": "Jour",
+    "ar": ""
+  },
+  "admin.cashRegister.today": {
+    "en": "Today",
+    "fr": "Aujourd'hui",
+    "ar": ""
+  },
+  "admin.cashRegister.boundaryNote": {
+    "en": "Days run from midnight to midnight, Algiers time.",
+    "fr": "Les journées vont de minuit à minuit, heure d'Alger.",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.title": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.count": {
+    "en": "Number of sales",
+    "fr": "Nombre de ventes",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.totalSold": {
+    "en": "Total sold",
+    "fr": "Total vendu",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.totalPaid": {
+    "en": "Total paid",
+    "fr": "Total payé",
+    "ar": ""
+  },
+  "admin.cashRegister.sales.newCredit": {
+    "en": "New client credit",
+    "fr": "Nouveau crédit client",
+    "ar": ""
+  },
+  "admin.cashRegister.returns.title": {
+    "en": "Returns",
+    "fr": "Retours",
+    "ar": ""
+  },
+  "admin.cashRegister.returns.count": {
+    "en": "Number of returns",
+    "fr": "Nombre de retours",
+    "ar": ""
+  },
+  "admin.cashRegister.returns.totalRefunded": {
+    "en": "Total refunded",
+    "fr": "Total remboursé",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.title": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.count": {
+    "en": "Repairs picked up",
+    "fr": "Réparations récupérées",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.unpaid": {
+    "en": "Unpaid",
+    "fr": "Impayé",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.refunded": {
+    "en": "Refunded (cancelled / returned)",
+    "fr": "Remboursé (annulées / retournées)",
+    "ar": ""
+  },
+  "admin.cashRegister.repairs.refundedValue": {
+    "en": "{amount} · {count}",
+    "fr": "{amount} · {count}",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.title": {
+    "en": "Orders",
+    "fr": "Commandes",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.confirmed": {
+    "en": "Confirmed",
+    "fr": "Confirmées",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.inDelivery": {
+    "en": "Sent out for delivery",
+    "fr": "Mises en livraison",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.completed": {
+    "en": "Completed",
+    "fr": "Terminées",
+    "ar": ""
+  },
+  "admin.cashRegister.orders.completedPaid": {
+    "en": "Paid on completed orders",
+    "fr": "Payé sur commandes terminées",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.title": {
+    "en": "Suppliers",
+    "fr": "Fournisseurs",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.invoiceCount": {
+    "en": "Invoices confirmed",
+    "fr": "Factures confirmées",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.totalInvoiced": {
+    "en": "Total invoiced",
+    "fr": "Total facturé",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.totalPaid": {
+    "en": "Paid to suppliers",
+    "fr": "Payé aux fournisseurs",
+    "ar": ""
+  },
+  "admin.cashRegister.suppliers.newCredit": {
+    "en": "New supplier credit",
+    "fr": "Nouveau crédit fournisseur",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.hint": {
+    "en": "Click to see the documents",
+    "fr": "Cliquez pour voir les documents",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.open": {
+    "en": "Show documents for {label}",
+    "fr": "Afficher les documents : {label}",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.reference": {
+    "en": "Reference",
+    "fr": "Référence",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.time": {
+    "en": "Time",
+    "fr": "Heure",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.party": {
+    "en": "Client / supplier",
+    "fr": "Client / fournisseur",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.amount": {
+    "en": "Amount",
+    "fr": "Montant",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.paid": {
+    "en": "Paid",
+    "fr": "Payé",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.source": {
+    "en": "Source document",
+    "fr": "Document d'origine",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.empty": {
+    "en": "No documents on this day",
+    "fr": "Aucun document ce jour-là",
     "ar": ""
   }
 }

@@ -322,6 +322,8 @@ export class OrdersService implements IOrdersService {
                 ...(actor.staffId != null ? { confirmedByStaffId: actor.staffId } : {}),
               }
             : {}),
+          // S33 — when the order left for delivery; the Caisse counts "sent out that day" on it.
+          ...(cmd.status === OrderStatus.IN_DELIVERY ? { inDeliveryAt: new Date() } : {}),
         },
       });
     });

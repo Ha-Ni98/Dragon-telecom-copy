@@ -628,6 +628,7 @@ model SupplierInvoice {
   totalAmount       Decimal               @default(0) @db.Decimal(12, 2)
   paidAmount        Decimal               @default(0) @db.Decimal(12, 2)
   paidDate          DateTime? // effective date of the most recent payment on this invoice; null while unpaid
+  confirmedAt       DateTime? // S33 — set by confirmInvoice; the Caisse anchors supplier invoices on it. Null for DRAFT and for invoices confirmed before S33 (no backfill).
   previousCredit    Decimal?              @db.Decimal(12, 2) // snapshot at confirm
   newCredit         Decimal?              @db.Decimal(12, 2)
   note              String?
@@ -774,6 +775,7 @@ model Order {
   totalProfit        Decimal?    @db.Decimal(12, 2)
   placedAt           DateTime    @default(now())
   confirmedAt        DateTime?
+  inDeliveryAt       DateTime? // S33 — set on the IN_DELIVERY transition (the Caisse's "sent out that day"). Null before S33 (no backfill).
   deliveredAt        DateTime? // at COMPLETED
   cancelledAt        DateTime?
   confirmedByStaffId String?
