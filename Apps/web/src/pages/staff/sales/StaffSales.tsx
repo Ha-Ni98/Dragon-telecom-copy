@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -24,6 +24,7 @@ import { PosReceiptPrintable } from "@/pages/staff/pos/components/PosReceiptPrin
 import { buildPosReceiptEscPos } from "@/pages/staff/pos/pos-receipt-escpos";
 import { saleToReceipt } from "@/pages/staff/sales/sale-to-receipt";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { SALE_DEEP_LINK_PARAM } from "@/lib/deep-links";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
   SaleStatus,
@@ -50,6 +51,8 @@ interface Props {
 // S18/D-2 — the Returns tab and issue-return are no longer admin-only: staff holding the sales
 // page gets both, hitting the staff-mounted returns routes. Profit, the seller column and the
 // footer total stay admin-only (margin data, gated inside SaleDetailDrawer/SalesTable directly).
+// S36 — ?sale=<reference> opens that sale's drawer (lib/deep-links.ts); staff opening another
+// seller's sale see the drawer's forbidden state.
 // S32 — product search and the Today's sales toggle apply in both scopes (staff results stay
 // limited to their own sales — enforced server-side); the date filter is on soldAt, in
 // Africa/Algiers days. "Return whole sale" sits beside Issue return.
@@ -101,7 +104,23 @@ export default function StaffSales({ scope = "staff" }: Props) {
     refetch: refetchSales,
   } = useSales(scope, query);
 
-  const [selectedReference, setSelectedReference] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedReference, setSelectedReference] = useState<string | null>(() =>
+    searchParams.get(SALE_DEEP_LINK_PARAM),
+  );
+  // S36 — closing a deep-linked sale also drops ?sale= so a refresh doesn't reopen it.
+  const closeSaleDrawer = () => {
+    setSelectedReference(null);
+    if (searchParams.has(SALE_DEEP_LINK_PARAM)) {
+      setSearchParams(
+        (prev) => {
+          prev.delete(SALE_DEEP_LINK_PARAM);
+          return prev;
+        },
+        { replace: true },
+      );
+    }
+  };
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
 
   const handleRowClick = useCallback((sale: SaleDto) => setSelectedReference(sale.reference), []);
@@ -296,7 +315,7 @@ export default function StaffSales({ scope = "staff" }: Props) {
 
       <SaleDetailDrawer
         open={!!selectedReference}
-        onOpenChange={(open) => !open && setSelectedReference(null)}
+        onOpenChange={(open) => !open && closeSaleDrawer()}
         sale={saleLoading ? null : (selectedSale ?? null)}
         onReprint={handleReprint}
         onResumeDraft={

@@ -32,7 +32,11 @@ import {
   type CreatePosClientCommand,
   type PosClientListQuery,
   type UpdatePosClientCommand,
+  type PurchasedProductsQuery,
+  type PurchasedProductDto,
+  type PurchasedProductDocumentDto,
 } from "@dragon-telecom/contract";
+import type { PurchaseHistoryOwner } from "@/types/purchase-history.types";
 
 // --- Web identity (public + client) ---
 
@@ -244,6 +248,51 @@ export async function updatePosClient(
   const res = await api.patch<ApiResponse<PosClientDto>>(
     withParams(apiPath(route), { id }),
     command,
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// --- Purchase history (S36) ---
+
+// The "Products bought" tab: route chosen by whose history it is (admin client page vs the
+// POS-client drawer in either scope).
+function purchasedProductsRoute(owner: PurchaseHistoryOwner, documents: boolean): string {
+  if (owner.kind === "client") {
+    return documents
+      ? CLIENT_ROUTES.ADMIN_PURCHASED_PRODUCT_DOCUMENTS
+      : CLIENT_ROUTES.ADMIN_PURCHASED_PRODUCTS;
+  }
+  if (owner.scope === "admin") {
+    return documents
+      ? POS_CLIENT_ROUTES.ADMIN_PURCHASED_PRODUCT_DOCUMENTS
+      : POS_CLIENT_ROUTES.ADMIN_PURCHASED_PRODUCTS;
+  }
+  return documents
+    ? POS_CLIENT_ROUTES.STAFF_PURCHASED_PRODUCT_DOCUMENTS
+    : POS_CLIENT_ROUTES.STAFF_PURCHASED_PRODUCTS;
+}
+
+export async function listPurchasedProducts(
+  owner: PurchaseHistoryOwner,
+  query: PurchasedProductsQuery,
+): Promise<PaginatedResult<PurchasedProductDto>> {
+  const res = await api.get<ApiResponse<PaginatedResult<PurchasedProductDto>>>(
+    withParams(apiPath(purchasedProductsRoute(owner, false)), { id: owner.id }),
+    { params: query },
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+export async function listPurchasedProductDocuments(
+  owner: PurchaseHistoryOwner,
+  productId: string,
+  query: PurchasedProductsQuery,
+): Promise<PaginatedResult<PurchasedProductDocumentDto>> {
+  const res = await api.get<ApiResponse<PaginatedResult<PurchasedProductDocumentDto>>>(
+    withParams(apiPath(purchasedProductsRoute(owner, true)), { id: owner.id, productId }),
+    { params: query },
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;

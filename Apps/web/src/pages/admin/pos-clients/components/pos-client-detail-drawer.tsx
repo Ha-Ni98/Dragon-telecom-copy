@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,9 @@ import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { CreditMovementPreview } from "@/components/shared/CreditMovementPreview";
-import { Receipt, CreditCard, History } from "lucide-react";
+import { Receipt, CreditCard, History, ShoppingBag } from "lucide-react";
+import { ClientPurchasedProductsTab } from "@/pages/admin/clients/components/client-purchased-products-tab";
+import type { PurchaseHistoryOwner } from "@/types/purchase-history.types";
 import type { PosClientDto, SaleDto, ClientPaymentDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -28,6 +31,8 @@ interface PosClientDetailDrawerProps {
   paymentsError?: boolean;
   creditHistory?: CreditHistoryRow[];
   onRecordPayment?: () => void;
+  /** S36 — picks the Products-bought endpoints (and link scope) for this drawer. */
+  scope: "staff" | "admin";
 }
 
 function formatCurrency(amount: number): string {
@@ -39,6 +44,9 @@ function formatCurrency(amount: number): string {
 // the Credit history tab needs both row sets merged regardless of which sub-tab is active, so
 // gating either query behind its own tab would leave Credit history incomplete. Computed by the
 // parent page via `useMemo`, not fetched here.
+// S36 — fourth tab "Products bought": the client's WHOLE purchase history (every seller — owner Q1;
+// POS sales + the linked web account's orders), fetched only when the tab opens. The drawer is
+// wider (sm:max-w-2xl) so its five-column table fits.
 export function PosClientDetailDrawer({
   open,
   onOpenChange,
@@ -51,13 +59,19 @@ export function PosClientDetailDrawer({
   paymentsError = false,
   creditHistory = [],
   onRecordPayment,
+  scope,
 }: PosClientDetailDrawerProps) {
   const { t } = useTranslation();
+  // Declared before the early return (hooks rule); part of the purchase-history query key.
+  const purchaseOwner = useMemo<PurchaseHistoryOwner>(
+    () => ({ kind: "posClient", scope, id: client?.id ?? "" }),
+    [scope, client?.id],
+  );
   if (!client) return null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+      <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle>{client.name}</SheetTitle>
         </SheetHeader>
@@ -84,7 +98,7 @@ export function PosClientDetailDrawer({
         )}
 
         <Tabs defaultValue="sales">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="sales" className="gap-2">
               <Receipt className="h-4 w-4" />
               {t("admin.posClients.detail.tabs.sales")}
@@ -96,6 +110,10 @@ export function PosClientDetailDrawer({
             <TabsTrigger value="credit" className="gap-2">
               <History className="h-4 w-4" />
               {t("admin.posClients.detail.tabs.creditHistory")}
+            </TabsTrigger>
+            <TabsTrigger value="purchased" className="gap-2">
+              <ShoppingBag className="h-4 w-4" />
+              {t("admin.posClients.detail.tabs.purchasedProducts")}
             </TabsTrigger>
           </TabsList>
 
@@ -165,6 +183,10 @@ export function PosClientDetailDrawer({
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="purchased">
+            <ClientPurchasedProductsTab owner={purchaseOwner} />
           </TabsContent>
         </Tabs>
       </SheetContent>

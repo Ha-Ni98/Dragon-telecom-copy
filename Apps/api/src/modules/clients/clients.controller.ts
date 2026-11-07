@@ -12,6 +12,8 @@ import type {
   PosClientIdParams,
   PosClientListQuery,
   PosClientSearchQuery,
+  PurchasedProductParams,
+  PurchasedProductsQuery,
   RegisterClientCommand,
   RejectClientCommand,
   ResetClientPasswordCommand,
@@ -200,6 +202,45 @@ export class ClientsController {
   listPosClients = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       sendSuccess(res, await this.service.listPosClients(req.validated.query as PosClientListQuery), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // S36 — the "Products bought" tab. Thin handlers: identity resolution and the SQL live in the service.
+  listClientPurchasedProducts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as ClientIdParams;
+      sendSuccess(res, await this.service.listClientPurchasedProducts(id, req.validated.query as PurchasedProductsQuery), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listClientPurchasedProductDocuments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id, productId } = req.validated.params as PurchasedProductParams;
+      const query = req.validated.query as PurchasedProductsQuery;
+      sendSuccess(res, await this.service.listClientPurchasedProductDocuments(id, productId, query), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listPosClientPurchasedProducts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as PosClientIdParams;
+      sendSuccess(res, await this.service.listPosClientPurchasedProducts(id, req.validated.query as PurchasedProductsQuery), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listPosClientPurchasedProductDocuments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id, productId } = req.validated.params as PurchasedProductParams;
+      const query = req.validated.query as PurchasedProductsQuery;
+      sendSuccess(res, await this.service.listPosClientPurchasedProductDocuments(id, productId, query), 200);
     } catch (error) {
       next(error);
     }

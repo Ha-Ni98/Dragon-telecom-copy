@@ -13759,6 +13759,11 @@
     "fr": "Historique du crédit",
     "ar": ""
   },
+  "admin.posClients.detail.tabs.purchasedProducts": {
+    "en": "Products bought",
+    "fr": "Produits achetés",
+    "ar": ""
+  },
   "admin.posClients.detail.creditHistory.empty": {
     "en": "No credit history yet",
     "fr": "Aucun historique de crédit pour le moment",
@@ -13882,6 +13887,116 @@
   "admin.clients.detail.tabs.browsing": {
     "en": "Browsing activity",
     "fr": "Activité de navigation",
+    "ar": ""
+  },
+  "admin.clients.detail.tabs.purchasedProducts": {
+    "en": "Products bought",
+    "fr": "Produits achetés",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.product": {
+    "en": "Product",
+    "fr": "Produit",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.quantityBought": {
+    "en": "Qty bought",
+    "fr": "Qté achetée",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.totalAmount": {
+    "en": "Total amount",
+    "fr": "Montant total",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.quantityReturned": {
+    "en": "Qty returned",
+    "fr": "Qté retournée",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.amountRefunded": {
+    "en": "Amount refunded",
+    "fr": "Montant remboursé",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.mobileSummary": {
+    "en": "{bought} bought · {returned} returned",
+    "fr": "{bought} acheté(s) · {returned} retourné(s)",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.empty": {
+    "en": "This client hasn't bought any product yet",
+    "fr": "Ce client n'a encore acheté aucun produit",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.error": {
+    "en": "Couldn't load the purchase history",
+    "fr": "Impossible de charger l'historique d'achats",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.note": {
+    "en": "Amounts are the line totals as sold, before any discount on the whole sale. \"Refunded\" is the cash handed back; a return credited to the client's account shows 0.",
+    "fr": "Les montants sont les totaux de ligne tels que vendus, avant toute remise sur la vente entière. « Remboursé » est l'argent rendu ; un retour porté au crédit du client affiche 0.",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.title": {
+    "en": "{product} — documents",
+    "fr": "{product} — documents",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.type": {
+    "en": "Type",
+    "fr": "Type",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.date": {
+    "en": "Date",
+    "fr": "Date",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.reference": {
+    "en": "Reference",
+    "fr": "Référence",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.quantity": {
+    "en": "Quantity",
+    "fr": "Quantité",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.unitPrice": {
+    "en": "Unit price",
+    "fr": "Prix unitaire",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.amount": {
+    "en": "Line total / refunded",
+    "fr": "Total ligne / remboursé",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.from": {
+    "en": "From {reference}",
+    "fr": "Depuis {reference}",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.empty": {
+    "en": "No documents",
+    "fr": "Aucun document",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.kind.sale": {
+    "en": "Sale",
+    "fr": "Vente",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.kind.order": {
+    "en": "Order",
+    "fr": "Commande",
+    "ar": ""
+  },
+  "admin.clients.purchasedProducts.documents.kind.return": {
+    "en": "Return",
+    "fr": "Retour",
     "ar": ""
   },
   "admin.clients.overview.totalSold": {

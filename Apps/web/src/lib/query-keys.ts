@@ -99,6 +99,15 @@ export const qk = {
     search: (query: string) => ["pos-clients", "search", query] as const,
     detail: (id: string) => ["pos-clients", "detail", id] as const,
   },
+  // S36 — the "Products bought" tab; `owner` (PurchaseHistoryOwner) is part of every key so the admin
+  // client page, the admin drawer and the staff drawer never share a cache entry.
+  purchaseHistory: {
+    all: () => ["purchase-history"] as const,
+    products: (owner: unknown, query?: unknown) =>
+      ["purchase-history", "products", owner, query] as const,
+    documents: (owner: unknown, productId: string, query?: unknown) =>
+      ["purchase-history", "documents", owner, productId, query] as const,
+  },
   inventory: {
     all: () => ["inventory"] as const,
     stock: (query?: unknown) => ["inventory", "stock", query] as const,

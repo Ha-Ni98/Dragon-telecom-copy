@@ -1,11 +1,20 @@
 import type { PrismaClient } from '@prisma/client';
-import { Prisma, ClientStatus as PrismaClientStatus, InvoiceStatus as PrismaInvoiceStatus } from '@prisma/client';
+import {
+  Prisma,
+  ClientStatus as PrismaClientStatus,
+  InvoiceStatus as PrismaInvoiceStatus,
+  OrderStatus as PrismaOrderStatus,
+  SaleStatus as PrismaSaleStatus,
+} from '@prisma/client';
 import {
   AdminClientResponseSchema,
   DocType,
   ErrorCode,
   PhoneAvailability,
   PosClientResponseSchema,
+  PurchaseDocumentKind,
+  PurchasedProductDocumentResponseSchema,
+  PurchasedProductResponseSchema,
   paginated,
   type AddCartItemCommand,
   type AdminClientDto,
@@ -23,6 +32,9 @@ import {
   type PosClientDto,
   type PosClientListQuery,
   type PosClientSearchQuery,
+  type PurchasedProductDocumentDto,
+  type PurchasedProductDto,
+  type PurchasedProductsQuery,
   type RegisterClientCommand,
   type RejectClientCommand,
   type ResetClientPasswordCommand,
@@ -39,6 +51,37 @@ import { ClientsMapper, type AdminClientRollups, type AdminClientRow } from './c
 
 const isKnownRequestError = (err: unknown, code: string): err is Prisma.PrismaClientKnownRequestError =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
+
+// S36 — what counts as "bought" in a client's purchase history. Sales: confirmed, including those
+// that later saw a return (statistics' SALE_RECOGNIZED_STATUSES) — drafts and cancelled sales are
+// out. Orders: COMPLETED or RETURNED *and* deliveredAt set — deliveredAt is stamped only at
+// COMPLETED, so an order RETURNED straight from IN_DELIVERY (nothing consumed or invoiced) is out.
+const PURCHASE_SALE_STATUSES = [PrismaSaleStatus.COMPLETED, PrismaSaleStatus.PARTIALLY_RETURNED, PrismaSaleStatus.RETURNED];
+const PURCHASE_ORDER_STATUSES = [PrismaOrderStatus.COMPLETED, PrismaOrderStatus.RETURNED];
+
+type PurchaseIdentities = { posClientId: string | null; clientId: string | null };
+
+type PurchasedProductRow = {
+  productId: string;
+  productName: string;
+  quantityBought: number;
+  totalAmount: Prisma.Decimal;
+  quantityReturned: number;
+  amountRefunded: Prisma.Decimal;
+  lastBoughtAt: Date;
+};
+
+type PurchasedProductDocumentRow = {
+  kind: string;
+  documentId: string;
+  reference: string;
+  at: Date;
+  quantity: number;
+  unitPrice: Prisma.Decimal | null;
+  amount: Prisma.Decimal;
+  sourceKind: string | null;
+  sourceReference: string | null;
+};
 
 const ADMIN_CLIENT_INCLUDE = {
   wilaya: { select: { frName: true } },
@@ -597,5 +640,178 @@ export class ClientsService implements IClientsService {
       totalSpent,
       ...(orderAgg._max.placedAt != null ? { lastOrderDate: orderAgg._max.placedAt } : {}),
     };
+  }
+
+  // --- Purchase history (S36) ---
+
+  // S36 — both identities from either side (Client.posClientId is a unique FK). 404 when the
+  // starting row doesn't exist; a missing other side just omits that branch.
+  private async purchaseIdentitiesFromClient(clientId: string): Promise<PurchaseIdentities> {
+    const client = await this.prisma.client.findUnique({ where: { id: clientId }, select: { id: true, posClientId: true } });
+    if (!client) throw new NotFoundError('Client');
+    return { posClientId: client.posClientId, clientId: client.id };
+  }
+
+  private async purchaseIdentitiesFromPosClient(posClientId: string): Promise<PurchaseIdentities> {
+    const posClient = await this.prisma.posClient.findUnique({
+      where: { id: posClientId },
+      select: { id: true, linkedClient: { select: { id: true } } },
+    });
+    if (!posClient) throw new NotFoundError('PosClient');
+    return { posClientId: posClient.id, clientId: posClient.linkedClient?.id ?? null };
+  }
+
+  async listClientPurchasedProducts(clientId: string, query: PurchasedProductsQuery): Promise<PaginatedResult<PurchasedProductDto>> {
+    return this.purchasedProductsPage(await this.purchaseIdentitiesFromClient(clientId), query);
+  }
+
+  async listPosClientPurchasedProducts(posClientId: string, query: PurchasedProductsQuery): Promise<PaginatedResult<PurchasedProductDto>> {
+    return this.purchasedProductsPage(await this.purchaseIdentitiesFromPosClient(posClientId), query);
+  }
+
+  async listClientPurchasedProductDocuments(
+    clientId: string,
+    productId: string,
+    query: PurchasedProductsQuery,
+  ): Promise<PaginatedResult<PurchasedProductDocumentDto>> {
+    return this.purchasedProductDocumentsPage(await this.purchaseIdentitiesFromClient(clientId), productId, query);
+  }
+
+  async listPosClientPurchasedProductDocuments(
+    posClientId: string,
+    productId: string,
+    query: PurchasedProductsQuery,
+  ): Promise<PaginatedResult<PurchasedProductDocumentDto>> {
+    return this.purchasedProductDocumentsPage(await this.purchaseIdentitiesFromPosClient(posClientId), productId, query);
+  }
+
+  // S36 — every product the client bought: one GROUP BY over a UNION ALL of sale lines (via the POS
+  // identity) and order lines (via the web identity), paginated in SQL — no line is loaded into
+  // memory (1 GB machine). Returns are pre-aggregated PER LINE before the join, so a line returned
+  // in two goes is never double-counted. A missing identity omits its branch (Prisma.empty never
+  // reaches SQL), so a walk-in POS client (sales only) and a web client with no POS identity (orders
+  // only) both work. Amounts are the stored line totals; repair parts are never read.
+  private async purchasedProductsPage(ids: PurchaseIdentities, query: PurchasedProductsQuery): Promise<PaginatedResult<PurchasedProductDto>> {
+    const branches: Prisma.Sql[] = [];
+    if (ids.posClientId != null) {
+      branches.push(Prisma.sql`
+        SELECT sl."productId" AS "productId", sl."quantity" AS qty, sl."lineTotal" AS amount,
+               COALESCE(rs.qty, 0) AS rqty, COALESCE(rs.refund, 0) AS refund, s."soldAt" AS at
+        FROM "SaleLine" sl
+        JOIN "Sale" s ON s."id" = sl."saleId"
+        LEFT JOIN (SELECT rl."saleLineId" AS lid, SUM(rl."quantity") AS qty, SUM(rl."refundAmount") AS refund
+                   FROM "ReturnLine" rl WHERE rl."saleLineId" IS NOT NULL GROUP BY rl."saleLineId") rs ON rs.lid = sl."id"
+        WHERE s."posClientId" = ${ids.posClientId} AND s."status"::text IN (${Prisma.join(PURCHASE_SALE_STATUSES)})`);
+    }
+    if (ids.clientId != null) {
+      branches.push(Prisma.sql`
+        SELECT ol."productId" AS "productId", ol."quantity" AS qty, ol."lineTotal" AS amount,
+               COALESCE(ro.qty, 0) AS rqty, COALESCE(ro.refund, 0) AS refund, o."deliveredAt" AS at
+        FROM "OrderLine" ol
+        JOIN "Order" o ON o."id" = ol."orderId"
+        LEFT JOIN (SELECT rl."orderLineId" AS lid, SUM(rl."quantity") AS qty, SUM(rl."refundAmount") AS refund
+                   FROM "ReturnLine" rl WHERE rl."orderLineId" IS NOT NULL GROUP BY rl."orderLineId") ro ON ro.lid = ol."id"
+        WHERE o."clientId" = ${ids.clientId} AND o."status"::text IN (${Prisma.join(PURCHASE_ORDER_STATUSES)})
+          AND o."deliveredAt" IS NOT NULL`);
+    }
+    if (branches.length === 0) {
+      return paginated(PurchasedProductResponseSchema).parse({
+        items: [],
+        meta: { page: query.page, limit: query.limit, total: 0, totalPages: 0 },
+      });
+    }
+
+    const bought = Prisma.join(branches, ' UNION ALL ');
+    const [rows, counted] = await Promise.all([
+      this.prisma.$queryRaw<PurchasedProductRow[]>`
+        WITH bought AS (${bought})
+        SELECT b."productId", p."name" AS "productName",
+               SUM(b.qty)::int AS "quantityBought", SUM(b.amount) AS "totalAmount",
+               SUM(b.rqty)::int AS "quantityReturned", SUM(b.refund) AS "amountRefunded",
+               MAX(b.at) AS "lastBoughtAt"
+        FROM bought b JOIN "Product" p ON p."id" = b."productId"
+        GROUP BY b."productId", p."name"
+        ORDER BY MAX(b.at) DESC, p."name" ASC
+        LIMIT ${query.limit} OFFSET ${(query.page - 1) * query.limit}`,
+      this.prisma.$queryRaw<{ total: number }[]>`WITH bought AS (${bought}) SELECT COUNT(DISTINCT "productId")::int AS total FROM bought`,
+    ]);
+    const total = counted[0]?.total ?? 0;
+
+    return paginated(PurchasedProductResponseSchema).parse({
+      items: rows.map((row) => ClientsMapper.toPurchasedProductDto(row)),
+      meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) },
+    });
+  }
+
+  // S36 — the documents behind one purchased product: each sale/order line that contained it, and
+  // each return of it, as their own rows (never netted), newest first, paginated in SQL. Same
+  // population rules and identity branches as purchasedProductsPage. A return row carries the
+  // sale/order it came from (the web links it there — a return has no page of its own). Every
+  // column is aliased in every branch, so the result keeps its names whichever branch comes first.
+  private async purchasedProductDocumentsPage(
+    ids: PurchaseIdentities,
+    productId: string,
+    query: PurchasedProductsQuery,
+  ): Promise<PaginatedResult<PurchasedProductDocumentDto>> {
+    const branches: Prisma.Sql[] = [];
+    if (ids.posClientId != null) {
+      branches.push(Prisma.sql`
+        SELECT ${PurchaseDocumentKind.SALE}::text AS kind, s."id" AS "documentId", s."reference" AS "reference", s."soldAt" AS at,
+               sl."quantity" AS "quantity", sl."unitPrice" AS "unitPrice", sl."lineTotal" AS amount,
+               NULL::text AS "sourceKind", NULL::text AS "sourceReference"
+        FROM "SaleLine" sl JOIN "Sale" s ON s."id" = sl."saleId"
+        WHERE sl."productId" = ${productId} AND s."posClientId" = ${ids.posClientId}
+          AND s."status"::text IN (${Prisma.join(PURCHASE_SALE_STATUSES)})`);
+      branches.push(Prisma.sql`
+        SELECT ${PurchaseDocumentKind.RETURN}::text AS kind, r."id" AS "documentId", r."reference" AS "reference", r."returnedAt" AS at,
+               rl."quantity" AS "quantity", NULL::numeric AS "unitPrice", rl."refundAmount" AS amount,
+               ${PurchaseDocumentKind.SALE}::text AS "sourceKind", s."reference" AS "sourceReference"
+        FROM "ReturnLine" rl
+        JOIN "Return" r ON r."id" = rl."returnId"
+        JOIN "SaleLine" sl ON sl."id" = rl."saleLineId"
+        JOIN "Sale" s ON s."id" = sl."saleId"
+        WHERE sl."productId" = ${productId} AND s."posClientId" = ${ids.posClientId}
+          AND s."status"::text IN (${Prisma.join(PURCHASE_SALE_STATUSES)})`);
+    }
+    if (ids.clientId != null) {
+      branches.push(Prisma.sql`
+        SELECT ${PurchaseDocumentKind.ORDER}::text AS kind, o."id" AS "documentId", o."reference" AS "reference", o."deliveredAt" AS at,
+               ol."quantity" AS "quantity", ol."unitPrice" AS "unitPrice", ol."lineTotal" AS amount,
+               NULL::text AS "sourceKind", NULL::text AS "sourceReference"
+        FROM "OrderLine" ol JOIN "Order" o ON o."id" = ol."orderId"
+        WHERE ol."productId" = ${productId} AND o."clientId" = ${ids.clientId}
+          AND o."status"::text IN (${Prisma.join(PURCHASE_ORDER_STATUSES)}) AND o."deliveredAt" IS NOT NULL`);
+      branches.push(Prisma.sql`
+        SELECT ${PurchaseDocumentKind.RETURN}::text AS kind, r."id" AS "documentId", r."reference" AS "reference", r."returnedAt" AS at,
+               rl."quantity" AS "quantity", NULL::numeric AS "unitPrice", rl."refundAmount" AS amount,
+               ${PurchaseDocumentKind.ORDER}::text AS "sourceKind", o."reference" AS "sourceReference"
+        FROM "ReturnLine" rl
+        JOIN "Return" r ON r."id" = rl."returnId"
+        JOIN "OrderLine" ol ON ol."id" = rl."orderLineId"
+        JOIN "Order" o ON o."id" = ol."orderId"
+        WHERE ol."productId" = ${productId} AND o."clientId" = ${ids.clientId}
+          AND o."status"::text IN (${Prisma.join(PURCHASE_ORDER_STATUSES)}) AND o."deliveredAt" IS NOT NULL`);
+    }
+    if (branches.length === 0) {
+      return paginated(PurchasedProductDocumentResponseSchema).parse({
+        items: [],
+        meta: { page: query.page, limit: query.limit, total: 0, totalPages: 0 },
+      });
+    }
+
+    const docs = Prisma.join(branches, ' UNION ALL ');
+    const [rows, counted] = await Promise.all([
+      this.prisma.$queryRaw<PurchasedProductDocumentRow[]>`
+        SELECT * FROM (${docs}) d
+        ORDER BY d.at DESC, d."reference" DESC
+        LIMIT ${query.limit} OFFSET ${(query.page - 1) * query.limit}`,
+      this.prisma.$queryRaw<{ total: number }[]>`SELECT COUNT(*)::int AS total FROM (${docs}) d`,
+    ]);
+    const total = counted[0]?.total ?? 0;
+
+    return paginated(PurchasedProductDocumentResponseSchema).parse({
+      items: rows.map((row) => ClientsMapper.toPurchasedProductDocumentDto(row)),
+      meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) },
+    });
   }
 }

@@ -37,3 +37,14 @@ export type PosClientIdParams = z.infer<typeof PosClientIdParamsSchema>;
 
 export const CartItemParamsSchema = z.object({ productId: z.uuid() });
 export type CartItemParams = z.infer<typeof CartItemParamsSchema>;
+
+// S36 — the "Products bought" tab: both lists are paginated server-side (bounded, max 100).
+export const PurchasedProductsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+});
+export type PurchasedProductsQuery = z.infer<typeof PurchasedProductsQuerySchema>;
+
+// `id` is the web Client id or the PosClient id, depending on the route (S36).
+export const PurchasedProductParamsSchema = z.object({ id: z.uuid(), productId: z.uuid() });
+export type PurchasedProductParams = z.infer<typeof PurchasedProductParamsSchema>;

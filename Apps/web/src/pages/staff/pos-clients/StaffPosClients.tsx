@@ -210,6 +210,7 @@ export default function StaffPosClients({ scope = "staff" }: Props) {
         paymentsLoading={payments.isLoading}
         paymentsError={payments.isError}
         creditHistory={creditHistory}
+        scope={scope}
       />
 
       {paymentTarget?.id && (
