@@ -106,6 +106,13 @@ export type StaffDashboardDto = z.infer<typeof StaffDashboardResponseSchema>;
 // (plan S33 §0.4). `date` echoes the day actually used (today when the query omitted it).
 // Repairs' paidAmount is GROSS (paid + since-refunded) so a later return never rewrites the
 // pickup day; refunds are dated on the cancellation/return itself.
+// S35 — `payments`: money moved without a document (Record payment rows, on-account supplier
+// payments); `suppliers.paidOnInvoices` is invoice-linked payments only, so no row is counted
+// twice, while `suppliers.newCredit` stays invoiced − ALL supplier payments. `cashMovement.net`
+// is the day's real cash movement. `profit` (ADMIN ONLY — absent from StaffCashRegisterDto):
+// stored profit of the day's sales/repair pickups/completed orders minus the profit reversed by
+// the day's returns. Supplier payments are NOT an expense and never reduce profit: purchased
+// stock reaches profit as FIFO cost of goods when sold.
 export const CashRegisterResponseSchema = z.object({
   date: z.iso.date(),
   sales: z.object({
@@ -131,17 +138,50 @@ export const CashRegisterResponseSchema = z.object({
   suppliers: z.object({
     invoiceCount: z.number().int(),
     totalInvoiced: z.number(),
-    paymentCount: z.number().int(),
-    totalPaid: z.number(),
+    invoicePaymentCount: z.number().int(),
+    paidOnInvoices: z.number(),
     newCredit: z.number(),
+  }),
+  payments: z.object({
+    clientCount: z.number().int(),
+    clientTotal: z.number(),
+    supplierCount: z.number().int(),
+    supplierTotal: z.number(),
+  }),
+  cashMovement: z.object({
+    salesPaid: z.number(),
+    repairsPaid: z.number(),
+    ordersPaid: z.number(),
+    clientPayments: z.number(),
+    refunds: z.number(),
+    supplierPayments: z.number(),
+    net: z.number(),
+  }),
+  profit: z.object({
+    sales: z.number(),
+    repairs: z.number(),
+    orders: z.number(),
+    saleReturnsReversed: z.number(),
+    orderReturnsReversed: z.number(),
+    repairReturnsReversed: z.number(),
+    // The sum of the three reversals, computed on the server so the page does no arithmetic.
+    returnsReversed: z.number(),
+    net: z.number(),
   }),
 });
 export type CashRegisterDto = z.infer<typeof CashRegisterResponseSchema>;
 
+// S35 — the staff dashboard's cash register: whole-store figures for today (a deliberate
+// exception to staff seeing only their own documents — it reports one physical drawer), with
+// every profit figure removed at the schema level (the mapper parses with this).
+export const StaffCashRegisterResponseSchema = CashRegisterResponseSchema.omit({ profit: true });
+export type StaffCashRegisterDto = z.infer<typeof StaffCashRegisterResponseSchema>;
+
 // S33 — one row of a drill-through list, uniform across every CashRegisterDrill target.
 // `at` is the anchoring timestamp; `paid` is set for SALES, REPAIRS_PICKED_UP (gross) and
 // ORDERS_COMPLETED; `sourceReference` is the sale/order of a return, or the invoice a supplier
-// payment settles. `partyName` is absent for a walk-in sale.
+// payment settles. `partyName` is absent for a walk-in sale. `profit` (S35) is set for SALES,
+// REPAIRS_PICKED_UP and ORDERS_COMPLETED — the documents endpoint is admin-only.
 export const CashRegisterDocumentResponseSchema = z.object({
   id: z.uuid(),
   reference: z.string(),
@@ -149,6 +189,7 @@ export const CashRegisterDocumentResponseSchema = z.object({
   partyName: z.string().optional(),
   amount: z.number(),
   paid: z.number().optional(),
+  profit: z.number().optional(),
   sourceReference: z.string().optional(),
 });
 export type CashRegisterDocumentDto = z.infer<typeof CashRegisterDocumentResponseSchema>;

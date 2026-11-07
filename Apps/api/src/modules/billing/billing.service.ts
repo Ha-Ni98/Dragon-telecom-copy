@@ -131,10 +131,12 @@ export class BillingService implements IBillingService {
   // such rows are "on account" (ClientPayment.invoiceId null), still counted in totalPaid.
   // `amount` is signed; a negative amount is a refund row (D6). `reversalOfId` (S30/Q1) points a
   // negative row at the payment it reverses (repairs' cancel/return reverse payment by payment).
+  // S35 — `standalone` is set only by createClientPayment (Record payment): money taken outside any
+  // document, which the Caisse counts on its Payments line.
   // Returns everything the caller needs to emit `payment.clientRecorded` after IT commits.
   async captureClientPaymentInTx(
     tx: Prisma.TransactionClient,
-    input: { posClientId: string; invoiceId?: string; repairId?: string; reversalOfId?: string; amount: number; paidAt?: Date; staffId: string },
+    input: { posClientId: string; invoiceId?: string; repairId?: string; reversalOfId?: string; standalone?: boolean; amount: number; paidAt?: Date; staffId: string },
   ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }> {
     // Written here, inside the caller's own transaction, via the injected credit port
     // (credit-serialization fix, plan §C5) — no post-commit listener applies it. Overpayment
@@ -152,6 +154,7 @@ export class BillingService implements IBillingService {
         ...(input.invoiceId != null ? { invoiceId: input.invoiceId } : {}),
         ...(input.repairId != null ? { repairId: input.repairId } : {}),
         ...(input.reversalOfId != null ? { reversalOfId: input.reversalOfId } : {}),
+        ...(input.standalone ? { standalone: true } : {}),
         amount: input.amount,
         previousCredit,
         newCredit,
@@ -210,6 +213,7 @@ export class BillingService implements IBillingService {
       const captured = await this.captureClientPaymentInTx(tx, {
         posClientId: cmd.posClientId,
         ...(invoiceId != null ? { invoiceId } : {}),
+        standalone: true, // S35 — Record payment: the Caisse's Payments line
         amount: cmd.amount,
         ...(cmd.paidAt != null ? { paidAt: new Date(cmd.paidAt) } : {}),
         staffId,

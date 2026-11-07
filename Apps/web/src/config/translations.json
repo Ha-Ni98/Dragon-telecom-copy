@@ -10164,6 +10164,16 @@
     "fr": "Vos ventes, brouillons et alertes en un coup d'œil",
     "ar": ""
   },
+  "staff.dashboard.cashRegister.title": {
+    "en": "Cash register — today",
+    "fr": "Caisse — aujourd'hui",
+    "ar": ""
+  },
+  "staff.dashboard.cashRegister.note": {
+    "en": "Whole-store figures for today (Algiers time), to check the drawer.",
+    "fr": "Chiffres de tout le magasin pour aujourd'hui (heure d'Alger), pour contrôler la caisse.",
+    "ar": ""
+  },
   "staff.dashboard.mySalesToday": {
     "en": "My Sales Today",
     "fr": "Mes Ventes Aujourd'hui",
@@ -15804,6 +15814,11 @@
     "fr": "Les journées vont de minuit à minuit, heure d'Alger.",
     "ar": ""
   },
+  "admin.cashRegister.amountWithCount": {
+    "en": "{amount} · {count}",
+    "fr": "{amount} · {count}",
+    "ar": ""
+  },
   "admin.cashRegister.sales.title": {
     "en": "Sales",
     "fr": "Ventes",
@@ -15919,9 +15934,109 @@
     "fr": "Payé aux fournisseurs",
     "ar": ""
   },
+  "admin.cashRegister.suppliers.paidOnInvoices": {
+    "en": "Paid on supplier invoices",
+    "fr": "Payé sur factures fournisseurs",
+    "ar": ""
+  },
   "admin.cashRegister.suppliers.newCredit": {
     "en": "New supplier credit",
     "fr": "Nouveau crédit fournisseur",
+    "ar": ""
+  },
+  "admin.cashRegister.payments.title": {
+    "en": "Payments without a document",
+    "fr": "Paiements hors documents",
+    "ar": ""
+  },
+  "admin.cashRegister.payments.client": {
+    "en": "Client payments received (+)",
+    "fr": "Paiements clients reçus (+)",
+    "ar": ""
+  },
+  "admin.cashRegister.payments.supplier": {
+    "en": "Supplier payments on account (−)",
+    "fr": "Paiements fournisseurs sans facture (−)",
+    "ar": ""
+  },
+  "admin.cashRegister.cash.title": {
+    "en": "Net cash movement",
+    "fr": "Mouvement de caisse net",
+    "ar": ""
+  },
+  "admin.cashRegister.cash.salesPaid": {
+    "en": "+ Paid on the day's sales",
+    "fr": "+ Payé sur les ventes du jour",
+    "ar": ""
+  },
+  "admin.cashRegister.cash.repairsPaid": {
+    "en": "+ Paid on the day's repair pickups",
+    "fr": "+ Payé sur les réparations récupérées",
+    "ar": ""
+  },
+  "admin.cashRegister.cash.ordersPaid": {
+    "en": "+ Paid on completed orders",
+    "fr": "+ Payé sur les commandes terminées",
+    "ar": ""
+  },
+  "admin.cashRegister.cash.clientPayments": {
+    "en": "+ Client payments without a document",
+    "fr": "+ Paiements clients hors documents",
+    "ar": ""
+  },
+  "admin.cashRegister.cash.refunds": {
+    "en": "− Refunds paid out",
+    "fr": "− Remboursements versés",
+    "ar": ""
+  },
+  "admin.cashRegister.cash.supplierPayments": {
+    "en": "− Supplier payments",
+    "fr": "− Paiements fournisseurs",
+    "ar": ""
+  },
+  "admin.cashRegister.cash.net": {
+    "en": "= Net cash movement for the day",
+    "fr": "= Mouvement de caisse net du jour",
+    "ar": ""
+  },
+  "admin.cashRegister.profit.title": {
+    "en": "Profit",
+    "fr": "Bénéfice",
+    "ar": ""
+  },
+  "admin.cashRegister.profit.sales": {
+    "en": "Sales profit",
+    "fr": "Bénéfice des ventes",
+    "ar": ""
+  },
+  "admin.cashRegister.profit.repairs": {
+    "en": "Repair profit",
+    "fr": "Bénéfice des réparations",
+    "ar": ""
+  },
+  "admin.cashRegister.profit.orders": {
+    "en": "Order profit",
+    "fr": "Bénéfice des commandes",
+    "ar": ""
+  },
+  "admin.cashRegister.profit.returnsReversed": {
+    "en": "Reversed by returns",
+    "fr": "Annulé par les retours",
+    "ar": ""
+  },
+  "admin.cashRegister.profit.returnsBreakdown": {
+    "en": "Sales {sales} · Orders {orders} · Repairs {repairs}",
+    "fr": "Ventes {sales} · Commandes {orders} · Réparations {repairs}",
+    "ar": ""
+  },
+  "admin.cashRegister.profit.net": {
+    "en": "Net profit",
+    "fr": "Bénéfice net",
+    "ar": ""
+  },
+  "admin.cashRegister.profit.note": {
+    "en": "Supplier payments are not an expense: purchased stock reaches profit as cost of goods when it is sold.",
+    "fr": "Les paiements fournisseurs ne sont pas une charge : le stock acheté entre dans le bénéfice comme coût des marchandises lorsqu'il est vendu.",
     "ar": ""
   },
   "admin.cashRegister.drill.hint": {
@@ -15957,6 +16072,11 @@
   "admin.cashRegister.drill.paid": {
     "en": "Paid",
     "fr": "Payé",
+    "ar": ""
+  },
+  "admin.cashRegister.drill.profit": {
+    "en": "Profit",
+    "fr": "Bénéfice",
     "ar": ""
   },
   "admin.cashRegister.drill.source": {

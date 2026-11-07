@@ -13,6 +13,7 @@ import type {
   ReportDto,
   ReportQuery,
   ReportType,
+  StaffCashRegisterDto,
   StaffDashboardDto,
   TopProductsQuery,
 } from '@dragon-telecom/contract';
@@ -41,8 +42,10 @@ export interface IStatisticsService {
   getTopProducts(query: TopProductsQuery): Promise<TopProductDto[]>;
   // table+chart JSON, or a CSV export (format=csv streams the same rows).
   getReport(type: ReportType, query: ReportQuery): Promise<ReportDto | ExportResult>;
-  // S33 — the Caisse: one Africa/Algiers day, nine SQL aggregates over stored values.
+  // S33 — the Caisse: one Africa/Algiers day, SQL aggregates over stored values (S35: fifteen).
   getCashRegister(query: CashRegisterQuery): Promise<CashRegisterDto>;
+  // S35 — the staff dashboard's cash register: today, whole store, profit stripped in the mapper.
+  getStaffCashRegister(): Promise<StaffCashRegisterDto>;
   // S33 — the documents behind one Caisse figure, filtered exactly as that figure is (paginated).
   getCashRegisterDocuments(query: CashRegisterDocumentsQuery): Promise<PaginatedResult<CashRegisterDocumentDto>>;
 }

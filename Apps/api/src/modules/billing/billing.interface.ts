@@ -60,10 +60,10 @@ export interface IBillingService {
   // `repairId` (S13) tags an on-account row (`invoiceId` still null) with the repair it was
   // collected for, so it can be found again by linkRepairPaymentsToInvoiceInTx below once that
   // repair's invoice is issued at PICKED_UP. `reversalOfId` (S30/Q1) links a negative row to the
-  // payment it reverses.
+  // payment it reverses. `standalone` (S35) is set only by Record payment.
   captureClientPaymentInTx(
     tx: Prisma.TransactionClient,
-    input: { posClientId: string; invoiceId?: string; repairId?: string; reversalOfId?: string; amount: number; paidAt?: Date; staffId: string },
+    input: { posClientId: string; invoiceId?: string; repairId?: string; reversalOfId?: string; standalone?: boolean; amount: number; paidAt?: Date; staffId: string },
   ): Promise<{ paymentId: string; reference: string; previousCredit: number; newCredit: number }>;
   // S13/D5/R3 — at PICKED_UP the repair's on-account rows (invoiceId null) are re-pointed at the
   // invoice just issued, then the invoice's paidAmount/status are recomputed from the ledger, so

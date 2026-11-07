@@ -202,6 +202,8 @@ export const qk = {
     cashRegister: (query?: unknown) => ["stats", "cash-register", query] as const,
     cashRegisterDocuments: (query?: unknown) =>
       ["stats", "cash-register", "documents", query] as const,
+    // S35 — the staff dashboard's cash register; also under `stats`, so it refreshes with them.
+    staffCashRegister: () => ["stats", "staff-cash-register"] as const,
   },
   observability: {
     all: () => ["observability"] as const,

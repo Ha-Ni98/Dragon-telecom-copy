@@ -109,3 +109,12 @@ export function useCashRegisterDocuments(
     staleTime: 0,
   });
 }
+
+// S35 — the staff dashboard's cash register; staleTime 0 like the admin Caisse (S33/F4).
+export function useStaffCashRegister() {
+  return useQuery({
+    queryKey: qk.stats.staffCashRegister(),
+    queryFn: statisticsService.getStaffCashRegister,
+    staleTime: 0,
+  });
+}

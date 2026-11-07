@@ -23,6 +23,7 @@ import {
   type OverviewDto,
   type ReportDto,
   type ReportQuery,
+  type StaffCashRegisterDto,
   type StaffDashboardDto,
   type TopProductsQuery,
 } from '@dragon-telecom/contract';
@@ -353,14 +354,16 @@ export class StatisticsService implements IStatisticsService {
   // treats `staffId: undefined` as "field omitted", not "no match" — without the guards below an
   // admin caller would see every staff member's sales/drafts as their own instead of zero.
   async getStaffDashboard(staffId: string | undefined): Promise<StaffDashboardDto> {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    // S35/F3 — the store's day (Africa/Algiers), not the server's local midnight (UTC on Fly);
+    // the cash register shown beside this figure uses the same bounds.
+    const today = storeLocalDate();
+    const todayRange = storeDayRangeUtc(today, today);
     const now = new Date();
 
     const [salesToday, draftSales, pendingOrdersCount, lowStock] = await Promise.all([
       staffId != null
         ? this.prisma.sale.findMany({
-            where: { staffId, status: 'COMPLETED', soldAt: { gte: startOfToday } },
+            where: { staffId, status: 'COMPLETED', soldAt: todayRange },
             select: { totalAmount: true },
           })
         : Promise.resolve([]),
@@ -390,35 +393,107 @@ export class StatisticsService implements IStatisticsService {
 
   // --- Cash register / Caisse (S33) ---
 
-  // One Africa/Algiers day (plan S33 §0.3): `range` is computed ONCE here and handed to every
-  // where-builder below — the same builders getCashRegisterDocuments uses, so a drill list always
-  // equals its figure. Nine SQL aggregates over stored values; no document row is loaded.
+  // One Africa/Algiers day (plan S33 §0.3): `range` is computed ONCE in computeCashRegister and
+  // handed to every where-builder below — the same builders getCashRegisterDocuments uses, so a
+  // drill list always equals its figure. S35 — fifteen queries in one Promise.all: the S33 nine, two
+  // standalone-payment aggregates, two raw SUMs for return profit reversals, two repair-return
+  // aggregates. No document row is loaded.
   async getCashRegister(query: CashRegisterQuery): Promise<CashRegisterDto> {
-    const date = query.date ?? storeLocalDate();
-    const range = storeDayRangeUtc(date, date);
+    return StatisticsMapper.toCashRegisterDto(await this.computeCashRegister(query.date ?? storeLocalDate()));
+  }
 
-    const [sales, returns, repairs, repairRefunds, confirmedCount, inDeliveryCount, completed, invoices, payments] = await Promise.all([
+  // S35 — the staff dashboard's cash register: the SAME aggregation, today only, whole store
+  // (a deliberate exception to staff seeing only their own documents — one physical drawer).
+  // Profit is stripped by the staff mapper, not by any component.
+  async getStaffCashRegister(): Promise<StaffCashRegisterDto> {
+    return StatisticsMapper.toStaffCashRegisterDto(await this.computeCashRegister(storeLocalDate()));
+  }
+
+  // Returns the UNPARSED full object (profit included); the two public methods choose the mapper.
+  private async computeCashRegister(date: string): Promise<CashRegisterDto> {
+    const range = storeDayRangeUtc(date, date);
+    // storeDayRangeUtc(date, date) always sets both bounds; the raw SQL below needs them as values.
+    const dayStart = range.gte!;
+    const dayEnd = range.lt!;
+
+    const [
+      sales,
+      returns,
+      repairs,
+      repairRefunds,
+      confirmedCount,
+      inDeliveryCount,
+      completed,
+      invoices,
+      payments,
+      standaloneClient,
+      standaloneSupplier,
+      saleReversalRows,
+      orderReversalRows,
+      repairReturns,
+      repairReturnedRestockCost,
+    ] = await Promise.all([
       this.prisma.sale.aggregate({
         where: this.cashSalesWhere(range),
         _count: { _all: true },
-        _sum: { totalAmount: true, paidAmount: true },
+        _sum: { totalAmount: true, paidAmount: true, totalProfit: true },
       }),
       this.prisma.return.aggregate({ where: this.cashReturnsWhere(range), _count: { _all: true }, _sum: { refundAmount: true } }),
       this.prisma.repair.aggregate({
         where: this.cashRepairsPickedUpWhere(range),
         _count: { _all: true },
-        _sum: { totalAmount: true, paidAmount: true, refundedAmount: true },
+        _sum: { totalAmount: true, paidAmount: true, refundedAmount: true, totalProfit: true },
       }),
       this.prisma.repair.aggregate({ where: this.cashRepairRefundsWhere(range), _count: { _all: true }, _sum: { refundedAmount: true } }),
       this.prisma.order.count({ where: this.cashOrdersConfirmedWhere(range) }),
       this.prisma.order.count({ where: this.cashOrdersInDeliveryWhere(range) }),
-      this.prisma.order.aggregate({ where: this.cashOrdersCompletedWhere(range), _count: { _all: true }, _sum: { paidAmount: true } }),
+      this.prisma.order.aggregate({
+        where: this.cashOrdersCompletedWhere(range),
+        _count: { _all: true },
+        _sum: { paidAmount: true, totalProfit: true },
+      }),
       this.prisma.supplierInvoice.aggregate({
         where: this.cashSupplierInvoicesWhere(range),
         _count: { _all: true },
         _sum: { totalAmount: true },
       }),
       this.prisma.supplierPayment.aggregate({ where: this.cashSupplierPaymentsWhere(range), _count: { _all: true }, _sum: { amount: true } }),
+      this.prisma.clientPayment.aggregate({
+        where: this.cashStandaloneClientPaymentsWhere(range),
+        _count: { _all: true },
+        _sum: { amount: true },
+      }),
+      this.prisma.supplierPayment.aggregate({
+        where: this.cashStandaloneSupplierPaymentsWhere(range),
+        _count: { _all: true },
+        _sum: { amount: true },
+      }),
+      // S35 — the profit a day's SALE returns reverse (statistics' returnAdjustments formula, S32/Q1):
+      // line price of the returned units minus their FIFO cost when they went back on the shelf.
+      this.prisma.$queryRaw<{ reversed: number }[]>`
+        SELECT COALESCE(SUM(
+          sl."unitPrice" * rl."quantity"
+          - CASE WHEN rl."restock" AND sl."quantity" > 0 THEN sl."costOfGoods" * rl."quantity" / sl."quantity" ELSE 0 END
+        ), 0)::float8 AS "reversed"
+        FROM "ReturnLine" rl
+        JOIN "Return" r ON r."id" = rl."returnId"
+        JOIN "SaleLine" sl ON sl."id" = rl."saleLineId"
+        WHERE r."returnedAt" >= ${dayStart} AND r."returnedAt" < ${dayEnd}`,
+      // S35 — the same for ORDER returns, by the S24 rule: revenue falls by the refund given.
+      this.prisma.$queryRaw<{ reversed: number }[]>`
+        SELECT COALESCE(SUM(
+          rl."refundAmount"
+          - CASE WHEN rl."restock" AND ol."quantity" > 0 THEN COALESCE(ol."costOfGoods", 0) * rl."quantity" / ol."quantity" ELSE 0 END
+        ), 0)::float8 AS "reversed"
+        FROM "ReturnLine" rl
+        JOIN "Return" r ON r."id" = rl."returnId"
+        JOIN "OrderLine" ol ON ol."id" = rl."orderLineId"
+        WHERE r."returnedAt" >= ${dayStart} AND r."returnedAt" < ${dayEnd}`,
+      this.prisma.repair.aggregate({ where: this.cashRepairReturnsWhere(range), _sum: { totalAmount: true } }),
+      this.prisma.repairPart.aggregate({
+        where: { restockedOnReturn: true, repair: this.cashRepairReturnsWhere(range) },
+        _sum: { costOfGoods: true },
+      }),
     ]);
 
     const totalSold = sales._sum.totalAmount?.toNumber() ?? 0;
@@ -426,10 +501,31 @@ export class StatisticsService implements IStatisticsService {
     // P3 — gross paid at pickup: Repair.paidAmount is net of refunds (S30), so a repair returned
     // on a later day would otherwise rewrite this day's figure retroactively.
     const repairsGrossPaid = (repairs._sum.paidAmount?.toNumber() ?? 0) + (repairs._sum.refundedAmount?.toNumber() ?? 0);
+    const ordersPaid = completed._sum.paidAmount?.toNumber() ?? 0;
     const totalInvoiced = invoices._sum.totalAmount?.toNumber() ?? 0;
-    const suppliersPaid = payments._sum.amount?.toNumber() ?? 0;
+    const suppliersPaidOnInvoices = payments._sum.amount?.toNumber() ?? 0;
+    const supplierStandalone = standaloneSupplier._sum.amount?.toNumber() ?? 0;
+    const clientStandalone = standaloneClient._sum.amount?.toNumber() ?? 0;
+    const refunds = (returns._sum.refundAmount?.toNumber() ?? 0) + (repairRefunds._sum.refundedAmount?.toNumber() ?? 0);
+    const allSupplierPayments = suppliersPaidOnInvoices + supplierStandalone;
 
-    return StatisticsMapper.toCashRegisterDto({
+    // S35 — profit. Each document's stored profit stays on its own day (no return ever modifies
+    // it); the reversal lands on the return's day, so a later return never rewrites an earlier day.
+    // Supplier payments are NOT an expense and never appear here: purchased stock reaches profit
+    // as FIFO cost of goods when it is sold.
+    const saleReturnsReversed = saleReversalRows[0]?.reversed ?? 0;
+    const orderReturnsReversed = orderReversalRows[0]?.reversed ?? 0;
+    // Q3 (S35) — like a sale return: the repair's total minus the cost of the parts put back on the
+    // shelf; a non-restocked part stays a loss. (Statistics instead drops a returned repair whole,
+    // S30/Q2 — the Caisse is a day ledger and dates the reversal on returnedAt.)
+    const repairReturnsReversed =
+      (repairReturns._sum.totalAmount?.toNumber() ?? 0) - (repairReturnedRestockCost._sum.costOfGoods?.toNumber() ?? 0);
+    const returnsReversed = saleReturnsReversed + orderReturnsReversed + repairReturnsReversed;
+    const salesProfit = sales._sum.totalProfit?.toNumber() ?? 0;
+    const repairProfit = repairs._sum.totalProfit?.toNumber() ?? 0;
+    const orderProfit = completed._sum.totalProfit?.toNumber() ?? 0;
+
+    return {
       date,
       sales: {
         count: sales._count._all,
@@ -449,16 +545,46 @@ export class StatisticsService implements IStatisticsService {
         confirmedCount,
         inDeliveryCount,
         completedCount: completed._count._all,
-        completedPaid: round2(completed._sum.paidAmount?.toNumber() ?? 0),
+        completedPaid: round2(ordersPaid),
       },
       suppliers: {
         invoiceCount: invoices._count._all,
         totalInvoiced: round2(totalInvoiced),
-        paymentCount: payments._count._all,
-        totalPaid: round2(suppliersPaid),
-        newCredit: round2(totalInvoiced - suppliersPaid),
+        invoicePaymentCount: payments._count._all,
+        paidOnInvoices: round2(suppliersPaidOnInvoices),
+        // Meaning unchanged since S33: invoiced − ALL supplier payments of the day (invoice-linked
+        // here + on-account in `payments`).
+        newCredit: round2(totalInvoiced - allSupplierPayments),
       },
-    });
+      payments: {
+        clientCount: standaloneClient._count._all,
+        clientTotal: round2(clientStandalone),
+        supplierCount: standaloneSupplier._count._all,
+        supplierTotal: round2(supplierStandalone),
+      },
+      // S35 — the day's real cash movement. Every payment row is counted once (plan S35 §0.4):
+      // document-time rows inside their document's paid figure, Record-payment rows on the Payments
+      // line, invoice-linked supplier payments in Suppliers, on-account ones in Payments.
+      cashMovement: {
+        salesPaid: round2(salesPaid),
+        repairsPaid: round2(repairsGrossPaid),
+        ordersPaid: round2(ordersPaid),
+        clientPayments: round2(clientStandalone),
+        refunds: round2(refunds),
+        supplierPayments: round2(allSupplierPayments),
+        net: round2(salesPaid + repairsGrossPaid + ordersPaid + clientStandalone - refunds - allSupplierPayments),
+      },
+      profit: {
+        sales: round2(salesProfit),
+        repairs: round2(repairProfit),
+        orders: round2(orderProfit),
+        saleReturnsReversed: round2(saleReturnsReversed),
+        orderReturnsReversed: round2(orderReturnsReversed),
+        repairReturnsReversed: round2(repairReturnsReversed),
+        returnsReversed: round2(returnsReversed),
+        net: round2(salesProfit + repairProfit + orderProfit - returnsReversed),
+      },
+    };
   }
 
   // The documents behind one Caisse figure — same day bounds, same where-builder, paginated
@@ -483,7 +609,15 @@ export class StatisticsService implements IStatisticsService {
             skip,
             take,
             orderBy: { soldAt: 'asc' },
-            select: { id: true, reference: true, soldAt: true, totalAmount: true, paidAmount: true, posClient: { select: { name: true } } },
+            select: {
+              id: true,
+              reference: true,
+              soldAt: true,
+              totalAmount: true,
+              paidAmount: true,
+              totalProfit: true,
+              posClient: { select: { name: true } },
+            },
           }),
         ]);
         total = count;
@@ -494,6 +628,7 @@ export class StatisticsService implements IStatisticsService {
           ...(row.posClient != null ? { partyName: row.posClient.name } : {}),
           amount: row.totalAmount.toNumber(),
           paid: row.paidAmount.toNumber(),
+          profit: row.totalProfit.toNumber(),
         }));
         break;
       }
@@ -540,7 +675,16 @@ export class StatisticsService implements IStatisticsService {
             skip,
             take,
             orderBy: { pickedUpAt: 'asc' },
-            select: { id: true, reference: true, pickedUpAt: true, customerName: true, totalAmount: true, paidAmount: true, refundedAmount: true },
+            select: {
+              id: true,
+              reference: true,
+              pickedUpAt: true,
+              customerName: true,
+              totalAmount: true,
+              paidAmount: true,
+              refundedAmount: true,
+              totalProfit: true,
+            },
           }),
         ]);
         total = count;
@@ -551,6 +695,7 @@ export class StatisticsService implements IStatisticsService {
           partyName: row.customerName,
           amount: row.totalAmount.toNumber(),
           paid: round2(row.paidAmount.toNumber() + row.refundedAmount.toNumber()), // gross (P3)
+          ...(row.totalProfit != null ? { profit: row.totalProfit.toNumber() } : {}), // always set at pickup
         }));
         break;
       }
@@ -608,6 +753,7 @@ export class StatisticsService implements IStatisticsService {
               contactName: true,
               totalAmount: true,
               paidAmount: true,
+              totalProfit: true,
             },
           }),
         ]);
@@ -620,6 +766,7 @@ export class StatisticsService implements IStatisticsService {
           partyName: row.contactName,
           amount: row.totalAmount.toNumber(),
           ...(withPaid ? { paid: row.paidAmount.toNumber() } : {}),
+          ...(withPaid && row.totalProfit != null ? { profit: row.totalProfit.toNumber() } : {}), // set at COMPLETED
         }));
         break;
       }
@@ -675,6 +822,58 @@ export class StatisticsService implements IStatisticsService {
         }));
         break;
       }
+      case CashRegisterDrill.PAYMENTS_CLIENT: {
+        const where = this.cashStandaloneClientPaymentsWhere(range);
+        const [count, rows] = await this.prisma.$transaction([
+          this.prisma.clientPayment.count({ where }),
+          this.prisma.clientPayment.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { paidAt: 'asc' },
+            select: {
+              id: true,
+              reference: true,
+              paidAt: true,
+              amount: true,
+              posClient: { select: { name: true } },
+              invoice: { select: { number: true } },
+            },
+          }),
+        ]);
+        total = count;
+        items = rows.map((row) => ({
+          id: row.id,
+          reference: row.reference,
+          at: row.paidAt.toISOString(),
+          partyName: row.posClient.name,
+          amount: row.amount.toNumber(),
+          ...(row.invoice != null ? { sourceReference: row.invoice.number } : {}),
+        }));
+        break;
+      }
+      case CashRegisterDrill.PAYMENTS_SUPPLIER: {
+        const where = this.cashStandaloneSupplierPaymentsWhere(range);
+        const [count, rows] = await this.prisma.$transaction([
+          this.prisma.supplierPayment.count({ where }),
+          this.prisma.supplierPayment.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { paidAt: 'asc' },
+            select: { id: true, reference: true, paidAt: true, amount: true, supplier: { select: { name: true } } },
+          }),
+        ]);
+        total = count;
+        items = rows.map((row) => ({
+          id: row.id,
+          reference: row.reference,
+          at: row.paidAt.toISOString(),
+          partyName: row.supplier.name,
+          amount: row.amount.toNumber(),
+        }));
+        break;
+      }
     }
 
     return paginated(CashRegisterDocumentResponseSchema).parse({
@@ -726,9 +925,31 @@ export class StatisticsService implements IStatisticsService {
     return { status: 'CONFIRMED', confirmedAt: range };
   }
 
-  // Q1 — the cash that left the register that day, whichever invoice it settles (or none).
+  // S35 — invoice-linked supplier payments only (was every payment, S33/Q1). On-account ones (no
+  // invoice) are cashStandaloneSupplierPaymentsWhere, so the two never double-count.
   private cashSupplierPaymentsWhere(range: StoreDayRange): Prisma.SupplierPaymentWhereInput {
-    return { paidAt: range };
+    return { paidAt: range, supplierInvoiceId: { not: null } };
+  }
+
+  // S35 — the Payments line, client side: every Record-payment row (standalone, whatever invoice
+  // it settles — a later payment on an invoice moves Invoice.paidAmount only, so no document
+  // section can see it), plus pre-S35 on-account rows (no invoice, no repair, positive — only
+  // Record payment ever wrote those; the flag did not exist yet).
+  private cashStandaloneClientPaymentsWhere(range: StoreDayRange): Prisma.ClientPaymentWhereInput {
+    return {
+      paidAt: range,
+      OR: [{ standalone: true }, { invoiceId: null, repairId: null, amount: { gt: 0 } }],
+    };
+  }
+
+  // S35 — the Payments line, supplier side: payments made on account (no supplier invoice).
+  private cashStandaloneSupplierPaymentsWhere(range: StoreDayRange): Prisma.SupplierPaymentWhereInput {
+    return { paidAt: range, supplierInvoiceId: null };
+  }
+
+  // S35 — repairs returned that day (their profit reversal; Q3).
+  private cashRepairReturnsWhere(range: StoreDayRange): Prisma.RepairWhereInput {
+    return { status: 'RETURNED', returnedAt: range };
   }
 
   // --- Shared aggregation core ---
