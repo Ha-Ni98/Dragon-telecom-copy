@@ -8,15 +8,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SaleStatus } from "@dragon-telecom/contract";
+import { SALE_STATUS_LABEL_KEY } from "@/pages/staff/sales/sale-status-labels";
 import { useTranslation } from "@/hooks/useTranslation";
-
-const STATUS_LABEL_KEY: Record<SaleStatus, string> = {
-  [SaleStatus.DRAFT]: "staff.sales.status.draft",
-  [SaleStatus.COMPLETED]: "staff.sales.status.completed",
-  [SaleStatus.RETURNED]: "orders.returned",
-  [SaleStatus.PARTIALLY_RETURNED]: "orders.returned",
-  [SaleStatus.CANCELLED]: "orders.cancelled",
-};
 
 interface SalesFiltersProps {
   status?: SaleStatus;
@@ -27,20 +20,22 @@ interface SalesFiltersProps {
   /** S32 — the one-click "Today's sales" toggle (Africa/Algiers day). Both scopes. */
   todayActive: boolean;
   onToggleToday: () => void;
-  /** Admin-only extras (ADM-10 §UI: date range, seller, POS client) — omitted for STF-05. Product
-   * search and Today (S32) are not admin-only. */
+  /** S34 — client search (name or phone) in both scopes; seller search and the date range admin-only. */
+  clientQuery: string;
+  onClientQueryChange: (query: string) => void;
+  /** Admin-only extras (ADM-10 §UI: date range, seller) — omitted for STF-05. Product search,
+   * client search and Today (S32/S34) are not admin-only. */
   scope?: "staff" | "admin";
   from?: string;
   onFromChange?: (from: string) => void;
   to?: string;
   onToChange?: (to: string) => void;
-  sellerName?: string;
-  onSellerSearch?: (query: string) => void;
-  posClientName?: string;
-  onPosClientSearch?: (query: string) => void;
+  sellerQuery?: string;
+  onSellerQueryChange?: (query: string) => void;
 }
 
 // Dumb, props-only (Sprint 4) — Sprint 6 wires useSales(scope, query) around this.
+// S34 — every filter here is plain text/enum/date; ids are never resolved in the page.
 export function SalesFilters({
   status,
   onStatusChange,
@@ -48,15 +43,15 @@ export function SalesFilters({
   onProductQueryChange,
   todayActive,
   onToggleToday,
+  clientQuery,
+  onClientQueryChange,
   scope = "staff",
   from,
   onFromChange,
   to,
   onToChange,
-  sellerName,
-  onSellerSearch,
-  posClientName,
-  onPosClientSearch,
+  sellerQuery,
+  onSellerQueryChange,
 }: SalesFiltersProps) {
   const { t } = useTranslation();
 
@@ -73,7 +68,7 @@ export function SalesFilters({
           <SelectItem value="all">{t("staff.orders.tabs.all")}</SelectItem>
           {Object.values(SaleStatus).map((s) => (
             <SelectItem key={s} value={s}>
-              {t(STATUS_LABEL_KEY[s])}
+              {t(SALE_STATUS_LABEL_KEY[s])}
             </SelectItem>
           ))}
         </SelectContent>
@@ -93,6 +88,12 @@ export function SalesFilters({
       >
         {t("admin.sales.filters.today")}
       </Button>
+      <Input
+        value={clientQuery}
+        onChange={(e) => onClientQueryChange(e.target.value)}
+        placeholder={t("admin.sales.filters.clientSearch")}
+        className="w-52"
+      />
 
       {scope === "admin" && (
         <>
@@ -101,25 +102,22 @@ export function SalesFilters({
             value={from ?? ""}
             onChange={(e) => onFromChange?.(e.target.value)}
             className="w-36"
-            aria-label={t("admin.sales.filters.dateRange")}
+            aria-label={t("admin.sales.filters.from")}
+            title={t("admin.sales.filters.from")}
           />
           <Input
             type="date"
             value={to ?? ""}
             onChange={(e) => onToChange?.(e.target.value)}
             className="w-36"
+            aria-label={t("admin.sales.filters.to")}
+            title={t("admin.sales.filters.to")}
           />
           <Input
-            value={sellerName ?? ""}
-            onChange={(e) => onSellerSearch?.(e.target.value)}
+            value={sellerQuery ?? ""}
+            onChange={(e) => onSellerQueryChange?.(e.target.value)}
             placeholder={t("admin.sales.filters.seller")}
             className="w-40"
-          />
-          <Input
-            value={posClientName ?? ""}
-            onChange={(e) => onPosClientSearch?.(e.target.value)}
-            placeholder={t("admin.sales.filters.posClient")}
-            className="w-44"
           />
         </>
       )}

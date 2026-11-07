@@ -9,6 +9,7 @@ import {
   SupplierResponseSchema,
   SupplierInvoiceResponseSchema,
   paginated,
+  storeDayRangeUtc,
   type CancelSupplierInvoiceCommand,
   type ConfirmResultDto,
   type CreateSupplierCommand,
@@ -202,6 +203,7 @@ export class PurchasingService implements IPurchasingService {
       // set-03 A4 — ADM-04 Supply history: invoices whose lines touched this product.
       ...(query.productId != null ? { lines: { some: { productId: query.productId } } } : {}),
       ...(query.status != null ? { status: query.status as PrismaSupplierInvoiceStatus } : {}),
+      // invoiceDate is @db.Date — a plain calendar date, so lte <to> already includes the to day (S34 audit).
       ...(query.from != null || query.to != null
         ? {
             invoiceDate: {
@@ -460,15 +462,8 @@ export class PurchasingService implements IPurchasingService {
   async listPayments(query: SupplierPaymentListQuery): Promise<PaginatedResult<SupplierPaymentDto>> {
     const where: Prisma.SupplierPaymentWhereInput = {
       ...(query.supplierId != null ? { supplierId: query.supplierId } : {}),
-      // S8 J8 — the payments tab's date-range filter.
-      ...(query.from != null || query.to != null
-        ? {
-            paidAt: {
-              ...(query.from != null ? { gte: new Date(query.from) } : {}),
-              ...(query.to != null ? { lte: new Date(query.to) } : {}),
-            },
-          }
-        : {}),
+      // S8 J8 — the payments tab's date-range filter. S34 — Africa/Algiers days, `to` inclusive.
+      ...(query.from != null || query.to != null ? { paidAt: storeDayRangeUtc(query.from, query.to) } : {}),
     };
 
     const [total, rows] = await this.prisma.$transaction([

@@ -11,6 +11,7 @@ import {
   isRepairReadOnly,
   isRepairTransitionAllowed,
   paginated,
+  storeDayRangeUtc,
   type AddRepairPartCommand,
   type AddRepairPartsCommand,
   type CreateRepairCommand,
@@ -76,14 +77,8 @@ export class RepairsService implements IRepairsService {
     const where: Prisma.RepairWhereInput = {
       ...(query.status != null ? { status: query.status } : {}),
       ...(query.technicianId != null ? { technicianId: query.technicianId } : {}),
-      ...(query.from != null || query.to != null
-        ? {
-            intakeAt: {
-              ...(query.from != null ? { gte: new Date(query.from) } : {}),
-              ...(query.to != null ? { lte: new Date(query.to) } : {}),
-            },
-          }
-        : {}),
+      // S34 — intake date range: Africa/Algiers days, `to` inclusive.
+      ...(query.from != null || query.to != null ? { intakeAt: storeDayRangeUtc(query.from, query.to) } : {}),
       ...(!isAdmin
         ? {
             history: {

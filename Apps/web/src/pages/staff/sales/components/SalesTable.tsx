@@ -6,17 +6,10 @@ import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { Button } from "@/components/ui/button";
-import { SaleStatus, type SaleDto } from "@dragon-telecom/contract";
+import type { SaleDto } from "@dragon-telecom/contract";
+import { SALE_STATUS_LABEL_KEY } from "@/pages/staff/sales/sale-status-labels";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD, formatDateTime } from "@/lib/utils";
-
-const STATUS_LABEL_KEY: Record<SaleStatus, string> = {
-  [SaleStatus.DRAFT]: "staff.sales.status.draft",
-  [SaleStatus.COMPLETED]: "staff.sales.status.completed",
-  [SaleStatus.RETURNED]: "orders.returned",
-  [SaleStatus.PARTIALLY_RETURNED]: "orders.returned",
-  [SaleStatus.CANCELLED]: "orders.cancelled",
-};
 
 interface SalesTableProps {
   sales?: SaleDto[];
@@ -83,7 +76,7 @@ export function SalesTable({
       {
         accessorKey: "status",
         header: t("staff.sales.table.status"),
-        cell: ({ row }) => t(STATUS_LABEL_KEY[row.original.status]),
+        cell: ({ row }) => t(SALE_STATUS_LABEL_KEY[row.original.status]),
       },
     );
     return base;
@@ -97,7 +90,7 @@ export function SalesTable({
       </div>
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{sale.posClientName ?? t("staff.sales.table.counter")}</span>
-        <span>{t(STATUS_LABEL_KEY[sale.status])}</span>
+        <span>{t(SALE_STATUS_LABEL_KEY[sale.status])}</span>
       </div>
     </div>
   );

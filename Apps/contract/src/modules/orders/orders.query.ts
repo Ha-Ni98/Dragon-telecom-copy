@@ -11,6 +11,7 @@ export type MyOrdersQuery = z.infer<typeof MyOrdersQuerySchema>;
 export const BackofficeOrdersQuerySchema = z.object({
   status: z.enum(OrderStatus).optional(),
   search: z.string().optional(),
+  // S34 — Africa/Algiers days on placedAt, `to` inclusive (storeDayRangeUtc).
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   // S8 J4 — the admin client-detail Orders tab scopes the same list to one registered client.

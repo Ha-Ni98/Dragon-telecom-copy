@@ -6,6 +6,7 @@ import { RepairStatus } from './repairs.enums';
 export const RepairListQuerySchema = z.object({
   status: z.enum(RepairStatus).optional(),
   technicianId: z.uuid().optional(),
+  // S34 — Africa/Algiers days on intakeAt, `to` inclusive (storeDayRangeUtc).
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   page: z.coerce.number().int().min(1).default(1),

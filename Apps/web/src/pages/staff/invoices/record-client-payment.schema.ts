@@ -10,7 +10,11 @@ export function recordClientPaymentSchema(t: ReturnType<typeof useTranslation>["
   return z.object({
     posClientId: z.uuid(),
     invoiceNumber: z.string().optional(),
-    amount: z.number().positive(t("staff.invoices.recordPayment.amountInvalid")),
+    // S34 — an emptied box arrives as NaN (valueAsNumber); without its own message z.number()
+    // reported Zod's English default before .positive ran (report-S34 F7). Required, so NaN still fails.
+    amount: z
+      .number({ error: t("staff.invoices.recordPayment.amountInvalid") })
+      .positive(t("staff.invoices.recordPayment.amountInvalid")),
     paidAt: z.iso.datetime().optional(),
   });
 }

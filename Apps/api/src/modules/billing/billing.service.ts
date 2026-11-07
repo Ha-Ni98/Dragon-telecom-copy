@@ -5,6 +5,7 @@ import {
   InvoiceResponseSchema,
   ClientPaymentResponseSchema,
   paginated,
+  storeDayRangeUtc,
   type CancelInvoiceCommand,
   type ClientPaymentDto,
   type ClientPaymentListQuery,
@@ -235,15 +236,8 @@ export class BillingService implements IBillingService {
   async listClientPayments(query: ClientPaymentListQuery): Promise<PaginatedResult<ClientPaymentDto>> {
     const where: Prisma.ClientPaymentWhereInput = {
       ...(query.posClientId != null ? { posClientId: query.posClientId } : {}),
-      // S8 J8 — the payments tab's date-range filter.
-      ...(query.from != null || query.to != null
-        ? {
-            paidAt: {
-              ...(query.from != null ? { gte: new Date(query.from) } : {}),
-              ...(query.to != null ? { lte: new Date(query.to) } : {}),
-            },
-          }
-        : {}),
+      // S8 J8 — the payments tab's date-range filter. S34 — Africa/Algiers days, `to` inclusive.
+      ...(query.from != null || query.to != null ? { paidAt: storeDayRangeUtc(query.from, query.to) } : {}),
     };
 
     const [total, rows] = await this.prisma.$transaction([
@@ -356,14 +350,8 @@ export class BillingService implements IBillingService {
       ...(query.posClientId != null ? { posClientId: query.posClientId } : {}),
       ...(query.status != null ? { status: query.status } : {}),
       ...(query.source != null ? { sourceType: query.source } : {}),
-      ...(query.from != null || query.to != null
-        ? {
-            issuedAt: {
-              ...(query.from != null ? { gte: new Date(query.from) } : {}),
-              ...(query.to != null ? { lte: new Date(query.to) } : {}),
-            },
-          }
-        : {}),
+      // S34 — Africa/Algiers days on issuedAt, `to` inclusive.
+      ...(query.from != null || query.to != null ? { issuedAt: storeDayRangeUtc(query.from, query.to) } : {}),
       // Spread last — a scoped route's own identity (posClientId=me / staffId=me) must never be
       // overridable by a query-string value.
       ...scopeWhere,

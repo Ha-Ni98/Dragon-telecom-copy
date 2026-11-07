@@ -11049,6 +11049,11 @@
     "fr": "Terminée",
     "ar": ""
   },
+  "staff.sales.status.partiallyReturned": {
+    "en": "Partially returned",
+    "fr": "Partiellement retournée",
+    "ar": ""
+  },
   "staff.sales.table.reference": {
     "en": "Reference",
     "fr": "Référence",
@@ -11139,6 +11144,16 @@
     "fr": "Plage de dates",
     "ar": ""
   },
+  "admin.sales.filters.from": {
+    "en": "From",
+    "fr": "Du",
+    "ar": ""
+  },
+  "admin.sales.filters.to": {
+    "en": "To",
+    "fr": "Au",
+    "ar": ""
+  },
   "admin.sales.filters.seller": {
     "en": "Seller",
     "fr": "Vendeur",
@@ -11147,6 +11162,11 @@
   "admin.sales.filters.posClient": {
     "en": "POS client",
     "fr": "Client point de vente",
+    "ar": ""
+  },
+  "admin.sales.filters.clientSearch": {
+    "en": "Client name or phone",
+    "fr": "Nom ou téléphone du client",
     "ar": ""
   },
   "admin.sales.filters.status": {
@@ -11337,6 +11357,16 @@
   "staff.invoices.recordPayment.title": {
     "en": "Record payment",
     "fr": "Enregistrer un paiement",
+    "ar": ""
+  },
+  "staff.invoices.recordPayment.recordedTitle": {
+    "en": "Payment recorded",
+    "fr": "Paiement enregistré",
+    "ar": ""
+  },
+  "staff.invoices.recordPayment.reference": {
+    "en": "Reference",
+    "fr": "Référence",
     "ar": ""
   },
   "staff.invoices.recordPayment.amountLabel": {
@@ -13582,6 +13612,11 @@
   "admin.posClients.title": {
     "en": "POS clients",
     "fr": "Clients point de vente",
+    "ar": ""
+  },
+  "admin.posClients.searchPlaceholder": {
+    "en": "Search by name, phone or code",
+    "fr": "Rechercher par nom, téléphone ou code",
     "ar": ""
   },
   "admin.posClients.description": {

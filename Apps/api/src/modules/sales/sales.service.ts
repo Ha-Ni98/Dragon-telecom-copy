@@ -339,14 +339,8 @@ export class SalesService implements ISalesService {
     const where: Prisma.ReturnWhereInput = {
       saleId: { not: null },
       ...(query.saleId != null ? { saleId: query.saleId } : {}),
-      ...(query.from != null || query.to != null
-        ? {
-            returnedAt: {
-              ...(query.from != null ? { gte: new Date(query.from) } : {}),
-              ...(query.to != null ? { lte: new Date(query.to) } : {}),
-            },
-          }
-        : {}),
+      // S34 — Africa/Algiers days, `to` inclusive (was `lte: new Date(to)`, which dropped the `to` day).
+      ...(query.from != null || query.to != null ? { returnedAt: storeDayRangeUtc(query.from, query.to) } : {}),
     };
 
     const [total, rows] = await this.prisma.$transaction([
@@ -575,13 +569,17 @@ export class SalesService implements ISalesService {
       // S32/Q2 — store-local (Africa/Algiers) days on soldAt, `to` inclusive. Drafts carry no
       // soldAt and therefore drop out of any date-filtered list.
       ...(query.from != null || query.to != null ? { soldAt: storeDayRangeUtc(query.from, query.to) } : {}),
-      // set-03 A3 — admin filters (ADM-10's seller/POS-client dropdowns).
+      // set-03 A3 — exact-id filters (the POS-clients drawer sends posClientId; S34 moved the filter bar to text).
       ...(query.sellerId != null ? { staffId: query.sellerId } : {}),
       ...(query.posClientId != null ? { posClientId: query.posClientId } : {}),
       // S32 — search by sold product; `some` returns each sale once however many lines match.
       ...(query.product != null ? { lines: { some: SalesService.productLineWhere(query.product) } } : {}),
+      // S34 — free-text client / seller filters (replace the page's exact-name→id resolution).
+      ...(query.client != null ? { posClient: SalesService.posClientTextWhere(query.client) } : {}),
+      ...(query.seller != null ? { staff: SalesService.sellerTextWhere(query.seller) } : {}),
       // S32/F3 — spread LAST so a staff caller's own-sales scoping can never be overridden by a
       // sellerId in the query string (it used to be spread first, and sellerId replaced it).
+      // The S34 seller text filter is a relation filter ANDed with this, so it cannot widen it either.
       ...opts.extraWhere,
     };
 
@@ -694,6 +692,34 @@ export class SalesService implements ISalesService {
         { product: { barcode: { startsWith: trimmed, mode: 'insensitive' } } },
         { AND: tokens.map((token) => ({ productNameSnapshot: { contains: token, mode: 'insensitive' as const } })) },
       ],
+    };
+  }
+
+  // S34 — the sales list's client search: the same match as ClientsService.searchPosClients
+  // (name or phone, case-insensitive contains), so the client found at the POS is the client the
+  // list can be filtered by. A walk-in sale (no POS client) never matches.
+  private static posClientTextWhere(search: string): Prisma.PosClientWhereInput {
+    const trimmed = search.trim();
+    return {
+      OR: [
+        { name: { contains: trimmed, mode: 'insensitive' } },
+        { phone: { contains: trimmed, mode: 'insensitive' } },
+      ],
+    };
+  }
+
+  // S34 — the seller search. The table shows "First Last" (SalesMapper's staffName) and an admin
+  // may type the login name instead, so every token must match first name, last name or username.
+  private static sellerTextWhere(search: string): Prisma.StaffWhereInput {
+    const tokens = search.trim().split(/\s+/).filter(Boolean);
+    return {
+      AND: tokens.map((token) => ({
+        OR: [
+          { firstName: { contains: token, mode: 'insensitive' as const } },
+          { lastName: { contains: token, mode: 'insensitive' as const } },
+          { user: { username: { contains: token, mode: 'insensitive' as const } } },
+        ],
+      })),
     };
   }
 
