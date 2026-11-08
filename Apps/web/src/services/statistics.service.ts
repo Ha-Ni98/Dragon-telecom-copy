@@ -12,6 +12,7 @@ import {
   type CashRegisterDocumentsQuery,
   type CashRegisterDto,
   type CashRegisterQuery,
+  type StaffCashRegisterDto,
   type PaginatedResult,
   type AdminDashboardDto,
   type StaffDashboardDto,
@@ -122,6 +123,15 @@ export async function getCashRegister(query: CashRegisterQuery): Promise<CashReg
   const res = await api.get<ApiResponse<CashRegisterDto>>(apiPath(STATS_ROUTES.CASH_REGISTER), {
     params: query,
   });
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// S35 — the staff dashboard's cash register (today, whole store, no profit).
+export async function getStaffCashRegister(): Promise<StaffCashRegisterDto> {
+  const res = await api.get<ApiResponse<StaffCashRegisterDto>>(
+    apiPath(STATS_ROUTES.STAFF_CASH_REGISTER),
+  );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;
 }

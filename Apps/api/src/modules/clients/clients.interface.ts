@@ -18,6 +18,9 @@ import type {
   PosClientListQuery,
   PosClientSearchQuery,
   ProductWithPricingDto,
+  PurchasedProductDocumentDto,
+  PurchasedProductDto,
+  PurchasedProductsQuery,
   RegisterClientCommand,
   RejectClientCommand,
   ResetClientPasswordCommand,
@@ -61,6 +64,21 @@ export interface IClientsService {
   listPosClients(query: PosClientListQuery): Promise<PaginatedResult<PosClientDto>>;
   createPosClient(cmd: CreatePosClientCommand): Promise<PosClientDto>;
   updatePosClient(id: string, cmd: UpdatePosClientCommand): Promise<PosClientDto>;
+
+  // S36 — the "Products bought" tab: per-product aggregate and one product's documents, from the
+  // web Client id (admin client page) or the PosClient id (the POS-client drawer, both scopes).
+  listClientPurchasedProducts(clientId: string, query: PurchasedProductsQuery): Promise<PaginatedResult<PurchasedProductDto>>;
+  listPosClientPurchasedProducts(posClientId: string, query: PurchasedProductsQuery): Promise<PaginatedResult<PurchasedProductDto>>;
+  listClientPurchasedProductDocuments(
+    clientId: string,
+    productId: string,
+    query: PurchasedProductsQuery,
+  ): Promise<PaginatedResult<PurchasedProductDocumentDto>>;
+  listPosClientPurchasedProductDocuments(
+    posClientId: string,
+    productId: string,
+    query: PurchasedProductsQuery,
+  ): Promise<PaginatedResult<PurchasedProductDocumentDto>>;
 
   // Internal — invoked only by this module's own listener (post-commit), never by HTTP routes.
   // Payload types are the contract's own event shapes (not another module's *service*

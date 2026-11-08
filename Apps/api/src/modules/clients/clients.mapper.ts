@@ -16,6 +16,9 @@ import {
   type PhoneAvailability,
   type PosClientDto,
   type ProductWithPricingDto,
+  type PurchaseDocumentKind,
+  type PurchasedProductDocumentDto,
+  type PurchasedProductDto,
   type ValidatePhoneResultDto,
 } from '@dragon-telecom/contract';
 
@@ -159,6 +162,52 @@ export class ClientsMapper {
       totalProductQuantity: input.totalProductQuantity,
     };
     return AdminClientOverviewResponseSchema.parse(dto);
+  }
+
+  // S36 — the "Products bought" rows. No cost/profit fields exist on them at all, so there is
+  // nothing to strip; paginated(...).parse in the service validates the enum values at runtime.
+  static toPurchasedProductDto(row: {
+    productId: string;
+    productName: string;
+    quantityBought: number;
+    totalAmount: Prisma.Decimal;
+    quantityReturned: number;
+    amountRefunded: Prisma.Decimal;
+    lastBoughtAt: Date;
+  }): PurchasedProductDto {
+    return {
+      productId: row.productId,
+      productName: row.productName,
+      quantityBought: row.quantityBought,
+      totalAmount: ClientsMapper.toMoney(row.totalAmount),
+      quantityReturned: row.quantityReturned,
+      amountRefunded: ClientsMapper.toMoney(row.amountRefunded),
+      lastBoughtAt: row.lastBoughtAt.toISOString(),
+    };
+  }
+
+  static toPurchasedProductDocumentDto(row: {
+    kind: string;
+    documentId: string;
+    reference: string;
+    at: Date;
+    quantity: number;
+    unitPrice: Prisma.Decimal | null;
+    amount: Prisma.Decimal;
+    sourceKind: string | null;
+    sourceReference: string | null;
+  }): PurchasedProductDocumentDto {
+    return {
+      kind: row.kind as PurchaseDocumentKind,
+      documentId: row.documentId,
+      reference: row.reference,
+      at: row.at.toISOString(),
+      quantity: row.quantity,
+      ...(row.unitPrice != null ? { unitPrice: ClientsMapper.toMoney(row.unitPrice) } : {}),
+      amount: ClientsMapper.toMoney(row.amount),
+      ...(row.sourceKind != null ? { sourceKind: row.sourceKind as PurchasedProductDocumentDto['sourceKind'] } : {}),
+      ...(row.sourceReference != null ? { sourceReference: row.sourceReference } : {}),
+    };
   }
 
   private static toMoney(value: Money): number {

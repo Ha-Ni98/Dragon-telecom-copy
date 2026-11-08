@@ -48,5 +48,10 @@ export enum CashRegisterDrill {
   ORDERS_IN_DELIVERY = 'ORDERS_IN_DELIVERY',
   ORDERS_COMPLETED = 'ORDERS_COMPLETED',
   SUPPLIER_INVOICES = 'SUPPLIER_INVOICES',
+  // S35 — invoice-linked supplier payments only (standalone ones are PAYMENTS_SUPPLIER).
   SUPPLIER_PAYMENTS = 'SUPPLIER_PAYMENTS',
+  // S35 — the standalone Payments line: client payments taken through Record payment (any
+  // invoice link) and supplier payments made on account (no supplier invoice).
+  PAYMENTS_CLIENT = 'PAYMENTS_CLIENT',
+  PAYMENTS_SUPPLIER = 'PAYMENTS_SUPPLIER',
 }

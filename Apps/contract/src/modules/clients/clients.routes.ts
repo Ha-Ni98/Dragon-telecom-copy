@@ -9,6 +9,10 @@ export const CLIENT_ROUTES = {
   ADMIN_STATS: '/admin/clients/stats',
   ADMIN_DETAIL: '/admin/clients/:id',
   ADMIN_OVERVIEW: '/admin/clients/:id/overview',
+  // S36 — the "Products bought" tab (admin client page): paginated per-product aggregate, and the
+  // documents behind one product. Keyed by the web Client id.
+  ADMIN_PURCHASED_PRODUCTS: '/admin/clients/:id/purchased-products',
+  ADMIN_PURCHASED_PRODUCT_DOCUMENTS: '/admin/clients/:id/purchased-products/:productId',
   APPROVE: '/admin/clients/:id/approve',
   REJECT: '/admin/clients/:id/reject',
   RESET_PASSWORD: '/admin/clients/:id/reset-password',
@@ -26,4 +30,9 @@ export const POS_CLIENT_ROUTES = {
   // path as QUICK_CREATE, distinguished by verb (GET vs POST).
   STAFF_LIST: '/staff/pos-clients',
   STAFF_BY_ID: '/staff/pos-clients/:id',
+  // S36 — the same tab in the POS-client drawer (both scopes), keyed by the PosClient id.
+  ADMIN_PURCHASED_PRODUCTS: '/admin/pos-clients/:id/purchased-products',
+  ADMIN_PURCHASED_PRODUCT_DOCUMENTS: '/admin/pos-clients/:id/purchased-products/:productId',
+  STAFF_PURCHASED_PRODUCTS: '/staff/pos-clients/:id/purchased-products',
+  STAFF_PURCHASED_PRODUCT_DOCUMENTS: '/staff/pos-clients/:id/purchased-products/:productId',
 } as const;

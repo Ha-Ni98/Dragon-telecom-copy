@@ -30,11 +30,14 @@ const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
 // only query. getStaffDashboard(staffId) filters "my sales"/"my drafts" by staffId and computes
 // pending-orders/low-stock globally, so an admin caller simply sees zeroed "my" figures
 // alongside the real global ones — no service change needed.
+// S35 — also guards the staff cash register (whole-store figures for today, profit stripped in the
+// mapper; one physical drawer, so per-seller scoping would match nothing).
 const staffDashboardViewer = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], checkDB: true });
 
 // 2. Routes (validation uses contract schemas per segment)
 router.get(STATS_ROUTES.ADMIN_DASHBOARD, adminOnly, controller.getAdminDashboard);
 router.get(STATS_ROUTES.STAFF_DASHBOARD, staffDashboardViewer, controller.getStaffDashboard);
+router.get(STATS_ROUTES.STAFF_CASH_REGISTER, staffDashboardViewer, controller.getStaffCashRegister);
 router.get(STATS_ROUTES.OVERVIEW, adminOnly, controller.getOverview);
 router.get(STATS_ROUTES.FILTERED, adminOnly, validateRequest({ query: FilteredQuerySchema }), controller.getFiltered);
 router.get(

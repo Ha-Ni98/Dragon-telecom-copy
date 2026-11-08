@@ -1,6 +1,7 @@
 import { MySalesTodayCard } from "@/pages/staff/dashboard/components/MySalesTodayCard";
 import { MyDraftsList } from "@/pages/staff/dashboard/components/MyDraftsList";
 import { PendingOrdersWidget } from "@/pages/staff/dashboard/components/PendingOrdersWidget";
+import { StaffCashRegisterWidget } from "@/pages/staff/dashboard/components/StaffCashRegisterWidget";
 import { LowStockAlert } from "@/pages/admin/dashboard/components/low-stock-alert";
 import { useStaffDashboard } from "@/hooks/useStatistics";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -15,6 +16,7 @@ import { PageKey } from "@dragon-telecom/contract";
 // LowStockAlert is reused directly, not a separate "LowStockList" (Sprint 4 finding —
 // StaffDashboardDto.lowStock and AdminDashboardDto.lowStockProducts are the same
 // DashboardLowStockItemSchema[]).
+// S35 — plus the whole-store cash register for today (its own query, silent-hide on error).
 export default function StaffDashboard() {
   const { t } = useTranslation();
   const { data, isLoading, isError } = useStaffDashboard();
@@ -40,6 +42,8 @@ export default function StaffDashboard() {
           isLoading={isLoading}
         />
       )}
+
+      <StaffCashRegisterWidget />
 
       {!isError && hasStaffOrders && (
         <PendingOrdersWidget count={data?.myPendingOrdersCount} isLoading={isLoading} />

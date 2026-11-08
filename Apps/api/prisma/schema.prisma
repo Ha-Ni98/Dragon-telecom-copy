@@ -963,6 +963,7 @@ model ClientPayment {
   reversalOfId String? // S30/Q1 — a negative row reversing (part of) the payment it points to
   reversalOf   ClientPayment?  @relation("PaymentReversal", fields: [reversalOfId], references: [id])
   reversals    ClientPayment[] @relation("PaymentReversal")
+  standalone   Boolean @default(false) // S35 — taken through Record payment (billing createClientPayment), outside any sale/order/repair/return transaction; the Caisse's Payments line. False for every row written before S35 (no backfill).
 
   @@index([repairId])
   @@index([reversalOfId])

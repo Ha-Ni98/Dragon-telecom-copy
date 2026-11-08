@@ -5,18 +5,27 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { NotFoundState } from "@/components/shared/NotFoundState";
-import { LayoutDashboard, ShoppingCart, FileText, CreditCard, Search } from "lucide-react";
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  FileText,
+  CreditCard,
+  Search,
+  ShoppingBag,
+} from "lucide-react";
 import { ClientDetailHeader } from "@/pages/admin/clients/components/client-detail-header";
 import { ApprovalDialog } from "@/pages/admin/clients/components/approval-dialog";
 import { ResetPasswordDialog } from "@/pages/admin/clients/components/reset-password-dialog";
 import { BrowsingActivityTable } from "@/pages/admin/clients/components/browsing-activity-table";
 import { ClientOverviewPanel } from "@/pages/admin/clients/components/client-overview-panel";
 import { ClientPaymentsTable } from "@/pages/admin/clients/components/client-payments-table";
+import { ClientPurchasedProductsTab } from "@/pages/admin/clients/components/client-purchased-products-tab";
 import { OrdersTable } from "@/pages/staff/orders/components/OrdersTable";
 import { InvoicesTable } from "@/pages/staff/invoices/components/InvoicesTable";
 import type { ApproveClientFormValues } from "@/pages/admin/clients/components/approve-client.schema";
 import type { ResetClientPasswordFormValues } from "@/pages/admin/clients/components/reset-client-password.schema";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
+import type { PurchaseHistoryOwner } from "@/types/purchase-history.types";
 import type {
   BackofficeOrdersQuery,
   InvoiceListQuery,
@@ -41,6 +50,8 @@ import { useTranslation } from "@/hooks/useTranslation";
 // rather than strictly on tab activation — harmless, since Overview/Orders load instantly and
 // are cheap single-client reads. Invoices/Payments are genuinely gated on `client?.posClientId`
 // being known (a client who has never been approved has none), not on tab activation.
+// S36 — sixth tab "Products bought" (ClientPurchasedProductsTab, keyed by this web Client id; the
+// API also reads the linked POS client's sales). It fetches only when the tab opens.
 export default function AdminClientDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
@@ -57,6 +68,12 @@ export default function AdminClientDetail() {
   const activity = useClientActivity(id ?? "", activityQuery);
 
   const overview = useClientOverview(id ?? "");
+
+  // Part of the purchase-history query key, so kept referentially stable.
+  const purchaseOwner = useMemo<PurchaseHistoryOwner>(
+    () => ({ kind: "client", id: id ?? "" }),
+    [id],
+  );
 
   const ordersQuery = useMemo(
     () => ({ clientId: id, page: 1, limit: 20 }) as BackofficeOrdersQuery,
@@ -158,7 +175,7 @@ export default function AdminClientDetail() {
       />
 
       <Tabs defaultValue="overview">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
           <TabsTrigger value="overview" className="gap-2">
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">{t("admin.clients.detail.tabs.overview")}</span>
@@ -178,6 +195,12 @@ export default function AdminClientDetail() {
           <TabsTrigger value="browsing" className="gap-2">
             <Search className="h-4 w-4" />
             <span className="hidden sm:inline">{t("admin.clients.detail.tabs.browsing")}</span>
+          </TabsTrigger>
+          <TabsTrigger value="purchased" className="gap-2">
+            <ShoppingBag className="h-4 w-4" />
+            <span className="hidden sm:inline">
+              {t("admin.clients.detail.tabs.purchasedProducts")}
+            </span>
           </TabsTrigger>
         </TabsList>
 
@@ -205,6 +228,9 @@ export default function AdminClientDetail() {
         </TabsContent>
         <TabsContent value="browsing">
           <BrowsingActivityTable data={activity.data ?? []} isLoading={activity.isLoading} />
+        </TabsContent>
+        <TabsContent value="purchased">
+          <ClientPurchasedProductsTab owner={purchaseOwner} />
         </TabsContent>
       </Tabs>
 

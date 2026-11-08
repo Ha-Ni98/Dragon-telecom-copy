@@ -18,6 +18,7 @@ import {
   isOrderTransitionAllowed,
   orderTransitionAllowsPriceEdit,
   paginated,
+  storeDayRangeUtc,
   type BackofficeOrdersQuery,
   type BillingEvents,
   type JWTPayload,
@@ -225,15 +226,8 @@ export class OrdersService implements IOrdersService {
           }
         : {}),
       // set-03 A2 — STF-04/ADM-09's date-range filter, on the same `placedAt` column the list
-      // already sorts by.
-      ...(query.from != null || query.to != null
-        ? {
-            placedAt: {
-              ...(query.from != null ? { gte: new Date(query.from) } : {}),
-              ...(query.to != null ? { lte: new Date(query.to) } : {}),
-            },
-          }
-        : {}),
+      // already sorts by. S34 — Africa/Algiers days, `to` inclusive.
+      ...(query.from != null || query.to != null ? { placedAt: storeDayRangeUtc(query.from, query.to) } : {}),
       // S8 J4 — the admin client-detail Orders tab scopes the same list to one registered client.
       ...(query.clientId != null ? { clientId: query.clientId } : {}),
     };

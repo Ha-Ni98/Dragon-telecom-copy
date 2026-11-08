@@ -21,17 +21,21 @@ import type {
   CashRegisterDrillTarget,
 } from "@/types/cash-register.types";
 
-// Which optional columns each drill list shows (plan S33 Action 3.7).
+// Which optional columns each drill list shows (plan S33 Action 3.7; S35 adds profit — this endpoint
+// is admin-only, so the margin is shown here so each profit figure can be checked against its documents).
 const DRILL_COLUMNS: Record<CashRegisterDrill, CashRegisterDrillColumns> = {
-  [CashRegisterDrill.SALES]: { paid: true, sourceReference: false },
-  [CashRegisterDrill.RETURNS]: { paid: false, sourceReference: true },
-  [CashRegisterDrill.REPAIRS_PICKED_UP]: { paid: true, sourceReference: false },
-  [CashRegisterDrill.REPAIR_REFUNDS]: { paid: false, sourceReference: false },
-  [CashRegisterDrill.ORDERS_CONFIRMED]: { paid: false, sourceReference: false },
-  [CashRegisterDrill.ORDERS_IN_DELIVERY]: { paid: false, sourceReference: false },
-  [CashRegisterDrill.ORDERS_COMPLETED]: { paid: true, sourceReference: false },
-  [CashRegisterDrill.SUPPLIER_INVOICES]: { paid: false, sourceReference: false },
-  [CashRegisterDrill.SUPPLIER_PAYMENTS]: { paid: false, sourceReference: true },
+  [CashRegisterDrill.SALES]: { paid: true, sourceReference: false, profit: true },
+  [CashRegisterDrill.RETURNS]: { paid: false, sourceReference: true, profit: false },
+  [CashRegisterDrill.REPAIRS_PICKED_UP]: { paid: true, sourceReference: false, profit: true },
+  [CashRegisterDrill.REPAIR_REFUNDS]: { paid: false, sourceReference: false, profit: false },
+  [CashRegisterDrill.ORDERS_CONFIRMED]: { paid: false, sourceReference: false, profit: false },
+  [CashRegisterDrill.ORDERS_IN_DELIVERY]: { paid: false, sourceReference: false, profit: false },
+  [CashRegisterDrill.ORDERS_COMPLETED]: { paid: true, sourceReference: false, profit: true },
+  [CashRegisterDrill.SUPPLIER_INVOICES]: { paid: false, sourceReference: false, profit: false },
+  [CashRegisterDrill.SUPPLIER_PAYMENTS]: { paid: false, sourceReference: true, profit: false },
+  // S35 — the standalone Payments line. A client payment shows the invoice it settled, if any.
+  [CashRegisterDrill.PAYMENTS_CLIENT]: { paid: false, sourceReference: true, profit: false },
+  [CashRegisterDrill.PAYMENTS_SUPPLIER]: { paid: false, sourceReference: false, profit: false },
 };
 
 const PAGE_SIZE = 20;
@@ -91,6 +95,16 @@ export function CashRegisterDrillDialog({ date, target, onClose }: CashRegisterD
             } satisfies ColumnDef<CashRegisterDocumentDto>,
           ]
         : []),
+      ...(show.profit
+        ? [
+            {
+              id: "profit",
+              header: t("admin.cashRegister.drill.profit"),
+              cell: ({ row }) =>
+                row.original.profit != null ? formatDZD(row.original.profit, language) : "—",
+            } satisfies ColumnDef<CashRegisterDocumentDto>,
+          ]
+        : []),
       ...(show.sourceReference
         ? [
             {
@@ -103,7 +117,7 @@ export function CashRegisterDrillDialog({ date, target, onClose }: CashRegisterD
           ]
         : []),
     ],
-    [t, language, show.paid, show.sourceReference],
+    [t, language, show.paid, show.profit, show.sourceReference],
   );
 
   return (

@@ -16,6 +16,7 @@ export const SupplierInvoiceListQuerySchema = z.object({
   supplierId: z.uuid().optional(),
   productId: z.uuid().optional(),
   status: z.enum(SupplierInvoiceStatus).optional(),
+  // invoiceDate is a calendar date (@db.Date) — compared as-is, `to` already inclusive.
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -26,6 +27,7 @@ export type SupplierInvoiceListQuery = z.infer<typeof SupplierInvoiceListQuerySc
 export const SupplierPaymentListQuerySchema = z.object({
   supplierId: z.uuid().optional(),
   // S8 J8 — the payments tab's date-range filter, on the same `paidAt` column the list sorts by.
+  // S34 — Africa/Algiers days, `to` inclusive (storeDayRangeUtc).
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   page: z.coerce.number().int().min(1).default(1),

@@ -33,6 +33,16 @@ export class StatisticsController {
     }
   };
 
+  // S35 — never a query param: always today, whole store (one physical drawer). Profit is stripped
+  // in the mapper.
+  getStaffCashRegister = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.service.getStaffCashRegister(), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getOverview = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       sendSuccess(res, await this.service.getOverview(), 200);
