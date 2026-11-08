@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ProductWithPricingResponseSchema } from '../catalog/catalog.dtos';
-import { ClientStatus, PhoneAvailability } from './clients.enums';
+import { ClientStatus, PhoneAvailability, PurchaseDocumentKind } from './clients.enums';
 
 export const ValidatePhoneResultResponseSchema = z.object({
   isValid: z.boolean(),
@@ -101,3 +101,35 @@ export const ClientStatsResponseSchema = z.object({
   newThisMonth: z.number().int().min(0),
 });
 export type ClientStatsDto = z.infer<typeof ClientStatsResponseSchema>;
+
+// S36 — one product a client bought, aggregated over their completed POS sales and completed
+// online orders (never repair parts). Amounts are the stored line totals (before any sale-level
+// discount, owner Q3). Returns are shown separately, never netted: `amountRefunded` is the cash
+// handed back (Σ ReturnLine.refundAmount, owner Q2) — a return credited to the client's account
+// adds to `quantityReturned` and 0 here. No cost or profit, for admin and staff alike.
+export const PurchasedProductResponseSchema = z.object({
+  productId: z.uuid(),
+  productName: z.string(),
+  quantityBought: z.number().int(),
+  totalAmount: z.number(),
+  quantityReturned: z.number().int(),
+  amountRefunded: z.number(),
+  lastBoughtAt: z.iso.datetime(),
+});
+export type PurchasedProductDto = z.infer<typeof PurchasedProductResponseSchema>;
+
+// S36 — one document behind a purchased product. SALE/ORDER rows: the line's own quantity,
+// unitPrice and lineTotal (`amount`). RETURN rows: returned quantity and refunded cash (`amount`),
+// with the sale/order they came from in `sourceKind`/`sourceReference` (the row links to it).
+export const PurchasedProductDocumentResponseSchema = z.object({
+  kind: z.enum(PurchaseDocumentKind),
+  documentId: z.uuid(),
+  reference: z.string(),
+  at: z.iso.datetime(),
+  quantity: z.number().int(),
+  unitPrice: z.number().optional(),
+  amount: z.number(),
+  sourceKind: z.enum([PurchaseDocumentKind.SALE, PurchaseDocumentKind.ORDER]).optional(),
+  sourceReference: z.string().optional(),
+});
+export type PurchasedProductDocumentDto = z.infer<typeof PurchasedProductDocumentResponseSchema>;

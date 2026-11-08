@@ -163,7 +163,7 @@ COMPLETED consumes parts (FIFO, idempotent; shortfall names the product). CANCEL
 
 **InvoiceLine** — snapshots; renders identically forever: `invoiceId` FK · `label` · `quantity` · `unitPrice` · `costSnapshot` · `profit` · `lineTotal` · `serialNumbers?`.
 
-**ClientPayment** — `reference` unique · `posClientId` FK · `invoiceId?` FK (on account allowed) · `repairId?` FK (S13 — a repair's pre-pickup payment, re-linked to its invoice at pickup) · `reversalOfId?` self-FK (S30 — a negative row reversing the payment it points to; repairs reverse payment by payment) · `amount` (signed; refunds are negative) · `previousCredit` + `newCredit` snapshots (shown in the dialog) · `paidAt` · `staffId` FK.
+**ClientPayment** — `reference` unique · `posClientId` FK · `invoiceId?` FK (on account allowed) · `repairId?` FK (S13 — a repair's pre-pickup payment, re-linked to its invoice at pickup) · `reversalOfId?` self-FK (S30 — a negative row reversing the payment it points to; repairs reverse payment by payment) · `amount` (signed; refunds are negative) · `previousCredit` + `newCredit` snapshots (shown in the dialog) · `paidAt` · `staffId` FK · `standalone` (S35 — taken through Record payment, outside any document; the Caisse's Payments line; false for rows written before S35).
 
 ---
 

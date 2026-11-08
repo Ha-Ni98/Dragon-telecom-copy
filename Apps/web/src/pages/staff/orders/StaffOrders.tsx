@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SimplePagination } from "@/components/shared/SimplePagination";
@@ -21,6 +22,7 @@ import { useSendStaffSearch } from "@/hooks/useObservability";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
 import { apiErrorMessage } from "@/lib/query-client";
+import { ORDER_SEARCH_DEEP_LINK_PARAM } from "@/lib/deep-links";
 import { OrderStatus, type OrderDto, type BackofficeOrdersQuery } from "@dragon-telecom/contract";
 import type { OrderStatusFormValues } from "@/pages/staff/orders/order-status.schema";
 import type { CancelOrderFormValues } from "@/pages/admin/orders/components/cancel-order.schema";
@@ -42,8 +44,13 @@ interface Props {
 export default function StaffOrders({ scope = "staff" }: Props) {
   const { t } = useTranslation();
 
-  const [status, setStatus] = useState<OrderStatus | undefined>(OrderStatus.PENDING);
-  const [searchInput, setSearchInput] = useState("");
+  // S36 — ?search=<reference> (lib/deep-links.ts) opens the list on All, searched to that order.
+  const [searchParams] = useSearchParams();
+  const linkedSearch = searchParams.get(ORDER_SEARCH_DEEP_LINK_PARAM) ?? "";
+  const [status, setStatus] = useState<OrderStatus | undefined>(
+    linkedSearch ? undefined : OrderStatus.PENDING,
+  );
+  const [searchInput, setSearchInput] = useState(linkedSearch);
   const [from, setFrom] = useState<string | undefined>();
   const [to, setTo] = useState<string | undefined>();
   const [page, setPage] = useState(1);

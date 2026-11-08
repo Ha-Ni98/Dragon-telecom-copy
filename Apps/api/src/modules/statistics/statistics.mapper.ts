@@ -6,12 +6,14 @@ import {
   FilteredResponseSchema,
   OverviewResponseSchema,
   ReportResponseSchema,
+  StaffCashRegisterResponseSchema,
   StaffDashboardResponseSchema,
   type AdminDashboardDto,
   type CashRegisterDto,
   type FilteredDto,
   type OverviewDto,
   type ReportDto,
+  type StaffCashRegisterDto,
   type StaffDashboardDto,
 } from '@dragon-telecom/contract';
 
@@ -118,6 +120,13 @@ export class StatisticsMapper {
   // S33 — the Caisse summary; every figure arrives pre-summed from SQL aggregates.
   static toCashRegisterDto(input: CashRegisterDto): CashRegisterDto {
     return CashRegisterResponseSchema.parse(input);
+  }
+
+  // S35 — the staff dashboard's cash register. Margins are removed HERE (the codebase rule): the
+  // object is rebuilt without its margin key and parsed with a schema that has no such key.
+  static toStaffCashRegisterDto(input: CashRegisterDto): StaffCashRegisterDto {
+    const { date, sales, returns, repairs, orders, suppliers, payments, cashMovement } = input;
+    return StaffCashRegisterResponseSchema.parse({ date, sales, returns, repairs, orders, suppliers, payments, cashMovement });
   }
 
   static toFilteredDto(input: {

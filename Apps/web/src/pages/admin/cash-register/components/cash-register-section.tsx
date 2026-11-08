@@ -9,11 +9,13 @@ interface CashRegisterSectionProps {
   titleKey: string;
   icon: ReactNode;
   figures: CashRegisterFigure[];
-  onDrill: (drill: CashRegisterDrill, labelKey: string) => void;
+  /** Absent (the staff dashboard) = every figure is a plain, non-clickable card. */
+  onDrill?: (drill: CashRegisterDrill, labelKey: string) => void;
 }
 
 // S33 — one Caisse section (Sales, Returns, Repairs, Orders, Suppliers). Presentational: the
 // page formats every value; a figure carrying a `drill` target opens the documents behind it.
+// S35 — without onDrill (the staff dashboard) every figure is a plain card.
 export function CashRegisterSection({
   titleKey,
   icon,
@@ -39,7 +41,9 @@ export function CashRegisterSection({
                 label={t(figure.labelKey)}
                 value={figure.value}
                 trend={
-                  figure.drill ? (
+                  figure.detail ? (
+                    <span className="text-xs text-muted-foreground">{figure.detail}</span>
+                  ) : figure.drill && onDrill ? (
                     <span className="text-xs text-muted-foreground">
                       {t("admin.cashRegister.drill.hint")}
                     </span>
@@ -47,7 +51,7 @@ export function CashRegisterSection({
                 }
               />
             );
-            if (!figure.drill) return <div key={figure.labelKey}>{card}</div>;
+            if (!figure.drill || !onDrill) return <div key={figure.labelKey}>{card}</div>;
             const drill = figure.drill;
             return (
               <button

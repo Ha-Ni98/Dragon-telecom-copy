@@ -100,6 +100,8 @@ export function useCreateClientPayment() {
       queryClient.invalidateQueries({ queryKey: qk.billing.all() });
       queryClient.invalidateQueries({ queryKey: qk.clients.all() });
       queryClient.invalidateQueries({ queryKey: qk.posClients.all() });
+      // S35 — Record payments feed the Caisse's Payments line.
+      queryClient.invalidateQueries({ queryKey: qk.stats.all() });
     },
   });
 }

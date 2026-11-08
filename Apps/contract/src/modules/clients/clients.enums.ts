@@ -10,3 +10,10 @@ export enum PhoneAvailability {
   REGISTERED = 'registered',
   PENDING = 'pending',
 }
+
+// S36 — the kind of a row in a client's purchase-history documents list ("Products bought" tab).
+export enum PurchaseDocumentKind {
+  SALE = 'SALE',
+  ORDER = 'ORDER',
+  RETURN = 'RETURN',
+}

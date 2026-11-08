@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -23,9 +23,8 @@ import { useReceiptPrint } from "@/hooks/use-receipt-print";
 import { PosReceiptPrintable } from "@/pages/staff/pos/components/PosReceiptPrintable";
 import { buildPosReceiptEscPos } from "@/pages/staff/pos/pos-receipt-escpos";
 import { saleToReceipt } from "@/pages/staff/sales/sale-to-receipt";
-import { useUsers } from "@/hooks/useIdentity";
-import { usePosClientSearch } from "@/hooks/usePosClients";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { SALE_DEEP_LINK_PARAM } from "@/lib/deep-links";
 import { useTranslation } from "@/hooks/useTranslation";
 import {
   SaleStatus,
@@ -43,14 +42,17 @@ interface Props {
 }
 
 // STF-05 `/staff/sales` = ADM-10 `/admin/sales` (scope-driven twin). set-03 Sprint 6 wiring.
-// Admin's seller/POS-client filters (A3) are free-text name inputs on the Sprint 4 `SalesFilters`
-// component (no picker/dropdown affordance was built) — resolved to a `sellerId`/`posClientId`
-// here only on an exact, case-insensitive name match against the debounced search results, never
-// a "first match" guess (report-sprint-06.md: avoids silently filtering to the wrong seller).
-// `useUsers` only fires for scope="admin" (a staff caller may not hold identity:list-users).
+// S34 — the seller and client boxes send free text (`seller`/`client`), matched server-side.
+// They used to be resolved to an id here on an exact name match: the seller box matched usernames
+// (the table shows first + last name) and sent a User id where Sale.staffId holds a Staff id, and
+// the client box ignored partial names and phones (report-S34 F1/F2). The client search shows in
+// both scopes (staff results stay limited to their own sales server-side); seller and the date
+// range are admin-only.
 // S18/D-2 — the Returns tab and issue-return are no longer admin-only: staff holding the sales
 // page gets both, hitting the staff-mounted returns routes. Profit, the seller column and the
 // footer total stay admin-only (margin data, gated inside SaleDetailDrawer/SalesTable directly).
+// S36 — ?sale=<reference> opens that sale's drawer (lib/deep-links.ts); staff opening another
+// seller's sale see the drawer's forbidden state.
 // S32 — product search and the Today's sales toggle apply in both scopes (staff results stay
 // limited to their own sales — enforced server-side); the date filter is on soldAt, in
 // Africa/Algiers days. "Return whole sale" sits beside Issue return.
@@ -61,8 +63,8 @@ export default function StaffSales({ scope = "staff" }: Props) {
   const [status, setStatus] = useState<SaleStatus | undefined>();
   const [from, setFrom] = useState<string | undefined>();
   const [to, setTo] = useState<string | undefined>();
-  const [sellerNameInput, setSellerNameInput] = useState("");
-  const [posClientNameInput, setPosClientNameInput] = useState("");
+  const [sellerInput, setSellerInput] = useState("");
+  const [clientInput, setClientInput] = useState("");
   const [productInput, setProductInput] = useState("");
   const [page, setPage] = useState(1);
   const debouncedProduct = useDebouncedValue(productInput, 300);
@@ -76,29 +78,8 @@ export default function StaffSales({ scope = "staff" }: Props) {
     setPage(1);
   };
 
-  const debouncedSeller = useDebouncedValue(sellerNameInput, 300);
-  const debouncedPosClient = useDebouncedValue(posClientNameInput, 300);
-
-  const { data: sellerMatches } = useUsers(
-    { search: debouncedSeller || undefined, page: 1, limit: 5 },
-    { enabled: scope === "admin" && !!debouncedSeller.trim() },
-  );
-  const sellerId = useMemo(() => {
-    if (scope !== "admin" || !debouncedSeller.trim()) return undefined;
-    return sellerMatches?.items.find(
-      (u) => u.username.toLowerCase() === debouncedSeller.trim().toLowerCase(),
-    )?.id;
-  }, [scope, sellerMatches, debouncedSeller]);
-
-  const { data: posClientMatches } = usePosClientSearch({
-    q: scope === "admin" ? debouncedPosClient : "",
-  });
-  const posClientId = useMemo(() => {
-    if (scope !== "admin" || !debouncedPosClient.trim()) return undefined;
-    return posClientMatches?.find(
-      (c) => c.name.toLowerCase() === debouncedPosClient.trim().toLowerCase(),
-    )?.id;
-  }, [scope, posClientMatches, debouncedPosClient]);
+  const debouncedSeller = useDebouncedValue(sellerInput, 300);
+  const debouncedClient = useDebouncedValue(clientInput, 300);
 
   const query: SaleListQuery = useMemo(
     () => ({
@@ -106,13 +87,14 @@ export default function StaffSales({ scope = "staff" }: Props) {
       // S32 (P7) — no longer admin-only: staff reach them through the Today toggle.
       from,
       to,
-      sellerId,
-      posClientId,
+      // S34 — free text, matched server-side (sales.query.ts `client`/`seller`).
+      client: debouncedClient.trim() || undefined,
+      seller: scope === "admin" ? debouncedSeller.trim() || undefined : undefined,
       product: debouncedProduct.trim() || undefined,
       page,
       limit: 20,
     }),
-    [status, from, to, sellerId, posClientId, debouncedProduct, page],
+    [status, from, to, scope, debouncedSeller, debouncedClient, debouncedProduct, page],
   );
 
   const {
@@ -122,7 +104,23 @@ export default function StaffSales({ scope = "staff" }: Props) {
     refetch: refetchSales,
   } = useSales(scope, query);
 
-  const [selectedReference, setSelectedReference] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedReference, setSelectedReference] = useState<string | null>(() =>
+    searchParams.get(SALE_DEEP_LINK_PARAM),
+  );
+  // S36 — closing a deep-linked sale also drops ?sale= so a refresh doesn't reopen it.
+  const closeSaleDrawer = () => {
+    setSelectedReference(null);
+    if (searchParams.has(SALE_DEEP_LINK_PARAM)) {
+      setSearchParams(
+        (prev) => {
+          prev.delete(SALE_DEEP_LINK_PARAM);
+          return prev;
+        },
+        { replace: true },
+      );
+    }
+  };
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
 
   const handleRowClick = useCallback((sale: SaleDto) => setSelectedReference(sale.reference), []);
@@ -245,14 +243,14 @@ export default function StaffSales({ scope = "staff" }: Props) {
           setTo(next || undefined);
           setPage(1);
         }}
-        sellerName={sellerNameInput}
-        onSellerSearch={(next) => {
-          setSellerNameInput(next);
+        sellerQuery={sellerInput}
+        onSellerQueryChange={(next) => {
+          setSellerInput(next);
           setPage(1);
         }}
-        posClientName={posClientNameInput}
-        onPosClientSearch={(next) => {
-          setPosClientNameInput(next);
+        clientQuery={clientInput}
+        onClientQueryChange={(next) => {
+          setClientInput(next);
           setPage(1);
         }}
       />
@@ -317,7 +315,7 @@ export default function StaffSales({ scope = "staff" }: Props) {
 
       <SaleDetailDrawer
         open={!!selectedReference}
-        onOpenChange={(open) => !open && setSelectedReference(null)}
+        onOpenChange={(open) => !open && closeSaleDrawer()}
         sale={saleLoading ? null : (selectedSale ?? null)}
         onReprint={handleReprint}
         onResumeDraft={

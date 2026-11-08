@@ -1,19 +1,12 @@
 import { useState } from "react";
-import {
-  AlertTriangle,
-  Receipt,
-  RefreshCw,
-  ShoppingCart,
-  Truck,
-  Undo2,
-  Wrench,
-} from "lucide-react";
+import { AlertTriangle, RefreshCw, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCardSkeleton } from "@/components/shared/StatCardSkeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CashRegisterSection } from "@/pages/admin/cash-register/components/cash-register-section";
+import { CashRegisterSections } from "@/pages/admin/cash-register/components/cash-register-sections";
 import { CashRegisterDrillDialog } from "@/pages/admin/cash-register/components/cash-register-drill-dialog";
 import { useCashRegister } from "@/hooks/useStatistics";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -26,6 +19,8 @@ import type { CashRegisterDrillTarget, CashRegisterFigure } from "@/types/cash-r
 // stored value summed in SQL over that day, each section anchored on the timestamp the money
 // moved (plan S33 §0.3–§0.4). Clicking a figure lists the documents behind it, filtered by the
 // server with the very same day bounds and where-clause as the figure.
+// S35 — adds the standalone Payments section, the net cash movement card (shared with the staff
+// dashboard via CashRegisterSections) and the admin-only Profit section.
 export default function AdminCashRegister() {
   const { t, language } = useTranslation();
   const today = storeLocalDate();
@@ -38,116 +33,24 @@ export default function AdminCashRegister() {
   const openDrill = (drill: CashRegisterDrill, titleKey: string) =>
     setDrillTarget({ drill, titleKey });
 
-  const sections: { titleKey: string; icon: JSX.Element; figures: CashRegisterFigure[] }[] = data
+  // S35 — ADMIN ONLY: the profit figures exist only on the admin DTO (the staff DTO has no such
+  // key). Not clickable: their documents are the Sales / Repairs / Completed-orders drill lists,
+  // which carry a profit column. Supplier payments are not an expense and never reduce profit.
+  const profitFigures: CashRegisterFigure[] = data
     ? [
+        { labelKey: "admin.cashRegister.profit.sales", value: money(data.profit.sales) },
+        { labelKey: "admin.cashRegister.profit.repairs", value: money(data.profit.repairs) },
+        { labelKey: "admin.cashRegister.profit.orders", value: money(data.profit.orders) },
         {
-          titleKey: "admin.cashRegister.sales.title",
-          icon: <Receipt className="h-5 w-5" />,
-          figures: [
-            {
-              labelKey: "admin.cashRegister.sales.count",
-              value: String(data.sales.count),
-              drill: CashRegisterDrill.SALES,
-            },
-            { labelKey: "admin.cashRegister.sales.totalSold", value: money(data.sales.totalSold) },
-            { labelKey: "admin.cashRegister.sales.totalPaid", value: money(data.sales.totalPaid) },
-            { labelKey: "admin.cashRegister.sales.newCredit", value: money(data.sales.newCredit) },
-          ],
+          labelKey: "admin.cashRegister.profit.returnsReversed",
+          value: money(data.profit.returnsReversed),
+          detail: t("admin.cashRegister.profit.returnsBreakdown", {
+            sales: money(data.profit.saleReturnsReversed),
+            orders: money(data.profit.orderReturnsReversed),
+            repairs: money(data.profit.repairReturnsReversed),
+          }),
         },
-        {
-          titleKey: "admin.cashRegister.returns.title",
-          icon: <Undo2 className="h-5 w-5" />,
-          figures: [
-            {
-              labelKey: "admin.cashRegister.returns.count",
-              value: String(data.returns.count),
-              drill: CashRegisterDrill.RETURNS,
-            },
-            {
-              labelKey: "admin.cashRegister.returns.totalRefunded",
-              value: money(data.returns.totalRefunded),
-            },
-          ],
-        },
-        {
-          titleKey: "admin.cashRegister.repairs.title",
-          icon: <Wrench className="h-5 w-5" />,
-          figures: [
-            {
-              labelKey: "admin.cashRegister.repairs.count",
-              value: String(data.repairs.count),
-              drill: CashRegisterDrill.REPAIRS_PICKED_UP,
-            },
-            { labelKey: "admin.cashRegister.repairs.paid", value: money(data.repairs.paidAmount) },
-            {
-              labelKey: "admin.cashRegister.repairs.unpaid",
-              value: money(data.repairs.unpaidAmount),
-            },
-            // P5 — "refunded repair amount (where any)".
-            ...(data.repairs.refundCount > 0
-              ? [
-                  {
-                    labelKey: "admin.cashRegister.repairs.refunded",
-                    value: t("admin.cashRegister.repairs.refundedValue", {
-                      amount: money(data.repairs.refundedAmount),
-                      count: data.repairs.refundCount,
-                    }),
-                    drill: CashRegisterDrill.REPAIR_REFUNDS,
-                  },
-                ]
-              : []),
-          ],
-        },
-        {
-          titleKey: "admin.cashRegister.orders.title",
-          icon: <ShoppingCart className="h-5 w-5" />,
-          figures: [
-            {
-              labelKey: "admin.cashRegister.orders.confirmed",
-              value: String(data.orders.confirmedCount),
-              drill: CashRegisterDrill.ORDERS_CONFIRMED,
-            },
-            {
-              labelKey: "admin.cashRegister.orders.inDelivery",
-              value: String(data.orders.inDeliveryCount),
-              drill: CashRegisterDrill.ORDERS_IN_DELIVERY,
-            },
-            {
-              labelKey: "admin.cashRegister.orders.completed",
-              value: String(data.orders.completedCount),
-              drill: CashRegisterDrill.ORDERS_COMPLETED,
-            },
-            {
-              labelKey: "admin.cashRegister.orders.completedPaid",
-              value: money(data.orders.completedPaid),
-            },
-          ],
-        },
-        {
-          titleKey: "admin.cashRegister.suppliers.title",
-          icon: <Truck className="h-5 w-5" />,
-          figures: [
-            {
-              labelKey: "admin.cashRegister.suppliers.invoiceCount",
-              value: String(data.suppliers.invoiceCount),
-              drill: CashRegisterDrill.SUPPLIER_INVOICES,
-            },
-            {
-              labelKey: "admin.cashRegister.suppliers.totalInvoiced",
-              value: money(data.suppliers.totalInvoiced),
-            },
-            {
-              labelKey: "admin.cashRegister.suppliers.totalPaid",
-              value: money(data.suppliers.totalPaid),
-              drill: CashRegisterDrill.SUPPLIER_PAYMENTS,
-            },
-            // May be negative: more was paid to suppliers than invoiced that day.
-            {
-              labelKey: "admin.cashRegister.suppliers.newCredit",
-              value: money(data.suppliers.newCredit),
-            },
-          ],
-        },
+        { labelKey: "admin.cashRegister.profit.net", value: money(data.profit.net) },
       ]
     : [];
 
@@ -198,15 +101,17 @@ export default function AdminCashRegister() {
         </div>
       )}
 
-      {sections.map((section) => (
-        <CashRegisterSection
-          key={section.titleKey}
-          titleKey={section.titleKey}
-          icon={section.icon}
-          figures={section.figures}
-          onDrill={openDrill}
-        />
-      ))}
+      {data && (
+        <>
+          <CashRegisterSections data={data} onDrill={openDrill} />
+          <CashRegisterSection
+            titleKey="admin.cashRegister.profit.title"
+            icon={<TrendingUp className="h-5 w-5" />}
+            figures={profitFigures}
+          />
+          <p className="text-xs text-muted-foreground">{t("admin.cashRegister.profit.note")}</p>
+        </>
+      )}
 
       <CashRegisterDrillDialog
         date={date}

@@ -28,6 +28,8 @@ export function useCreatePurchasingPayment() {
       purchasingService.createSupplierPayment(command),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.purchasing.all() });
+      // S35 — supplier payments feed the Caisse (Suppliers / Payments lines).
+      queryClient.invalidateQueries({ queryKey: qk.stats.all() });
     },
   });
 }

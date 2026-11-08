@@ -44,9 +44,10 @@ export const billingService = service;
 const clientOnly = requireAuth({ types: [UserType.CLIENT] });
 const staffInvoicesOrAdmin = requireAuth({ types: [UserType.STAFF, UserType.ADMIN], pages: [PageKey.STAFF_INVOICES], checkDB: true });
 const adminOnly = requireAuth({ types: [UserType.ADMIN], checkDB: true });
-// S18 — backs the POS-clients drawer's Payments tab (D-5); STAFF_INVOICES is included so the
-// staff invoices page could use the same route if it ever surfaces payments.
-const staffPaymentsReadOrAdmin = requireAuth({
+// S18 — the client-payment list (POS-clients drawer's Payments tab, D-5). S34 — recording a
+// payment uses the same rule: holding STAFF_POS_CLIENTS is enough to take a payment from the
+// POS-clients page; STAFF_INVOICES still works for the invoices page's Record payment.
+const staffClientPaymentsOrAdmin = requireAuth({
   types: [UserType.STAFF, UserType.ADMIN],
   anyPages: [PageKey.STAFF_INVOICES, PageKey.STAFF_POS_CLIENTS],
   checkDB: true,
@@ -80,7 +81,7 @@ router.get(
 );
 router.post(
   BILLING_ROUTES.STAFF_CLIENT_PAYMENTS,
-  staffInvoicesOrAdmin,
+  staffClientPaymentsOrAdmin,
   validateRequest({ body: CreateClientPaymentSchema }),
   controller.createClientPayment,
 );
@@ -113,7 +114,7 @@ router.get(
 );
 router.get(
   BILLING_ROUTES.STAFF_CLIENT_PAYMENTS_LIST,
-  staffPaymentsReadOrAdmin,
+  staffClientPaymentsOrAdmin,
   validateRequest({ query: ClientPaymentListQuerySchema }),
   controller.listClientPayments,
 );

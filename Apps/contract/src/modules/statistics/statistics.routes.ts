@@ -9,4 +9,6 @@ export const STATS_ROUTES = {
   // S33 — the Caisse (admin only): day summary + drill-through document list.
   CASH_REGISTER: '/admin/cash-register',
   CASH_REGISTER_DOCUMENTS: '/admin/cash-register/documents',
+  // S35 — the staff dashboard's cash register: today only, whole store, no profit.
+  STAFF_CASH_REGISTER: '/staff/cash-register',
 } as const;

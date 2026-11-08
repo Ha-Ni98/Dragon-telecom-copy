@@ -18,6 +18,8 @@ import {
   PosClientIdParamsSchema,
   PosClientListQuerySchema,
   PosClientSearchQuerySchema,
+  PurchasedProductParamsSchema,
+  PurchasedProductsQuerySchema,
   RegisterClientSchema,
   RejectClientSchema,
   ResetClientPasswordSchema,
@@ -166,6 +168,47 @@ router.patch(
   staffPosClientsOrAdmin,
   validateRequest({ params: PosClientIdParamsSchema, body: UpdatePosClientSchema }),
   controller.updatePosClient,
+);
+
+// S36 — the "Products bought" tab. Documents routes registered before their parent, by habit.
+// Admin client page (web Client id):
+router.get(
+  CLIENT_ROUTES.ADMIN_PURCHASED_PRODUCT_DOCUMENTS,
+  adminOnly,
+  validateRequest({ params: PurchasedProductParamsSchema, query: PurchasedProductsQuerySchema }),
+  controller.listClientPurchasedProductDocuments,
+);
+router.get(
+  CLIENT_ROUTES.ADMIN_PURCHASED_PRODUCTS,
+  adminOnly,
+  validateRequest({ params: ClientIdParamsSchema, query: PurchasedProductsQuerySchema }),
+  controller.listClientPurchasedProducts,
+);
+// POS-client drawer, both scopes (PosClient id). Staff see the client's WHOLE history, every seller
+// (owner Q1) — no margins are in it.
+router.get(
+  POS_CLIENT_ROUTES.ADMIN_PURCHASED_PRODUCT_DOCUMENTS,
+  adminOnly,
+  validateRequest({ params: PurchasedProductParamsSchema, query: PurchasedProductsQuerySchema }),
+  controller.listPosClientPurchasedProductDocuments,
+);
+router.get(
+  POS_CLIENT_ROUTES.ADMIN_PURCHASED_PRODUCTS,
+  adminOnly,
+  validateRequest({ params: PosClientIdParamsSchema, query: PurchasedProductsQuerySchema }),
+  controller.listPosClientPurchasedProducts,
+);
+router.get(
+  POS_CLIENT_ROUTES.STAFF_PURCHASED_PRODUCT_DOCUMENTS,
+  staffPosClientsOrAdmin,
+  validateRequest({ params: PurchasedProductParamsSchema, query: PurchasedProductsQuerySchema }),
+  controller.listPosClientPurchasedProductDocuments,
+);
+router.get(
+  POS_CLIENT_ROUTES.STAFF_PURCHASED_PRODUCTS,
+  staffPosClientsOrAdmin,
+  validateRequest({ params: PosClientIdParamsSchema, query: PurchasedProductsQuerySchema }),
+  controller.listPosClientPurchasedProducts,
 );
 
 export { router };
