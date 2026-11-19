@@ -57,18 +57,14 @@ export function MoneyStatusCard({ credit, totalPaid, totalSold }: MoneyStatusCar
             </div>
           </div>
 
-          {/* Total Sold (lifetime purchases) - Blue */}
+          {/* Total Sold (lifetime purchases) - brand */}
           <div
-            className="text-center p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20"
+            className="text-center p-4 border rounded-lg bg-primary-light"
             role="region"
             aria-label={`${t('account.totalSold')}: ${formatPrice(totalSold)}`}
           >
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
-              {formatPrice(totalSold)}
-            </div>
-            <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-              {t('account.totalSold')}
-            </div>
+            <div className="text-2xl font-bold text-primary mb-1">{formatPrice(totalSold)}</div>
+            <div className="text-sm text-primary font-medium">{t("account.totalSold")}</div>
           </div>
         </div>
       </CardContent>

@@ -22,32 +22,32 @@ export interface ChartTheme {
 
 const LIGHT: ChartTheme = {
   series: [
-    "oklch(0.552 0.228 260.9)", // --primary
+    "oklch(0.651 0.131 238.9)", // --primary
     "oklch(0.623 0.169 149.2)", // --success
     "oklch(0.786 0.16 85.3)", // --warning
     "oklch(0.636 0.208 25.4)", // --destructive
-    "oklch(0.55 0.023 264.4)", // --muted-foreground
+    "oklch(0.507 0.029 237.3)", // --muted-foreground
   ],
-  axis: "oklch(0.55 0.023 264.4)", // --muted-foreground
-  grid: "oklch(0.928 0.006 264.5)", // --border
-  tooltipBg: "oklch(1 0 89.9)", // --card
-  tooltipFg: "oklch(0.242 0.012 264.3)", // --foreground
-  tooltipBorder: "oklch(0.928 0.006 264.5)", // --border
+  axis: "oklch(0.507 0.029 237.3)", // --muted-foreground
+  grid: "oklch(0.91 0.014 233.8)", // --border
+  tooltipBg: "oklch(0.988 0.002 247.8)", // --card
+  tooltipFg: "oklch(0.252 0.024 236)", // --foreground
+  tooltipBorder: "oklch(0.91 0.014 233.8)", // --border
 };
 
 const DARK: ChartTheme = {
   series: [
-    "oklch(0.587 0.208 260)", // --primary
+    "oklch(0.891 0.028 229.2)", // --primary
     "oklch(0.735 0.201 149)", // --success
     "oklch(0.838 0.165 87.5)", // --warning
     "oklch(0.667 0.185 23.6)", // --destructive
-    "oklch(0.719 0.009 264.5)", // --muted-foreground
+    "oklch(0.797 0.037 218.7)", // --muted-foreground
   ],
-  axis: "oklch(0.719 0.009 264.5)", // --muted-foreground
-  grid: "oklch(0.271 0.017 264.2)", // --border
-  tooltipBg: "oklch(0.188 0.01 264.3)", // --card
-  tooltipFg: "oklch(0.977 0.001 264.5)", // --foreground
-  tooltipBorder: "oklch(0.271 0.017 264.2)", // --border
+  axis: "oklch(0.797 0.037 218.7)", // --muted-foreground
+  grid: "oklch(0.461 0.07 207.2)", // --border
+  tooltipBg: "oklch(0.369 0.059 208.4)", // --card
+  tooltipFg: "oklch(0.961 0.012 223.5)", // --foreground
+  tooltipBorder: "oklch(0.461 0.07 207.2)", // --border
 };
 
 export function useChartTheme(): ChartTheme {
