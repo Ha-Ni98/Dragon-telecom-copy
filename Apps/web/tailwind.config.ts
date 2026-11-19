@@ -81,6 +81,14 @@ export default {
           ring: "oklch(var(--sidebar-ring) / <alpha-value>)",
         },
       },
+      // Only `text-primary` reads --primary-text (a deeper shade in light mode, where the sky-blue
+      // fill is too pale for text — see index.css). bg-/border-/ring-primary keep --primary, and
+      // text-primary-foreground is untouched: this deep-merges over colors.primary for text only.
+      textColor: {
+        primary: {
+          DEFAULT: "oklch(var(--primary-text) / <alpha-value>)",
+        },
+      },
     },
   },
   plugins: [tailwindcssAnimate],

@@ -31,11 +31,11 @@ function getRankIcon(rank: number) {
     case 1:
       return { icon: Trophy, color: "text-yellow-500", bgColor: "bg-yellow-50 dark:bg-yellow-950" };
     case 2:
-      return { icon: Medal, color: "text-gray-400", bgColor: "bg-gray-50 dark:bg-gray-950" };
+      return { icon: Medal, color: "text-gray-400", bgColor: "bg-muted" };
     case 3:
       return { icon: Award, color: "text-amber-600", bgColor: "bg-amber-50 dark:bg-amber-950" };
     default:
-      return { icon: TrendingUp, color: "text-blue-500", bgColor: "bg-blue-50 dark:bg-blue-950" };
+      return { icon: TrendingUp, color: "text-primary", bgColor: "bg-primary-light" };
   }
 }
 
