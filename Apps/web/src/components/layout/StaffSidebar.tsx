@@ -7,7 +7,7 @@ import { STAFF_PAGE_ROUTES } from "@/lib/staff-pages";
 
 const LINK_CLASS =
   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors";
-const ACTIVE_CLASS = "bg-primary-light text-primary border-l-4 border-primary -ml-1 pl-2";
+const ACTIVE_CLASS = "bg-primary-light text-primary border-l-4 border-highlight -ml-1 pl-2";
 const INACTIVE_CLASS = "text-muted-foreground hover:bg-accent hover:text-foreground";
 
 // Unlike AdminSidebarNav (static, unconditional), this is permission-filtered — StaffLayout

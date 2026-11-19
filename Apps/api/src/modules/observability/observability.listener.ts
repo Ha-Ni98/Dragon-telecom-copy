@@ -177,6 +177,15 @@ export class ObservabilityListener {
       })),
     );
 
+    eventBus.on('heroSlides.changed', (payload) =>
+      this.handle('heroSlides.changed', payload, (p) => ({
+        actionType: 'heroSlides.changed',
+        entityType: 'HeroSlide',
+        entityId: 'hero-slides',
+        description: p.description,
+      })),
+    );
+
     eventBus.on('deliveryFees.changed', (payload) =>
       this.handle('deliveryFees.changed', payload, (p) => ({
         actionType: 'deliveryFees.changed',

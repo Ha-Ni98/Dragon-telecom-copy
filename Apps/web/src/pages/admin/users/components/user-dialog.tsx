@@ -32,6 +32,7 @@ import {
   type UpdateUserFormValues,
 } from "@/pages/admin/users/components/user.schema";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface UserDialogProps {
   open: boolean;
@@ -344,9 +345,7 @@ export function UserDialog({
                     ))}
                   </div>
                   {createForm.formState.errors.roleIds && (
-                    <p className="text-sm text-destructive">
-                      {createForm.formState.errors.roleIds.message}
-                    </p>
+                    <FieldError>{createForm.formState.errors.roleIds.message}</FieldError>
                   )}
                   <div className="space-y-1">
                     <span className="text-xs text-muted-foreground">

@@ -2,6 +2,7 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditCard } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { formatPrice } from "@/lib/price-format";
 
 interface MoneyStatusCardProps {
   /** Amount owed by the client (ClientMeDto.credit) */
@@ -32,10 +33,10 @@ export function MoneyStatusCard({ credit, totalPaid, totalSold }: MoneyStatusCar
           <div
             className="text-center p-4 border rounded-lg bg-red-50 dark:bg-red-950/20"
             role="region"
-            aria-label={`${t('account.credit')}: ${credit.toLocaleString()} DA`}
+            aria-label={`${t('account.credit')}: ${formatPrice(credit)}`}
           >
             <div className="text-2xl font-bold text-red-600 dark:text-red-400 mb-1">
-              {credit.toLocaleString()} DA
+              {formatPrice(credit)}
             </div>
             <div className="text-sm text-red-700 dark:text-red-300 font-medium">
               {t('account.credit')}
@@ -46,28 +47,24 @@ export function MoneyStatusCard({ credit, totalPaid, totalSold }: MoneyStatusCar
           <div
             className="text-center p-4 border rounded-lg bg-green-50 dark:bg-green-950/20"
             role="region"
-            aria-label={`${t('account.totalPaid')}: ${totalPaid.toLocaleString()} DA`}
+            aria-label={`${t('account.totalPaid')}: ${formatPrice(totalPaid)}`}
           >
             <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
-              {totalPaid.toLocaleString()} DA
+              {formatPrice(totalPaid)}
             </div>
             <div className="text-sm text-green-700 dark:text-green-300 font-medium">
               {t('account.totalPaid')}
             </div>
           </div>
 
-          {/* Total Sold (lifetime purchases) - Blue */}
+          {/* Total Sold (lifetime purchases) - brand */}
           <div
-            className="text-center p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/20"
+            className="text-center p-4 border rounded-lg bg-primary-light"
             role="region"
-            aria-label={`${t('account.totalSold')}: ${totalSold.toLocaleString()} DA`}
+            aria-label={`${t('account.totalSold')}: ${formatPrice(totalSold)}`}
           >
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
-              {totalSold.toLocaleString()} DA
-            </div>
-            <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-              {t('account.totalSold')}
-            </div>
+            <div className="text-2xl font-bold text-primary mb-1">{formatPrice(totalSold)}</div>
+            <div className="text-sm text-primary font-medium">{t("account.totalSold")}</div>
           </div>
         </div>
       </CardContent>

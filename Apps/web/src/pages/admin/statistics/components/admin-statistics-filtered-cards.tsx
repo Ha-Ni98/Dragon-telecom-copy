@@ -53,8 +53,7 @@ const filteredStatsConfig = [
 ];
 
 function getComparisonIndicator(change: number) {
-  if (change === 0)
-    return { icon: Minus, bgColor: "bg-gray-50 dark:bg-gray-950", textColor: "text-gray-600" };
+  if (change === 0) return { icon: Minus, bgColor: "bg-muted", textColor: "text-muted-foreground" };
   if (change > 0)
     return {
       icon: TrendingUpIcon,

@@ -4,6 +4,10 @@ import type {
   UpsertFeesCommand,
   FeesExportQuery,
   UpdateSettingsCommand,
+  CreateHeroSlideCommand,
+  UpdateHeroSlideCommand,
+  ReorderHeroSlidesCommand,
+  HeroSlideDto,
 } from "@dragon-telecom/contract";
 import * as platformService from "@/services/platform.service";
 import { qk } from "@/lib/query-keys";
@@ -89,3 +93,51 @@ export function usePublicSettings() {
     queryFn: platformService.getPublicSettings,
   });
 }
+
+// --- S38 hero slides ---
+
+export function usePublicHeroSlides() {
+  return useQuery({
+    queryKey: qk.platform.heroSlides.public(),
+    queryFn: platformService.listPublicHeroSlides,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAdminHeroSlides() {
+  return useQuery({
+    queryKey: qk.platform.heroSlides.admin(),
+    queryFn: platformService.listAdminHeroSlides,
+  });
+}
+
+// Every admin mutation returns the full ordered list, so it seeds the admin cache directly (the
+// panel re-renders the true order at once) and invalidates the public one the storefront reads.
+function useHeroSlidesMutation<TVars>(mutationFn: (vars: TVars) => Promise<HeroSlideDto[]>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: (slides) => {
+      queryClient.setQueryData(qk.platform.heroSlides.admin(), slides);
+      queryClient.invalidateQueries({ queryKey: qk.platform.heroSlides.public() });
+    },
+  });
+}
+
+export const useCreateHeroSlide = () =>
+  useHeroSlidesMutation((command: CreateHeroSlideCommand) =>
+    platformService.createHeroSlide(command),
+  );
+
+export const useUpdateHeroSlide = () =>
+  useHeroSlidesMutation(({ id, command }: { id: string; command: UpdateHeroSlideCommand }) =>
+    platformService.updateHeroSlide(id, command),
+  );
+
+export const useDeleteHeroSlide = () =>
+  useHeroSlidesMutation((id: string) => platformService.deleteHeroSlide(id));
+
+export const useReorderHeroSlides = () =>
+  useHeroSlidesMutation((command: ReorderHeroSlidesCommand) =>
+    platformService.reorderHeroSlides(command),
+  );

@@ -36,6 +36,7 @@ import {
 // maps, alongside REPAIR_STATUS_LABEL_KEY) so RepairReceipt.tsx can reuse the same map.
 import { REPORTED_ISSUE_LABEL_KEY as ISSUE_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
 import { buildDeviceLabelDefault } from "@/pages/staff/repairs/repair-device-label";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface IntakeDialogProps {
   open: boolean;
@@ -112,18 +113,14 @@ export function IntakeDialog({
                 {t("staff.repairs.intake.customerNameLabel")}
               </Label>
               <Input id="intake-customer-name" {...register("customerName")} />
-              {errors.customerName && (
-                <p className="text-sm text-destructive">{errors.customerName.message}</p>
-              )}
+              {errors.customerName && <FieldError>{errors.customerName.message}</FieldError>}
             </div>
             <div className="space-y-1">
               <Label htmlFor="intake-customer-phone">
                 {t("staff.repairs.intake.customerPhoneLabel")}
               </Label>
               <Input id="intake-customer-phone" {...register("customerPhone")} />
-              {errors.customerPhone && (
-                <p className="text-sm text-destructive">{errors.customerPhone.message}</p>
-              )}
+              {errors.customerPhone && <FieldError>{errors.customerPhone.message}</FieldError>}
             </div>
           </div>
 
@@ -239,9 +236,7 @@ export function IntakeDialog({
                 />
               ))}
             </div>
-            {errors.reportedIssues && (
-              <p className="text-sm text-destructive">{errors.reportedIssues.message}</p>
-            )}
+            {errors.reportedIssues && <FieldError>{errors.reportedIssues.message}</FieldError>}
           </div>
 
           {watchedIssues?.includes(ReportedIssue.OTHER) && (
@@ -251,7 +246,7 @@ export function IntakeDialog({
               </Label>
               <Input id="intake-issue-other" {...register("reportedIssueOther")} />
               {errors.reportedIssueOther && (
-                <p className="text-sm text-destructive">{errors.reportedIssueOther.message}</p>
+                <FieldError>{errors.reportedIssueOther.message}</FieldError>
               )}
             </div>
           )}

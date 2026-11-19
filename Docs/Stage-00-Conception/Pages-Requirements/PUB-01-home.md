@@ -4,11 +4,11 @@
 - Public shell (Header + Footer), mobile-first. Route: `/`.
 
 ## UI
-- `HeroSection`: static i18n title/subtitle, two CTAs, trust badges.
+- `HeroSlider` (S38): up to 5 live `HeroSlide`s from GET /api/hero-slides; ~45% of viewport height; `<picture>` desktop/mobile art direction; 5 s autoplay (off under reduced motion), swipe, highlight-token dots; every slide after the first lazy-loads. No live slide → no hero. Suggested slide: "Vous êtes réparateur ?" → `/register` (professional pricing comes from client categories; there is no separate account type).
 - `CategoriesSection`: 6 featured family cards from the backend, each with iconUrl + name (+ product count).
 - `BrandsSection`: horizontal brand-logo carousel from the backend.
 - `ProductsSection`: featured `ProductGrid` (8 cards), inline search input, family select, grid/list toggle.
-- Footer: **front-end static** contact info + socials (types file) — no API.
+- Footer (S38): store name, address, repair/sales phones (`tel:`), WhatsApp (`wa.me`), email (`mailto:`) and Facebook/Instagram/TikTok links — all from GET /api/settings/public, each shown only when set.
 
 ## Interactions
 - Category card → `/products?familyId=`; brand logo → `/products?brandId=`; product card → `/products/:id`.
@@ -19,6 +19,7 @@
 
 ## Data dependencies
 - `useFeaturedFamilies()` → `['families','featured']` → GET /api/families?featured=true&limit=6&withCount=true.
+- `useHeroSlides()` → `['platform','hero-slides','public']` → GET /api/hero-slides (S38).
 - `useBrands()` → `['brands']`; `useFeaturedProducts()` → `['products','featured']`.
 - Per-section skeletons; each section fails independently (ErrorBoundary per section); empty section hides itself.
 - Mutations: `useToggleCart()` invalidates `['cart']` and patches `inCart` in product caches.

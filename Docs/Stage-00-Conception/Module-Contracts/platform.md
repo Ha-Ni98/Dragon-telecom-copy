@@ -19,21 +19,26 @@ Merges: settings (+ SequenceService) + delivery (wilayas/communes bilingual, fee
 | `PLATFORM_ROUTES.FEES_IMPORT` | POST `/api/admin/delivery-fees/import` | admin | Excel, row-validated, all-or-nothing |
 | `PLATFORM_ROUTES.FEES_EXPORT` | GET `/api/admin/delivery-fees/export?format=` | admin | excel/csv/json |
 | `PLATFORM_ROUTES.SETTINGS` | GET/PATCH `/api/admin/settings` | admin | |
-| `PLATFORM_ROUTES.SETTINGS_PUBLIC` | GET `/api/settings/public` | public | featured products only |
+| `PLATFORM_ROUTES.SETTINGS_PUBLIC` | GET `/api/settings/public` | public | store header + footer contact, storefront section |
+| `PLATFORM_ROUTES.HERO_SLIDES` | GET `/api/hero-slides` | public | live slides (active, inside window), ≤ 5 (S38) |
+| `PLATFORM_ROUTES.ADMIN_HERO_SLIDES` | GET/POST `/api/admin/hero-slides` | admin | S38 |
+| `PLATFORM_ROUTES.ADMIN_HERO_SLIDES_ORDER` | PUT `/api/admin/hero-slides/order` | admin | full id list, S38 |
+| `PLATFORM_ROUTES.ADMIN_HERO_SLIDE_BY_ID` | PATCH/DELETE `/api/admin/hero-slides/:id` | admin | S38 |
 
 ```
 WilayaDto { id; wilayaCode; frName; arName; communes: { id; communeCode; frName; arName }[] }
 FeeDto { deliveryHome; deliveryOffice; source: 'commune'|'wilaya'|'default' }
 UpsertFeesCommand { rows: { wilayaId; communeId?: uuid|null; deliveryHome; deliveryOffice }[] }
-SettingsDto { store { name; address?; phone?; logoUrl? };        // invoice header ONLY — the storefront footer is front-end static
+SettingsDto { store { name; activityLine?; address?; phone?; repairPhone?; salesPhone?; whatsappPhone?; email?; facebookUrl?; instagramUrl?; tiktokUrl?; logoUrl?; printLogoUrl? };  // invoice/receipt header AND (S38) the storefront footer
   invoicing { prefixes: Record<DocType,string>; nextSequences: Record<DocType,number>; footerNote? };
   delivery { defaultHome; defaultOffice };
-  storefront { featuredProductIds: uuid[] } }
+  storefront { featuredProductIds: uuid[]; featuredFamilyIds: uuid[]; repairToolsFamilyId?: uuid; metaDescription?: string; linkPreviewImageUrl?: string } }
+HeroSlideDto { id; desktopImageUrl; desktopImageKey; mobileImageUrl; mobileImageKey; text: { fr: { title; ctaLabel }; en: { title; ctaLabel } }; link; isActive; startsOn?; endsOn?; displayOrder; isLive }  // S38
 DocType = 'INVOICE'|'SALE'|'ORDER'|'REPAIR'|'SUPPLIER_INVOICE'|'ADJUSTMENT'|'POS_CLIENT'|'CLIENT'
 ```
 
 ## Events [CONTRACT]
-- Emits `settings.changed { description }`, `deliveryFees.changed { description }` (audit). Listens: none.
+- Emits `settings.changed { description }`, `deliveryFees.changed { description }`, `heroSlides.changed { description }` (audit). Listens: none.
 
 ## Injected services [CONTRACT]
 - `SequenceService.nextNumber(tx, docType) → string` — `PREFIX-YYYY-NNNN`, transactional, monotonic, gaps tolerated, never reused. Injected into every document module.

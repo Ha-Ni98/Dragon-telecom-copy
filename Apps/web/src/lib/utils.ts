@@ -19,6 +19,8 @@ export function formatTime(seconds: number): string {
 
 const LOCALE_TAG: Record<Language, string> = { en: "en-US", fr: "fr-FR", ar: "ar-DZ" };
 
+// Back-office money format (admin, staff, POS, receipts). Storefront/client pages use
+// formatPrice (lib/price-format.ts) instead — S37.
 export function formatDZD(amount: number, language: Language = "en"): string {
   return `${new Intl.NumberFormat(LOCALE_TAG[language]).format(amount)} DZD`;
 }

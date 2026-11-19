@@ -25,6 +25,10 @@ export class R2StorageService implements StorageService {
     });
   }
 
+  urlFor(key: string): string {
+    return `${env.R2_PUBLIC_URL}/${key}`;
+  }
+
   async put(input: PutObjectInput): Promise<StoredObject> {
     try {
       await this.client.send(
@@ -45,7 +49,7 @@ export class R2StorageService implements StorageService {
 
     return {
       key: input.key,
-      url: `${env.R2_PUBLIC_URL}/${input.key}`,
+      url: this.urlFor(input.key),
       contentType: input.contentType,
       size: input.body.length,
     };

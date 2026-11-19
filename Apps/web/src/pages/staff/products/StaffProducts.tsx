@@ -9,6 +9,7 @@ import { useSendStaffSearch } from "@/hooks/useObservability";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ProductListQuerySchema, type ProductListQuery } from "@dragon-telecom/contract";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 // STF-03 — read-only staff catalog lookup. URL-as-state (same ProductListQuerySchema Catalog
 // validates against, D2: no image/cost/margin/actions). Every executed search fires the
@@ -97,7 +98,9 @@ export default function StaffProducts() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">{t("staff.products.title")}</h1>
+        <SectionTitle as="h1" className="text-2xl font-bold">
+          {t("staff.products.title")}
+        </SectionTitle>
         <p className="text-muted-foreground">{t("staff.products.subtitle")}</p>
       </div>
 

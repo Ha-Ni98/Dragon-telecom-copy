@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import type { OrderDto } from "@dragon-telecom/contract";
 import { OrderType } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
-import { formatDZD } from "@/lib/utils";
+import { formatPrice } from "@/lib/price-format";
 
 // Dumb, props-only (Sprint 4). Sprint 5 wires the page shell around this: reads
 // useLocation().state.order and <Navigate to="/" replace /> when absent (plan.md PUB-05) — that
@@ -36,25 +36,25 @@ export function OrderConfirmationBody({ order, isClient }: OrderConfirmationBody
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-5 text-left shadow-[var(--shadow-card)]">
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between gap-3 text-sm">
           <span className="text-muted-foreground">{t("orderConfirmation.reference")}</span>
-          <span className="font-medium">{order.reference}</span>
+          <span className="min-w-0 break-words font-medium">{order.reference}</span>
         </div>
-        <div className="mt-2 flex justify-between text-sm">
-          <span className="text-muted-foreground">{t("product.fullName")}</span>
-          <span className="font-medium">{order.contactName}</span>
+        <div className="mt-2 flex justify-between gap-3 text-sm">
+          <span className="shrink-0 text-muted-foreground">{t("product.fullName")}</span>
+          <span className="min-w-0 break-words text-right font-medium">{order.contactName}</span>
         </div>
-        <div className="mt-1 flex justify-between text-sm">
-          <span className="text-muted-foreground">{t("product.phone")}</span>
-          <span className="font-medium">{order.contactPhone}</span>
+        <div className="mt-1 flex justify-between gap-3 text-sm">
+          <span className="shrink-0 text-muted-foreground">{t("product.phone")}</span>
+          <span className="min-w-0 break-words text-right font-medium">{order.contactPhone}</span>
         </div>
         <Separator className="my-3" />
         {order.lines.map((line, index) => (
-          <div key={line.id} className="flex justify-between text-sm">
-            <span className="text-muted-foreground">
+          <div key={line.id} className="flex justify-between gap-3 text-sm">
+            <span className="shrink-0 text-muted-foreground">
               {index === 0 ? t("orderConfirmation.product") : ""}
             </span>
-            <span className="font-medium">
+            <span className="min-w-0 break-words text-right font-medium">
               {line.productName} × {line.quantity}
             </span>
           </div>
@@ -62,7 +62,7 @@ export function OrderConfirmationBody({ order, isClient }: OrderConfirmationBody
         {order.deliveryFee > 0 && (
           <div className="mt-2 flex justify-between text-sm">
             <span className="text-muted-foreground">{t("orders.deliveryFee")}</span>
-            <span>{formatDZD(order.deliveryFee)}</span>
+            <span>{formatPrice(order.deliveryFee)}</span>
           </div>
         )}
         <div className="mt-2 flex justify-between text-sm">
@@ -72,7 +72,7 @@ export function OrderConfirmationBody({ order, isClient }: OrderConfirmationBody
         <Separator className="my-3" />
         <div className="flex justify-between font-semibold">
           <span>{t("orders.grandTotal")}</span>
-          <span className="text-primary">{formatDZD(order.totalAmount)}</span>
+          <span className="text-primary">{formatPrice(order.totalAmount)}</span>
         </div>
       </div>
 

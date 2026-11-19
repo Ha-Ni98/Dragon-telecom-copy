@@ -55,6 +55,18 @@ export default {
           DEFAULT: "oklch(var(--warning) / <alpha-value>)",
           foreground: "oklch(var(--warning-foreground) / <alpha-value>)",
         },
+        // S37 — brand accent. Distinct from `accent` (shadcn's hover tint, cyan here). Gives
+        // bg-/text-/border-/ring-highlight (+ /<alpha>) utilities; never use raw hex for it.
+        highlight: {
+          DEFAULT: "oklch(var(--highlight) / <alpha-value>)",
+          foreground: "oklch(var(--highlight-foreground) / <alpha-value>)",
+        },
+        // S39 — the light tile behind every transparent asset, in both themes (AssetTile).
+        // `foreground` is dark in both themes: use it for anything drawn ON the tile.
+        "asset-tile": {
+          DEFAULT: "oklch(var(--asset-tile) / <alpha-value>)",
+          foreground: "oklch(var(--asset-tile-foreground) / <alpha-value>)",
+        },
         border: "oklch(var(--border) / <alpha-value>)",
         input: "oklch(var(--input) / <alpha-value>)",
         ring: "oklch(var(--ring) / <alpha-value>)",
@@ -67,6 +79,14 @@ export default {
           "accent-foreground": "oklch(var(--sidebar-accent-foreground) / <alpha-value>)",
           border: "oklch(var(--sidebar-border) / <alpha-value>)",
           ring: "oklch(var(--sidebar-ring) / <alpha-value>)",
+        },
+      },
+      // Only `text-primary` reads --primary-text (a deeper shade in light mode, where the sky-blue
+      // fill is too pale for text — see index.css). bg-/border-/ring-primary keep --primary, and
+      // text-primary-foreground is untouched: this deep-merges over colors.primary for text only.
+      textColor: {
+        primary: {
+          DEFAULT: "oklch(var(--primary-text) / <alpha-value>)",
         },
       },
     },

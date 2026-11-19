@@ -14,6 +14,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { OrderPlacementSection } from "@/components/shared/OrderPlacementSection";
 import type { ProductDetailDto } from "@dragon-telecom/contract";
+import { formatPrice } from "@/lib/price-format";
 
 interface ProductPricingSectionProps {
   product: ProductDetailDto;
@@ -67,9 +68,7 @@ export const ProductPricingSection = ({ product, className }: ProductPricingSect
         <div className="space-y-2">
           {priceAvailable ? (
             <div className="flex items-baseline space-x-2">
-              <span className="text-3xl font-bold text-primary">
-                {resolvedPrice.toLocaleString()} DA
-              </span>
+              <span className="text-3xl font-bold text-primary">{formatPrice(resolvedPrice)}</span>
             </div>
           ) : authStatus ? (
             <div className="text-lg font-medium text-muted-foreground">
@@ -141,7 +140,7 @@ export const ProductPricingSection = ({ product, className }: ProductPricingSect
 
             {quantity > 1 && priceAvailable && (
               <div className="text-sm text-muted-foreground">
-                {t("product.totalPrice")}: {totalPrice.toLocaleString()} DA
+                {t("product.totalPrice")}: {formatPrice(totalPrice)}
               </div>
             )}
           </div>

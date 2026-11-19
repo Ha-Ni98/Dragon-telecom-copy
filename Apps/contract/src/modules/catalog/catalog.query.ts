@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BooleanQuerySchema } from '../../common/types';
 import { ProductEnabledFilter, ProductSort } from './catalog.enums';
+import { NEW_ARRIVALS_DEFAULT_LIMIT, NEW_ARRIVALS_MAX } from './catalog.constants';
 
 export const ProductListQuerySchema = z.object({
   search: z.string().optional(),
@@ -33,6 +34,12 @@ export const ProductListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(15),
 });
 export type ProductListQuery = z.infer<typeof ProductListQuerySchema>;
+
+// S39 — GET /products/new-arrivals.
+export const NewArrivalsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(NEW_ARRIVALS_MAX).default(NEW_ARRIVALS_DEFAULT_LIMIT),
+});
+export type NewArrivalsQuery = z.infer<typeof NewArrivalsQuerySchema>;
 
 export const FamiliesQuerySchema = z.object({
   featured: BooleanQuerySchema.optional(),

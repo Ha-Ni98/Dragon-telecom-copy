@@ -4,7 +4,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CartItemDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
-import { formatDZD } from "@/lib/utils";
+import { formatPrice } from "@/lib/price-format";
+import { FieldError } from "@/components/shared/FieldError";
 
 // S16 — no longer a per-row single-product order (that flow moved to the page-level
 // OrderPlacementSection, D1: one order, N lines). This row is now a selectable checkout line:
@@ -36,7 +37,7 @@ export function CartItemRow({
   onQuantityChange,
   blockedReason,
 }: CartItemRowProps) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { product } = item;
   const primaryImage = product.images.find((img) => img.isPrimary) ?? product.images[0];
   const resolvedPrice = product.currentPrice ?? product.guestPrice;
@@ -66,9 +67,7 @@ export function CartItemRow({
           <p className="truncate font-medium text-foreground">{product.name}</p>
           <div className="flex items-center gap-2">
             {isPriceable ? (
-              <span className="font-semibold text-primary">
-                {formatDZD(resolvedPrice, language)}
-              </span>
+              <span className="font-semibold text-primary">{formatPrice(resolvedPrice)}</span>
             ) : (
               <span className="text-sm text-muted-foreground">{t("cart.priceOnRequest")}</span>
             )}
@@ -82,11 +81,9 @@ export function CartItemRow({
               {t(product.inStock ? "product.inStock" : "cart.outOfStock")}
             </span>
           </div>
-          {blockedReason && <p className="text-xs text-destructive">{blockedReason}</p>}
+          {blockedReason && <FieldError className="text-xs">{blockedReason}</FieldError>}
           {!blockedReason && isPriceable && (
-            <p className="text-sm text-muted-foreground">
-              {formatDZD(resolvedPrice * quantity, language)}
-            </p>
+            <p className="text-sm text-muted-foreground">{formatPrice(resolvedPrice * quantity)}</p>
           )}
         </div>
       </div>

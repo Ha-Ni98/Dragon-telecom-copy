@@ -9,6 +9,7 @@ import { formatDZD } from "@/lib/utils";
 import { MarginDisplay } from "@/components/shared/MarginDisplay";
 import type { AdminProductDto } from "@dragon-telecom/contract";
 import type { ProductPricingInput } from "@/pages/admin/products/product-pricing.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 // `valueAsNumber: true` maps an *empty* input to NaN, not undefined — and `z.number()` rejects
 // NaN, so the whole form failed validation and `handleSubmit` never fired: clearing the guest
@@ -63,9 +64,7 @@ export function ProductPricingSection({
                 step="0.01"
                 {...register("guestPrice", { setValueAs: clearableNumber })}
               />
-              {errors.guestPrice && (
-                <p className="text-sm text-destructive">{errors.guestPrice.message}</p>
-              )}
+              {errors.guestPrice && <FieldError>{errors.guestPrice.message}</FieldError>}
             </>
           ) : (
             <p className="text-sm">
@@ -89,7 +88,7 @@ export function ProductPricingSection({
                 {...register("defaultSalePrice", { setValueAs: optionalNumber })}
               />
               {errors.defaultSalePrice && (
-                <p className="text-sm text-destructive">{errors.defaultSalePrice.message}</p>
+                <FieldError>{errors.defaultSalePrice.message}</FieldError>
               )}
             </>
           ) : (

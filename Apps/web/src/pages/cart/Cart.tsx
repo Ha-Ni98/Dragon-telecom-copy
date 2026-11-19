@@ -9,6 +9,7 @@ import { CartItemRow, CartItemRowSkeleton } from "@/pages/cart/components/CartIt
 import { useClientCart, useRemoveFromCart } from "@/hooks/useClientPortal";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { CartItemDto } from "@dragon-telecom/contract";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 // PUB-04 — favorites list with a single multi-line checkout (S16/D1: one order, N lines, one
 // delivery fee, one reservation per line — reuses S15's OrderPlacementSection, the same
@@ -97,7 +98,9 @@ export default function Cart() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">{t("cart.pageTitle")}</h1>
+        <SectionTitle as="h1" className="text-2xl font-bold">
+          {t("cart.pageTitle")}
+        </SectionTitle>
         <p className="text-muted-foreground">{t("cart.subtitle")}</p>
       </div>
 

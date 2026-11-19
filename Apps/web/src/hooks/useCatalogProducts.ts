@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { NEW_ARRIVALS_DEFAULT_LIMIT } from "@dragon-telecom/contract";
 import type {
   ProductListQuery,
   CreateProductCommand,
@@ -23,6 +24,14 @@ export function useCatalogProducts(query: ProductListQuery, options?: { enabled?
     queryKey: qk.catalog.products.list(query),
     queryFn: () => catalogService.listProducts(query),
     enabled: options?.enabled,
+  });
+}
+
+// S39 — the home "New arrivals" row (≤ 3 per family, applied in SQL by the api).
+export function useNewArrivals(limit: number = NEW_ARRIVALS_DEFAULT_LIMIT) {
+  return useQuery({
+    queryKey: qk.catalog.products.newArrivals(limit),
+    queryFn: () => catalogService.listNewArrivals(limit),
   });
 }
 

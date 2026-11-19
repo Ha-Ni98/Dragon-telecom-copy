@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 import { RegistrationConfirmationDialog } from "@/components/shared/RegistrationConfirmationDialog";
 import { registerSchema, type RegisterFormValues, type RegisterInput } from "@/pages/register/register.schema";
 import { PhoneAvailability } from "@dragon-telecom/contract";
+import { FieldError } from "@/components/shared/FieldError";
 
 // D8: the static WilayaProvider (~480KB JSON, name-keyed) is gone — useWilayas() (real server
 // hook, uuid ids + nested communes) replaces it, so this page no longer needs its own provider
@@ -134,7 +135,7 @@ export default function Register() {
                         {...register('firstName')}
                         placeholder={t('register.firstNamePlaceholder')}
                       />
-                      {errors.firstName && <p className="text-sm text-destructive">{errors.firstName.message}</p>}
+                      {errors.firstName && <FieldError>{errors.firstName.message}</FieldError>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">{t('register.lastName')}</Label>
@@ -143,7 +144,7 @@ export default function Register() {
                         {...register('lastName')}
                         placeholder={t('register.lastNamePlaceholder')}
                       />
-                      {errors.lastName && <p className="text-sm text-destructive">{errors.lastName.message}</p>}
+                      {errors.lastName && <FieldError>{errors.lastName.message}</FieldError>}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -154,7 +155,7 @@ export default function Register() {
                       type="email"
                       placeholder={t('register.emailPlaceholder')}
                     />
-                    {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                    {errors.email && <FieldError>{errors.email.message}</FieldError>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="storeName">{t('register.storeName')} <span className="text-muted-foreground">({t('register.optional')})</span></Label>
@@ -178,8 +179,8 @@ export default function Register() {
                       type="tel"
                       placeholder={t('register.phonePlaceholder')}
                     />
-                    {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
-                    {!errors.phone && phoneConflict && <p className="text-sm text-destructive">{phoneConflict}</p>}
+                    {errors.phone && <FieldError>{errors.phone.message}</FieldError>}
+                    {!errors.phone && phoneConflict && <FieldError>{phoneConflict}</FieldError>}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -209,7 +210,7 @@ export default function Register() {
                           </Select>
                         )}
                       />
-                      {errors.wilayaId && <p className="text-sm text-destructive">{errors.wilayaId.message}</p>}
+                      {errors.wilayaId && <FieldError>{errors.wilayaId.message}</FieldError>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="communeId">{t('register.commune')}</Label>
@@ -231,7 +232,7 @@ export default function Register() {
                           </Select>
                         )}
                       />
-                      {errors.communeId && <p className="text-sm text-destructive">{errors.communeId.message}</p>}
+                      {errors.communeId && <FieldError>{errors.communeId.message}</FieldError>}
                     </div>
                   </div>
                   <Button

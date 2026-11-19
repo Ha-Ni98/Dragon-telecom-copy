@@ -23,7 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "@/hooks/useTranslation";
 import { OrderStatus, OrderType, type OrderDto } from "@dragon-telecom/contract";
-import { formatDZD, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
+import { formatPrice } from "@/lib/price-format";
 import { CancelOrderDialog } from "@/components/shared/CancelOrderDialog";
 
 // set-02 Sprint 3 retype — was OrderWithDetails (numeric idOrder, multi-line orderLines[],
@@ -115,9 +116,9 @@ export function OrderCard({
       className={`order-card border-0 shadow-card hover:shadow-elegant transition-all duration-300 ${className}`}
     >
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-semibold text-lg">{order.reference}</h3>
               <Badge variant="outline" className={STATUS_COLOR[order.status]}>
                 {STATUS_ICON[order.status]}
@@ -133,15 +134,17 @@ export function OrderCard({
                 {isPickup ? <Package className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
                 <span>{t(TYPE_LABEL_KEY[order.orderType])}</span>
               </div>
-              <div className="flex items-center gap-1">
-                <span>
+              <div className="flex min-w-0 items-center gap-1">
+                <span className="min-w-0 break-words">
                   {order.lines.map((line) => `${line.productName} × ${line.quantity}`).join(", ")}
                 </span>
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-lg font-semibold text-primary">{formatDZD(order.totalAmount)}</div>
+          <div className="shrink-0 text-right">
+            <div className="text-lg font-semibold text-primary">
+              {formatPrice(order.totalAmount)}
+            </div>
             <Badge variant="outline" className={paymentColor}>
               <CreditCard className="h-3 w-3 mr-1" />
               {t(`orders.${paymentStatus}`)}
@@ -155,18 +158,18 @@ export function OrderCard({
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">{t("orders.subtotal")}</span>
-            <span>{formatDZD(order.subtotal)}</span>
+            <span>{formatPrice(order.subtotal)}</span>
           </div>
           {order.deliveryFee > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t("orders.deliveryFee")}</span>
-              <span>{formatDZD(order.deliveryFee)}</span>
+              <span>{formatPrice(order.deliveryFee)}</span>
             </div>
           )}
           <Separator />
           <div className="flex justify-between font-semibold">
             <span>{t("orders.grandTotal")}</span>
-            <span className="text-primary">{formatDZD(order.totalAmount)}</span>
+            <span className="text-primary">{formatPrice(order.totalAmount)}</span>
           </div>
         </div>
 
@@ -181,12 +184,12 @@ export function OrderCard({
               <h4 className="font-medium mb-2">{t("orders.items")}</h4>
               <div className="space-y-1">
                 {order.lines.map((line) => (
-                  <div key={line.id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
+                  <div key={line.id} className="flex justify-between gap-3 text-sm">
+                    <span className="min-w-0 break-words text-muted-foreground">
                       {line.productName} × {line.quantity}
                     </span>
-                    <span>
-                      {formatDZD(line.unitPrice)} · {formatDZD(line.lineTotal)}
+                    <span className="shrink-0 whitespace-nowrap">
+                      {formatPrice(line.unitPrice)} · {formatPrice(line.lineTotal)}
                     </span>
                   </div>
                 ))}

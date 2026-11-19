@@ -1,16 +1,22 @@
-import type { Commune, Prisma, Wilaya } from '@prisma/client';
+import type { Commune, HeroSlide, Prisma, Wilaya } from '@prisma/client';
 import {
   AdminFeesResponseSchema,
   FeeResponseSchema,
+  HeroSlideResponseSchema,
+  HeroSlideTextSchema,
+  PublicHeroSlideResponseSchema,
   PublicSettingsResponseSchema,
   SettingsResponseSchema,
   WilayaResponseSchema,
   type AdminFeesDto,
   type FeeDto,
   type FeeSource,
+  type HeroSlideDto,
+  type PublicHeroSlideDto,
   type PublicSettingsDto,
   type SettingsDto,
   type WilayaDto,
+  storeLocalDate,
 } from '@dragon-telecom/contract';
 import { DEFAULT_SETTINGS } from '../../../prisma/settings-defaults';
 
@@ -111,6 +117,39 @@ export class PlatformMapper {
       }),
     };
     return AdminFeesResponseSchema.parse(dto);
+  }
+
+  // S38 — startsAt/endsAt are stored as UTC instants of store-day bounds (endsAt exclusive); the
+  // admin form edits store-local days, endsOn inclusive — hence the 1 ms step back.
+  static toHeroSlideDto(slide: HeroSlide, now: Date): HeroSlideDto {
+    const dto: HeroSlideDto = {
+      id: slide.id,
+      desktopImageUrl: slide.desktopImageUrl,
+      desktopImageKey: slide.desktopImageKey,
+      mobileImageUrl: slide.mobileImageUrl,
+      mobileImageKey: slide.mobileImageKey,
+      text: HeroSlideTextSchema.parse(slide.text),
+      link: slide.link,
+      isActive: slide.isActive,
+      ...(slide.startsAt ? { startsOn: storeLocalDate(slide.startsAt) } : {}),
+      ...(slide.endsAt ? { endsOn: storeLocalDate(new Date(slide.endsAt.getTime() - 1)) } : {}),
+      displayOrder: slide.displayOrder,
+      isLive:
+        slide.isActive &&
+        (slide.startsAt == null || slide.startsAt <= now) &&
+        (slide.endsAt == null || slide.endsAt > now),
+    };
+    return HeroSlideResponseSchema.parse(dto);
+  }
+
+  static toPublicHeroSlideDto(slide: HeroSlide): PublicHeroSlideDto {
+    return PublicHeroSlideResponseSchema.parse({
+      id: slide.id,
+      desktopImageUrl: slide.desktopImageUrl,
+      mobileImageUrl: slide.mobileImageUrl,
+      text: HeroSlideTextSchema.parse(slide.text),
+      link: slide.link,
+    });
   }
 
   private static toMoney(value: Money): number {

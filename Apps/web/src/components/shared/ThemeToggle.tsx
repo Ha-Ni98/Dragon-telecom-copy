@@ -10,6 +10,9 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
+      // S37 — the ghost hover is the app's cyan --accent; the toggle is one of the admin/staff
+      // places that carries the brand highlight instead (plan-S37 §0.5).
+      className="hover:bg-highlight/10 hover:text-highlight focus-visible:ring-highlight"
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}
       aria-label={t("common.actions.toggleTheme")}
     >

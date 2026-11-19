@@ -221,7 +221,7 @@ export function useAccessibility() {
    */
   const getFocusStyles = useCallback(() => {
     return {
-      outline: state.isKeyboardNavigation ? '2px solid #0066cc' : 'none',
+      outline: state.isKeyboardNavigation ? '2px solid oklch(var(--ring))' : 'none',
       outlineOffset: '2px',
       borderRadius: '2px'
     };

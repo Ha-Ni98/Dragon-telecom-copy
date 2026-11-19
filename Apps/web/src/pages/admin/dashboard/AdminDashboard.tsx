@@ -11,6 +11,7 @@ import { RepairsByStatusWidget } from "@/pages/admin/dashboard/components/Repair
 import { DraftSalesByStaffWidget } from "@/pages/admin/dashboard/components/DraftSalesByStaffWidget";
 import { useAdminDashboard } from "@/hooks/useStatistics";
 import { useNavigate } from "react-router-dom";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 // ADM-01 — rewired off the Sub-01 stub useDashboardData() (closes the Sprint 3 bridge note) onto
 // the real useAdminDashboard(), a single aggregate query (plan.md D10) decomposed into 8
@@ -26,9 +27,9 @@ export default function AdminDashboard() {
     <div className="space-y-6" role="main" aria-label={t("admin.dashboard.overview")}>
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" id="dashboard-title">
+          <SectionTitle as="h1" id="dashboard-title" className="text-3xl font-bold">
             {t("admin.dashboard.overview")}
-          </h1>
+          </SectionTitle>
           <p className="text-muted-foreground" id="dashboard-subtitle">
             {t("admin.dashboard.welcome")}
           </p>

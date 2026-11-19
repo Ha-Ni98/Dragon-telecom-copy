@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
 import { SaleStatus, type SaleDto } from "@dragon-telecom/contract";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface SaleDetailDrawerProps {
   open: boolean;
@@ -48,9 +49,7 @@ export function SaleDetailDrawer({
         </DrawerHeader>
 
         <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
-          {forbidden && (
-            <p className="text-sm text-destructive">{t("staff.sales.detail.forbidden")}</p>
-          )}
+          {forbidden && <FieldError>{t("staff.sales.detail.forbidden")}</FieldError>}
 
           {!forbidden && sale && (
             <>

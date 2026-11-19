@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   CATALOG_ERROR,
   EXPORT_ERROR,
+  HERO_SLIDE_ERROR,
   MEDIA_ERROR,
   REPAIR_ERROR,
   SALE_ERROR,
@@ -23,6 +24,10 @@ const SENTINEL_TRANSLATION_KEYS: Record<string, string> = {
   [MEDIA_ERROR.IMAGE_TOO_MANY_PIXELS]: "common.errors.sentinel.imageTooManyPixels",
   [MEDIA_ERROR.IMAGE_DECODE_FAILED]: "common.errors.sentinel.imageDecodeFailed",
   [MEDIA_ERROR.IMAGE_STORAGE_UNAVAILABLE]: "common.errors.sentinel.imageStorageUnavailable",
+  // S38 — hero slider sentinels (platform.constants.ts HERO_SLIDE_ERROR).
+  [HERO_SLIDE_ERROR.LIMIT_REACHED]: "common.errors.sentinel.heroSlideLimitReached",
+  [HERO_SLIDE_ERROR.INVALID_IMAGE]: "common.errors.sentinel.heroSlideInvalidImage",
+  [HERO_SLIDE_ERROR.ORDER_MISMATCH]: "common.errors.sentinel.heroSlideOrderMismatch",
   // S30 — repair lifecycle sentinels (repairs.constants.ts REPAIR_ERROR).
   [REPAIR_ERROR.READ_ONLY]: "common.errors.sentinel.repairReadOnly",
   [REPAIR_ERROR.STATUS_CHANGED]: "common.errors.sentinel.repairStatusChanged",

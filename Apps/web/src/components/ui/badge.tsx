@@ -14,6 +14,10 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
         outline: "text-foreground",
+        // S37 — storefront marker badges only (plan-S37 §0.5). Never for a status: statuses keep
+        // their semantic success/warning/muted/destructive colors.
+        highlight: "border-transparent bg-highlight text-highlight-foreground shadow",
+        highlightOutline: "border-highlight/50 bg-highlight/10 text-highlight",
       },
     },
     defaultVariants: {

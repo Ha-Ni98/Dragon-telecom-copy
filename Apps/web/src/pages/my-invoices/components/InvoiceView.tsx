@@ -7,7 +7,8 @@ import { NotFoundState } from "@/components/shared/NotFoundState";
 import { InvoiceStatusBadge } from "@/components/shared/StatusBadge";
 import type { InvoiceDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
-import { formatDZD, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
+import { formatPrice } from "@/lib/price-format";
 
 // Dumb, props-only (Sprint 4). Sprint 5 wires useMyInvoice(number)/useMyInvoicePdf() around
 // this. `lines[]`/header fields are a frozen snapshot (billing.dtos.ts) — never re-derived from
@@ -79,9 +80,9 @@ export function InvoiceView({
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">{invoice.number}</h2>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="break-words text-lg font-semibold">{invoice.number}</h2>
             <p className="text-sm text-muted-foreground">
               {t("invoices.detail.issuedAt")}: {formatDateTime(invoice.issuedAt)}
               {invoice.dueDate && ` · ${t("invoices.detail.dueDate")}: ${invoice.dueDate}`}
@@ -94,9 +95,9 @@ export function InvoiceView({
 
         <div className="text-sm">
           <p className="text-muted-foreground">{t("invoices.detail.billedTo")}</p>
-          <p className="font-medium">{invoice.clientNameSnapshot}</p>
+          <p className="break-words font-medium">{invoice.clientNameSnapshot}</p>
           {invoice.clientAddressSnapshot && (
-            <p className="text-muted-foreground">{invoice.clientAddressSnapshot}</p>
+            <p className="break-words text-muted-foreground">{invoice.clientAddressSnapshot}</p>
           )}
         </div>
 
@@ -120,8 +121,8 @@ export function InvoiceView({
                 <tr key={i} className="border-t border-border">
                   <td className="py-2">{line.label}</td>
                   <td className="py-2 text-right">{line.quantity}</td>
-                  <td className="py-2 text-right">{formatDZD(line.unitPrice)}</td>
-                  <td className="py-2 text-right font-medium">{formatDZD(line.lineTotal)}</td>
+                  <td className="py-2 text-right">{formatPrice(line.unitPrice)}</td>
+                  <td className="py-2 text-right font-medium">{formatPrice(line.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
@@ -133,16 +134,16 @@ export function InvoiceView({
         <div className="space-y-1 text-sm">
           <div className="flex justify-between font-semibold">
             <span>{t("invoices.table.total")}</span>
-            <span>{formatDZD(invoice.totalAmount)}</span>
+            <span>{formatPrice(invoice.totalAmount)}</span>
           </div>
           <div className="flex justify-between text-muted-foreground">
             <span>{t("orders.paid")}</span>
-            <span>{formatDZD(invoice.paidAmount)}</span>
+            <span>{formatPrice(invoice.paidAmount)}</span>
           </div>
           {invoice.newCredit !== undefined && (
             <div className="flex justify-between text-muted-foreground">
               <span>{t("invoices.detail.newCredit")}</span>
-              <span>{formatDZD(invoice.newCredit)}</span>
+              <span>{formatPrice(invoice.newCredit)}</span>
             </div>
           )}
         </div>

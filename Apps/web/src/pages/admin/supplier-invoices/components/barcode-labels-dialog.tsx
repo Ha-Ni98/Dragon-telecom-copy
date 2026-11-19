@@ -44,6 +44,7 @@ import {
   LABEL_STORE_COLUMN_MM,
   LABEL_STORE_GAP_MM,
 } from "@/types/label-print.types";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface BarcodeLabelsDialogProps {
   invoice: SupplierInvoiceDto;
@@ -265,9 +266,7 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
           {lookup.isLoading ? (
             <Skeleton className="h-40 w-full" />
           ) : lookup.isError ? (
-            <p className="text-sm text-destructive">
-              {t("admin.supplierInvoices.printLabels.loadError")}
-            </p>
+            <FieldError>{t("admin.supplierInvoices.printLabels.loadError")}</FieldError>
           ) : printableLines.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {t("admin.supplierInvoices.printLabels.none")}
@@ -334,11 +333,11 @@ export function BarcodeLabelsDialog({ invoice, open, onOpenChange }: BarcodeLabe
               <p>{t("admin.supplierInvoices.printLabels.total", { count: totalLabels })}</p>
             )}
             {overLimit && (
-              <p className="text-destructive">
+              <FieldError className="text-base">
                 {t("admin.productsList.printLabels.tooMany", {
                   max: BARCODE_LABEL_SHEET_MAX_TOTAL,
                 })}
-              </p>
+              </FieldError>
             )}
           </div>
 

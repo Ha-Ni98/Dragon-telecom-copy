@@ -16,6 +16,7 @@ import {
   quickAddPosClientSchema,
   type QuickAddPosClientFormValues,
 } from "@/pages/staff/pos/quick-add-pos-client.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface QuickAddPosClientDialogProps {
   open: boolean;
@@ -58,7 +59,7 @@ export function QuickAddPosClientDialog({
           <div className="space-y-1">
             <Label htmlFor="quick-add-name">{t("staff.pos.quickAddClient.nameLabel")}</Label>
             <Input id="quick-add-name" {...register("name")} />
-            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+            {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </div>
           <div className="space-y-1">
             <Label htmlFor="quick-add-phone">{t("staff.pos.quickAddClient.phoneLabel")}</Label>

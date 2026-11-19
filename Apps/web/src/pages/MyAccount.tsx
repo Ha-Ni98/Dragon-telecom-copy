@@ -26,6 +26,8 @@ import {
   changePasswordSchema,
   type ChangePasswordFormValues,
 } from "@/pages/my-account/change-password.schema";
+import { FieldError } from "@/components/shared/FieldError";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 export default function MyAccount() {
   const { t } = useTranslation();
@@ -127,7 +129,7 @@ export default function MyAccount() {
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="mb-8 space-y-2">
               <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-72" />
+              <Skeleton className="h-4 w-full max-w-72" />
             </div>
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
@@ -179,7 +181,7 @@ export default function MyAccount() {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold">{t('account.title')}</h1>
+            <SectionTitle as="h1" className="text-3xl font-bold">{t('account.title')}</SectionTitle>
             <p className="text-muted-foreground">{t('account.description')}</p>
           </div>
 
@@ -276,7 +278,7 @@ export default function MyAccount() {
                         />
                       </div>
                       {profileErrors.email && (
-                        <p className="text-sm text-destructive">{profileErrors.email.message}</p>
+                        <FieldError>{profileErrors.email.message}</FieldError>
                       )}
                     </div>
                     <div className="space-y-2">
@@ -320,7 +322,7 @@ export default function MyAccount() {
                           )}
                         />
                         {profileErrors.wilayaId && (
-                          <p className="text-sm text-destructive">{profileErrors.wilayaId.message}</p>
+                          <FieldError>{profileErrors.wilayaId.message}</FieldError>
                         )}
                       </div>
                       <div className="space-y-2">
@@ -348,7 +350,7 @@ export default function MyAccount() {
                           )}
                         />
                         {profileErrors.communeId && (
-                          <p className="text-sm text-destructive">{profileErrors.communeId.message}</p>
+                          <FieldError>{profileErrors.communeId.message}</FieldError>
                         )}
                       </div>
                     </div>
@@ -388,7 +390,7 @@ export default function MyAccount() {
                           placeholder={t('account.currentPasswordPlaceholder')}
                         />
                         {passwordErrors.currentPassword && (
-                          <p className="text-sm text-destructive">{passwordErrors.currentPassword.message}</p>
+                          <FieldError>{passwordErrors.currentPassword.message}</FieldError>
                         )}
                       </div>
                       <div className="space-y-2">
@@ -400,7 +402,7 @@ export default function MyAccount() {
                           placeholder={t('account.newPasswordPlaceholder')}
                         />
                         {passwordErrors.newPassword && (
-                          <p className="text-sm text-destructive">{passwordErrors.newPassword.message}</p>
+                          <FieldError>{passwordErrors.newPassword.message}</FieldError>
                         )}
                       </div>
                       <div className="space-y-2">
@@ -412,7 +414,7 @@ export default function MyAccount() {
                           placeholder={t('account.confirmPasswordPlaceholder')}
                         />
                         {passwordErrors.confirmPassword && (
-                          <p className="text-sm text-destructive">{passwordErrors.confirmPassword.message}</p>
+                          <FieldError>{passwordErrors.confirmPassword.message}</FieldError>
                         )}
                       </div>
                       <div className="flex gap-2">

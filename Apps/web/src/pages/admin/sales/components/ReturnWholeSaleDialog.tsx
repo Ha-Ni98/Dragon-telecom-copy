@@ -32,6 +32,7 @@ import {
   type ReturnWholeSaleFormInput,
   type ReturnWholeSaleFormValues,
 } from "@/pages/admin/sales/components/return-whole-sale.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface ReturnWholeSaleDialogProps {
   open: boolean;
@@ -155,9 +156,7 @@ export function ReturnWholeSaleDialog({
                 amount: formatDZD(dueTotal, language),
               })}
             </p>
-            {errors.refundAmount && (
-              <p className="text-sm text-destructive">{errors.refundAmount.message}</p>
-            )}
+            {errors.refundAmount && <FieldError>{errors.refundAmount.message}</FieldError>}
           </div>
 
           <div className="space-y-1">

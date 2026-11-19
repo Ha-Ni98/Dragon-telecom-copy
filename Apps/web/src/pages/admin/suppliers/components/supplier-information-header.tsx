@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, RefreshCw, RotateCcw } from "lucide-react";
 import type { SupplierDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 interface SupplierInformationHeaderProps {
   supplier: SupplierDto;
@@ -66,7 +67,9 @@ export function SupplierInformationHeader({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{supplier.name}</h1>
+            <SectionTitle as="h1" className="text-3xl font-bold tracking-tight">
+              {supplier.name}
+            </SectionTitle>
             <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
               {supplier.location && <span>{supplier.location}</span>}
               {supplier.location && <Separator orientation="vertical" className="h-4" />}

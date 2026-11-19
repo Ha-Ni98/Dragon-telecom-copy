@@ -7,6 +7,9 @@ import translations from "@/config/translations.json";
 // step, not a type change (client-portal plan.md §B6, decision #1).
 export type Language = "en" | "fr" | "ar";
 
+// S37 — French is the default locale, English second. A saved choice ("sv_lang") still wins.
+export const DEFAULT_LANGUAGE: Language = "fr";
+
 export function dirForLanguage(language: Language): "ltr" | "rtl" {
   return language === "ar" ? "rtl" : "ltr";
 }
@@ -39,5 +42,5 @@ export function translate(
 // (lib/query-client.ts, lib/realtime.ts).
 export function getLanguage(): Language {
   const saved = typeof window !== "undefined" ? localStorage.getItem("sv_lang") : null;
-  return saved === "fr" ? "fr" : "en";
+  return saved === "en" ? "en" : DEFAULT_LANGUAGE;
 }

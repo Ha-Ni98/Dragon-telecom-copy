@@ -19,7 +19,15 @@ createRoot(document.getElementById("root")!).render(
           <WorkspaceFocusProvider>
             <AuthProvider>
               <App />
-              <Toaster richColors position="bottom-right" />
+              <Toaster
+                richColors
+                position="bottom-right"
+                // S37 — clear the storefront bottom nav on phones; --bottom-nav-offset is 0
+                // everywhere else (index.css), so admin/staff toasts sit exactly where they did.
+                // Only `bottom` is set: Sonner fills unset keys with its own 24px/16px defaults.
+                offset={{ bottom: "calc(var(--bottom-nav-offset) + 24px)" }}
+                mobileOffset={{ bottom: "calc(var(--bottom-nav-offset) + 16px)" }}
+              />
             </AuthProvider>
           </WorkspaceFocusProvider>
         </LanguageProvider>

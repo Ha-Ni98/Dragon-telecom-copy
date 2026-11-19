@@ -2,27 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dragon Telecom brand palette (converted from the MVP's HSL values to this file's OKLCH
-   variable structure — same semantic names, same shadow/gradient roles, new hue). */
+/* Dragon Telecom brand palette — OKLCH channel triplets, consumed as `oklch(var(--x))`.
+   Light: cloud-white base (a cool off-white, deliberately not pure #fff) + sky blue #2c99d6
+   brand + scarlet highlight. Dark: deep-ink #04262a base, midnight-ink #083d43 cards, ice blue
+   #c9dfea brand + vermilion highlight. Hex equivalents sit beside the brand values;
+   lib/chart-theme.ts mirrors a subset as literals — keep the two in step. */
 :root {
   --radius: 0.75rem;
-  --background: 0.992 0 89.9;
-  --foreground: 0.242 0.012 264.3;
-  --surface: 0.975 0.02 260.9;
-  --card: 1 0 89.9;
-  --card-foreground: 0.242 0.012 264.3;
-  --popover: 1 0 89.9;
-  --popover-foreground: 0.242 0.012 264.3;
-  --primary: 0.552 0.228 260.9;
+  --background: 0.968 0.004 236.5; /* #f2f5f7 cloud white */
+  --foreground: 0.252 0.024 236;
+  --surface: 0.953 0.013 236.6;
+  --card: 0.988 0.002 247.8; /* #fafbfc — a step lighter than the base so cards still lift */
+  --card-foreground: 0.252 0.024 236;
+  --popover: 0.988 0.002 247.8;
+  --popover-foreground: 0.252 0.024 236;
+  --primary: 0.651 0.131 238.9; /* #2c99d6 sky blue — fills, borders, rings */
   --primary-foreground: 1 0 89.9;
-  --primary-hover: 0.472 0.228 260.9;
-  --primary-light: 0.95 0.04 260.9;
-  --secondary: 0.968 0.003 264.5;
-  --secondary-foreground: 0.242 0.012 264.3;
-  --muted: 0.968 0.003 264.5;
-  --muted-foreground: 0.55 0.023 264.4;
-  --accent: 0.784 0.143 221.1;
-  --accent-foreground: 1 0 89.9;
+  --primary-hover: 0.589 0.121 239.7;
+  --primary-light: 0.943 0.022 235;
+  /* Owner-approved split: #2c99d6 is only ~2.9:1 as text on the cloud-white base, so `text-primary`
+     (prices, links, icons — tailwind.config textColor) reads this deeper shade of the same hue
+     instead (5.2:1 on the base, 4.7:1+ on the light tints). Fills keep the exact brand hex. In
+     the dark block it equals --primary, because ice blue already reads at 8.7:1 there. */
+  --primary-text: 0.507 0.107 240; /* #176c9c */
+  --secondary: 0.939 0.009 232.4;
+  --secondary-foreground: 0.252 0.024 236;
+  --muted: 0.946 0.008 236.6;
+  --muted-foreground: 0.507 0.029 237.3;
+  /* shadcn's ghost/outline hover + list-selection tint: a soft wash of the brand hue with ink
+     text on it (was a saturated cyan under white text, which read at under 2:1). */
+  --accent: 0.934 0.022 235;
+  --accent-foreground: 0.252 0.024 236;
+  /* S37 — brand accent (scarlet). NOT --accent: in this file --accent is the soft tint that
+     shadcn's ghost/outline hovers use, so repainting it would turn every hover state red. Pair the
+     fill with --highlight-foreground, never a hardcoded white (see the dark block). Usage policy:
+     plan-S37 §0.5 — never on primary buttons, large fills, long text, or status badges. */
+  --highlight: 0.583 0.219 26.2;
+  --highlight-foreground: 1 0 89.9;
+  /* S39 — the light tile every transparent asset sits on (brand logos, family icons, the store
+     logo, product photos), in BOTH themes: a dark logo can never vanish on a dark surface. The
+     foreground is for anything drawn ON the tile (fallback letters/icons) — dark in both themes,
+     because text-muted-foreground turns light grey in dark mode and would disappear on it. */
+  --asset-tile: 1 0 89.9;
+  --asset-tile-foreground: 0.37 0.02 264.4;
   --destructive: 0.636 0.208 25.4;
   --destructive-foreground: 1 0 89.9;
   --success: 0.623 0.169 149.2;
@@ -33,67 +55,94 @@
      foreground stays white below — there the same tint sits on a dark card, where white reads
      correctly. Do not "harmonize" these back to the same value. */
   --warning-foreground: 0.42 0.105 75;
-  --border: 0.928 0.006 264.5;
-  --input: 0.928 0.006 264.5;
-  --ring: 0.552 0.228 260.9;
-  --sidebar: 0.985 0 89.9;
-  --sidebar-foreground: 0.37 0.012 285.8;
-  --sidebar-primary: 0.21 0.006 285.9;
-  --sidebar-primary-foreground: 0.985 0 89.9;
-  --sidebar-accent: 0.968 0.001 286.4;
-  --sidebar-accent-foreground: 0.21 0.006 285.9;
-  --sidebar-border: 0.928 0.006 264.5;
-  --sidebar-ring: 0.623 0.188 259.8;
-  --shadow-card: 0 4px 24px -8px oklch(0.45 0.22 260.9 / 0.18);
-  --shadow-glow: 0 8px 40px -12px oklch(0.55 0.25 260.9 / 0.45);
-  --gradient-primary: linear-gradient(135deg, oklch(0.55 0.25 260.9), oklch(0.45 0.22 260.9));
-  --gradient-surface: linear-gradient(180deg, oklch(0.985 0.01 260.9), oklch(0.965 0.025 260.9));
+  --border: 0.91 0.014 233.8;
+  --input: 0.91 0.014 233.8;
+  --ring: 0.651 0.131 238.9;
+  --sidebar: 0.961 0.007 233.6;
+  --sidebar-foreground: 0.252 0.024 236;
+  --sidebar-primary: 0.651 0.131 238.9;
+  --sidebar-primary-foreground: 1 0 89.9;
+  --sidebar-accent: 0.934 0.022 235;
+  --sidebar-accent-foreground: 0.252 0.024 236;
+  --sidebar-border: 0.91 0.014 233.8;
+  --sidebar-ring: 0.651 0.131 238.9;
+  /* S37 — storefront mobile bottom nav (StorefrontBottomNav). One value, read by the bar itself,
+     the layout's bottom padding and the toast offset, so the three can't drift apart. */
+  --bottom-nav-height: 4rem;
+  --bottom-nav-offset: 0px;
+  --shadow-card: 0 4px 24px -8px oklch(0.45 0.1 239 / 0.16);
+  --shadow-glow: 0 8px 40px -12px oklch(0.651 0.131 238.9 / 0.45);
+  --gradient-primary: linear-gradient(135deg, oklch(0.651 0.131 238.9), oklch(0.589 0.121 239.7));
+  --gradient-surface: linear-gradient(180deg, oklch(0.975 0.006 236.5), oklch(0.953 0.013 236.6));
   --gradient-hero: linear-gradient(135deg, oklch(var(--primary)) 0%, oklch(var(--accent)) 100%);
-  --login-glow: radial-gradient(60% 50% at 50% 0%, oklch(0.95 0.04 260.9 / 0.7), transparent),
-    radial-gradient(50% 40% at 80% 100%, oklch(0.95 0.04 260.9 / 0.5), transparent);
+  --login-glow: radial-gradient(60% 50% at 50% 0%, oklch(0.943 0.022 235 / 0.8), transparent),
+    radial-gradient(50% 40% at 80% 100%, oklch(0.943 0.022 235 / 0.6), transparent);
 }
 
 .dark {
-  --background: 0.166 0.007 264.4;
-  --foreground: 0.977 0.001 264.5;
-  --surface: 0.188 0.01 264.3;
-  --card: 0.188 0.01 264.3;
-  --card-foreground: 0.977 0.001 264.5;
-  --popover: 0.188 0.01 264.3;
-  --popover-foreground: 0.977 0.001 264.5;
-  --primary: 0.587 0.208 260;
-  --primary-foreground: 1 0 89.9;
-  --primary-hover: 0.667 0.208 260;
-  --primary-light: 0.28 0.1 260;
-  --secondary: 0.23 0.014 264.3;
-  --secondary-foreground: 0.977 0.001 264.5;
-  --muted: 0.23 0.014 264.3;
-  --muted-foreground: 0.719 0.009 264.5;
-  --accent: 0.797 0.14 218.9;
-  --accent-foreground: 1 0 89.9;
+  --background: 0.247 0.039 206.3; /* #04262a deep ink */
+  --foreground: 0.961 0.012 223.5;
+  --surface: 0.331 0.053 206.6;
+  --card: 0.331 0.053 206.6; /* #083d43 midnight ink — one step up from the deep-ink base */
+  --card-foreground: 0.961 0.012 223.5;
+  --popover: 0.331 0.053 206.6;
+  --popover-foreground: 0.961 0.012 223.5;
+  /* Ice blue is a LIGHT fill here, so its foreground is the deep-ink base (11.6:1), not white, and
+     hover lightens it further rather than deepening it. */
+  --primary: 0.891 0.028 229.2; /* #c9dfea ice blue */
+  --primary-foreground: 0.247 0.039 206.3;
+  --primary-hover: 0.931 0.019 227.3;
+  --primary-light: 0.393 0.062 207.6;
+  --primary-text: 0.891 0.028 229.2;
+  --secondary: 0.376 0.059 206.8;
+  --secondary-foreground: 0.961 0.012 223.5;
+  --muted: 0.376 0.059 206.8;
+  --muted-foreground: 0.797 0.037 218.7;
+  --accent: 0.403 0.062 205.9;
+  --accent-foreground: 0.961 0.012 223.5;
+  /* S37 — vermilion. White text on it is only 3.1:1 (fails AA), so the foreground flips to
+     near-black (6.3:1). This pair is the reason the token has a foreground at all. */
+  --highlight: 0.687 0.204 34.1;
+  --highlight-foreground: 0.161 0.014 266.7;
+  /* S39 — near-white rather than pure white: a row of light tiles in dark mode is intentional (the
+     same treatment product photos get), but a full-white block glares. Foreground stays dark. */
+  --asset-tile: 0.96 0.003 264.5;
+  --asset-tile-foreground: 0.37 0.02 264.4;
   --destructive: 0.667 0.185 23.6;
   --destructive-foreground: 1 0 89.9;
   --success: 0.735 0.201 149;
   --success-foreground: 1 0 89.9;
   --warning: 0.838 0.165 87.5;
   --warning-foreground: 1 0 89.9;
-  --border: 0.271 0.017 264.2;
-  --input: 0.271 0.017 264.2;
-  --ring: 0.587 0.208 260;
-  --sidebar: 0.21 0.006 285.9;
-  --sidebar-foreground: 0.968 0.001 286.4;
-  --sidebar-primary: 0.488 0.217 264.4;
-  --sidebar-primary-foreground: 1 0 89.9;
-  --sidebar-accent: 0.274 0.005 286;
-  --sidebar-accent-foreground: 0.968 0.001 286.4;
-  --sidebar-border: 0.274 0.005 286;
-  --sidebar-ring: 0.623 0.188 259.8;
-  --shadow-card: 0 4px 24px -8px oklch(0 0 0 / 0.5);
-  --shadow-glow: 0 8px 40px -12px oklch(0.65 0.22 260 / 0.5);
-  --gradient-surface: linear-gradient(180deg, oklch(0.18 0.05 264.3), oklch(0.14 0.04 264.4));
+  --border: 0.434 0.066 206.7;
+  --input: 0.434 0.066 206.7;
+  --ring: 0.891 0.028 229.2;
+  --sidebar: 0.216 0.033 205.2;
+  --sidebar-foreground: 0.961 0.012 223.5;
+  --sidebar-primary: 0.891 0.028 229.2;
+  --sidebar-primary-foreground: 0.247 0.039 206.3;
+  --sidebar-accent: 0.403 0.062 205.9;
+  --sidebar-accent-foreground: 0.961 0.012 223.5;
+  --sidebar-border: 0.434 0.066 206.7;
+  --sidebar-ring: 0.891 0.028 229.2;
+  --shadow-card: 0 4px 24px -8px oklch(0.15 0.03 206 / 0.6);
+  --shadow-glow: 0 8px 40px -12px oklch(0.891 0.028 229.2 / 0.3);
+  --gradient-surface: linear-gradient(180deg, oklch(0.331 0.053 206.6), oklch(0.247 0.039 206.3));
   --gradient-hero: linear-gradient(135deg, oklch(var(--primary)) 0%, oklch(var(--accent)) 100%);
-  --login-glow: radial-gradient(60% 50% at 50% 0%, oklch(0.28 0.1 260 / 0.5), transparent),
-    radial-gradient(50% 40% at 80% 100%, oklch(0.28 0.1 260 / 0.4), transparent);
+  --login-glow: radial-gradient(60% 50% at 50% 0%, oklch(0.393 0.062 207.6 / 0.55), transparent),
+    radial-gradient(50% 40% at 80% 100%, oklch(0.393 0.062 207.6 / 0.45), transparent);
+}
+
+/* S37 — while the storefront bottom nav is mounted (phone layout only, it is md:hidden), toasts
+   and anything else reading --bottom-nav-offset clear it. :has() keeps this CSS-only; the
+   same selector style is already used by the receipt print rules below. */
+body:has([data-storefront-bottom-nav]) {
+  --bottom-nav-offset: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  body:has([data-storefront-bottom-nav]) {
+    --bottom-nav-offset: 0px;
+  }
 }
 
 @layer base {

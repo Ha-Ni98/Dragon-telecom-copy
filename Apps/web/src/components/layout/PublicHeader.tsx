@@ -1,12 +1,12 @@
-import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, Search, ShoppingCart, User as UserIcon, LogOut, ChevronsUpDown } from "lucide-react";
+import { ShoppingCart, User as UserIcon, LogOut, ChevronsUpDown } from "lucide-react";
 import { Logo } from "@/components/shared/Logo";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { LanguageToggle } from "@/components/shared/LanguageToggle";
 import { StorefrontSearch } from "@/components/shared/StorefrontSearch";
+import { CartCountBubble } from "@/components/shared/CartCountBubble";
+import { StorefrontCategoryBar } from "@/components/layout/StorefrontCategoryBar";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,19 +29,14 @@ import {
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSession } from "@/hooks/useSession";
-import { useClientMe } from "@/hooks/useClientPortal";
+import { useClientMe, useCartCount } from "@/hooks/useClientPortal";
 import { UserType } from "@dragon-telecom/contract";
-
-function scrollToFooter() {
-  document.querySelector("footer")?.scrollIntoView({ behavior: "smooth" });
-}
 
 export function PublicHeader() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated, displayName, logout } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const cartCount = useCartCount();
 
   // S15/F1 — Session.profile is null for every CLIENT (types/session.ts), so AuthProvider's
   // displayName is always null on the storefront for a client and the avatar rendered an empty
@@ -65,101 +60,38 @@ export function PublicHeader() {
     navigate("/login", { replace: true });
   };
 
-  const navLinks = (onNavigate?: () => void) => (
-    <>
-      <Link
-        to="/"
-        onClick={onNavigate}
-        className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-      >
-        {t("header.home")}
-      </Link>
-      <Link
-        to="/products"
-        onClick={onNavigate}
-        className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-      >
-        {t("header.products")}
-      </Link>
-      <button
-        type="button"
-        onClick={() => {
-          onNavigate?.();
-          scrollToFooter();
-        }}
-        className="text-start text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-      >
-        {t("header.contact")}
-      </button>
-    </>
-  );
-
   return (
     <header className="sticky top-0 z-30 w-full border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("header.menu")}>
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
-            <div className="flex h-16 items-center border-b border-border px-4">
-              <Logo size={32} />
-            </div>
-            <nav className="flex flex-col gap-4 p-4">{navLinks(() => setMobileOpen(false))}</nav>
-          </SheetContent>
-        </Sheet>
-
-        {/* S15 — mobile search replaces the logo in place (no room for both at phone width);
-            the logo/nav stay put on md+ regardless of mobileSearchOpen. */}
+      {/* S37 — one search instance reflows via flex order: phones get logo + icons on row 1 and
+          the search on its own full-width row 2; md+ gets logo | wide search | icons on one row.
+          The cart lives in the bottom nav on phones (StorefrontBottomNav). */}
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 md:h-16 md:flex-nowrap md:gap-4 md:py-0">
         <Link
           to="/"
-          className={mobileSearchOpen ? "hidden items-center md:flex" : "flex items-center"}
+          className="order-1 flex min-w-0 shrink items-center"
+          aria-label={t("header.home")}
         >
-          <Logo size={36} />
+          <Logo size={32} textClassName="hidden min-[380px]:inline" />
         </Link>
 
-        {mobileSearchOpen && (
-          <div className="flex flex-1 md:hidden">
-            <StorefrontSearch
-              variant="mobile"
-              autoFocus
-              onDone={() => setMobileSearchOpen(false)}
-            />
-          </div>
-        )}
-
-        <nav className="hidden items-center gap-6 md:flex">{navLinks()}</nav>
-
-        <div className="hidden flex-1 max-w-sm md:flex">
-          <StorefrontSearch variant="desktop" />
+        <div className="order-3 w-full basis-full md:order-2 md:mx-4 md:w-auto md:max-w-2xl md:flex-1 md:basis-auto">
+          <StorefrontSearch />
         </div>
 
-        <div
-          className={
-            mobileSearchOpen
-              ? "ml-auto hidden items-center gap-1 md:flex"
-              : "ml-auto flex items-center gap-1"
-          }
-        >
-          {!mobileSearchOpen && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              aria-label={t("header.openSearch")}
-              onClick={() => setMobileSearchOpen(true)}
-            >
-              <Search className="h-5 w-5" aria-hidden="true" />
-            </Button>
-          )}
+        <div className="order-2 ml-auto flex shrink-0 items-center gap-1 md:order-3 md:ml-0">
           <LanguageToggle />
           <ThemeToggle />
 
-          <Button variant="ghost" size="icon" asChild aria-label={t("accessibility.cart")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            className="relative hidden md:inline-flex"
+            aria-label={t("header.cartWithCount", { count: cartCount })}
+          >
             <Link to="/cart">
               <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+              <CartCountBubble count={cartCount} />
             </Link>
           </Button>
 
@@ -214,12 +146,26 @@ export function PublicHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild size="sm">
-              <Link to="/login">{t("auth.login.submit")}</Link>
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                asChild
+                className="md:hidden"
+                aria-label={t("auth.login.submit")}
+              >
+                <Link to="/login">
+                  <UserIcon className="h-5 w-5" aria-hidden="true" />
+                </Link>
+              </Button>
+              <Button asChild size="sm" className="hidden md:inline-flex">
+                <Link to="/login">{t("auth.login.submit")}</Link>
+              </Button>
+            </>
           )}
         </div>
       </div>
+      <StorefrontCategoryBar />
     </header>
   );
 }
