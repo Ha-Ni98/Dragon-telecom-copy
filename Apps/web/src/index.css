@@ -4,9 +4,9 @@
 
 /* Dragon Telecom brand palette — OKLCH channel triplets, consumed as `oklch(var(--x))`.
    Light: cloud-white base (a cool off-white, deliberately not pure #fff) + sky blue #2c99d6
-   brand + scarlet highlight. Dark: midnight-ink #083d43 base + ice blue #c9dfea brand +
-   vermilion highlight. Hex equivalents sit beside the brand values; lib/chart-theme.ts mirrors
-   a subset as literals — keep the two in step. */
+   brand + scarlet highlight. Dark: deep-ink #04262a base, midnight-ink #083d43 cards, ice blue
+   #c9dfea brand + vermilion highlight. Hex equivalents sit beside the brand values;
+   lib/chart-theme.ts mirrors a subset as literals — keep the two in step. */
 :root {
   --radius: 0.75rem;
   --background: 0.968 0.004 236.5; /* #f2f5f7 cloud white */
@@ -80,25 +80,25 @@
 }
 
 .dark {
-  --background: 0.331 0.053 206.6; /* #083d43 midnight ink */
+  --background: 0.247 0.039 206.3; /* #04262a deep ink */
   --foreground: 0.961 0.012 223.5;
-  --surface: 0.369 0.059 208.4;
-  --card: 0.369 0.059 208.4; /* #0b4850 — one step up from the ink base */
+  --surface: 0.331 0.053 206.6;
+  --card: 0.331 0.053 206.6; /* #083d43 midnight ink — one step up from the deep-ink base */
   --card-foreground: 0.961 0.012 223.5;
-  --popover: 0.369 0.059 208.4;
+  --popover: 0.331 0.053 206.6;
   --popover-foreground: 0.961 0.012 223.5;
-  /* Ice blue is a LIGHT fill here, so its foreground is the ink base (8.7:1), not white, and
+  /* Ice blue is a LIGHT fill here, so its foreground is the deep-ink base (11.6:1), not white, and
      hover lightens it further rather than deepening it. */
   --primary: 0.891 0.028 229.2; /* #c9dfea ice blue */
-  --primary-foreground: 0.331 0.053 206.6;
+  --primary-foreground: 0.247 0.039 206.3;
   --primary-hover: 0.931 0.019 227.3;
-  --primary-light: 0.438 0.068 209;
+  --primary-light: 0.393 0.062 207.6;
   --primary-text: 0.891 0.028 229.2;
-  --secondary: 0.41 0.064 207;
+  --secondary: 0.376 0.059 206.8;
   --secondary-foreground: 0.961 0.012 223.5;
-  --muted: 0.41 0.064 207;
+  --muted: 0.376 0.059 206.8;
   --muted-foreground: 0.797 0.037 218.7;
-  --accent: 0.45 0.069 207.3;
+  --accent: 0.403 0.062 205.9;
   --accent-foreground: 0.961 0.012 223.5;
   /* S37 — vermilion. White text on it is only 3.1:1 (fails AA), so the foreground flips to
      near-black (6.3:1). This pair is the reason the token has a foreground at all. */
@@ -114,23 +114,23 @@
   --success-foreground: 1 0 89.9;
   --warning: 0.838 0.165 87.5;
   --warning-foreground: 1 0 89.9;
-  --border: 0.461 0.07 207.2;
-  --input: 0.461 0.07 207.2;
+  --border: 0.434 0.066 206.7;
+  --input: 0.434 0.066 206.7;
   --ring: 0.891 0.028 229.2;
-  --sidebar: 0.302 0.047 203.8;
+  --sidebar: 0.216 0.033 205.2;
   --sidebar-foreground: 0.961 0.012 223.5;
   --sidebar-primary: 0.891 0.028 229.2;
-  --sidebar-primary-foreground: 0.331 0.053 206.6;
-  --sidebar-accent: 0.45 0.069 207.3;
+  --sidebar-primary-foreground: 0.247 0.039 206.3;
+  --sidebar-accent: 0.403 0.062 205.9;
   --sidebar-accent-foreground: 0.961 0.012 223.5;
-  --sidebar-border: 0.461 0.07 207.2;
+  --sidebar-border: 0.434 0.066 206.7;
   --sidebar-ring: 0.891 0.028 229.2;
-  --shadow-card: 0 4px 24px -8px oklch(0.2 0.04 207 / 0.6);
+  --shadow-card: 0 4px 24px -8px oklch(0.15 0.03 206 / 0.6);
   --shadow-glow: 0 8px 40px -12px oklch(0.891 0.028 229.2 / 0.3);
-  --gradient-surface: linear-gradient(180deg, oklch(0.369 0.059 208.4), oklch(0.331 0.053 206.6));
+  --gradient-surface: linear-gradient(180deg, oklch(0.331 0.053 206.6), oklch(0.247 0.039 206.3));
   --gradient-hero: linear-gradient(135deg, oklch(var(--primary)) 0%, oklch(var(--accent)) 100%);
-  --login-glow: radial-gradient(60% 50% at 50% 0%, oklch(0.438 0.068 209 / 0.55), transparent),
-    radial-gradient(50% 40% at 80% 100%, oklch(0.438 0.068 209 / 0.45), transparent);
+  --login-glow: radial-gradient(60% 50% at 50% 0%, oklch(0.393 0.062 207.6 / 0.55), transparent),
+    radial-gradient(50% 40% at 80% 100%, oklch(0.393 0.062 207.6 / 0.45), transparent);
 }
 
 /* S37 — while the storefront bottom nav is mounted (phone layout only, it is md:hidden), toasts

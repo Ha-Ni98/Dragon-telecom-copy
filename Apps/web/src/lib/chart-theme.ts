@@ -44,10 +44,10 @@ const DARK: ChartTheme = {
     "oklch(0.797 0.037 218.7)", // --muted-foreground
   ],
   axis: "oklch(0.797 0.037 218.7)", // --muted-foreground
-  grid: "oklch(0.461 0.07 207.2)", // --border
-  tooltipBg: "oklch(0.369 0.059 208.4)", // --card
+  grid: "oklch(0.434 0.066 206.7)", // --border
+  tooltipBg: "oklch(0.331 0.053 206.6)", // --card
   tooltipFg: "oklch(0.961 0.012 223.5)", // --foreground
-  tooltipBorder: "oklch(0.461 0.07 207.2)", // --border
+  tooltipBorder: "oklch(0.434 0.066 206.7)", // --border
 };
 
 export function useChartTheme(): ChartTheme {
