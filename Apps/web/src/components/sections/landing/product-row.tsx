@@ -8,12 +8,21 @@ import { ProductCard } from "@/components/shared/ProductCard";
 import { HomeSectionHeader } from "@/components/sections/landing/home-section-header";
 import { useTranslation } from "@/hooks/useTranslation";
 
+// The strip's padding. An overflow-x-auto box also clips on Y, so without room around the cards the
+// 2px hover/focus ring (ring-2 on the Card) is cut off at the top and bottom — and, from md up,
+// at the first card's left edge. py + pb give the ring vertical room; px-2 (md+) gives it
+// horizontal room, cancelled by -mx-2 so the cards still line up with the section title. On
+// phones the strip bleeds to the screen edge (-mx-4 / px-4) so the partial card touches it.
+const STRIP_PADDING = "-mx-4 px-4 pb-3 pt-1.5 md:-mx-2 md:px-2";
+
 // Card widths in the row. On a phone 42% leaves about 2.3 cards in view — the partial third card
 // is what tells a thumb the row scrolls (the set). They widen with the viewport.
 const CARD_WIDTH = "w-[42%] shrink-0 snap-start sm:w-[29%] md:w-[22%] lg:w-[18%]";
 
 interface ProductRowProps {
   title: string;
+  /** Marker badge shown on the top-left of every card in the row ("Featured" / "New"). */
+  cardLabel?: string;
   seeAllTo?: string;
   products: ProductWithPricingDto[];
   isLoading: boolean;
@@ -29,6 +38,7 @@ interface ProductRowProps {
 //   unreachable with a plain mouse.
 export function ProductRow({
   title,
+  cardLabel,
   seeAllTo,
   products,
   isLoading,
@@ -48,7 +58,7 @@ export function ProductRow({
     return (
       <section className="min-w-0">
         <HomeSectionHeader title={title} />
-        <ul className="-mx-4 flex gap-3 overflow-hidden px-4 md:mx-0 md:px-0">
+        <ul className={`${STRIP_PADDING} flex gap-3 overflow-hidden`}>
           {Array.from({ length: 4 }).map((_, i) => (
             <li key={i} className={CARD_WIDTH}>
               <Skeleton className="aspect-square w-full rounded-lg" />
@@ -90,11 +100,11 @@ export function ProductRow({
           ref={scrollerRef}
           // -mx-4 / px-4 lets the row bleed to the screen edge on phones (the partial card
           // touches it); both are cancelled from md up, where the container has its own gutter.
-          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-2 [scrollbar-width:thin] md:mx-0 md:px-0"
+          className={`${STRIP_PADDING} flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 [scrollbar-width:thin] md:scroll-px-2`}
         >
           {products.map((product) => (
             <li key={product.id} className={CARD_WIDTH}>
-              <ProductCard product={product} />
+              <ProductCard product={product} label={cardLabel} />
             </li>
           ))}
         </ul>

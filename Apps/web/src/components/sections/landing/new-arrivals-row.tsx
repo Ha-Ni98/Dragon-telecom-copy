@@ -10,6 +10,7 @@ export function NewArrivalsRow() {
   const { data, isLoading, isError, refetch } = useNewArrivals();
   return (
     <ProductRow
+      cardLabel={t("home.rows.newLabel")}
       title={t("home.rows.newArrivals")}
       seeAllTo={catalogNewestLink()}
       products={data ?? []}

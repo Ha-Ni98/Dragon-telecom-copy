@@ -16673,5 +16673,15 @@
     "en": "Logos and icons: square, at least {min} px, trimmed of empty space, with about {padding}% padding inside. Transparent PNG or WebP — they are shown on a light tile in both themes.",
     "fr": "Logos et icônes : carrés, au moins {min} px, sans marges vides, avec environ {padding} % de marge intérieure. PNG ou WebP transparent — ils s'affichent sur une tuile claire dans les deux thèmes.",
     "ar": ""
+  },
+  "home.rows.featuredLabel": {
+    "en": "Featured",
+    "fr": "À la une",
+    "ar": ""
+  },
+  "home.rows.newLabel": {
+    "en": "New",
+    "fr": "Nouveau",
+    "ar": ""
   }
 }

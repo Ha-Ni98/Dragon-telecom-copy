@@ -22,6 +22,8 @@ interface ProductCardProps {
   product: ProductWithPricingDto;
   /** Custom className for styling */
   className?: string;
+  /** Optional marker badge on the card's top-left ("Featured" / "New" on the home rows). */
+  label?: string;
 }
 
 /**
@@ -49,6 +51,7 @@ interface ProductCardProps {
 export const ProductCard = React.memo(function ProductCard({
   product,
   className = "",
+  label,
 }: ProductCardProps) {
   const { t } = useTranslation();
   // Heart visibility is client-only (plan.md D2) — read straight from the session for `type`.
@@ -111,15 +114,28 @@ export const ProductCard = React.memo(function ProductCard({
 
         {/* Badges (S37: highlight markers, never a status colour) */}
         <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1">
-          {!product.inStock && (
+          {!product.inStock ? (
+            // Out of stock is the ONLY badge shown (owner request): no "Featured" / "New" marker
+            // and no "In cart" on a product that cannot be bought. The light outlined style is
+            // kept. (The heart still shows the favourite state for a signed-in client.)
             <Badge variant="highlightOutline" className="text-xs">
               {t("products.outStock")}
             </Badge>
-          )}
-          {product.inCart && (
-            <Badge variant="highlight" className="text-xs">
-              {t("cart.inCart")}
-            </Badge>
+          ) : (
+            <>
+              {/* The row's own marker ("Featured" / "New"), first so it stays top-left. Filled
+                  highlight pairs with highlight-foreground (never white — S37). */}
+              {label && (
+                <Badge variant="highlight" className="text-xs">
+                  {label}
+                </Badge>
+              )}
+              {product.inCart && (
+                <Badge variant="highlight" className="text-xs">
+                  {t("cart.inCart")}
+                </Badge>
+              )}
+            </>
           )}
         </div>
 

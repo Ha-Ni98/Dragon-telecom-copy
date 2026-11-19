@@ -24,7 +24,7 @@ export function CategoriesSection() {
     return (
       <section className="min-w-0">
         <HomeSectionHeader title={t("categories.title")} />
-        <ul className="-mx-4 flex gap-3 overflow-hidden px-4 md:mx-0 md:grid md:grid-cols-6 md:px-0">
+        <ul className="-mx-4 flex gap-3 overflow-hidden px-4 pb-3 pt-1.5 md:mx-0 md:grid md:grid-cols-6 md:px-0 md:py-0">
           {Array.from({ length: 6 }).map((_, i) => (
             <li key={i} className="w-[28%] shrink-0 sm:w-[20%] md:w-auto">
               <Skeleton className="aspect-square w-full max-w-[6rem] rounded-xl" />
@@ -67,7 +67,7 @@ export function CategoriesSection() {
   return (
     <section className="min-w-0">
       <HomeSectionHeader title={t("categories.title")} seeAllTo="/products" />
-      <ul className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-6 md:overflow-visible md:px-0">
+      <ul className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 pt-1.5 md:mx-0 md:grid md:grid-cols-6 md:overflow-visible md:px-0 md:py-0">
         {items.map((family) => (
           <li key={family.id} className="w-[28%] shrink-0 snap-start sm:w-[20%] md:w-auto">
             <Link

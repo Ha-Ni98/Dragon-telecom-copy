@@ -37,6 +37,7 @@ export function StorefrontCategoryBar() {
   }, [families]);
 
   const paramFamilyId = pathname === "/products" ? searchParams.get(CATALOG_FAMILY_PARAM) : null;
+  const homeActive = pathname === "/";
   const allActive = pathname === "/products" && !paramFamilyId;
   const isTopActive = (family: FamilyDto, kids: FamilyDto[]) =>
     paramFamilyId !== null &&
@@ -45,6 +46,16 @@ export function StorefrontCategoryBar() {
   return (
     <nav aria-label={t("header.categoryBar")} className="hidden border-t border-border md:block">
       <ul className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-1 px-4">
+        {/* Home comes first, before "All products" (owner request after S39 review). */}
+        <li>
+          <Link
+            to="/"
+            className={itemClass(homeActive)}
+            aria-current={homeActive ? "page" : undefined}
+          >
+            {t("header.home")}
+          </Link>
+        </li>
         <li>
           <Link to="/products" className={itemClass(allActive)}>
             {t("header.allProducts")}

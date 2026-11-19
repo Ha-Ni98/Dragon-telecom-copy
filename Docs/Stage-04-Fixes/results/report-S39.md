@@ -178,8 +178,8 @@ a viewer token.
    logo shape (alpha preserved). In light mode it simply blends into the white tile.
 
 ### B. Home page structure (phone and desktop)
-1. The order is: hero → **Categories** → **Featured products** → **New arrivals** →
-   **Repair tools** (only if configured) → **Brands**.
+1. The order is: hero → **Categories** → **Brands** → **Featured products** → **New arrivals** →
+   the chosen repair family's row (only if configured). *(Updated after owner review, see §5.)*
 2. There is **no** search box, family select or grid/list toggle on the home page.
 3. Every section has a left title with the highlight marker. Categories and each product row have a
    **"See all"** link on the right.
@@ -203,8 +203,10 @@ a viewer token.
    Change the order there and the row follows.
 4. **New arrivals:** the newest products, with **no family more than 3 times**. (Dev data: only 3
    of the 4 batteries appear.) "See all" opens the catalog sorted newest first.
-5. **Repair tools:** with no family set in Settings → Storefront, the row is absent. Set a family →
-   its products appear, and "See all" opens that family. Disable that family → the row disappears.
+5. **Repair-tools row:** with no family set in Settings → Storefront, the row is absent. Set a family →
+   its products appear, **titled with that family's name** (not "Repair tools"), and "See all" opens
+   that family. Rename the family in Settings → Hierarchy → the title follows. Disable that family →
+   the row disappears. *(Updated after owner review, see §5.)*
 6. A row whose source is empty does not render at all.
 7. At 320px there is **no horizontal page scroll** (the S37 console one-liner prints `[]`): only
    the rows themselves scroll.
@@ -237,3 +239,53 @@ a viewer token.
    unchanged.
 2. The cart page, order placement and price visibility rules are unchanged (guest, approved client,
    hidden price).
+
+---
+
+## 5. After owner review (three changes, same day)
+
+The owner confirmed S39 works and asked for three adjustments:
+
+1. **Home link in the desktop category bar.** `StorefrontCategoryBar` now starts with "Accueil" /
+   "Home" (`header.home`, an existing key), before "All products". It carries the highlight
+   underline on `/`. On phones the bottom nav already has Home, so nothing changes there.
+2. **Brands moved back to just after Categories.** The home order is now hero → Categories →
+   **Brands** → Featured → New arrivals → the repair-tools row (S39 had put Brands last; the plan's
+   P3 is superseded by this).
+3. **The repair-tools row is titled with the chosen family's name.** `RepairToolsRow` looks the
+   family up in the public families list (it already did, to check the family is enabled) and
+   passes `family.name` as the title. Renaming the family in Settings → Hierarchy renames the row.
+   The `home.rows.repairTools` key is now unused and was left in the JSON (the S37/S38 convention
+   for dead keys).
+
+Gates after the change: web `tsc` clean; eslint on the three touched files 0 errors. Only those
+three files changed. No API, contract or translation changes.
+
+### 5.1 Second follow-up (same day)
+
+4. **Hover ring no longer clipped.** The product-row strip is `overflow-x-auto`, which also clips on
+   the vertical axis, so the card's 2px hover/focus ring was cut off at the top and bottom (and,
+   from md up, at the first card's left edge). The strip now has room around the cards: `pt-1.5 pb-3`
+   vertically, and `md:px-2` cancelled by `md:-mx-2` horizontally so the cards still line up with the
+   section title. The loading skeleton uses the same padding (no layout jump). The categories strip
+   on phones got the same vertical room.
+5. **"Featured" / "New" label on the cards.** First built as a small line above the section title
+   (a misreading — corrected the same day, and that heading label was removed). The owner meant a
+   marker on the product cards themselves, at the top-left where "Out of stock" shows. `ProductCard`
+   gained an optional `label` prop, rendered first in the top-left badge stack as a filled
+   `highlight` badge; `ProductRow` takes `cardLabel` and passes it to every card in the row. The
+   Featured row passes `home.rows.featuredLabel` ("Featured" / "En vedette") and the New arrivals row
+   `home.rows.newLabel` ("New" / "Nouveau"). It shows alongside "In cart" when that applies. Other rows and
+   the catalog show no such label.
+6. **Out of stock hides every other badge.** An out-of-stock product shows ONLY its light outlined
+   "Out of stock" badge: no "Featured" / "New" marker and no "In cart" (the heart still shows the
+   favourite state for a signed-in client). This applies to every `ProductCard` (home rows, the
+   catalog, related products), not just the two labelled rows. The French Featured label is now
+   "À la une" (was "En vedette").
+
+Gates: web `tsc` clean; eslint 0 on all eight touched files. Checklist additions: in §D, hover a
+card in each row (phone with a mouse-emulated hover, and desktop) — the full ring is visible on all
+four sides, including the first card; every card in the Featured row shows a "Featured" badge and
+every card in the New arrivals row a "New" badge at its top-left, in both languages and both
+themes, readable in dark mode (near-black text on vermilion), and an out-of-stock product shows
+ONLY its "Out of stock" badge (no Featured/New, no In cart).

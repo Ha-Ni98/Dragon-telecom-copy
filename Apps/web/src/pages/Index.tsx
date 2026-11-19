@@ -46,9 +46,9 @@ const RowSkeleton = () => (
   </div>
 );
 
-// S39 order — hero → Categories → Featured → New arrivals → Repair tools → Brands. Categories and
-// the first product row land on the first screen under the (~45%-tall) hero; Brands is now an
-// every-brand grid that can run long, so it goes last. Each section fails independently
+// Order — hero → Categories → Brands → Featured → New arrivals → Repair tools. S39 first put
+// Brands last (it is an every-brand grid that can run long); the owner moved it back to sit right
+// after Categories after reviewing it. Each section fails independently
 // (ErrorBoundary) and an empty one hides itself (PUB-01). `max-w-6xl px-4` lines the content up
 // with the header and the footer.
 const Index = memo(() => {
@@ -66,6 +66,11 @@ const Index = memo(() => {
           </ErrorBoundary>
           <ErrorBoundary>
             <Suspense fallback={<RowSkeleton />}>
+              <BrandsSection />
+            </Suspense>
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <Suspense fallback={<RowSkeleton />}>
               <FeaturedProductsRow />
             </Suspense>
           </ErrorBoundary>
@@ -77,11 +82,6 @@ const Index = memo(() => {
           <ErrorBoundary>
             <Suspense fallback={null}>
               <RepairToolsRow />
-            </Suspense>
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Suspense fallback={<RowSkeleton />}>
-              <BrandsSection />
             </Suspense>
           </ErrorBoundary>
         </div>

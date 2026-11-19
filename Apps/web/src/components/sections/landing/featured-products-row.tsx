@@ -30,6 +30,7 @@ export function FeaturedProductsRow() {
 
   return (
     <ProductRow
+      cardLabel={t("home.rows.featuredLabel")}
       title={t("products.featured")}
       seeAllTo="/products"
       products={ordered}
