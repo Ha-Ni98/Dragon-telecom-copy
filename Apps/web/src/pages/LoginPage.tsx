@@ -11,6 +11,7 @@ import { Logo } from "@/components/shared/Logo";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { loginSchema, type LoginFormValues } from "./login.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 function loginErrorKey(err: unknown): string {
   if (axios.isAxiosError(err)) {
@@ -90,9 +91,9 @@ export default function LoginPage() {
                 {...register("username")}
               />
               {errors.username && (
-                <p id="username-error" role="alert" className="text-xs text-destructive">
+                <FieldError id="username-error" className="text-xs">
                   {errors.username.message}
-                </p>
+                </FieldError>
               )}
             </div>
             <div className="space-y-1.5">
@@ -118,9 +119,9 @@ export default function LoginPage() {
                 </button>
               </div>
               {errors.password && (
-                <p id="password-error" role="alert" className="text-xs text-destructive">
+                <FieldError id="password-error" className="text-xs">
                   {errors.password.message}
-                </p>
+                </FieldError>
               )}
             </div>
             <Button type="submit" disabled={isLoggingIn} className="h-11 w-full text-base">

@@ -18,6 +18,9 @@ import {
   ShieldCheck,
   Search,
   Wallet,
+  Home,
+  LayoutGrid,
+  User,
   type LucideIcon,
 } from "lucide-react";
 import { PageKey } from "@dragon-telecom/contract";
@@ -92,4 +95,41 @@ export const STAFF_NAV_LINKS: StaffNavLink[] = [
   { labelKey: "staff.nav.sales", icon: Receipt, pageKey: PageKey.STAFF_SALES },
   { labelKey: "staff.nav.invoices", icon: FileText, pageKey: PageKey.STAFF_INVOICES },
   { labelKey: "staff.nav.repairs", icon: Wrench, pageKey: PageKey.STAFF_REPAIRS },
+];
+
+// S37 — storefront mobile bottom nav (phones only, md:hidden). Order is the set's: Home,
+// Categories, Search, Cart, Account. Behaviour per key lives in StorefrontBottomNav.
+export const StorefrontBottomNavKey = {
+  HOME: "home",
+  CATEGORIES: "categories",
+  SEARCH: "search",
+  CART: "cart",
+  ACCOUNT: "account",
+} as const;
+export type StorefrontBottomNavKey =
+  (typeof StorefrontBottomNavKey)[keyof typeof StorefrontBottomNavKey];
+
+export const STOREFRONT_BOTTOM_NAV: {
+  key: StorefrontBottomNavKey;
+  labelKey: string;
+  icon: LucideIcon;
+}[] = [
+  { key: StorefrontBottomNavKey.HOME, labelKey: "storefront.bottomNav.home", icon: Home },
+  {
+    key: StorefrontBottomNavKey.CATEGORIES,
+    labelKey: "storefront.bottomNav.categories",
+    icon: LayoutGrid,
+  },
+  { key: StorefrontBottomNavKey.SEARCH, labelKey: "storefront.bottomNav.search", icon: Search },
+  { key: StorefrontBottomNavKey.CART, labelKey: "storefront.bottomNav.cart", icon: ShoppingCart },
+  { key: StorefrontBottomNavKey.ACCOUNT, labelKey: "storefront.bottomNav.account", icon: User },
+];
+
+// Pages the Account item counts as "active" for (account area + auth screens).
+export const STOREFRONT_ACCOUNT_PATHS = [
+  "/my-account",
+  "/orders",
+  "/invoices",
+  "/login",
+  "/register",
 ];

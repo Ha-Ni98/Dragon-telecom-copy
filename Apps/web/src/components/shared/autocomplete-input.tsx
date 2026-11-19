@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTranslation } from "@/hooks/useTranslation";
 import { ChevronDown, Plus, Check, X, Search, Loader2 } from "lucide-react";
+import { FieldError } from "@/components/shared/FieldError";
 
 export interface AutocompleteOption {
   value: string;
@@ -311,7 +312,7 @@ export function AutocompleteInput({
       {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
 
       {/* Error Message */}
-      {error && <p className="text-sm text-destructive mt-1">{error}</p>}
+      {error && <FieldError className="mt-1">{error}</FieldError>}
 
       {/* Suggestions Dropdown */}
       {isOpen && (

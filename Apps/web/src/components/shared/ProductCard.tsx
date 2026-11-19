@@ -8,7 +8,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useSession } from "@/hooks/useSession";
 import { useAddToCart, useRemoveFromCart } from "@/hooks/useClientPortal";
 import { UserType, type ProductWithPricingDto } from "@dragon-telecom/contract";
-import { formatDZD } from "@/lib/utils";
+import { formatPrice } from "@/lib/price-format";
 import { toast } from "sonner";
 
 /**
@@ -34,7 +34,7 @@ export const ProductCard = React.memo(function ProductCard({
   product,
   className = "",
 }: ProductCardProps) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   // Heart visibility is client-only (plan.md D2) — read straight from the session for `type`.
   const { data: session } = useSession();
   const isClient = session?.type === UserType.CLIENT;
@@ -80,7 +80,7 @@ export const ProductCard = React.memo(function ProductCard({
 
   return (
     <Card
-      className={`group product-card border-0 shadow-card hover:shadow-elegant transition-all duration-300 ${className}`}
+      className={`group product-card border-0 shadow-card hover:ring-2 hover:ring-highlight focus-within:ring-2 focus-within:ring-highlight transition-all duration-300 ${className}`}
     >
       <CardContent className="p-0">
         <div className="relative">
@@ -108,15 +108,12 @@ export const ProductCard = React.memo(function ProductCard({
           {/* Badges */}
           <div className="absolute top-3 left-3 flex gap-2">
             {!product.inStock && (
-              <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs">
+              <Badge variant="highlightOutline" className="text-xs">
                 {t("products.outStock")}
               </Badge>
             )}
             {product.inCart && (
-              <Badge
-                variant="outline"
-                className="bg-green-50 text-green-700 border-green-200 text-xs"
-              >
+              <Badge variant="highlight" className="text-xs">
                 {t("cart.inCart")}
               </Badge>
             )}
@@ -165,9 +162,7 @@ export const ProductCard = React.memo(function ProductCard({
 
           {/* Price */}
           {shouldShowPrice && resolvedPrice !== undefined ? (
-            <div className="text-lg font-bold text-primary">
-              {formatDZD(resolvedPrice, language)}
-            </div>
+            <div className="text-lg font-bold text-primary">{formatPrice(resolvedPrice)}</div>
           ) : (
             <div className="text-sm text-muted-foreground text-center py-2">
               <span

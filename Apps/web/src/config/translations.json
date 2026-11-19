@@ -16208,5 +16208,55 @@
     "en": "Parts used",
     "fr": "Pièces utilisées",
     "ar": ""
+  },
+  "header.allProducts": {
+    "en": "All products",
+    "fr": "Tous les produits",
+    "ar": ""
+  },
+  "header.categoryBar": {
+    "en": "Product categories",
+    "fr": "Catégories de produits",
+    "ar": ""
+  },
+  "header.subFamiliesOf": {
+    "en": "Subcategories of {name}",
+    "fr": "Sous-catégories de {name}",
+    "ar": ""
+  },
+  "header.cartWithCount": {
+    "en": "Cart ({count} items)",
+    "fr": "Panier ({count} articles)",
+    "ar": ""
+  },
+  "storefront.bottomNav.label": {
+    "en": "Shop navigation",
+    "fr": "Navigation de la boutique",
+    "ar": ""
+  },
+  "storefront.bottomNav.home": {
+    "en": "Home",
+    "fr": "Accueil",
+    "ar": ""
+  },
+  "storefront.bottomNav.categories": {
+    "en": "Categories",
+    "fr": "Catégories",
+    "ar": ""
+  },
+  "storefront.bottomNav.search": {
+    "en": "Search",
+    "fr": "Rechercher",
+    "ar": ""
+  },
+  "storefront.bottomNav.cart": {
+    "en": "Cart",
+    "fr": "Panier",
+    "ar": ""
+  },
+  "storefront.bottomNav.account": {
+    "en": "Account",
+    "fr": "Compte",
+    "ar": ""
   }
 }

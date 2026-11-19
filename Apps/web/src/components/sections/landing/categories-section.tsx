@@ -8,6 +8,8 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
 import { usePublicSettings } from "@/hooks/usePlatform";
 import type { FamilyDto } from "@dragon-telecom/contract";
+import { SectionTitle } from "@/components/shared/SectionTitle";
+import { catalogFamilyLink } from "@/lib/deep-links";
 
 export function CategoriesSection() {
   const { t } = useTranslation();
@@ -22,7 +24,7 @@ export function CategoriesSection() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <Skeleton className="h-8 w-64 mx-auto mb-4" />
-            <Skeleton className="h-4 w-96 mx-auto" />
+            <Skeleton className="h-4 w-full max-w-96 mx-auto" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -68,7 +70,9 @@ export function CategoriesSection() {
     <section className="py-8">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">{t("categories.title")}</h2>
+          <SectionTitle align="center" className="text-3xl md:text-4xl font-bold mb-4">
+            {t("categories.title")}
+          </SectionTitle>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             {t("categories.description")}
           </p>
@@ -78,8 +82,8 @@ export function CategoriesSection() {
           {items.map((family) => (
             <Card
               key={family.id}
-              className="group cursor-pointer product-card border-0 shadow-card hover:shadow-elegant"
-              onClick={() => navigate(`/products?familyId=${family.id}`)}
+              className="group cursor-pointer product-card border-0 shadow-card transition-shadow hover:ring-2 hover:ring-highlight focus-within:ring-2 focus-within:ring-highlight"
+              onClick={() => navigate(catalogFamilyLink(family.id))}
             >
               <CardContent className="p-6 text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden">

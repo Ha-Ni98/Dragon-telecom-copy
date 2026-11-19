@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CreditMovementPreview } from "@/components/shared/CreditMovementPreview";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface PosPaymentPanelProps {
   /** S32 — null while the field is empty: the paid amount is never pre-filled. */
@@ -61,7 +62,7 @@ export function PosPaymentPanel({
             onPaidAmountChange(e.target.value === "" ? null : Number(e.target.value))
           }
         />
-        {paidAmountError && <p className="text-sm text-destructive">{paidAmountError}</p>}
+        {paidAmountError && <FieldError>{paidAmountError}</FieldError>}
       </div>
 
       <Button className="w-full" onClick={onConfirm} disabled={isConfirming}>

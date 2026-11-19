@@ -8,6 +8,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import type { BrandDto } from '@dragon-telecom/contract';
 import { useCatalogBrands } from '@/hooks/useCatalogTaxonomy';
 import { NotFoundState } from '@/components/shared/NotFoundState';
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 /**
  * BrandsSection component props
@@ -40,7 +41,7 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand, onBrandClick }) => {
 
   return (
     <Card
-      className="group cursor-pointer product-card border-0 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-105"
+      className="group cursor-pointer product-card border-0 shadow-card hover:ring-2 hover:ring-highlight focus-within:ring-2 focus-within:ring-highlight transition-all duration-300 hover:scale-105"
       onClick={handleClick}
     >
       <CardContent className="p-6 text-center">
@@ -133,7 +134,7 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <Skeleton className="h-8 w-64 mx-auto mb-4" />
-            <Skeleton className="h-4 w-96 mx-auto" />
+            <Skeleton className="h-4 w-full max-w-96 mx-auto" />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
@@ -174,9 +175,9 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <SectionTitle align="center" className="text-3xl md:text-4xl font-bold mb-4">
             {t('brands.title')}
-          </h2>
+          </SectionTitle>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             {t('brands.description')}
           </p>

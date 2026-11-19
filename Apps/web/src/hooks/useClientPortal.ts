@@ -9,8 +9,10 @@ import type {
   ProductDetailDto,
   PaginatedResult,
 } from "@dragon-telecom/contract";
+import { UserType } from "@dragon-telecom/contract";
 import * as clientsService from "@/services/clients.service";
 import { qk } from "@/lib/query-keys";
+import { useSession } from "@/hooks/useSession";
 
 // --- Web identity (public + client) ---
 // The Sub-01 stub hooks these once stayed deliberately distinct from (useMyAccount/
@@ -59,11 +61,22 @@ export function useChangeClientPassword() {
 
 // --- Cart (client) — favorites, no quantity ---
 
-export function useClientCart() {
+export function useClientCart(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: qk.clients.cart(),
     queryFn: clientsService.getCart,
+    enabled: options.enabled ?? true,
   });
+}
+
+// S37 — the header/bottom-nav cart bubble. CLIENT sessions only (the cart endpoint is
+// CLIENT-scoped; a guest or staff session would 401/403). Same query key as the Cart page,
+// so adding/removing (which invalidates qk.clients.cart()) updates the bubble too.
+export function useCartCount(): number {
+  const { data: session } = useSession();
+  const isClient = session?.type === UserType.CLIENT;
+  const { data } = useClientCart({ enabled: isClient });
+  return isClient ? (data?.length ?? 0) : 0;
 }
 
 // Toggling the cart doesn't just invalidate ['clients','cart'] — every ProductCard reads its

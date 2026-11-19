@@ -12,6 +12,7 @@ import {
   type AddRepairPartsFormValues,
 } from "@/pages/staff/repairs/add-repair-part.schema";
 import { RepairPartPickerDialog } from "@/pages/staff/repairs/components/RepairPartPickerDialog";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface RepairPartsStagingProps {
   /** `onSuccess` clears the staged list; on failure it stays on screen for correction. */
@@ -122,12 +123,8 @@ export function RepairPartsStaging({ onSubmit, isSubmitting }: RepairPartsStagin
                   placeholder={t("staff.repairs.addPart.serialsLabel")}
                   {...register(`parts.${index}.serialNumbers`)}
                 />
-                {rowErrors?.quantity && (
-                  <p className="text-sm text-destructive">{rowErrors.quantity.message}</p>
-                )}
-                {rowErrors?.unitPrice && (
-                  <p className="text-sm text-destructive">{rowErrors.unitPrice.message}</p>
-                )}
+                {rowErrors?.quantity && <FieldError>{rowErrors.quantity.message}</FieldError>}
+                {rowErrors?.unitPrice && <FieldError>{rowErrors.unitPrice.message}</FieldError>}
               </div>
             );
           })}

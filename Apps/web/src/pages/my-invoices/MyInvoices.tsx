@@ -5,6 +5,7 @@ import { SimplePagination } from "@/components/shared/SimplePagination";
 import { useMyInvoices } from "@/hooks/useBilling";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { InvoiceDto } from "@dragon-telecom/contract";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 // PUB-10 — first client-facing consumer of the billing domain (Tier 5). Page is server-side
 // paginated via ?page= (InvoiceListQuery.page), same URL-as-state pattern as the Catalog page.
@@ -46,7 +47,9 @@ export default function MyInvoices() {
   return (
     <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">{t("invoices.title")}</h1>
+        <SectionTitle as="h1" className="text-2xl font-bold">
+          {t("invoices.title")}
+        </SectionTitle>
         <p className="text-muted-foreground">{t("invoices.subtitle")}</p>
       </div>
 

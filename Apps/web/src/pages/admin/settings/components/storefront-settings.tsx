@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AutocompleteInput, type AutocompleteOption } from "@/components/shared/autocomplete-input";
 import { Info, X, Save } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface FeaturedEntity {
   id: string;
@@ -127,9 +128,7 @@ export function StorefrontSettings({
           disabled={isSaving || familyLimitReached}
         />
         {familyLimitReached && (
-          <p className="text-sm text-destructive">
-            {t("admin.settings.storefront.familyLimitReached")}
-          </p>
+          <FieldError>{t("admin.settings.storefront.familyLimitReached")}</FieldError>
         )}
         <div className="flex flex-wrap gap-2">
           {featuredFamilies.length === 0 ? (

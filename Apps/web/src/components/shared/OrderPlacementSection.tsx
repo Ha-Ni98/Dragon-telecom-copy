@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { formatPrice } from "@/lib/price-format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,12 +34,12 @@ import { useSession } from "@/hooks/useSession";
 import { useClientMe } from "@/hooks/useClientPortal";
 import { useWilayas, usePlatformDeliveryFee } from "@/hooks/usePlatform";
 import { usePlaceOrder } from "@/hooks/useOrdersPortal";
-import { formatDZD } from "@/lib/utils";
 import {
   orderSchema,
   toPlaceOrderCommand,
   type OrderFormValues,
 } from "@/pages/product-detail/order.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 export interface OrderPlacementLine {
   product: ProductWithPricingDto;
@@ -63,7 +64,7 @@ export function OrderPlacementSection({
   onPlaced,
   className,
 }: OrderPlacementSectionProps) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: session } = useSession();
   const isClient = session?.type === UserType.CLIENT;
@@ -186,9 +187,7 @@ export function OrderPlacementSection({
               placeholder={t("product.fullNamePlaceholder")}
               className={cn(errors.contact?.fullName && "border-destructive")}
             />
-            {errors.contact?.fullName && (
-              <p className="text-sm text-destructive">{errors.contact.fullName.message}</p>
-            )}
+            {errors.contact?.fullName && <FieldError>{errors.contact.fullName.message}</FieldError>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="order-phone">{t("product.phone")}</Label>
@@ -198,9 +197,7 @@ export function OrderPlacementSection({
               placeholder={t("product.phonePlaceholder")}
               className={cn(errors.contact?.phone && "border-destructive")}
             />
-            {errors.contact?.phone && (
-              <p className="text-sm text-destructive">{errors.contact.phone.message}</p>
-            )}
+            {errors.contact?.phone && <FieldError>{errors.contact.phone.message}</FieldError>}
           </div>
         </div>
       </div>
@@ -297,7 +294,7 @@ export function OrderPlacementSection({
                 )}
               />
               {errors.delivery?.wilayaId && (
-                <p className="text-sm text-destructive">{errors.delivery.wilayaId.message}</p>
+                <FieldError>{errors.delivery.wilayaId.message}</FieldError>
               )}
             </div>
             <div className="space-y-2">
@@ -327,7 +324,7 @@ export function OrderPlacementSection({
                 )}
               />
               {errors.delivery?.communeId && (
-                <p className="text-sm text-destructive">{errors.delivery.communeId.message}</p>
+                <FieldError>{errors.delivery.communeId.message}</FieldError>
               )}
             </div>
           </div>
@@ -343,7 +340,7 @@ export function OrderPlacementSection({
               {isFeeLoading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
               ) : (
-                formatDZD(deliveryFee, language)
+                formatPrice(deliveryFee)
               )}
             </span>
           </div>
@@ -360,9 +357,8 @@ export function OrderPlacementSection({
               {line.product.name} × {line.quantity}
             </span>
             <span>
-              {formatDZD(
+              {formatPrice(
                 (line.product.currentPrice ?? line.product.guestPrice ?? 0) * line.quantity,
-                language,
               )}
             </span>
           </div>
@@ -370,18 +366,18 @@ export function OrderPlacementSection({
         <Separator />
         <div className="flex justify-between">
           <span className="text-muted-foreground">{t("product.subtotal")}</span>
-          <span>{formatDZD(subtotal, language)}</span>
+          <span>{formatPrice(subtotal)}</span>
         </div>
         {!isPickup && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t("orders.deliveryFee")}</span>
-            <span>{formatDZD(deliveryFee, language)}</span>
+            <span>{formatPrice(deliveryFee)}</span>
           </div>
         )}
         <Separator />
         <div className="flex justify-between font-medium text-lg">
           <span>{t("product.totalPrice")}</span>
-          <span>{formatDZD(total, language)}</span>
+          <span>{formatPrice(total)}</span>
         </div>
       </div>
 

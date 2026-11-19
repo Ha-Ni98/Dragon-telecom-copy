@@ -4,6 +4,7 @@ import { ClientStatusBadge } from "@/components/shared/StatusBadge";
 import { ArrowLeft, CheckCircle, KeyRound } from "lucide-react";
 import { ClientStatus, type AdminClientDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 interface ClientDetailHeaderProps {
   client: AdminClientDto;
@@ -33,7 +34,9 @@ export function ClientDetailHeader({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{client.fullName}</h1>
+          <SectionTitle as="h1" className="text-3xl font-bold tracking-tight">
+            {client.fullName}
+          </SectionTitle>
           <div className="flex items-center gap-2 text-muted-foreground">
             <span>{client.phone}</span>
             <ClientStatusBadge status={client.status} />

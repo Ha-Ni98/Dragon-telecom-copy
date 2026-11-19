@@ -40,6 +40,7 @@ import { usePurchasingSuppliers } from "@/hooks/usePurchasingSuppliers";
 import { useUpdatePricing } from "@/hooks/useCatalogProducts";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FieldError } from "@/components/shared/FieldError";
 
 type RepriceCandidate = ConfirmResultDto["repriceCandidates"][number];
 
@@ -327,9 +328,9 @@ export default function AdminSupplierInvoiceEditor() {
                 on whether `lines` is registered as a field array — read both. */}
             {(form.formState.errors.lines?.message ??
               form.formState.errors.lines?.root?.message) && (
-              <p className="text-sm text-destructive">
+              <FieldError>
                 {form.formState.errors.lines?.message ?? form.formState.errors.lines?.root?.message}
-              </p>
+              </FieldError>
             )}
             {isEditable && (
               <Button type="button" variant="outline" onClick={() => setIsPickerOpen(true)}>

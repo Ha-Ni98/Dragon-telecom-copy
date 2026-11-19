@@ -16,6 +16,7 @@ import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
 import { usePublicSettings } from "@/hooks/usePlatform";
 import { ProductGrid } from "@/components/shared/ProductGrid";
 import type { ProductListQuery } from "@dragon-telecom/contract";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 // PUB-01: "featured ProductGrid (8 cards), inline search input, family select, grid/list
 // toggle." Search submit and family selection are pure navigation to the Catalog page (scope
@@ -66,7 +67,9 @@ export function ProductsSection() {
     <section className="py-16 bg-muted/30">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">{t("products.featured")}</h2>
+          <SectionTitle align="center" className="text-3xl md:text-4xl font-bold mb-4">
+            {t("products.featured")}
+          </SectionTitle>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             {t("products.description")}
           </p>

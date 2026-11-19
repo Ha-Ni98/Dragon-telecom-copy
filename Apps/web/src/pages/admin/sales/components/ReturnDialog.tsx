@@ -32,6 +32,7 @@ import {
   type CreateReturnFormInput,
   type CreateReturnFormValues,
 } from "@/pages/admin/sales/components/create-return.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface ReturnDialogProps {
   open: boolean;
@@ -162,9 +163,7 @@ export function ReturnDialog({
                               {...register(`lines.${index}.quantity`, { valueAsNumber: true })}
                             />
                             {errors.lines?.[index]?.quantity && (
-                              <p className="text-sm text-destructive">
-                                {errors.lines[index]?.quantity?.message}
-                              </p>
+                              <FieldError>{errors.lines[index]?.quantity?.message}</FieldError>
                             )}
                           </div>
                           <div className="flex-1 space-y-1">
@@ -189,9 +188,7 @@ export function ReturnDialog({
                               })}
                             </p>
                             {errors.lines?.[index]?.refundAmount && (
-                              <p className="text-sm text-destructive">
-                                {errors.lines[index]?.refundAmount?.message}
-                              </p>
+                              <FieldError>{errors.lines[index]?.refundAmount?.message}</FieldError>
                             )}
                           </div>
                         </div>
@@ -218,9 +215,7 @@ export function ReturnDialog({
               })}
           </div>
           {(errors.lines?.message || errors.lines?.root?.message) && (
-            <p className="text-sm text-destructive">
-              {errors.lines?.message ?? errors.lines?.root?.message}
-            </p>
+            <FieldError>{errors.lines?.message ?? errors.lines?.root?.message}</FieldError>
           )}
 
           <div className="space-y-1">

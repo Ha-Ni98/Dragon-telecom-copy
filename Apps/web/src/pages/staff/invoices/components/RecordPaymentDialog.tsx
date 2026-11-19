@@ -18,6 +18,7 @@ import {
   recordClientPaymentSchema,
   type RecordClientPaymentFormValues,
 } from "@/pages/staff/invoices/record-client-payment.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface RecordPaymentDialogProps {
   open: boolean;
@@ -118,9 +119,7 @@ export function RecordPaymentDialog({
                     onChange: (e) => onAmountChange(Number(e.target.value)),
                   })}
                 />
-                {errors.amount && (
-                  <p className="text-sm text-destructive">{errors.amount.message}</p>
-                )}
+                {errors.amount && <FieldError>{errors.amount.message}</FieldError>}
               </div>
 
               <CreditMovementPreview

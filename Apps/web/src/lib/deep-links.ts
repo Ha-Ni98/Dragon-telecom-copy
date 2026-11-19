@@ -11,3 +11,10 @@ export const saleDeepLink = (scope: BackofficeScope, reference: string): string 
 
 export const orderDeepLink = (scope: BackofficeScope, reference: string): string =>
   `/${scope}/orders?${ORDER_SEARCH_DEEP_LINK_PARAM}=${encodeURIComponent(reference)}`;
+
+// S37 — the catalog filtered to one family (category bar, bottom-nav, home family tiles). Exact
+// family match — a parent does NOT include its children's products (S37 Q1).
+export const CATALOG_FAMILY_PARAM = "familyId";
+
+export const catalogFamilyLink = (familyId: string): string =>
+  `/products?${CATALOG_FAMILY_PARAM}=${encodeURIComponent(familyId)}`;

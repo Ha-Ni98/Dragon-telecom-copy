@@ -16,6 +16,7 @@ import {
   type RecordRepairPaymentFormValues,
   type RecordRepairPaymentInput,
 } from "@/pages/staff/repairs/record-repair-payment.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface RecordRepairPaymentDialogProps {
   open: boolean;
@@ -55,7 +56,7 @@ export function RecordRepairPaymentDialog({
           <div className="space-y-1">
             <Label htmlFor="repair-payment-amount">{t("staff.repairs.payments.amountLabel")}</Label>
             <Input id="repair-payment-amount" type="number" step="0.01" {...register("amount")} />
-            {errors.amount && <p className="text-sm text-destructive">{errors.amount.message}</p>}
+            {errors.amount && <FieldError>{errors.amount.message}</FieldError>}
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>

@@ -101,7 +101,7 @@ export const PosProductSearch = forwardRef<HTMLInputElement, PosProductSearchPro
                   type="button"
                   onClick={() => onSelect(product)}
                   disabled={product.availableQuantity <= 0}
-                  className="flex w-full flex-col gap-1 rounded-xl border border-border bg-card p-3 text-left text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex w-full flex-col gap-1 rounded-xl border border-border bg-card p-3 text-left text-sm hover:ring-2 hover:ring-highlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <div className="flex w-full items-center justify-between gap-2">
                     <div className="min-w-0 truncate font-medium" title={product.name}>

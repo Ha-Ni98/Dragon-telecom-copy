@@ -2,6 +2,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useCatalogProduct } from "@/hooks/useCatalogProducts";
 import { ProductCard } from "@/components/shared/ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 // D7 (engine gap, plan.md): ProductDetailDto exposes only relatedIds, no summaries — there's no
 // batch by-ids endpoint. Interim fix: a bounded per-id useCatalogProduct fan-out, one call per
@@ -41,7 +42,7 @@ export function RelatedProductsStrip({ relatedIds }: RelatedProductsStripProps) 
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">{t("product.relatedProducts")}</h2>
+      <SectionTitle className="text-2xl font-bold">{t("product.relatedProducts")}</SectionTitle>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {boundedIds.map((id) => (
           <RelatedProductCard key={id} id={id} />

@@ -63,6 +63,7 @@ import {
 } from "@/hooks/useCatalogTaxonomy";
 import { useAdminCatalogProducts, useUpdateProduct } from "@/hooks/useCatalogProducts";
 import { ImagePurpose, ProductEnabledFilter, type AdminProductDto } from "@dragon-telecom/contract";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 // ADM-17 — Sprint 3 retyped the tabs whose existing component was structurally compatible with
 // the real DTOs (Categories -> ClientCategoryDto; Delivery fees -> AdminFeesDto). Sprint 4 added
@@ -376,10 +377,12 @@ export default function AdminSettings() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Settings className="h-8 w-8" />
-          {t("admin.settings.title")}
-        </h1>
+        <SectionTitle as="h1" className="text-3xl font-bold">
+          <span className="flex items-center gap-2">
+            <Settings className="h-8 w-8" />
+            {t("admin.settings.title")}
+          </span>
+        </SectionTitle>
         <p className="text-muted-foreground">{t("admin.settings.description")}</p>
       </div>
 

@@ -18,10 +18,12 @@ export function HeroSection() {
         style={{ backgroundImage: `url(${heroImage})` }}
       />
 
-      <div className="container mx-auto px-8 md:px-12 lg:px-16 relative z-10">
+      {/* S37 — phone padding trimmed (was px-8 + px-4 = 96px of gutters, leaving ~224px at 320px, which the
+          nowrap French CTA overflowed). S38 rebuilds this section; this is only the overflow fix. */}
+      <div className="container mx-auto px-4 sm:px-8 md:px-12 lg:px-16 relative z-10">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           {/* Content */}
-          <div className="text-center lg:text-left space-y-8 px-4 py-8 md:px-6 lg:px-8">
+          <div className="text-center lg:text-left space-y-8 px-0 py-8 sm:px-4 md:px-6 lg:px-8">
             <div className="space-y-4">
               <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
                 {t('hero.title')}

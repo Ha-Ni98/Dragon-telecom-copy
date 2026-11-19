@@ -1,15 +1,19 @@
 import { Box } from "lucide-react";
 import { usePublicSettings } from "@/hooks/usePlatform";
+import { cn } from "@/lib/utils";
 
 // Falls back to the Box icon until a store logo is uploaded (Settings → Store → Logos).
 export function Logo({
   size = 32,
   withText = true,
   className = "",
+  textClassName,
 }: {
   size?: number;
   withText?: boolean;
   className?: string;
+  /** S37 — lets the storefront header hide the wordmark on very narrow phones (mark only). */
+  textClassName?: string;
 }) {
   const { data: settings } = usePublicSettings();
   const logoUrl = settings?.store.logoUrl;
@@ -28,7 +32,7 @@ export function Logo({
       )}
       {withText && (
         <span
-          className="font-extrabold tracking-tight text-foreground"
+          className={cn("font-extrabold tracking-tight text-foreground", textClassName)}
           style={{ fontSize: size * 0.55 }}
         >
           Dragon Telecom

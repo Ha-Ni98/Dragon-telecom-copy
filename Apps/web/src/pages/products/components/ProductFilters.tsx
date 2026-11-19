@@ -53,12 +53,16 @@ interface ProductFiltersProps {
   isLoading?: boolean;
   className?: string;
   onClearFilters: () => void;
+  /** S37 — optional control of the mobile filter Sheet, so the storefront bottom nav's
+   *  "Categories" item can open it. Uncontrolled (internal state) when omitted. */
+  sheetOpen?: boolean;
+  onSheetOpenChange?: (open: boolean) => void;
 }
 
 /**
  * ProductFilters component for search and filtering products
  * Provides search input and dropdown filters for brand, category, model, in-stock and sort.
- * On mobile (< sm) the filter controls live behind a `Sheet` trigger (PUB-02: "drawer on
+ * On phones (< md, S37 P1 — one phone-layout breakpoint app-wide) the filter controls live behind a `Sheet` trigger (PUB-02: "drawer on
  * mobile") — the search input and active-filter chips stay visible inline on every breakpoint.
  */
 export function ProductFilters({
@@ -80,9 +84,13 @@ export function ProductFilters({
   isLoading = false,
   className = "",
   onClearFilters,
+  sheetOpen: sheetOpenProp,
+  onSheetOpenChange,
 }: ProductFiltersProps) {
   const { t } = useTranslation();
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [internalSheetOpen, setInternalSheetOpen] = useState(false);
+  const sheetOpen = sheetOpenProp ?? internalSheetOpen;
+  const setSheetOpen = onSheetOpenChange ?? setInternalSheetOpen;
 
   const hasActiveFilters =
     familyId !== undefined ||
@@ -280,7 +288,7 @@ export function ProductFilters({
               <Button
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-2 sm:hidden"
+                className="flex items-center gap-2 md:hidden"
                 aria-label={t("products.filters.openFilters")}
               >
                 <Filter className="h-4 w-4" />
@@ -299,8 +307,8 @@ export function ProductFilters({
         </div>
       </div>
 
-      {/* Desktop-only inline filters — the Sheet above covers mobile. */}
-      <div className="hidden sm:block">{filterFields}</div>
+      {/* md+ inline filters — the Sheet above covers phones (< md, S37 P1). */}
+      <div className="hidden md:block">{filterFields}</div>
 
       {/* Active Filters Summary */}
       {hasActiveFilters && (

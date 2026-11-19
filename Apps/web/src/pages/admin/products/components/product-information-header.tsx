@@ -2,6 +2,7 @@ import { ArrowLeft, Save, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { AdminProductDto } from "@dragon-telecom/contract";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 interface ProductInformationHeaderProps {
   product: AdminProductDto;
@@ -33,7 +34,9 @@ export function ProductInformationHeader({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">{product.name}</h1>
+          <SectionTitle as="h1" className="text-2xl font-bold">
+            {product.name}
+          </SectionTitle>
           <p className="text-sm text-muted-foreground">{product.barcode ?? "—"}</p>
         </div>
       </div>

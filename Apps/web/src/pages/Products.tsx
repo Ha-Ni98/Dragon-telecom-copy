@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCatalogProducts } from "@/hooks/useCatalogProducts";
 import { useCatalogFamilies, useCatalogBrands, useCatalogModels } from "@/hooks/useCatalogTaxonomy";
@@ -11,6 +11,7 @@ import { ProductListHeader } from "@/pages/products/components/ProductListHeader
 import { ProductGrid } from "@/components/shared/ProductGrid";
 import { SimplePagination } from "@/components/shared/SimplePagination";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+import type { CatalogLocationState } from "@/types/storefront-nav.types";
 import {
   ProductListQuerySchema,
   ClientActivityType,
@@ -28,6 +29,9 @@ import {
 export default function Products() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const { data: session } = useSession();
   const isClient = session?.type === UserType.CLIENT;
   const sendActivity = useSendClientActivity();
@@ -40,6 +44,21 @@ export default function Products() {
     const parsed = ProductListQuerySchema.safeParse(raw);
     return parsed.success ? parsed.data : { page: 1, limit: 15 };
   }, [searchParams]);
+
+  // S37 P6 — the bottom nav's "Categories" item lands here with { openFamilyFilter: true } in
+  // router state: open the filter drawer once, then drop the state (replace) so Back/refresh
+  // doesn't reopen it. Keyed on location.key: tapping Categories again while already here pushes
+  // a new entry, so it reopens.
+  useEffect(() => {
+    const state = location.state as CatalogLocationState | null;
+    if (!state?.openFamilyFilter) return;
+    setFiltersSheetOpen(true);
+    navigate(
+      { pathname: location.pathname, search: location.search },
+      { replace: true, state: null },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
 
   const updateParams = useCallback(
     (patch: Record<string, string | undefined>) => {
@@ -203,6 +222,8 @@ export default function Products() {
                 onSortChange={handleSortChange}
                 isLoading={productsLoading}
                 onClearFilters={handleClearFilters}
+                sheetOpen={filtersSheetOpen}
+                onSheetOpenChange={setFiltersSheetOpen}
               />
             </div>
           </ErrorBoundary>
