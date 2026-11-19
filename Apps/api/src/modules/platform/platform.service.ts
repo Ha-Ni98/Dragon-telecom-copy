@@ -4,25 +4,35 @@ import {
   EXPORT_ERROR,
   EXPORT_MAX_ROWS,
   FeeSource,
+  HERO_SLIDE_ERROR,
+  HERO_SLIDES_MAX,
+  HERO_SLIDES_PUBLIC_MAX,
   SettingsResponseSchema,
+  storeDayRangeUtc,
   type AdminFeesDto,
   type DocType,
   type FeeDto,
   type FeeQuery,
+  type CreateHeroSlideCommand,
   type FeesExportQuery,
+  type HeroSlideDto,
   type MediaImageDto,
+  type PublicHeroSlideDto,
   type PublicSettingsDto,
+  type ReorderHeroSlidesCommand,
   type SettingsDto,
+  type UpdateHeroSlideCommand,
   type UpdateSettingsCommand,
   type UploadImageCommand,
   type UpsertFeesCommand,
   type WilayaDto,
 } from '@dragon-telecom/contract';
-import { BadRequestError, ConflictError } from '@common/errors';
+import { BadRequestError, ConflictError, NotFoundError } from '@common/errors';
 import { eventBus } from '@common/events/event-bus';
 import { csvMoney, toCsv, CSV_MIME } from '@common/utils/csv.utils';
 import { renderTablePdf } from '@common/utils/pdf.utils';
 import { imagePipeline } from '@common/media/image-pipeline.service';
+import { storageService } from '@common/storage/storage.service';
 import type { UploadFile } from '@common/storage/storage.types';
 import { DEFAULT_SETTINGS } from '../../../prisma/settings-defaults';
 import type {
@@ -150,19 +160,24 @@ function describeSettingsChange(before: SettingsDto, after: SettingsDto): string
 // `undefined`, not just the `?` key marker `Partial<T>` produces) — under
 // exactOptionalPropertyTypes those two shapes aren't interchangeable, so `Partial<T>` is the
 // wrong parameter type for a `*SettingsInputSchema`-shaped patch.
-type OptionalPatch<T> = { [K in keyof T]?: T[K] | undefined };
+// S38: `null` is also admitted — it means "clear this field" (see mergeDefined).
+type OptionalPatch<T> = { [K in keyof T]?: T[K] | null | undefined };
 
 // Field-by-field merge (only overwrites patch keys that are actually present and non-undefined)
 // — a plain `{...base, ...patch}` spread type-widens every field to `T[K] | undefined` under
 // exactOptionalPropertyTypes, even though every `UpdateSettingsCommand` leaf is independently
 // optional/omitted-when-absent at runtime. This keeps the merge both runtime-correct and typed
 // as plain `T`.
+// S38 — a patch leaf of `null` REMOVES that key from the section: optional DTO fields cannot
+// otherwise be cleared, because `undefined` means "leave untouched". Existing commands never send
+// `null` (their schemas reject it), so older sections behave exactly as before.
 function mergeDefined<T extends object>(base: T, patch: OptionalPatch<T> | undefined): T {
   if (!patch) return base;
   const result = { ...base };
   for (const key of Object.keys(patch) as (keyof T)[]) {
     const value = patch[key];
-    if (value !== undefined) result[key] = value;
+    if (value === null) delete result[key];
+    else if (value !== undefined) result[key] = value as T[keyof T];
   }
   return result;
 }
@@ -413,6 +428,182 @@ export class PlatformService implements IPlatformService {
   // the print logo) with its own PATCH.
   async uploadImage(file: UploadFile, cmd: UploadImageCommand): Promise<MediaImageDto> {
     return imagePipeline.process(file, cmd.purpose);
+  }
+
+  // --- S38 hero slides ---
+
+  // S38 — every key the hero accepts is one the shared pipeline wrote into the hero folder:
+  // content-addressed `hero/<sha256>.webp` (image-pipeline.service.ts). Checked BEFORE any write,
+  // so a crafted key can neither be stored nor later fed to storage.delete (a client-sent
+  // `products/<hash>.webp` must never become deletable through a slide).
+  private static readonly HERO_KEY_PATTERN = /^hero\/[0-9a-f]{64}\.webp$/;
+
+  private async assertHeroImageKey(key: string): Promise<void> {
+    if (!PlatformService.HERO_KEY_PATTERN.test(key) || !(await storageService.exists(key))) {
+      throw new BadRequestError(HERO_SLIDE_ERROR.INVALID_IMAGE);
+    }
+  }
+
+  // P2 — the schedule is store days (Africa/Algiers, endsOn inclusive), converted with the same
+  // helper every S34 date filter uses: startsAt = that day's local midnight, endsAt = the
+  // midnight AFTER endsOn (exclusive).
+  private static heroWindow(startsOn: string | null | undefined, endsOn: string | null | undefined) {
+    const range = storeDayRangeUtc(startsOn ?? undefined, endsOn ?? undefined);
+    return { startsAt: range.gte ?? null, endsAt: range.lt ?? null };
+  }
+
+  private async listHeroSlideRows() {
+    return this.prisma.heroSlide.findMany({
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+      take: HERO_SLIDES_MAX,
+    });
+  }
+
+  async listAdminHeroSlides(): Promise<HeroSlideDto[]> {
+    const now = new Date();
+    return (await this.listHeroSlideRows()).map((slide) => PlatformMapper.toHeroSlideDto(slide, now));
+  }
+
+  // Active, inside its window, by displayOrder, bounded at HERO_SLIDES_PUBLIC_MAX (P5).
+  async listPublicHeroSlides(): Promise<PublicHeroSlideDto[]> {
+    const now = new Date();
+    const rows = await this.prisma.heroSlide.findMany({
+      where: {
+        isActive: true,
+        AND: [
+          { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+          { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+        ],
+      },
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+      take: HERO_SLIDES_PUBLIC_MAX,
+    });
+    return rows.map((slide) => PlatformMapper.toPublicHeroSlideDto(slide));
+  }
+
+  async createHeroSlide(cmd: CreateHeroSlideCommand): Promise<HeroSlideDto[]> {
+    const existing = await this.prisma.heroSlide.aggregate({
+      _count: { _all: true },
+      _max: { displayOrder: true },
+    });
+    if (existing._count._all >= HERO_SLIDES_MAX) {
+      throw new ConflictError(HERO_SLIDE_ERROR.LIMIT_REACHED);
+    }
+    await this.assertHeroImageKey(cmd.desktopImageKey);
+    await this.assertHeroImageKey(cmd.mobileImageKey);
+
+    await this.prisma.heroSlide.create({
+      data: {
+        desktopImageKey: cmd.desktopImageKey,
+        desktopImageUrl: storageService.urlFor(cmd.desktopImageKey),
+        mobileImageKey: cmd.mobileImageKey,
+        mobileImageUrl: storageService.urlFor(cmd.mobileImageKey),
+        text: cmd.text as Prisma.InputJsonValue,
+        link: cmd.link,
+        isActive: cmd.isActive ?? true,
+        displayOrder: (existing._max.displayOrder ?? -1) + 1,
+        ...PlatformService.heroWindow(cmd.startsOn, cmd.endsOn),
+      },
+    });
+
+    eventBus.emit('heroSlides.changed', {
+      description: `Hero slide created: "${cmd.text.fr.title}" → ${cmd.link}`,
+    });
+    return this.listAdminHeroSlides();
+  }
+
+  async updateHeroSlide(id: string, cmd: UpdateHeroSlideCommand): Promise<HeroSlideDto[]> {
+    const slide = await this.prisma.heroSlide.findUnique({ where: { id } });
+    if (!slide) throw new NotFoundError('HeroSlide');
+
+    if (cmd.desktopImageKey !== undefined) await this.assertHeroImageKey(cmd.desktopImageKey);
+    if (cmd.mobileImageKey !== undefined) await this.assertHeroImageKey(cmd.mobileImageKey);
+
+    // The contract only checks endsOn >= startsOn when BOTH are sent; with one bound sent it is
+    // compared against the stored other bound, in store days.
+    const current = PlatformMapper.toHeroSlideDto(slide, new Date());
+    const startsOn = cmd.startsOn === undefined ? current.startsOn : (cmd.startsOn ?? undefined);
+    const endsOn = cmd.endsOn === undefined ? current.endsOn : (cmd.endsOn ?? undefined);
+    if (startsOn !== undefined && endsOn !== undefined && endsOn < startsOn) {
+      throw new BadRequestError('endsOn must not be before startsOn');
+    }
+
+    await this.prisma.heroSlide.update({
+      where: { id },
+      data: {
+        ...(cmd.desktopImageKey !== undefined
+          ? { desktopImageKey: cmd.desktopImageKey, desktopImageUrl: storageService.urlFor(cmd.desktopImageKey) }
+          : {}),
+        ...(cmd.mobileImageKey !== undefined
+          ? { mobileImageKey: cmd.mobileImageKey, mobileImageUrl: storageService.urlFor(cmd.mobileImageKey) }
+          : {}),
+        ...(cmd.text !== undefined ? { text: cmd.text as Prisma.InputJsonValue } : {}),
+        ...(cmd.link !== undefined ? { link: cmd.link } : {}),
+        ...(cmd.isActive !== undefined ? { isActive: cmd.isActive } : {}),
+        // null clears a bound, an absent field leaves its column alone.
+        ...(cmd.startsOn !== undefined ? { startsAt: PlatformService.heroWindow(cmd.startsOn, null).startsAt } : {}),
+        ...(cmd.endsOn !== undefined ? { endsAt: PlatformService.heroWindow(null, cmd.endsOn).endsAt } : {}),
+      },
+    });
+
+    // Storage delete only AFTER the row points elsewhere, so a failed delete leaves an orphan
+    // object, never a slide pointing at a missing one.
+    if (cmd.desktopImageKey !== undefined && cmd.desktopImageKey !== slide.desktopImageKey) {
+      await this.releaseHeroImage(slide.desktopImageKey);
+    }
+    if (cmd.mobileImageKey !== undefined && cmd.mobileImageKey !== slide.mobileImageKey) {
+      await this.releaseHeroImage(slide.mobileImageKey);
+    }
+
+    const changed = (Object.keys(cmd) as (keyof UpdateHeroSlideCommand)[]).join(', ');
+    eventBus.emit('heroSlides.changed', {
+      description: `Hero slide updated: "${current.text.fr.title}" (${changed})`,
+    });
+    return this.listAdminHeroSlides();
+  }
+
+  async deleteHeroSlide(id: string): Promise<HeroSlideDto[]> {
+    const slide = await this.prisma.heroSlide.findUnique({ where: { id } });
+    if (!slide) throw new NotFoundError('HeroSlide');
+
+    await this.prisma.heroSlide.delete({ where: { id } });
+    await this.releaseHeroImage(slide.desktopImageKey);
+    await this.releaseHeroImage(slide.mobileImageKey);
+
+    const title = PlatformMapper.toHeroSlideDto(slide, new Date()).text.fr.title;
+    eventBus.emit('heroSlides.changed', { description: `Hero slide deleted: "${title}"` });
+    return this.listAdminHeroSlides();
+  }
+
+  // P9 — the list must name every slide exactly once, or the request is stale (a slide was added
+  // or removed in another tab): 409 rather than silently dropping or resurrecting a slide.
+  async reorderHeroSlides(cmd: ReorderHeroSlidesCommand): Promise<HeroSlideDto[]> {
+    const rows = await this.prisma.heroSlide.findMany({ select: { id: true } });
+    const known = new Set(rows.map((row) => row.id));
+    const requested = new Set(cmd.ids);
+    if (requested.size !== cmd.ids.length || requested.size !== known.size || cmd.ids.some((id) => !known.has(id))) {
+      throw new ConflictError(HERO_SLIDE_ERROR.ORDER_MISMATCH);
+    }
+
+    await this.prisma.$transaction(
+      cmd.ids.map((id, index) =>
+        this.prisma.heroSlide.update({ where: { id }, data: { displayOrder: index } }),
+      ),
+    );
+
+    eventBus.emit('heroSlides.changed', { description: `Hero slides reordered (${cmd.ids.length} slides)` });
+    return this.listAdminHeroSlides();
+  }
+
+  // P10 — content-addressed keys can be shared by two slides (the same file uploaded twice), so
+  // an object is deleted only once no slide references it in either column. Mirrors
+  // catalog.service.ts#deleteImage. The pipeline also wrote a `-thumb` derivative — remove it too.
+  private async releaseHeroImage(key: string): Promise<void> {
+    const stillUsed = await this.prisma.heroSlide.count({
+      where: { OR: [{ desktopImageKey: key }, { mobileImageKey: key }] },
+    });
+    if (stillUsed > 0) return;
+    await storageService.deleteMany([key, key.replace(/\.webp$/, '-thumb.webp')]);
   }
 
   private async loadWilayasWithCommunes() {

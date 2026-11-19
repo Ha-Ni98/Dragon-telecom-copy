@@ -31,6 +31,7 @@ import {
   type RepairStatusInput,
 } from "@/pages/staff/repairs/repair-status.schema";
 import { REPAIR_STATUS_LABEL_KEY } from "@/pages/staff/repairs/repair-status-labels";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface RepairStatusDialogProps {
   open: boolean;
@@ -137,9 +138,7 @@ export function RepairStatusDialog({
                   </Select>
                 )}
               />
-              {errors.technicianId && (
-                <p className="text-sm text-destructive">{errors.technicianId.message}</p>
-              )}
+              {errors.technicianId && <FieldError>{errors.technicianId.message}</FieldError>}
             </div>
           )}
 
@@ -168,9 +167,7 @@ export function RepairStatusDialog({
                     step="0.01"
                     {...register("paymentAmount")}
                   />
-                  {errors.paymentAmount && (
-                    <p className="text-sm text-destructive">{errors.paymentAmount.message}</p>
-                  )}
+                  {errors.paymentAmount && <FieldError>{errors.paymentAmount.message}</FieldError>}
                 </div>
               ) : (
                 <p className="pt-1 text-muted-foreground">
@@ -196,9 +193,7 @@ export function RepairStatusDialog({
                   amount: formatDZD(repair.paidAmount, language),
                 })}
               </p>
-              {errors.refundAmount && (
-                <p className="text-sm text-destructive">{errors.refundAmount.message}</p>
-              )}
+              {errors.refundAmount && <FieldError>{errors.refundAmount.message}</FieldError>}
             </div>
           )}
 

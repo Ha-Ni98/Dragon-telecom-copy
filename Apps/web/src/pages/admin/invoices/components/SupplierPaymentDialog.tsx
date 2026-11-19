@@ -16,6 +16,7 @@ import {
   recordSupplierPaymentSchema,
   type RecordSupplierPaymentFormValues,
 } from "@/pages/admin/invoices/components/record-supplier-payment.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface SupplierPaymentDialogProps {
   open: boolean;
@@ -77,7 +78,7 @@ export function SupplierPaymentDialog({
                 onChange: (e) => onAmountChange(Number(e.target.value)),
               })}
             />
-            {errors.amount && <p className="text-sm text-destructive">{errors.amount.message}</p>}
+            {errors.amount && <FieldError>{errors.amount.message}</FieldError>}
           </div>
 
           <CreditMovementPreview

@@ -9,25 +9,20 @@ import { useRecentSearches } from "@/hooks/use-search";
 import { useSession } from "@/hooks/useSession";
 import { useSendClientActivity } from "@/hooks/useObservability";
 import { ClientActivityType, UserType } from "@dragon-telecom/contract";
-import { formatDZD } from "@/lib/utils";
+import { formatPrice } from "@/lib/price-format";
 import { cn } from "@/lib/utils";
-
-interface StorefrontSearchProps {
-  variant: "desktop" | "mobile";
-  onDone?: () => void;
-  autoFocus?: boolean;
-}
+import { STOREFRONT_SEARCH_INPUT_ID } from "@/config/constants";
 
 const MAX_RESULTS = 5;
 
 // S15/R1 — the header search is a typeahead, not a submit box: typing shows a dropdown of at
 // most 5 matching products (name, resolved price, family · brand), with a trailing "see all
 // results" row. Product rows go straight to /products/:id; the trailing row (and Enter) go to
-// /products?search=. Shared by the desktop inline input and the mobile expand-in-place input —
-// one component, two renderings, never forked state (ProductFilters' established precedent for
-// desktop/mobile-Sheet controls).
-export function StorefrontSearch({ variant, onDone, autoFocus }: StorefrontSearchProps) {
-  const { t, language } = useTranslation();
+// /products?search=. S37: exactly ONE instance lives in PublicHeader — inline on md+, its own
+// full-width second row on phones (the header reflows it with flex order) — so the old
+// expand-in-place mobile mode and its props are gone.
+export function StorefrontSearch() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { addRecentSearch } = useRecentSearches();
   const { data: session } = useSession();
@@ -84,7 +79,6 @@ export function StorefrontSearch({ variant, onDone, autoFocus }: StorefrontSearc
     setInput("");
     setIsOpen(false);
     setHighlightedIndex(-1);
-    onDone?.();
   };
 
   const rowCount = items.length + 1; // + "see all results" row
@@ -115,10 +109,7 @@ export function StorefrontSearch({ variant, onDone, autoFocus }: StorefrontSearc
   };
 
   return (
-    <div
-      ref={containerRef}
-      className={cn("relative", variant === "desktop" ? "w-full max-w-sm" : "w-full flex-1")}
-    >
+    <div ref={containerRef} className="relative w-full min-w-0">
       <div className="relative">
         <Search
           className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -128,10 +119,12 @@ export function StorefrontSearch({ variant, onDone, autoFocus }: StorefrontSearc
           role="combobox"
           aria-expanded={showDropdown}
           aria-controls="storefront-search-listbox"
+          id={STOREFRONT_SEARCH_INPUT_ID}
+          type="search"
+          enterKeyHint="search"
           placeholder={t("header.search")}
-          className="w-full pl-10"
+          className="w-full pl-10 pr-9 [&::-webkit-search-cancel-button]:appearance-none"
           value={input}
-          autoFocus={autoFocus}
           onChange={(e) => {
             setInput(e.target.value);
             setHighlightedIndex(-1);
@@ -140,11 +133,11 @@ export function StorefrontSearch({ variant, onDone, autoFocus }: StorefrontSearc
           onKeyDown={handleKeyDown}
           aria-label={t("accessibility.search")}
         />
-        {variant === "mobile" && (
+        {input.length > 0 && (
           <button
             type="button"
             onClick={reset}
-            aria-label={t("header.closeSearch")}
+            aria-label={t("common.actions.clearSearch")}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
@@ -167,7 +160,7 @@ export function StorefrontSearch({ variant, onDone, autoFocus }: StorefrontSearc
               const resolvedPrice = product.currentPrice ?? product.guestPrice;
               const priceLabel =
                 !product.priceHidden && resolvedPrice !== undefined
-                  ? formatDZD(resolvedPrice, language)
+                  ? formatPrice(resolvedPrice)
                   : t("cart.priceOnRequest");
               return (
                 <button

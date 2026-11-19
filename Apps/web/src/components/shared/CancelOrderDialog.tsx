@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { OrderDto } from "@dragon-telecom/contract";
-import { formatDZD, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
+import { formatPrice } from "@/lib/price-format";
 
 // set-02 Sprint 3 retype — was OrderWithDetails (orderLines[], a preview of "up to 3 items,
 // +N more"). OrderDto was single-product at the time, so the old orderItems/moreItems preview
@@ -72,7 +73,7 @@ export function CancelOrderDialog({
               </div>
               <div className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
-                <span>{formatDZD(order.totalAmount)}</span>
+                <span>{formatPrice(order.totalAmount)}</span>
               </div>
             </div>
           </div>

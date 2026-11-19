@@ -16,6 +16,7 @@ import {
   BARCODE_MIN_MODULE_MM,
   type LabelSize,
 } from "@/types/label-print.types";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface LabelSizeFieldProps {
   value: LabelSize;
@@ -125,9 +126,9 @@ export function LabelSizeField({ value, onChange, moduleMm }: LabelSizeFieldProp
       {/* Warn only — never disable Print. The owner may knowingly print a dense label for a
           short barcode. */}
       {moduleMm != null && moduleMm < BARCODE_MIN_MODULE_MM && (
-        <p className="text-xs text-destructive">
+        <FieldError className="text-xs">
           {t("admin.labelSize.tooNarrow", { min: BARCODE_MIN_MODULE_MM })}
-        </p>
+        </FieldError>
       )}
     </div>
   );

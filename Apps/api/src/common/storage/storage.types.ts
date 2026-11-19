@@ -35,4 +35,8 @@ export interface StorageService {
   deleteMany(keys: string[]): Promise<void>;
 
   exists(key: string): Promise<boolean>;
+
+  /** Public URL of a stored key — `${R2_PUBLIC_URL}/${key}`. S38: lets a caller that holds only
+   *  a key (hero slides) derive the URL instead of trusting a client-sent one. */
+  urlFor(key: string): string;
 }

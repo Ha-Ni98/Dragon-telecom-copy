@@ -1,13 +1,18 @@
 import type { Prisma } from '@prisma/client';
 import type {
   AdminFeesDto,
+  CreateHeroSlideCommand,
   DocType,
   FeeDto,
   FeeQuery,
   FeesExportQuery,
+  HeroSlideDto,
   MediaImageDto,
+  PublicHeroSlideDto,
   PublicSettingsDto,
+  ReorderHeroSlidesCommand,
   SettingsDto,
+  UpdateHeroSlideCommand,
   UpdateSettingsCommand,
   UploadImageCommand,
   UpsertFeesCommand,
@@ -30,6 +35,13 @@ export interface IPlatformService {
   getPublicSettings(): Promise<PublicSettingsDto>;
   // S26.1 — a thin delegation to the shared image pipeline; writes no row.
   uploadImage(file: UploadFile, cmd: UploadImageCommand): Promise<MediaImageDto>;
+  // S38 — hero slider. Every admin mutation returns the full ordered list (≤ HERO_SLIDES_MAX).
+  listPublicHeroSlides(): Promise<PublicHeroSlideDto[]>;
+  listAdminHeroSlides(): Promise<HeroSlideDto[]>;
+  createHeroSlide(cmd: CreateHeroSlideCommand): Promise<HeroSlideDto[]>;
+  updateHeroSlide(id: string, cmd: UpdateHeroSlideCommand): Promise<HeroSlideDto[]>;
+  deleteHeroSlide(id: string): Promise<HeroSlideDto[]>;
+  reorderHeroSlides(cmd: ReorderHeroSlidesCommand): Promise<HeroSlideDto[]>;
 }
 
 // Injected into every document module (orders, sales, purchasing, repairs, billing) — takes the

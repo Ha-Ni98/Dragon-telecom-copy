@@ -1,5 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 /**
  * ProductListHeader component props
@@ -41,7 +42,7 @@ export function ProductListHeader({
       <div className={`space-y-6 ${className}`}>
         <div className="space-y-2">
           <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-4 w-96" />
+          <Skeleton className="h-4 w-full max-w-96" />
         </div>
         <div className="flex gap-4">
           <Skeleton className="h-6 w-32" />
@@ -55,7 +56,9 @@ export function ProductListHeader({
       {/* Title and Description */}
       <div className="space-y-4">
         <div className="space-y-2">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{title}</h1>
+          <SectionTitle as="h1" className="text-3xl md:text-4xl font-bold tracking-tight">
+            {title}
+          </SectionTitle>
           <p className="text-lg text-muted-foreground max-w-3xl">{description}</p>
         </div>
 

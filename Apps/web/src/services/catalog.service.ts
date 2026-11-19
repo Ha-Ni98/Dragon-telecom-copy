@@ -92,6 +92,16 @@ export async function listProducts(
   return res.data.data;
 }
 
+// S39 — the home "New arrivals" row: viewer-priced, newest first, ≤ 3 per family (server-side).
+export async function listNewArrivals(limit: number): Promise<ProductWithPricingDto[]> {
+  const res = await api.get<ApiResponse<ProductWithPricingDto[]>>(
+    apiPath(CATALOG_ROUTES.PRODUCTS_NEW_ARRIVALS),
+    { params: { limit } },
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
 export async function getProduct(id: string): Promise<ProductDetailDto> {
   const res = await api.get<ApiResponse<ProductDetailDto>>(
     withParams(apiPath(CATALOG_ROUTES.PRODUCT_DETAIL), { id }),

@@ -23,6 +23,18 @@
   --muted-foreground: 0.55 0.023 264.4;
   --accent: 0.784 0.143 221.1;
   --accent-foreground: 1 0 89.9;
+  /* S37 — brand accent (scarlet). NOT --accent: in this file --accent is the cyan that shadcn's
+     ghost/outline hovers use, so repainting it would turn every hover state red. Pair the fill
+     with --highlight-foreground, never a hardcoded white (see the dark block). Usage policy:
+     plan-S37 §0.5 — never on primary buttons, large fills, long text, or status badges. */
+  --highlight: 0.583 0.219 26.2;
+  --highlight-foreground: 1 0 89.9;
+  /* S39 — the light tile every transparent asset sits on (brand logos, family icons, the store
+     logo, product photos), in BOTH themes: a dark logo can never vanish on a dark surface. The
+     foreground is for anything drawn ON the tile (fallback letters/icons) — dark in both themes,
+     because text-muted-foreground turns light grey in dark mode and would disappear on it. */
+  --asset-tile: 1 0 89.9;
+  --asset-tile-foreground: 0.37 0.02 264.4;
   --destructive: 0.636 0.208 25.4;
   --destructive-foreground: 1 0 89.9;
   --success: 0.623 0.169 149.2;
@@ -44,6 +56,10 @@
   --sidebar-accent-foreground: 0.21 0.006 285.9;
   --sidebar-border: 0.928 0.006 264.5;
   --sidebar-ring: 0.623 0.188 259.8;
+  /* S37 — storefront mobile bottom nav (StorefrontBottomNav). One value, read by the bar itself,
+     the layout's bottom padding and the toast offset, so the three can't drift apart. */
+  --bottom-nav-height: 4rem;
+  --bottom-nav-offset: 0px;
   --shadow-card: 0 4px 24px -8px oklch(0.45 0.22 260.9 / 0.18);
   --shadow-glow: 0 8px 40px -12px oklch(0.55 0.25 260.9 / 0.45);
   --gradient-primary: linear-gradient(135deg, oklch(0.55 0.25 260.9), oklch(0.45 0.22 260.9));
@@ -71,6 +87,14 @@
   --muted-foreground: 0.719 0.009 264.5;
   --accent: 0.797 0.14 218.9;
   --accent-foreground: 1 0 89.9;
+  /* S37 — vermilion. White text on it is only 3.1:1 (fails AA), so the foreground flips to
+     near-black (6.3:1). This pair is the reason the token has a foreground at all. */
+  --highlight: 0.687 0.204 34.1;
+  --highlight-foreground: 0.161 0.014 266.7;
+  /* S39 — near-white rather than pure white: a row of light tiles in dark mode is intentional (the
+     same treatment product photos get), but a full-white block glares. Foreground stays dark. */
+  --asset-tile: 0.96 0.003 264.5;
+  --asset-tile-foreground: 0.37 0.02 264.4;
   --destructive: 0.667 0.185 23.6;
   --destructive-foreground: 1 0 89.9;
   --success: 0.735 0.201 149;
@@ -94,6 +118,18 @@
   --gradient-hero: linear-gradient(135deg, oklch(var(--primary)) 0%, oklch(var(--accent)) 100%);
   --login-glow: radial-gradient(60% 50% at 50% 0%, oklch(0.28 0.1 260 / 0.5), transparent),
     radial-gradient(50% 40% at 80% 100%, oklch(0.28 0.1 260 / 0.4), transparent);
+}
+
+/* S37 — while the storefront bottom nav is mounted (phone layout only, it is md:hidden), toasts
+   and anything else reading --bottom-nav-offset clear it. :has() keeps this CSS-only; the
+   same selector style is already used by the receipt print rules below. */
+body:has([data-storefront-bottom-nav]) {
+  --bottom-nav-offset: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  body:has([data-storefront-bottom-nav]) {
+    --bottom-nav-offset: 0px;
+  }
 }
 
 @layer base {

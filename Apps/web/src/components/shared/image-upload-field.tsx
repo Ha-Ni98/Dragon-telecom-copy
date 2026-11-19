@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Image as ImageIcon, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,17 @@ import {
   ACCEPTED_IMAGE_MIME_TYPES,
   IMAGE_MAX_UPLOAD_BYTES,
   type ImagePurpose,
+  type MediaImageDto,
 } from "@dragon-telecom/contract";
 
 interface ImageUploadFieldProps {
   /** Currently stored URL, or undefined when nothing is set yet. */
   value?: string;
   purpose: ImagePurpose;
-  /** Fired with the processed main-image URL after a successful upload. The caller persists it. */
-  onUploaded: (url: string) => void;
+  /** Fired with the processed main-image URL after a successful upload. The caller persists it.
+   *  S38: the second argument is the whole result (key, dimensions) for callers that need more
+   *  than the URL — the hero slides persist the KEY and warn on a mismatched ratio. */
+  onUploaded: (url: string, image: MediaImageDto) => void;
   label: string;
   /** Helper text beneath the control — the caller supplies an already-translated string. */
   hint?: string;
@@ -25,10 +28,12 @@ interface ImageUploadFieldProps {
   previewClassName?: string;
   /** Icon-only button, no label/preview/hint — used inline in compact rows (HierarchyPanel). */
   compact?: boolean;
+  /** S38 — lets a form hold its Save while an upload is in flight (the hero slide dialog). */
+  onPendingChange?: (pending: boolean) => void;
 }
 
 // S26.1 — one reusable upload control, used for the store logo, the print logo, brand logos and
-// family icons. No remove/clear action: nothing in this set asks to unset a logo, and the
+// family icons (S38: also the hero slide banners and the link-preview image). No remove/clear action: nothing in this set asks to unset a logo, and the
 // contract's `.optional()` fields cannot express "clear" through a PATCH that ignores
 // `undefined` — this is a deliberate omission, not a gap.
 export function ImageUploadField({
@@ -40,6 +45,7 @@ export function ImageUploadField({
   disabled = false,
   previewClassName,
   compact = false,
+  onPendingChange,
 }: ImageUploadFieldProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -64,7 +70,7 @@ export function ImageUploadField({
       { file, purpose },
       {
         onSuccess: (result) => {
-          onUploaded(result.url);
+          onUploaded(result.url, result);
           toast.success(t("common.media.uploadSuccess"));
         },
       },
@@ -72,6 +78,9 @@ export function ImageUploadField({
   };
 
   const isPending = uploadImage.isPending;
+  useEffect(() => {
+    onPendingChange?.(isPending);
+  }, [isPending, onPendingChange]);
   const buttonLabel = isPending
     ? t("common.media.uploading")
     : value

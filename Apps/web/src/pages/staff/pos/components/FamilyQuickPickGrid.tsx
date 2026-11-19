@@ -28,7 +28,7 @@ export function FamilyQuickPickGrid({ families, isLoading, onSelect }: FamilyQui
           key={family.id}
           type="button"
           onClick={() => onSelect(family)}
-          className="flex flex-col items-center gap-1 rounded-xl border border-border bg-card p-3 text-center hover:bg-accent"
+          className="flex flex-col items-center gap-1 rounded-xl border border-border bg-card p-3 text-center hover:ring-2 hover:ring-highlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-highlight"
         >
           <Package className="h-5 w-5 text-primary" />
           <span className="truncate text-xs font-medium">{family.name}</span>

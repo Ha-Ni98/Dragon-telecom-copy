@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import type { AdjustmentFormValues } from "@/pages/admin/inventory/components/adjustment.schema";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface AdjustmentUnitCostFieldProps {
   index: number;
@@ -79,7 +80,7 @@ export function AdjustmentUnitCostField({
             })
           : t("admin.inventory.adjustment.avgStockPriceUnknown")}
       </p>
-      {unitCostError && <p className="mt-1 text-sm text-destructive">{unitCostError}</p>}
+      {unitCostError && <FieldError className="mt-1">{unitCostError}</FieldError>}
     </div>
   );
 }

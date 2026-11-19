@@ -9,7 +9,8 @@ import { InvoiceStatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { InvoiceSource, type InvoiceDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
-import { formatDZD, formatDateTime } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
+import { formatPrice } from "@/lib/price-format";
 
 // Dumb, props-only (Sprint 4). Sprint 5 wires useMyInvoices() + URL ?page= around this.
 // InvoiceSource.REPAIR (S1, D9) added for exhaustiveness — no repair invoice exists yet (S13
@@ -64,13 +65,13 @@ export function InvoicesTable({
         accessorKey: "totalAmount",
         header: t("invoices.table.total"),
         cell: ({ row }) => (
-          <span className="font-medium text-sm">{formatDZD(row.original.totalAmount)}</span>
+          <span className="font-medium text-sm">{formatPrice(row.original.totalAmount)}</span>
         ),
       },
       {
         accessorKey: "paidAmount",
         header: t("orders.paid"),
-        cell: ({ row }) => <span className="text-sm">{formatDZD(row.original.paidAmount)}</span>,
+        cell: ({ row }) => <span className="text-sm">{formatPrice(row.original.paidAmount)}</span>,
       },
       {
         accessorKey: "status",
@@ -92,9 +93,9 @@ export function InvoicesTable({
         <span>{t(SOURCE_LABEL_KEY[invoice.sourceType])}</span>
       </div>
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{formatDZD(invoice.totalAmount)}</span>
+        <span className="font-medium">{formatPrice(invoice.totalAmount)}</span>
         <span className="text-muted-foreground">
-          {t("orders.paid")}: {formatDZD(invoice.paidAmount)}
+          {t("orders.paid")}: {formatPrice(invoice.paidAmount)}
         </span>
       </div>
     </div>

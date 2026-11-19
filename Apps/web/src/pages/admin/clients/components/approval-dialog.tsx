@@ -19,6 +19,7 @@ import {
 } from "@/pages/admin/clients/components/approve-client.schema";
 import type { AdminClientDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface ApprovalDialogProps {
   open: boolean;
@@ -84,7 +85,7 @@ export function ApprovalDialog({
                     <Input {...field} disabled={isSubmitting} />
                   </FormControl>
                   <FormMessage />
-                  {usernameError && <p className="text-sm text-destructive">{usernameError}</p>}
+                  {usernameError && <FieldError>{usernameError}</FieldError>}
                 </FormItem>
               )}
             />

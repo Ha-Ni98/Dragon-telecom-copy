@@ -3,6 +3,10 @@ export const CATALOG_ROUTES = {
   FAMILIES: '/families',
   MODELS: '/models',
   PRODUCTS: '/products',
+  // S39 — the home "New arrivals" row (viewer-priced, ≤ 3 per family). A literal segment under
+  // "/products", so the api registers it BEFORE PRODUCT_DETAIL — otherwise "new-arrivals" would be
+  // validated (and 400'd) as a product :id.
+  PRODUCTS_NEW_ARRIVALS: '/products/new-arrivals',
   PRODUCT_DETAIL: '/products/:id',
   STAFF_PRODUCTS: '/staff/products',
   ADMIN_PRODUCTS: '/admin/products',

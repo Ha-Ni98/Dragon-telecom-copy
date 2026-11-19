@@ -1,5 +1,12 @@
 import { z } from 'zod';
+import { isDzPhone } from '../../common/phone';
 import { DocType } from './platform.enums';
+import { HeroSlideTextSchema } from './platform.dtos';
+import {
+  HERO_SLIDES_MAX,
+  META_DESCRIPTION_MAX,
+  isHeroSlideLink,
+} from './platform.constants';
 
 export const UpsertFeesSchema = z.object({
   rows: z.array(
@@ -20,6 +27,13 @@ const StoreSettingsInputSchema = z.object({
   phone: z.string().optional(),
   repairPhone: z.string().optional(),
   salesPhone: z.string().optional(),
+  // S38 — footer contact. `null` clears the field (the only way to unset an optional leaf);
+  // validated, unlike the older free-text phones, so wa.me / mailto: / social links always work.
+  whatsappPhone: z.string().refine(isDzPhone).nullable().optional(),
+  email: z.email().nullable().optional(),
+  facebookUrl: z.url({ protocol: /^https?$/ }).nullable().optional(),
+  instagramUrl: z.url({ protocol: /^https?$/ }).nullable().optional(),
+  tiktokUrl: z.url({ protocol: /^https?$/ }).nullable().optional(),
   logoUrl: z.string().optional(),
   printLogoUrl: z.string().optional(),
 });
@@ -42,10 +56,16 @@ const StorefrontSettingsInputSchema = z.object({
   // Max 6 — the home page's family strip is a 6-tile grid (S17 builds the picker that enforces
   // it in the UI; this is the server-side bound).
   featuredFamilyIds: z.array(z.uuid()).max(6).optional(),
+  // S38 — `null` clears (see UpdateSettingsSchema).
+  repairToolsFamilyId: z.uuid().nullable().optional(),
+  metaDescription: z.string().trim().max(META_DESCRIPTION_MAX).nullable().optional(),
+  linkPreviewImageUrl: z.string().nullable().optional(),
 });
 
 // Partial of SettingsDto — every section, and every field within a section, is
-// independently optional (a PATCH may touch just one leaf field).
+// independently optional (a PATCH may touch just one leaf field). S38: a leaf sent as `null` is
+// removed from the stored section (the only way to clear an optional field); `undefined` / absent
+// leaves it untouched.
 export const UpdateSettingsSchema = z.object({
   store: StoreSettingsInputSchema.optional(),
   invoicing: InvoicingSettingsInputSchema.optional(),
@@ -53,3 +73,44 @@ export const UpdateSettingsSchema = z.object({
   storefront: StorefrontSettingsInputSchema.optional(),
 });
 export type UpdateSettingsCommand = z.infer<typeof UpdateSettingsSchema>;
+
+// S38 — images travel as the KEYS returned by POST /admin/media/images (purpose
+// HERO_DESKTOP / HERO_MOBILE). The API validates each key's folder + format and its existence
+// in R2, then derives the URL itself — a client-sent URL is never stored.
+const HeroSlideScheduleShape = {
+  startsOn: z.iso.date().nullable().optional(),
+  endsOn: z.iso.date().nullable().optional(),
+};
+const endsNotBeforeStarts = (v: { startsOn?: string | null | undefined; endsOn?: string | null | undefined }) =>
+  v.startsOn == null || v.endsOn == null || v.endsOn >= v.startsOn;
+
+export const CreateHeroSlideSchema = z
+  .object({
+    desktopImageKey: z.string().min(1),
+    mobileImageKey: z.string().min(1),
+    text: HeroSlideTextSchema,
+    link: z.string().trim().refine(isHeroSlideLink),
+    isActive: z.boolean().optional(),
+    ...HeroSlideScheduleShape,
+  })
+  .refine(endsNotBeforeStarts, { path: ['endsOn'] });
+export type CreateHeroSlideCommand = z.infer<typeof CreateHeroSlideSchema>;
+
+// Every field optional; schedule fields accept null (= remove that bound). The service
+// re-checks endsOn >= startsOn against the stored value when only one bound is sent.
+export const UpdateHeroSlideSchema = z
+  .object({
+    desktopImageKey: z.string().min(1).optional(),
+    mobileImageKey: z.string().min(1).optional(),
+    text: HeroSlideTextSchema.optional(),
+    link: z.string().trim().refine(isHeroSlideLink).optional(),
+    isActive: z.boolean().optional(),
+    ...HeroSlideScheduleShape,
+  })
+  .refine(endsNotBeforeStarts, { path: ['endsOn'] });
+export type UpdateHeroSlideCommand = z.infer<typeof UpdateHeroSlideSchema>;
+
+export const ReorderHeroSlidesSchema = z.object({
+  ids: z.array(z.uuid()).min(1).max(HERO_SLIDES_MAX),
+});
+export type ReorderHeroSlidesCommand = z.infer<typeof ReorderHeroSlidesSchema>;

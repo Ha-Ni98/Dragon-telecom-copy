@@ -11,6 +11,7 @@ import { ProductSupplierWithDetails } from '@/types/draft-types/admin-product-in
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supplierModificationSchema, type SupplierModificationFormData } from './supplier-modify-dialog.schema';
+import { FieldError } from "@/components/shared/FieldError";
 
 interface SupplierModifyDialogProps {
   /** Supplier data to modify */
@@ -181,9 +182,9 @@ export function SupplierModifyDialog({
                             aria-describedby={errors.unitPrice ? 'unit-price-error' : undefined}
                           />
                           {errors.unitPrice && (
-                            <p id="unit-price-error" className="text-sm text-destructive">
+                            <FieldError id="unit-price-error">
                               {errors.unitPrice.message}
-                            </p>
+                            </FieldError>
                           )}
                         </div>
                       )}
@@ -214,9 +215,7 @@ export function SupplierModifyDialog({
                             aria-describedby={errors.quantity ? 'quantity-error' : undefined}
                           />
                           {errors.quantity && (
-                            <p id="quantity-error" className="text-sm text-destructive">
-                              {errors.quantity.message}
-                            </p>
+                            <FieldError id="quantity-error">{errors.quantity.message}</FieldError>
                           )}
                         </div>
                       )}
@@ -239,9 +238,7 @@ export function SupplierModifyDialog({
                 {/* Form validation summary */}
                 {!isValid && (
                   <div className="p-3 border border-destructive/20 rounded-md bg-destructive/5">
-                    <p className="text-sm text-destructive">
-                      Please fix the errors above before saving.
-                    </p>
+                    <FieldError>{t("admin.suppliers.formErrors")}</FieldError>
                   </div>
                 )}
 

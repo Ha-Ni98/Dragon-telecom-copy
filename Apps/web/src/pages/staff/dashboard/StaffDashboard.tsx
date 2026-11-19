@@ -7,6 +7,7 @@ import { useStaffDashboard } from "@/hooks/useStatistics";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useTranslation } from "@/hooks/useTranslation";
 import { PageKey } from "@dragon-telecom/contract";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 // STF-01 — a single useStaffDashboard() query (plan.md D10), decomposed into 4 independently-
 // skeletoned widgets. "Silent-hide on error" (STF-01 §3) means the widget disappears entirely on
@@ -31,7 +32,9 @@ export default function StaffDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{t("staff.dashboard.title")}</h1>
+        <SectionTitle as="h1" className="text-2xl font-bold">
+          {t("staff.dashboard.title")}
+        </SectionTitle>
         <p className="text-muted-foreground">{t("staff.dashboard.subtitle")}</p>
       </div>
 

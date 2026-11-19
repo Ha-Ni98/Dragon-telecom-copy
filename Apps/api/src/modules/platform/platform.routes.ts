@@ -8,7 +8,11 @@ import {
   PLATFORM_ROUTES,
   UserType,
   FeeQuerySchema,
+  CreateHeroSlideSchema,
   FeesExportQuerySchema,
+  HeroSlideIdParamsSchema,
+  ReorderHeroSlidesSchema,
+  UpdateHeroSlideSchema,
   UploadImageSchema,
   UpsertFeesSchema,
   UpdateSettingsSchema,
@@ -58,6 +62,8 @@ const uploadImage = multer({
 router.get(PLATFORM_ROUTES.WILAYAS, controller.listWilayas);
 router.get(PLATFORM_ROUTES.FEE, validateRequest({ query: FeeQuerySchema }), controller.resolveFee);
 router.get(PLATFORM_ROUTES.SETTINGS_PUBLIC, controller.getPublicSettings);
+// S38 — public: live slides only (active, inside their window, ≤ 5).
+router.get(PLATFORM_ROUTES.HERO_SLIDES, controller.listPublicHeroSlides);
 
 router.get(PLATFORM_ROUTES.ADMIN_FEES, adminOnly, controller.getAdminFees);
 router.put(PLATFORM_ROUTES.ADMIN_FEES, adminOnly, validateRequest({ body: UpsertFeesSchema }), controller.upsertFees);
@@ -83,6 +89,33 @@ router.post(
   uploadImage.single('image'),
   validateRequest({ body: UploadImageSchema }),
   controller.uploadImage,
+);
+
+// S38 — hero slides. "/order" is registered before "/:id" so it is never read as an id.
+router.get(PLATFORM_ROUTES.ADMIN_HERO_SLIDES, adminOnly, controller.listAdminHeroSlides);
+router.post(
+  PLATFORM_ROUTES.ADMIN_HERO_SLIDES,
+  adminOnly,
+  validateRequest({ body: CreateHeroSlideSchema }),
+  controller.createHeroSlide,
+);
+router.put(
+  PLATFORM_ROUTES.ADMIN_HERO_SLIDES_ORDER,
+  adminOnly,
+  validateRequest({ body: ReorderHeroSlidesSchema }),
+  controller.reorderHeroSlides,
+);
+router.patch(
+  PLATFORM_ROUTES.ADMIN_HERO_SLIDE_BY_ID,
+  adminOnly,
+  validateRequest({ params: HeroSlideIdParamsSchema, body: UpdateHeroSlideSchema }),
+  controller.updateHeroSlide,
+);
+router.delete(
+  PLATFORM_ROUTES.ADMIN_HERO_SLIDE_BY_ID,
+  adminOnly,
+  validateRequest({ params: HeroSlideIdParamsSchema }),
+  controller.deleteHeroSlide,
 );
 
 export { router };

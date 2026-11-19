@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { ContentLocale } from '../../common/locale';
 import { DocType, FeeSource } from './platform.enums';
+import { HERO_SLIDE_CTA_MAX, HERO_SLIDE_TITLE_MAX } from './platform.constants';
 
 export const WilayaResponseSchema = z.object({
   id: z.uuid(),
@@ -38,6 +40,13 @@ export const SettingsResponseSchema = z.object({
     phone: z.string().optional(),
     repairPhone: z.string().optional(),
     salesPhone: z.string().optional(),
+    // S38 — storefront footer contact (Q2). Validated on write (platform.command.ts); optional
+    // here because rows written before S38 have none, and a cleared field is a removed key.
+    whatsappPhone: z.string().optional(),
+    email: z.string().optional(),
+    facebookUrl: z.string().optional(),
+    instagramUrl: z.string().optional(),
+    tiktokUrl: z.string().optional(),
     // Full-colour logo — screen and PDF.
     logoUrl: z.string().optional(),
     // S26.1 — a dedicated monochrome PNG for the thermal printer, uploaded already
@@ -57,10 +66,17 @@ export const SettingsResponseSchema = z.object({
   storefront: z.object({
     featuredProductIds: z.array(z.uuid()),
     featuredFamilyIds: z.array(z.uuid()),
+    // S38 — the family feeding the home page's "Repair tools" row (S39). A stored id, not a
+    // product flag; absent = the row hides.
+    repairToolsFamilyId: z.uuid().optional(),
+    metaDescription: z.string().optional(),
+    linkPreviewImageUrl: z.string().optional(),
   }),
 });
 export type SettingsDto = z.infer<typeof SettingsResponseSchema>;
 
+// S38 — the public subset now also carries the storefront footer's contact fields (the footer
+// reads them; it used to be front-end static) and the storefront section's new fields.
 // SETTINGS_PUBLIC route note: "featured products and families only" — plus, since S25, the store
 // header. The POS receipt is printed by a STAFF cashier and must carry the shop's name, address,
 // phone and logo, but GET /platform/settings is adminOnly; these four fields are already printed
@@ -77,12 +93,22 @@ export const PublicSettingsResponseSchema = z.object({
     phone: z.string().optional(),
     repairPhone: z.string().optional(),
     salesPhone: z.string().optional(),
+    whatsappPhone: z.string().optional(),
+    email: z.string().optional(),
+    facebookUrl: z.string().optional(),
+    instagramUrl: z.string().optional(),
+    tiktokUrl: z.string().optional(),
     logoUrl: z.string().optional(),
     printLogoUrl: z.string().optional(),
   }),
   storefront: z.object({
     featuredProductIds: z.array(z.uuid()),
     featuredFamilyIds: z.array(z.uuid()),
+    // S38 — the family feeding the home page's "Repair tools" row (S39). A stored id, not a
+    // product flag; absent = the row hides.
+    repairToolsFamilyId: z.uuid().optional(),
+    metaDescription: z.string().optional(),
+    linkPreviewImageUrl: z.string().optional(),
   }),
 });
 export type PublicSettingsDto = z.infer<typeof PublicSettingsResponseSchema>;
@@ -114,3 +140,43 @@ export const AdminFeesResponseSchema = z.object({
   ),
 });
 export type AdminFeesDto = z.infer<typeof AdminFeesResponseSchema>;
+
+// S38 — one locale's slide copy. Shared by the DTOs and the commands.
+export const HeroSlideLocaleTextSchema = z.object({
+  title: z.string().trim().min(1).max(HERO_SLIDE_TITLE_MAX),
+  ctaLabel: z.string().trim().min(1).max(HERO_SLIDE_CTA_MAX),
+});
+export const HeroSlideTextSchema = z.object({
+  [ContentLocale.FR]: HeroSlideLocaleTextSchema,
+  [ContentLocale.EN]: HeroSlideLocaleTextSchema,
+});
+export type HeroSlideText = z.infer<typeof HeroSlideTextSchema>;
+
+// Admin view — everything the edit dialog needs. startsOn/endsOn are store-local days
+// (endsOn inclusive), converted back from the stored UTC bounds by the mapper.
+export const HeroSlideResponseSchema = z.object({
+  id: z.uuid(),
+  desktopImageUrl: z.string(),
+  desktopImageKey: z.string(),
+  mobileImageUrl: z.string(),
+  mobileImageKey: z.string(),
+  text: HeroSlideTextSchema,
+  link: z.string(),
+  isActive: z.boolean(),
+  startsOn: z.iso.date().optional(),
+  endsOn: z.iso.date().optional(),
+  displayOrder: z.number().int().min(0),
+  /** Server-computed: active AND inside its window right now. Drives the panel's badge. */
+  isLive: z.boolean(),
+});
+export type HeroSlideDto = z.infer<typeof HeroSlideResponseSchema>;
+
+// Public view — only what the storefront renders. No keys, no schedule.
+export const PublicHeroSlideResponseSchema = z.object({
+  id: z.uuid(),
+  desktopImageUrl: z.string(),
+  mobileImageUrl: z.string(),
+  text: HeroSlideTextSchema,
+  link: z.string(),
+});
+export type PublicHeroSlideDto = z.infer<typeof PublicHeroSlideResponseSchema>;

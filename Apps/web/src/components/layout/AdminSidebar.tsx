@@ -26,7 +26,7 @@ export function AdminSidebarNav({ onNavigate }: { onNavigate?: () => void }) {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 active
-                  ? "bg-primary-light text-primary border-l-4 border-primary -ml-1 pl-2"
+                  ? "bg-primary-light text-primary border-l-4 border-highlight -ml-1 pl-2"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
             >
@@ -75,7 +75,7 @@ export function AdminSidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                         active
-                          ? "bg-primary-light text-primary"
+                          ? "rounded-l-none border-l-2 border-highlight bg-primary-light text-primary"
                           : "text-muted-foreground hover:bg-accent hover:text-foreground",
                       )}
                     >

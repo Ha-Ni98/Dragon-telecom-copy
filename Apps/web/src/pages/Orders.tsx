@@ -13,6 +13,7 @@ import {
 import { useMyOrders, useCancelMyOrder } from "@/hooks/useOrdersPortal";
 import { useTranslation } from "@/hooks/useTranslation";
 import { OrderStatus } from "@dragon-telecom/contract";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 // PUB-09 — rewired off the Sub-01 stub (OrdersListSection/use-orders.ts, numeric ids). Status
 // filter is URL-bound (?status=); counts come from a *separate* unfiltered useMyOrders({})
@@ -67,7 +68,9 @@ export default function OrdersPage() {
   return (
     <div className="container mx-auto max-w-4xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">{t("orders.title")}</h1>
+        <SectionTitle as="h1" className="text-2xl font-bold">
+          {t("orders.title")}
+        </SectionTitle>
         <p className="text-muted-foreground">{t("orders.description")}</p>
       </div>
 

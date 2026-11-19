@@ -36,6 +36,8 @@ import {
   productsAddSchema,
   type ProductsAddFormValues,
 } from "@/pages/admin/products/products-add.schema";
+import { FieldError } from "@/components/shared/FieldError";
+import { SectionTitle } from "@/components/shared/SectionTitle";
 
 interface StagedImage {
   id: string;
@@ -220,7 +222,9 @@ export default function AdminProductsAdd() {
         <Button variant="ghost" onClick={() => navigate("/admin/products")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-bold">{t("admin.productsAdd.pageTitle")}</h1>
+        <SectionTitle as="h1" className="text-2xl font-bold">
+          {t("admin.productsAdd.pageTitle")}
+        </SectionTitle>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mx-auto max-w-2xl space-y-6">
@@ -255,9 +259,7 @@ export default function AdminProductsAdd() {
                   }
                   emptyMessage={t("admin.productsAdd.familyLabel")}
                 />
-                {errors.familyId && (
-                  <p className="text-sm text-destructive">{errors.familyId.message}</p>
-                )}
+                {errors.familyId && <FieldError>{errors.familyId.message}</FieldError>}
               </div>
 
               <div className="space-y-1">
@@ -287,9 +289,7 @@ export default function AdminProductsAdd() {
                   }
                   emptyMessage={t("admin.productsAdd.brandLabel")}
                 />
-                {errors.brandId && (
-                  <p className="text-sm text-destructive">{errors.brandId.message}</p>
-                )}
+                {errors.brandId && <FieldError>{errors.brandId.message}</FieldError>}
               </div>
 
               <div className="space-y-1">
@@ -328,7 +328,7 @@ export default function AdminProductsAdd() {
                 id="add-name"
                 {...register("name", { onChange: () => setNameManuallyEdited(true) })}
               />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              {errors.name && <FieldError>{errors.name.message}</FieldError>}
             </div>
 
             <div className="space-y-1">
@@ -353,9 +353,7 @@ export default function AdminProductsAdd() {
               <p className="text-xs text-muted-foreground">
                 {t("admin.productsAdd.barcodeHelper")}
               </p>
-              {errors.barcode && (
-                <p className="text-sm text-destructive">{errors.barcode.message}</p>
-              )}
+              {errors.barcode && <FieldError>{errors.barcode.message}</FieldError>}
             </div>
           </CardContent>
         </Card>
@@ -373,9 +371,7 @@ export default function AdminProductsAdd() {
                 min={0}
                 {...register("initialQuantity", { valueAsNumber: true })}
               />
-              {errors.initialQuantity && (
-                <p className="text-sm text-destructive">{errors.initialQuantity.message}</p>
-              )}
+              {errors.initialQuantity && <FieldError>{errors.initialQuantity.message}</FieldError>}
             </div>
 
             {pricingUnlocked && (
@@ -388,7 +384,7 @@ export default function AdminProductsAdd() {
                   {...register("initialUnitCost", { setValueAs: optionalNumber })}
                 />
                 {errors.initialUnitCost && (
-                  <p className="text-sm text-destructive">{errors.initialUnitCost.message}</p>
+                  <FieldError>{errors.initialUnitCost.message}</FieldError>
                 )}
               </div>
             )}

@@ -45,3 +45,10 @@ export const CATALOG_ERROR = {
   BARCODE_GENERATION_EXHAUSTED: 'BARCODE_GENERATION_EXHAUSTED',
 } as const;
 export type CatalogErrorSentinel = (typeof CATALOG_ERROR)[keyof typeof CATALOG_ERROR];
+
+// S39 — the home page's "New arrivals" row: newest enabled+published products, at most
+// NEW_ARRIVALS_PER_FAMILY per family so one big delivery cannot fill the row. Bounded by
+// NEW_ARRIVALS_MAX (1GB machine rule); the cap is applied in SQL (window function).
+export const NEW_ARRIVALS_PER_FAMILY = 3;
+export const NEW_ARRIVALS_DEFAULT_LIMIT = 12;
+export const NEW_ARRIVALS_MAX = 24;

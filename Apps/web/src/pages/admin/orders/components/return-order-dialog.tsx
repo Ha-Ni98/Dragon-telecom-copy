@@ -18,6 +18,7 @@ import {
   type ReturnOrderFormInput,
   type ReturnOrderFormValues,
 } from "@/pages/admin/orders/components/return-order.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface ReturnOrderDialogProps {
   open: boolean;
@@ -80,9 +81,7 @@ export function ReturnOrderDialog({
                 />
                 <input type="hidden" {...register(`lines.${index}.orderLineId`)} value={line.id} />
                 {errors.lines?.[index]?.quantity && (
-                  <p className="text-sm text-destructive">
-                    {errors.lines[index]?.quantity?.message}
-                  </p>
+                  <FieldError>{errors.lines[index]?.quantity?.message}</FieldError>
                 )}
               </div>
             ))}
@@ -108,9 +107,7 @@ export function ReturnOrderDialog({
               {t("admin.orders.returnDialog.refundAmountLabel")}
             </Label>
             <Input id="return-refund" type="number" step="0.01" {...register("refundAmount")} />
-            {errors.refundAmount && (
-              <p className="text-sm text-destructive">{errors.refundAmount.message}</p>
-            )}
+            {errors.refundAmount && <FieldError>{errors.refundAmount.message}</FieldError>}
           </div>
 
           <DialogFooter>

@@ -10,7 +10,7 @@
     "ar": ""
   },
   "common.legal.copyright": {
-    "en": "© 2026 Dragon Telecom. All rights reserved.",
+    "en": "© {year} Dragon Telecom. All rights reserved.",
     "fr": "© {year} Dragon Telecom. Tous droits réservés.",
     "ar": ""
   },
@@ -5100,7 +5100,7 @@
     "ar": ""
   },
   "brands.title": {
-    "en": "Our Brand",
+    "en": "Our Brands",
     "fr": "Nos Marques",
     "ar": ""
   },
@@ -16207,6 +16207,481 @@
   "staff.repairs.receipt.parts": {
     "en": "Parts used",
     "fr": "Pièces utilisées",
+    "ar": ""
+  },
+  "header.allProducts": {
+    "en": "All products",
+    "fr": "Tous les produits",
+    "ar": ""
+  },
+  "header.categoryBar": {
+    "en": "Product categories",
+    "fr": "Catégories de produits",
+    "ar": ""
+  },
+  "header.subFamiliesOf": {
+    "en": "Subcategories of {name}",
+    "fr": "Sous-catégories de {name}",
+    "ar": ""
+  },
+  "header.cartWithCount": {
+    "en": "Cart ({count} items)",
+    "fr": "Panier ({count} articles)",
+    "ar": ""
+  },
+  "storefront.bottomNav.label": {
+    "en": "Shop navigation",
+    "fr": "Navigation de la boutique",
+    "ar": ""
+  },
+  "storefront.bottomNav.home": {
+    "en": "Home",
+    "fr": "Accueil",
+    "ar": ""
+  },
+  "storefront.bottomNav.categories": {
+    "en": "Categories",
+    "fr": "Catégories",
+    "ar": ""
+  },
+  "storefront.bottomNav.search": {
+    "en": "Search",
+    "fr": "Rechercher",
+    "ar": ""
+  },
+  "storefront.bottomNav.cart": {
+    "en": "Cart",
+    "fr": "Panier",
+    "ar": ""
+  },
+  "storefront.bottomNav.account": {
+    "en": "Account",
+    "fr": "Compte",
+    "ar": ""
+  },
+  "common.brand.metaDescription": {
+    "en": "Phone spare parts and accessories — screens, batteries, charging connectors. Delivery across Algeria and a repair service.",
+    "fr": "Pièces détachées et accessoires pour smartphones — écrans, batteries, connecteurs de charge. Livraison en Algérie et service de réparation.",
+    "ar": ""
+  },
+  "common.validation.invalidUrl": {
+    "en": "Enter a full address starting with https://",
+    "fr": "Saisissez une adresse complète commençant par https://",
+    "ar": ""
+  },
+  "common.errors.sentinel.heroSlideLimitReached": {
+    "en": "You already have the maximum of 20 slides. Delete one to add another.",
+    "fr": "Vous avez déjà le maximum de 20 diapositives. Supprimez-en une pour en ajouter une autre.",
+    "ar": ""
+  },
+  "common.errors.sentinel.heroSlideInvalidImage": {
+    "en": "A slide image is missing or invalid. Upload it again.",
+    "fr": "Une image de la diapositive est manquante ou invalide. Téléversez-la à nouveau.",
+    "ar": ""
+  },
+  "common.errors.sentinel.heroSlideOrderMismatch": {
+    "en": "The slide list changed in the meantime. Reload the page and try again.",
+    "fr": "La liste des diapositives a changé entre-temps. Rechargez la page et réessayez.",
+    "ar": ""
+  },
+  "admin.settings.general.whatsappPhone": {
+    "en": "WhatsApp number",
+    "fr": "Numéro WhatsApp",
+    "ar": ""
+  },
+  "admin.settings.general.whatsappPhoneHelp": {
+    "en": "Algerian mobile number. Opens a WhatsApp chat from the storefront footer.",
+    "fr": "Numéro mobile algérien. Ouvre une discussion WhatsApp depuis le pied de page de la boutique.",
+    "ar": ""
+  },
+  "admin.settings.general.socialLinks": {
+    "en": "Social links",
+    "fr": "Réseaux sociaux",
+    "ar": ""
+  },
+  "admin.settings.general.facebookUrl": {
+    "en": "Facebook page",
+    "fr": "Page Facebook",
+    "ar": ""
+  },
+  "admin.settings.general.instagramUrl": {
+    "en": "Instagram",
+    "fr": "Instagram",
+    "ar": ""
+  },
+  "admin.settings.general.tiktokUrl": {
+    "en": "TikTok",
+    "fr": "TikTok",
+    "ar": ""
+  },
+  "admin.settings.general.socialLinksHelp": {
+    "en": "Full https:// address. Each link appears in the storefront footer only when filled.",
+    "fr": "Adresse complète en https://. Chaque lien n'apparaît dans le pied de page que s'il est renseigné.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.title": {
+    "en": "Hero slider",
+    "fr": "Bannière d'accueil",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.description": {
+    "en": "Slides at the top of the home page, in this order. At most 5 live slides are shown.",
+    "fr": "Diapositives en haut de la page d'accueil, dans cet ordre. 5 diapositives actives au maximum sont affichées.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.add": {
+    "en": "Add slide",
+    "fr": "Ajouter une diapositive",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.limitReached": {
+    "en": "Maximum of 20 slides reached.",
+    "fr": "Maximum de 20 diapositives atteint.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.empty": {
+    "en": "No slide yet. Until one is live, the home page starts with the categories.",
+    "fr": "Aucune diapositive. Tant qu'aucune n'est active, la page d'accueil commence par les catégories.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.exampleTitle": {
+    "en": "Suggested slide: the professional account",
+    "fr": "Diapositive suggérée : le compte professionnel",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.exampleBody": {
+    "en": "Title \"Vous êtes réparateur ? Profitez des prix pro\" / \"Are you a repairer? Get trade prices\", button \"Créer un compte\" / \"Create an account\", link /register.",
+    "fr": "Titre « Vous êtes réparateur ? Profitez des prix pro » / « Are you a repairer? Get trade prices », bouton « Créer un compte » / « Create an account », lien /register.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.tooManyLive": {
+    "en": "{count} slides are live — only the first 5 are shown on the home page.",
+    "fr": "{count} diapositives sont actives — seules les 5 premières sont affichées sur la page d'accueil.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.status.live": {
+    "en": "Live",
+    "fr": "En ligne",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.status.scheduled": {
+    "en": "Scheduled",
+    "fr": "Programmée",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.status.ended": {
+    "en": "Ended",
+    "fr": "Terminée",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.status.inactive": {
+    "en": "Inactive",
+    "fr": "Inactive",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.moveUp": {
+    "en": "Move up",
+    "fr": "Monter",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.moveDown": {
+    "en": "Move down",
+    "fr": "Descendre",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.edit": {
+    "en": "Edit slide",
+    "fr": "Modifier la diapositive",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.delete": {
+    "en": "Delete slide",
+    "fr": "Supprimer la diapositive",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.deleteConfirm.title": {
+    "en": "Delete this slide?",
+    "fr": "Supprimer cette diapositive ?",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.deleteConfirm.body": {
+    "en": "Its images are deleted too. This cannot be undone.",
+    "fr": "Ses images sont supprimées aussi. Cette action est irréversible.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.saveSuccess": {
+    "en": "Slide saved",
+    "fr": "Diapositive enregistrée",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.deleteSuccess": {
+    "en": "Slide deleted",
+    "fr": "Diapositive supprimée",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.dialog.createTitle": {
+    "en": "New slide",
+    "fr": "Nouvelle diapositive",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.dialog.editTitle": {
+    "en": "Edit slide",
+    "fr": "Modifier la diapositive",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.desktopImage": {
+    "en": "Desktop image",
+    "fr": "Image ordinateur",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.desktopImageHelp": {
+    "en": "Wide banner, {width} × {height} px. JPEG, PNG, WebP or HEIC, under {max} MB. Keep the left side calm: the title sits there.",
+    "fr": "Bannière large, {width} × {height} px. JPEG, PNG, WebP ou HEIC, moins de {max} Mo. Gardez le côté gauche épuré : le titre s'y affiche.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.mobileImage": {
+    "en": "Mobile image",
+    "fr": "Image mobile",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.mobileImageHelp": {
+    "en": "Square, {width} × {height} px. JPEG, PNG, WebP or HEIC, under {max} MB. Keep the bottom calm: the title sits there.",
+    "fr": "Carrée, {width} × {height} px. JPEG, PNG, WebP ou HEIC, moins de {max} Mo. Gardez le bas épuré : le titre s'y affiche.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.ratioWarning": {
+    "en": "This image is {width} × {height} px; {targetWidth} × {targetHeight} is expected. It will be cropped to fit.",
+    "fr": "Cette image fait {width} × {height} px ; {targetWidth} × {targetHeight} est attendu. Elle sera recadrée.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.titleFr": {
+    "en": "Title (French)",
+    "fr": "Titre (français)",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.titleEn": {
+    "en": "Title (English)",
+    "fr": "Titre (anglais)",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.ctaFr": {
+    "en": "Button label (French)",
+    "fr": "Texte du bouton (français)",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.ctaEn": {
+    "en": "Button label (English)",
+    "fr": "Texte du bouton (anglais)",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.link": {
+    "en": "Button link",
+    "fr": "Lien du bouton",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.linkHelp": {
+    "en": "A page of this site starting with / (e.g. /register or /products?familyId=…), or a full https:// address.",
+    "fr": "Une page du site commençant par / (ex. /register ou /products?familyId=…), ou une adresse complète en https://.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.isActive": {
+    "en": "Active",
+    "fr": "Active",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.startsOn": {
+    "en": "Start date",
+    "fr": "Date de début",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.endsOn": {
+    "en": "End date (inclusive)",
+    "fr": "Date de fin (incluse)",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.scheduleHelp": {
+    "en": "Optional, store days (Algiers time). Leave empty to show the slide as long as it is active.",
+    "fr": "Facultatif, jours du magasin (heure d'Alger). Laissez vide pour afficher la diapositive tant qu'elle est active.",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.validation.imageRequired": {
+    "en": "Upload this image",
+    "fr": "Téléversez cette image",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.validation.linkInvalid": {
+    "en": "Start with / for a page of this site, or with https://",
+    "fr": "Commencez par / pour une page du site, ou par https://",
+    "ar": ""
+  },
+  "admin.settings.storefront.hero.validation.endBeforeStart": {
+    "en": "The end date must be on or after the start date",
+    "fr": "La date de fin doit être égale ou postérieure à la date de début",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.title": {
+    "en": "Home page & sharing",
+    "fr": "Page d'accueil et partage",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.repairToolsFamily": {
+    "en": "Repair tools family",
+    "fr": "Famille « Outils de réparation »",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.repairToolsFamilyHelp": {
+    "en": "Its products fill the \"Repair tools\" row on the home page.",
+    "fr": "Ses produits remplissent la rangée « Outils de réparation » de la page d'accueil.",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.repairToolsFamilyMissing": {
+    "en": "The family chosen earlier is disabled or no longer exists — the row is hidden until you pick another.",
+    "fr": "La famille choisie précédemment est désactivée ou n'existe plus — la rangée est masquée jusqu'à un nouveau choix.",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.none": {
+    "en": "None",
+    "fr": "Aucune",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.metaDescription": {
+    "en": "Site description",
+    "fr": "Description du site",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.metaDescriptionHelp": {
+    "en": "Shown by search engines under the site name. {count}/{max} characters. Empty = the default description.",
+    "fr": "Affichée par les moteurs de recherche sous le nom du site. {count}/{max} caractères. Vide = description par défaut.",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.linkPreviewImage": {
+    "en": "Link-preview image",
+    "fr": "Image d'aperçu des liens",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.linkPreviewImageHelp": {
+    "en": "{width} × {height} px. Empty = the store logo.",
+    "fr": "{width} × {height} px. Vide = le logo du magasin.",
+    "ar": ""
+  },
+  "admin.settings.storefront.options.linkPreviewShareNote": {
+    "en": "Browsers and search engines use it right away. WhatsApp and Facebook shares keep showing the default image for now.",
+    "fr": "Les navigateurs et moteurs de recherche l'utilisent immédiatement. Les partages WhatsApp et Facebook affichent encore l'image par défaut pour l'instant.",
+    "ar": ""
+  },
+  "home.hero.label": {
+    "en": "Highlights",
+    "fr": "À la une",
+    "ar": ""
+  },
+  "home.hero.roleDescription": {
+    "en": "carousel",
+    "fr": "carrousel",
+    "ar": ""
+  },
+  "home.hero.slide": {
+    "en": "slide",
+    "fr": "diapositive",
+    "ar": ""
+  },
+  "home.hero.slideOf": {
+    "en": "{n} of {total}",
+    "fr": "{n} sur {total}",
+    "ar": ""
+  },
+  "home.hero.goToSlide": {
+    "en": "Go to slide {n}",
+    "fr": "Aller à la diapositive {n}",
+    "ar": ""
+  },
+  "home.hero.previous": {
+    "en": "Previous slide",
+    "fr": "Diapositive précédente",
+    "ar": ""
+  },
+  "home.hero.next": {
+    "en": "Next slide",
+    "fr": "Diapositive suivante",
+    "ar": ""
+  },
+  "footer.phone": {
+    "en": "Phone",
+    "fr": "Téléphone",
+    "ar": ""
+  },
+  "footer.repairPhone": {
+    "en": "Repairs",
+    "fr": "Réparations",
+    "ar": ""
+  },
+  "footer.salesPhone": {
+    "en": "Sales",
+    "fr": "Ventes",
+    "ar": ""
+  },
+  "footer.whatsapp": {
+    "en": "WhatsApp",
+    "fr": "WhatsApp",
+    "ar": ""
+  },
+  "footer.emailLabel": {
+    "en": "Email",
+    "fr": "E-mail",
+    "ar": ""
+  },
+  "footer.social.facebook": {
+    "en": "Facebook (opens in a new tab)",
+    "fr": "Facebook (s'ouvre dans un nouvel onglet)",
+    "ar": ""
+  },
+  "footer.social.instagram": {
+    "en": "Instagram (opens in a new tab)",
+    "fr": "Instagram (s'ouvre dans un nouvel onglet)",
+    "ar": ""
+  },
+  "footer.social.tiktok": {
+    "en": "TikTok (opens in a new tab)",
+    "fr": "TikTok (s'ouvre dans un nouvel onglet)",
+    "ar": ""
+  },
+  "home.rows.seeAll": {
+    "en": "See all",
+    "fr": "Voir tout",
+    "ar": ""
+  },
+  "home.rows.newArrivals": {
+    "en": "New arrivals",
+    "fr": "Nouveautés",
+    "ar": ""
+  },
+  "home.rows.repairTools": {
+    "en": "Repair tools",
+    "fr": "Outils de réparation",
+    "ar": ""
+  },
+  "home.rows.scrollPrevious": {
+    "en": "Scroll back",
+    "fr": "Défiler vers la gauche",
+    "ar": ""
+  },
+  "home.rows.scrollNext": {
+    "en": "Scroll forward",
+    "fr": "Défiler vers la droite",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.assetGuidance": {
+    "en": "Logos and icons: square, at least {min} px, trimmed of empty space, with about {padding}% padding inside. Transparent PNG or WebP — they are shown on a light tile in both themes.",
+    "fr": "Logos et icônes : carrés, au moins {min} px, sans marges vides, avec environ {padding} % de marge intérieure. PNG ou WebP transparent — ils s'affichent sur une tuile claire dans les deux thèmes.",
+    "ar": ""
+  },
+  "home.rows.featuredLabel": {
+    "en": "Featured",
+    "fr": "À la une",
+    "ar": ""
+  },
+  "home.rows.newLabel": {
+    "en": "New",
+    "fr": "Nouveau",
     "ar": ""
   }
 }

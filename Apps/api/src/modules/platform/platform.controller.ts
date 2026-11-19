@@ -2,8 +2,12 @@ import type { NextFunction, Request, Response } from 'express';
 import { sendSuccess } from '@common/http/response';
 import { BadRequestError } from '@common/errors';
 import type {
+  CreateHeroSlideCommand,
   FeeQuery,
   FeesExportQuery,
+  HeroSlideIdParams,
+  ReorderHeroSlidesCommand,
+  UpdateHeroSlideCommand,
   UpdateSettingsCommand,
   UploadImageCommand,
   UpsertFeesCommand,
@@ -102,6 +106,58 @@ export class PlatformController {
         req.validated.body as UploadImageCommand,
       );
       sendSuccess(res, result, 201);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // --- S38 hero slides (thin: validation is in the routes, rules in the service) ---
+
+  listPublicHeroSlides = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.service.listPublicHeroSlides(), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  listAdminHeroSlides = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.service.listAdminHeroSlides(), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createHeroSlide = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.service.createHeroSlide(req.validated.body as CreateHeroSlideCommand), 201);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateHeroSlide = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as HeroSlideIdParams;
+      sendSuccess(res, await this.service.updateHeroSlide(id, req.validated.body as UpdateHeroSlideCommand), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteHeroSlide = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.validated.params as HeroSlideIdParams;
+      sendSuccess(res, await this.service.deleteHeroSlide(id), 200);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  reorderHeroSlides = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.service.reorderHeroSlides(req.validated.body as ReorderHeroSlidesCommand), 200);
     } catch (error) {
       next(error);
     }

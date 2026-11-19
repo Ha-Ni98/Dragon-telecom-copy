@@ -20,6 +20,7 @@ import {
   useCreateCatalogModel,
 } from "@/hooks/useCatalogTaxonomy";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface QuickAddProductDialogProps {
   open: boolean;
@@ -116,9 +117,7 @@ export function QuickAddProductDialog({
               }
               disabled={isSaving}
             />
-            {errors.familyId && (
-              <p className="text-sm text-destructive">{errors.familyId.message}</p>
-            )}
+            {errors.familyId && <FieldError>{errors.familyId.message}</FieldError>}
           </div>
 
           <div className="space-y-1">
@@ -149,7 +148,7 @@ export function QuickAddProductDialog({
               }
               disabled={isSaving}
             />
-            {errors.brandId && <p className="text-sm text-destructive">{errors.brandId.message}</p>}
+            {errors.brandId && <FieldError>{errors.brandId.message}</FieldError>}
           </div>
 
           <div className="space-y-1">
@@ -188,7 +187,7 @@ export function QuickAddProductDialog({
               {...register("name", { onChange: () => setNameManuallyEdited(true) })}
               disabled={isSaving}
             />
-            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+            {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

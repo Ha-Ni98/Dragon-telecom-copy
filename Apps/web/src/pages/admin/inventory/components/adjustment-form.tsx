@@ -21,6 +21,7 @@ import { useAdjustmentProducts } from "@/hooks/use-adjustment-products";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface AdjustmentFormProps {
   onSubmit: (values: AdjustmentFormValues) => void;
@@ -144,12 +145,8 @@ export function AdjustmentForm({ onSubmit, isSubmitting = false }: AdjustmentFor
             currentPrices={currentPricesByProductId[watchedLines?.[index]?.productId ?? ""]}
           />
         ))}
-        {errors.lines?.root && (
-          <p className="text-sm text-destructive">{errors.lines.root.message}</p>
-        )}
-        {errors.lines?.message && (
-          <p className="text-sm text-destructive">{errors.lines.message}</p>
-        )}
+        {errors.lines?.root && <FieldError>{errors.lines.root.message}</FieldError>}
+        {errors.lines?.message && <FieldError>{errors.lines.message}</FieldError>}
       </div>
 
       <div className="flex items-center justify-between">

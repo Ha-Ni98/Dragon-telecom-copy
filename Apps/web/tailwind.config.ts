@@ -55,6 +55,18 @@ export default {
           DEFAULT: "oklch(var(--warning) / <alpha-value>)",
           foreground: "oklch(var(--warning-foreground) / <alpha-value>)",
         },
+        // S37 — brand accent. Distinct from `accent` (shadcn's hover tint, cyan here). Gives
+        // bg-/text-/border-/ring-highlight (+ /<alpha>) utilities; never use raw hex for it.
+        highlight: {
+          DEFAULT: "oklch(var(--highlight) / <alpha-value>)",
+          foreground: "oklch(var(--highlight-foreground) / <alpha-value>)",
+        },
+        // S39 — the light tile behind every transparent asset, in both themes (AssetTile).
+        // `foreground` is dark in both themes: use it for anything drawn ON the tile.
+        "asset-tile": {
+          DEFAULT: "oklch(var(--asset-tile) / <alpha-value>)",
+          foreground: "oklch(var(--asset-tile-foreground) / <alpha-value>)",
+        },
         border: "oklch(var(--border) / <alpha-value>)",
         input: "oklch(var(--input) / <alpha-value>)",
         ring: "oklch(var(--ring) / <alpha-value>)",

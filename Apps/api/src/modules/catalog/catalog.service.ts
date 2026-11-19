@@ -8,6 +8,7 @@ import {
   BARCODE_PREFIX_CHARS,
   BARCODE_PREFIX_PAD_CHAR,
   CATALOG_ERROR,
+  NEW_ARRIVALS_PER_FAMILY,
   ImagePurpose,
   MovementType,
   ProductEnabledFilter,
@@ -36,6 +37,7 @@ import {
   type ModelsQuery,
   type PaginatedResult,
   type ProductDetailDto,
+  type NewArrivalsQuery,
   type ProductListQuery,
   type ProductStatsDto,
   type ProductWithPricingDto,
@@ -509,6 +511,33 @@ export class CatalogProductService implements ICatalogProductService {
     });
   }
 
+  // S39 — home "New arrivals": newest enabled+published products, at most NEW_ARRIVALS_PER_FAMILY
+  // per family, ranked in SQL so nothing unbounded reaches memory: the window query returns
+  // ≤ limit ids, then one findMany hydrates them and the shared viewer-pricing step prices them
+  // exactly as the catalog list does (price resolution stays server-side). Out-of-stock products
+  // are kept — the card shows the badge, as the catalog does.
+  async listNewArrivals(query: NewArrivalsQuery, viewer: Viewer): Promise<ProductWithPricingDto[]> {
+    const ranked = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT r."id" FROM (
+        SELECT p."id", p."createdAt",
+               ROW_NUMBER() OVER (PARTITION BY p."familyId" ORDER BY p."createdAt" DESC, p."id") AS rn
+        FROM "Product" p
+        WHERE p."isEnabled" = true AND p."isPublished" = true
+      ) r
+      WHERE r.rn <= ${NEW_ARRIVALS_PER_FAMILY}
+      ORDER BY r."createdAt" DESC, r."id"
+      LIMIT ${query.limit}`;
+    if (ranked.length === 0) return [];
+
+    const order = new Map(ranked.map((row, index) => [row.id, index]));
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: ranked.map((row) => row.id) } },
+      include: PRODUCT_INCLUDE,
+    });
+    products.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+    return this.toViewerPricedProducts(products, viewer);
+  }
+
   async getProduct(id: string, viewer: Viewer): Promise<ProductDetailDto> {
     const product = await this.prisma.product.findUnique({ where: { id }, include: PRODUCT_INCLUDE });
     if (!product || !product.isEnabled || !product.isPublished) throw new NotFoundError('Product');
@@ -952,6 +981,15 @@ export class CatalogProductService implements ICatalogProductService {
       include: PRODUCT_INCLUDE,
     });
 
+    return this.toViewerPricedProducts(products, viewer);
+  }
+
+  // S39 — the one "rows → viewer-priced storefront DTOs" step, shared by getCartProducts and
+  // listNewArrivals (listProducts keeps its own inline copy because it also builds pagination).
+  private async toViewerPricedProducts(
+    products: Prisma.ProductGetPayload<{ include: typeof PRODUCT_INCLUDE }>[],
+    viewer: Viewer,
+  ): Promise<ProductWithPricingDto[]> {
     const ctx = await this.resolveViewerContext(viewer);
     const ids = products.map((product) => product.id);
     const [priceMap, cartSet] = await Promise.all([

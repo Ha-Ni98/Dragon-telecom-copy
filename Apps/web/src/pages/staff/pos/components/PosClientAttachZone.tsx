@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslation } from "@/hooks/useTranslation";
 import { formatDZD } from "@/lib/utils";
 import type { PosClientDto } from "@dragon-telecom/contract";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface PosClientAttachZoneProps {
   attachedClient?: PosClientDto;
@@ -90,7 +91,7 @@ export function PosClientAttachZone({
         </div>
       )}
 
-      {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+      {error && <FieldError>{error}</FieldError>}
     </div>
   );
 }

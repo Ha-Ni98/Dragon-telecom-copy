@@ -31,6 +31,7 @@ import {
   type OrderStatusInput,
 } from "@/pages/staff/orders/order-status.schema";
 import { ORDER_STATUS_LABEL_KEY } from "@/lib/order-status-labels";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface OrderStatusDialogProps {
   open: boolean;
@@ -132,7 +133,7 @@ export function OrderStatusDialog({
                   </Label>
                   <Input id="delivery-company" {...register("deliveryCompany")} />
                   {errors.deliveryCompany && (
-                    <p className="text-sm text-destructive">{errors.deliveryCompany.message}</p>
+                    <FieldError>{errors.deliveryCompany.message}</FieldError>
                   )}
                 </div>
                 <div className="space-y-1">
@@ -141,7 +142,7 @@ export function OrderStatusDialog({
                   </Label>
                   <Input id="tracking-number" {...register("trackingNumber")} />
                   {errors.trackingNumber && (
-                    <p className="text-sm text-destructive">{errors.trackingNumber.message}</p>
+                    <FieldError>{errors.trackingNumber.message}</FieldError>
                   )}
                 </div>
               </>
@@ -169,9 +170,7 @@ export function OrderStatusDialog({
                       {...register(`lines.${index}.unitPrice`)}
                     />
                     {errors.lines?.[index]?.unitPrice && (
-                      <p className="text-sm text-destructive">
-                        {errors.lines[index]?.unitPrice?.message}
-                      </p>
+                      <FieldError>{errors.lines[index]?.unitPrice?.message}</FieldError>
                     )}
                   </div>
                 ))}
@@ -184,9 +183,7 @@ export function OrderStatusDialog({
                   {t("staff.orders.statusDialog.paidAmountLabel")}
                 </Label>
                 <Input id="paid-amount" type="number" step="0.01" {...register("paidAmount")} />
-                {errors.paidAmount && (
-                  <p className="text-sm text-destructive">{errors.paidAmount.message}</p>
-                )}
+                {errors.paidAmount && <FieldError>{errors.paidAmount.message}</FieldError>}
               </div>
             )}
 

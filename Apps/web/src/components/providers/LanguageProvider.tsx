@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { dirForLanguage, type Language } from "@/lib/i18n";
+import { DEFAULT_LANGUAGE, dirForLanguage, type Language } from "@/lib/i18n";
 
 const Ctx = createContext<{
   language: Language;
@@ -8,7 +8,7 @@ const Ctx = createContext<{
 } | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en");
+  const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
   const dir = dirForLanguage(language);
 
   useEffect(() => {
@@ -23,6 +23,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof document !== "undefined") document.documentElement.dir = dir;
   }, [dir]);
+
+  // S37 — screen readers and hyphenation follow <html lang>; index.html ships "fr" (the default).
+  useEffect(() => {
+    if (typeof document !== "undefined") document.documentElement.lang = language;
+  }, [language]);
 
   const setLanguage = (l: Language) => {
     setLanguageState(l);

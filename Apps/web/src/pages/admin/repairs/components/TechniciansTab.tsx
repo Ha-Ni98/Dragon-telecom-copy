@@ -32,6 +32,7 @@ import {
   type AddTechnicianFormValues,
 } from "@/pages/admin/repairs/add-technician.schema";
 import { RepairStatus } from "@dragon-telecom/contract";
+import { FieldError } from "@/components/shared/FieldError";
 
 interface TechniciansTabProps {
   scope?: "staff" | "admin";
@@ -184,7 +185,7 @@ export function TechniciansTab({ scope = "admin" }: TechniciansTabProps) {
               <div className="space-y-1">
                 <Label htmlFor="technician-name">{t("admin.repairs.technicians.nameLabel")}</Label>
                 <Input id="technician-name" {...register("name")} />
-                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                {errors.name && <FieldError>{errors.name.message}</FieldError>}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="technician-phone">

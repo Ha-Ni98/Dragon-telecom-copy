@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import sharp from 'sharp';
 import {
+  IMAGE_HERO_DESKTOP_MAX_LONG_EDGE,
   IMAGE_MAX_INPUT_PIXELS,
   IMAGE_MAX_LONG_EDGE,
   IMAGE_MAX_UPLOAD_BYTES,
@@ -27,13 +28,24 @@ const FOLDER: Record<ImagePurpose, string> = {
   [ImagePurpose.FAMILY_ICON]: 'families',
   [ImagePurpose.STORE_LOGO]: 'settings',
   [ImagePurpose.PRINT_LOGO]: 'settings',
+  // S38 — hero banners share one folder: the platform service validates a key by its
+  // `hero/<sha256>.webp` shape (platform.service.ts HERO_KEY_PATTERN).
+  [ImagePurpose.HERO_DESKTOP]: 'hero',
+  [ImagePurpose.HERO_MOBILE]: 'hero',
+  [ImagePurpose.LINK_PREVIEW]: 'settings',
+};
+
+// S38 — only the desktop hero banner exceeds the shared 1600px cap (a 1920px screen would
+// otherwise upscale it). Every other purpose uses IMAGE_MAX_LONG_EDGE.
+const MAX_LONG_EDGE: Partial<Record<ImagePurpose, number>> = {
+  [ImagePurpose.HERO_DESKTOP]: IMAGE_HERO_DESKTOP_MAX_LONG_EDGE,
 };
 
 type ProcessedVariant = { data: Buffer; width: number; height: number; size: number };
 
 // S26.1 — the ONE image pipeline. Every image upload in the app (product photos, brand logos,
-// family icons, the store logo, the print logo) goes through this class; no module
-// re-implements sniffing, resizing or key derivation.
+// family icons, the store logo, the print logo, and — S38 — hero banners and the link-preview
+// image) goes through this class; no module re-implements sniffing, resizing or key derivation.
 export class ImagePipelineService {
   constructor(private storage: StorageService) {}
 
@@ -83,9 +95,10 @@ export class ImagePipelineService {
           .toBuffer({ resolveWithObject: true });
         main = { data, width: info.width, height: info.height, size: info.size };
       } else {
+        const longEdge = MAX_LONG_EDGE[purpose] ?? IMAGE_MAX_LONG_EDGE;
         const { data, info } = await base
           .clone()
-          .resize({ width: IMAGE_MAX_LONG_EDGE, height: IMAGE_MAX_LONG_EDGE, fit: 'inside', withoutEnlargement: true })
+          .resize({ width: longEdge, height: longEdge, fit: 'inside', withoutEnlargement: true })
           .webp({ quality: IMAGE_WEBP_QUALITY })
           .toBuffer({ resolveWithObject: true });
         main = { data, width: info.width, height: info.height, size: info.size };

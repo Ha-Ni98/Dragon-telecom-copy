@@ -14,13 +14,17 @@ import {
 import { Save } from "lucide-react";
 import {
   storeSettingsSchema,
+  toStorePatch,
   type StoreSettingsFormValues,
+  type StoreSettingsPatch,
 } from "@/pages/admin/settings/components/store-settings.schema";
+import type { SettingsDto } from "@dragon-telecom/contract";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface StoreSettingsFormProps {
-  values?: StoreSettingsFormValues;
-  onSave: (values: StoreSettingsFormValues) => void;
+  /** The stored `store` section — S38: absent contact fields are seeded as "" below. */
+  values?: SettingsDto["store"];
+  onSave: (patch: StoreSettingsPatch) => void;
   isSaving?: boolean;
 }
 
@@ -32,19 +36,24 @@ export function StoreSettingsForm({ values, onSave, isSaving = false }: StoreSet
   const { t } = useTranslation();
   const form = useForm<StoreSettingsFormValues>({
     resolver: zodResolver(storeSettingsSchema(t)),
-    values: values ?? {
-      name: "",
-      activityLine: "",
-      address: "",
-      phone: "",
-      repairPhone: "",
-      salesPhone: "",
+    values: {
+      name: values?.name ?? "",
+      activityLine: values?.activityLine ?? "",
+      address: values?.address ?? "",
+      phone: values?.phone ?? "",
+      repairPhone: values?.repairPhone ?? "",
+      salesPhone: values?.salesPhone ?? "",
+      whatsappPhone: values?.whatsappPhone ?? "",
+      email: values?.email ?? "",
+      facebookUrl: values?.facebookUrl ?? "",
+      instagramUrl: values?.instagramUrl ?? "",
+      tiktokUrl: values?.tiktokUrl ?? "",
     },
   });
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
+      <form onSubmit={form.handleSubmit((v) => onSave(toStorePatch(v)))} className="space-y-4">
         <FormField
           control={form.control}
           name="name"
@@ -125,6 +134,69 @@ export function StoreSettingsForm({ values, onSave, isSaving = false }: StoreSet
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="whatsappPhone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("admin.settings.general.whatsappPhone")}</FormLabel>
+              <FormControl>
+                <Input {...field} type="tel" inputMode="tel" disabled={isSaving} />
+              </FormControl>
+              <FormDescription>{t("admin.settings.general.whatsappPhoneHelp")}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("admin.settings.general.storeEmail")}</FormLabel>
+              <FormControl>
+                <Input {...field} type="email" inputMode="email" disabled={isSaving} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="space-y-4 pt-2">
+          <div>
+            <h3 className="text-sm font-semibold">{t("admin.settings.general.socialLinks")}</h3>
+            <p className="text-sm text-muted-foreground">
+              {t("admin.settings.general.socialLinksHelp")}
+            </p>
+          </div>
+          {(
+            [
+              ["facebookUrl", "admin.settings.general.facebookUrl"],
+              ["instagramUrl", "admin.settings.general.instagramUrl"],
+              ["tiktokUrl", "admin.settings.general.tiktokUrl"],
+            ] as const
+          ).map(([name, labelKey]) => (
+            <FormField
+              key={name}
+              control={form.control}
+              name={name}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t(labelKey)}</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="url"
+                      inputMode="url"
+                      placeholder="https://"
+                      disabled={isSaving}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ))}
+        </div>
         <Button type="submit" disabled={isSaving}>
           <Save className="mr-2 h-4 w-4" />
           {isSaving ? t("common.saving") : t("admin.settings.general.save")}

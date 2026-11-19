@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { AdminProductDto } from "@dragon-telecom/contract";
 import type { ProductDetailsFormValues } from "@/pages/admin/products/product-details.schema";
+import { FieldError } from "@/components/shared/FieldError";
 
 // `valueAsNumber: true` maps an *empty* input to NaN, not undefined — and `z.number()` rejects
 // NaN, so the whole form failed validation and `handleSubmit` never fired: clearing the reorder
@@ -51,7 +52,7 @@ export function ProductDetailsSection({
           {isEditMode ? (
             <>
               <Input id="details-name" {...register("name")} />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              {errors.name && <FieldError>{errors.name.message}</FieldError>}
             </>
           ) : (
             <p className="text-sm">{product.name}</p>
@@ -77,9 +78,7 @@ export function ProductDetailsSection({
               <p className="text-xs text-muted-foreground">
                 {t("admin.productsAdd.barcodeHelper")}
               </p>
-              {errors.barcode && (
-                <p className="text-sm text-destructive">{errors.barcode.message}</p>
-              )}
+              {errors.barcode && <FieldError>{errors.barcode.message}</FieldError>}
             </>
           ) : (
             <p className="text-sm">{product.barcode ?? "—"}</p>

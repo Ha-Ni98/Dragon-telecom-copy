@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";
+import { AlertCircle } from "lucide-react";
 import { Slot } from "@radix-ui/react-slot";
 import {
   Controller,
@@ -150,10 +151,16 @@ const FormMessage = React.forwardRef<
     <p
       ref={ref}
       id={formMessageId}
-      className={cn("text-[0.8rem] font-medium text-destructive", className)}
+      className={cn(
+        "text-[0.8rem] font-medium text-destructive",
+        error && "flex items-start gap-1.5",
+        className,
+      )}
       {...props}
     >
-      {body}
+      {/* S37 — error = icon + text (FieldError's rule; kept inline so ui/ doesn't import shared/). */}
+      {error && <AlertCircle className="mt-[0.15em] h-[1em] w-[1em] shrink-0" aria-hidden="true" />}
+      {error ? <span className="min-w-0">{body}</span> : body}
     </p>
   );
 });
