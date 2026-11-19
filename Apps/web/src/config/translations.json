@@ -5100,7 +5100,7 @@
     "ar": ""
   },
   "brands.title": {
-    "en": "Our Brand",
+    "en": "Our Brands",
     "fr": "Nos Marques",
     "ar": ""
   },
@@ -16642,6 +16642,36 @@
   "footer.social.tiktok": {
     "en": "TikTok (opens in a new tab)",
     "fr": "TikTok (s'ouvre dans un nouvel onglet)",
+    "ar": ""
+  },
+  "home.rows.seeAll": {
+    "en": "See all",
+    "fr": "Voir tout",
+    "ar": ""
+  },
+  "home.rows.newArrivals": {
+    "en": "New arrivals",
+    "fr": "Nouveautés",
+    "ar": ""
+  },
+  "home.rows.repairTools": {
+    "en": "Repair tools",
+    "fr": "Outils de réparation",
+    "ar": ""
+  },
+  "home.rows.scrollPrevious": {
+    "en": "Scroll back",
+    "fr": "Défiler vers la gauche",
+    "ar": ""
+  },
+  "home.rows.scrollNext": {
+    "en": "Scroll forward",
+    "fr": "Défiler vers la droite",
+    "ar": ""
+  },
+  "admin.settings.hierarchy.assetGuidance": {
+    "en": "Logos and icons: square, at least {min} px, trimmed of empty space, with about {padding}% padding inside. Transparent PNG or WebP — they are shown on a light tile in both themes.",
+    "fr": "Logos et icônes : carrés, au moins {min} px, sans marges vides, avec environ {padding} % de marge intérieure. PNG ou WebP transparent — ils s'affichent sur une tuile claire dans les deux thèmes.",
     "ar": ""
   }
 }

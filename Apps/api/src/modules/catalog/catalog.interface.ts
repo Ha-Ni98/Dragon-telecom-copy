@@ -20,6 +20,7 @@ import type {
   ModelsQuery,
   PaginatedResult,
   ProductDetailDto,
+  NewArrivalsQuery,
   ProductListQuery,
   ProductStatsDto,
   ProductWithPricingDto,
@@ -41,6 +42,8 @@ export type Viewer = JWTPayload | undefined;
 
 export interface ICatalogProductService {
   listProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<ProductWithPricingDto>>;
+  // S39 — the home "New arrivals" row: newest first, at most NEW_ARRIVALS_PER_FAMILY per family.
+  listNewArrivals(query: NewArrivalsQuery, viewer: Viewer): Promise<ProductWithPricingDto[]>;
   getProduct(id: string, viewer: Viewer): Promise<ProductDetailDto>;
   listStaffProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<StaffProductDto>>;
   listAdminProducts(query: ProductListQuery, viewer: Viewer): Promise<PaginatedResult<AdminProductDto>>;

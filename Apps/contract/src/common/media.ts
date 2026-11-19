@@ -21,6 +21,10 @@ export const HERO_IMAGE_GUIDANCE = {
 } as const;
 /** S38 — Open Graph's recommended share-image size. */
 export const LINK_PREVIEW_IMAGE_GUIDANCE = { width: 1200, height: 630 } as const;
+/** S39 — upload guidance for brand logos and family icons (shown in Settings → Hierarchy). They
+ *  render on a light tile in both themes, so a transparent PNG/WebP is ideal; the pipeline keeps
+ *  alpha (verified S39). */
+export const LOGO_IMAGE_GUIDANCE = { minSize: 512, paddingPercent: 10 } as const;
 /** WebP quality — visually lossless for product photography at IMAGE_MAX_LONG_EDGE. */
 export const IMAGE_WEBP_QUALITY = 85;
 /**

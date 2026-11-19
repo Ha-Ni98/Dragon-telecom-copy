@@ -236,9 +236,11 @@ export default function Products() {
               isError={productsIsError}
               onRetry={() => refetchProducts()}
               onClearFilters={handleClearFilters}
+              // S39 — two cards per row on a phone: the card is now sized for the home rows'
+              // 2.3-per-row strip, so one-per-row would be a full-width square per product.
               columns={{
-                mobile: 1,
-                tablet: 2,
+                mobile: 2,
+                tablet: 3,
                 desktop: 4,
               }}
               showSkeletons={true}

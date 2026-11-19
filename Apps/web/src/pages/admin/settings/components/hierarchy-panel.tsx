@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,9 +13,11 @@ import {
 import { EnabledBadge } from "@/components/shared/StatusBadge";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { ImageUploadField } from "@/components/shared/image-upload-field";
+import { AssetTile } from "@/components/shared/AssetTile";
 import { Plus, Layers, Image as ImageIcon } from "lucide-react";
 import {
   ImagePurpose,
+  LOGO_IMAGE_GUIDANCE,
   type FamilyDto,
   type BrandDto,
   type DeviceModelDto,
@@ -72,6 +74,10 @@ export function HierarchyPanel({
   onSetBrandLogo,
 }: HierarchyPanelProps) {
   const { t } = useTranslation();
+  const assetGuidance = t("admin.settings.hierarchy.assetGuidance", {
+    min: LOGO_IMAGE_GUIDANCE.minSize,
+    padding: LOGO_IMAGE_GUIDANCE.paddingPercent,
+  });
   const [newFamilyName, setNewFamilyName] = useState("");
   const [newBrandName, setNewBrandName] = useState("");
   const [newModelName, setNewModelName] = useState("");
@@ -98,6 +104,9 @@ export function HierarchyPanel({
               <Layers className="h-4 w-4" />
               {t("admin.settings.hierarchy.tabs.families")}
             </CardTitle>
+            {/* S39 — upload guidance: those uploads are compact icon buttons with no room for a
+                hint, so it lives under the panel title. */}
+            <CardDescription>{assetGuidance}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex gap-2">
@@ -124,13 +133,13 @@ export function HierarchyPanel({
                   className="flex items-center justify-between rounded-md border p-2 text-sm"
                 >
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+                    <AssetTile className="h-8 w-8 shrink-0 rounded">
                       {family.iconUrl ? (
                         <img src={family.iconUrl} alt="" className="h-full w-full object-contain" />
                       ) : (
-                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        <ImageIcon className="h-4 w-4" />
                       )}
-                    </div>
+                    </AssetTile>
                     <span className="truncate">{family.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -164,6 +173,7 @@ export function HierarchyPanel({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t("admin.settings.hierarchy.tabs.brands")}</CardTitle>
+            <CardDescription>{assetGuidance}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex gap-2">
@@ -190,13 +200,13 @@ export function HierarchyPanel({
                   className="flex items-center justify-between rounded-md border p-2 text-sm"
                 >
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+                    <AssetTile className="h-8 w-8 shrink-0 rounded">
                       {brand.logoUrl ? (
                         <img src={brand.logoUrl} alt="" className="h-full w-full object-contain" />
                       ) : (
-                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        <ImageIcon className="h-4 w-4" />
                       )}
-                    </div>
+                    </AssetTile>
                     <span className="truncate">{brand.name}</span>
                   </div>
                   <div className="flex items-center gap-2">

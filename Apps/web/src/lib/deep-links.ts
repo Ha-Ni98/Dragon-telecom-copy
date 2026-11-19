@@ -1,3 +1,5 @@
+import { ProductSort } from "@dragon-telecom/contract";
+
 // S36 — links that open one sale or one order from elsewhere (the "Products bought" documents).
 // The sales page opens that sale's detail drawer; the orders page opens on All, searched to that
 // reference (there is no single-order endpoint — the list's reference search finds it).
@@ -18,3 +20,11 @@ export const CATALOG_FAMILY_PARAM = "familyId";
 
 export const catalogFamilyLink = (familyId: string): string =>
   `/products?${CATALOG_FAMILY_PARAM}=${encodeURIComponent(familyId)}`;
+
+// S39 — catalog shortcuts from the home rows and the brand grid.
+export const CATALOG_BRAND_PARAM = "brandId";
+
+export const catalogBrandLink = (brandId: string): string =>
+  `/products?${CATALOG_BRAND_PARAM}=${encodeURIComponent(brandId)}`;
+
+export const catalogNewestLink = (): string => `/products?sort=${ProductSort.NEWEST}`;

@@ -82,22 +82,25 @@ export function useCartCount(): number {
 // Toggling the cart doesn't just invalidate ['clients','cart'] — every ProductCard reads its
 // heart state off `inCart` on the *catalog* product it was handed (list or detail query), so
 // PUB-01/02's "patches inCart in product caches" requires patching those too, or the heart won't
-// flip until an unrelated refetch happens to occur. Handles both cached shapes under
-// qk.catalog.products.all(): a PaginatedResult (list) or a bare DTO (detail).
+// flip until an unrelated refetch happens to occur. Handles the three cached shapes under
+// qk.catalog.products.all(): a PaginatedResult (list), a plain array (S39 new arrivals) or a bare
+// DTO (detail).
 function patchInCartInProductCaches(queryClient: QueryClient, productId: string, inCart: boolean) {
-  queryClient.setQueriesData<PaginatedResult<ProductWithPricingDto> | ProductDetailDto | undefined>(
-    { queryKey: qk.catalog.products.all() },
-    (old) => {
-      if (!old) return old;
-      if ("items" in old) {
-        return {
-          ...old,
-          items: old.items.map((p) => (p.id === productId ? { ...p, inCart } : p)),
-        };
-      }
-      return old.id === productId ? { ...old, inCart } : old;
-    },
-  );
+  queryClient.setQueriesData<
+    PaginatedResult<ProductWithPricingDto> | ProductWithPricingDto[] | ProductDetailDto | undefined
+  >({ queryKey: qk.catalog.products.all() }, (old) => {
+    if (!old) return old;
+    if (Array.isArray(old)) {
+      return old.map((p) => (p.id === productId ? { ...p, inCart } : p));
+    }
+    if ("items" in old) {
+      return {
+        ...old,
+        items: old.items.map((p) => (p.id === productId ? { ...p, inCart } : p)),
+      };
+    }
+    return old.id === productId ? { ...old, inCart } : old;
+  });
 }
 
 export function useAddToCart() {

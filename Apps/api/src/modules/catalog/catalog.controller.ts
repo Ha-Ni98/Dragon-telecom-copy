@@ -16,6 +16,7 @@ import type {
   GenerateBarcodeCommand,
   ModelIdParams,
   ModelsQuery,
+  NewArrivalsQuery,
   ProductIdParams,
   ProductImageParams,
   ProductListQuery,
@@ -72,6 +73,15 @@ export class CatalogController {
   };
 
   // --- Public / viewer-resolved products ---
+
+  // S39 — thin; the per-family cap and the viewer pricing live in the service.
+  listNewArrivals = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      sendSuccess(res, await this.products.listNewArrivals(req.validated.query as NewArrivalsQuery, req.user));
+    } catch (error) {
+      next(error);
+    }
+  };
 
   listProducts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

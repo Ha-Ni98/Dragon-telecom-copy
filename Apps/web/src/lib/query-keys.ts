@@ -45,6 +45,9 @@ export const qk = {
       all: () => ["catalog", "products"] as const,
       list: (query?: unknown) => ["catalog", "products", "list", query] as const,
       detail: (id: string) => ["catalog", "products", "detail", id] as const,
+      // S39 — the home "New arrivals" row. Under products.all() so the cart's inCart patch and
+      // every products-wide invalidation reach it (useClientPortal.ts handles the array shape).
+      newArrivals: (limit: number) => ["catalog", "products", "new-arrivals", limit] as const,
     },
     staffProducts: {
       list: (query?: unknown) => ["catalog", "staff-products", "list", query] as const,

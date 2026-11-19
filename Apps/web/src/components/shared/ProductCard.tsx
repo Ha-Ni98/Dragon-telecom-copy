@@ -1,14 +1,17 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Heart, Eye } from "lucide-react";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { Heart, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AssetTile } from "@/components/shared/AssetTile";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useSession } from "@/hooks/useSession";
+import { useLongPress } from "@/hooks/use-long-press";
 import { useAddToCart, useRemoveFromCart } from "@/hooks/useClientPortal";
 import { UserType, type ProductWithPricingDto } from "@dragon-telecom/contract";
 import { formatPrice } from "@/lib/price-format";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 /**
@@ -25,6 +28,19 @@ interface ProductCardProps {
  * Product card — heart toggles the server favorites/cart (clients only, PUB-01/02 D2); ordering
  * itself happens on the product detail page's Order Now flow, so this card has no separate
  * "add to cart" action.
+ *
+ * S39 rebuild, sized for a 2.3-per-row strip on a phone:
+ * - The WHOLE card is the link (stretched link on the name); the heart and the guest "sign in"
+ *   link sit above it with z-10. No "View details" button, description or family line — on a
+ *   ~150px card only the image, brand, name and price fit, and the price is meant to dominate.
+ * - The name renders exactly as stored — no CSS text transform (it cannot recover "normal"
+ *   capitalisation without breaking "iPhone"/"LG"). Two-line clamp; the full name is the native
+ *   tooltip on hover and expands in place on a touch long-press (the click that follows is
+ *   swallowed, so it does not navigate).
+ * - The image box is the light AssetTile in both themes, with object-contain + padding, so
+ *   transparent or light-background photos look the same in dark mode and a part is never cropped.
+ * - The price is text-foreground, never the brand highlight: dominance comes from size and
+ *   weight (the accent is for markers, not text).
  */
 // Default shallow compare on props: react-query returns a stable `product` reference when nothing
 // changed, and hands a *new* object when it did (including the inCart patch in useClientPortal.ts).
@@ -42,7 +58,8 @@ export const ProductCard = React.memo(function ProductCard({
   const removeFromCartMutation = useRemoveFromCart();
   const isTogglingCart = addToCartMutation.isPending || removeFromCartMutation.isPending;
 
-  const navigate = useNavigate();
+  const [nameExpanded, setNameExpanded] = useState(false);
+  const longPress = useLongPress(() => setNameExpanded(true));
 
   // Price resolution mirrors PUB-02/PUB-03: currentPrice (tier) wins, then guestPrice, else
   // hidden. priceHidden is server-resolved per viewer — this only reads it, never overrides it.
@@ -50,14 +67,6 @@ export const ProductCard = React.memo(function ProductCard({
   const shouldShowPrice = !product.priceHidden && resolvedPrice !== undefined;
 
   const primaryImage = product.images.find((img) => img.isPrimary) ?? product.images[0];
-
-  /**
-   * Handle viewing product details
-   */
-  const handleViewDetails = () => {
-    // PUB-03: routes "by id — never by name" (D1).
-    navigate(`/products/${product.id}`);
-  };
 
   /**
    * Handle wishlist/cart toggle — global mutationCache already toasts on failure
@@ -80,110 +89,91 @@ export const ProductCard = React.memo(function ProductCard({
 
   return (
     <Card
-      className={`group product-card border-0 shadow-card hover:ring-2 hover:ring-highlight focus-within:ring-2 focus-within:ring-highlight transition-all duration-300 ${className}`}
+      className={cn(
+        "group relative flex h-full flex-col overflow-hidden transition-shadow hover:ring-2 hover:ring-highlight focus-within:ring-2 focus-within:ring-highlight",
+        className,
+      )}
     >
-      <CardContent className="p-0">
-        <div className="relative">
-          {/* Product Image */}
-          <div
-            className="aspect-square bg-gradient-to-br from-primary/5 to-accent/5 rounded-t-lg flex items-center justify-center overflow-hidden cursor-pointer"
-            onClick={handleViewDetails}
-          >
-            {primaryImage ? (
-              <img
-                // S26.1 — thumbnailUrl is the 400px grid derivative; falls back to the full-size
-                // url for rows written before S26.1, which have no derivative.
-                src={primaryImage.thumbnailUrl ?? primaryImage.url}
-                alt={primaryImage.alt ?? product.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                <span className="text-4xl">📱</span>
-              </div>
-            )}
-          </div>
+      {/* Image — the light tile, both themes */}
+      <AssetTile className="relative aspect-square rounded-none border-0 border-b">
+        {primaryImage ? (
+          <img
+            // S26.1 — thumbnailUrl is the 400px grid derivative; falls back to the full-size
+            // url for rows written before S26.1, which have no derivative.
+            src={primaryImage.thumbnailUrl ?? primaryImage.url}
+            alt={primaryImage.alt ?? product.name}
+            className="h-full w-full object-contain p-3 transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <Package className="h-10 w-10" aria-hidden="true" />
+        )}
 
-          {/* Badges */}
-          <div className="absolute top-3 left-3 flex gap-2">
-            {!product.inStock && (
-              <Badge variant="highlightOutline" className="text-xs">
-                {t("products.outStock")}
-              </Badge>
-            )}
-            {product.inCart && (
-              <Badge variant="highlight" className="text-xs">
-                {t("cart.inCart")}
-              </Badge>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="absolute top-3 right-3 flex gap-2">
-            {isClient && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="bg-white/80 hover:bg-white/20 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={handleWishlistToggle}
-                disabled={isTogglingCart}
-                aria-label={t(
-                  product.inCart ? "wishlist.removeFromWishlist" : "wishlist.addToWishlist",
-                )}
-              >
-                <Heart
-                  className={`h-4 w-4 text-black-500   ${product.inCart ? "fill-red-500 text-red-500" : ""}`}
-                />
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Product Info */}
-        <div className="p-4 space-y-3">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">{product.brand.name}</p>
-            </div>
-            <h3 className="font-semibold text-lg leading-tight line-clamp-2 mb-2">
-              {product.name}
-            </h3>
-            {product.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                {product.description}
-              </p>
-            )}
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{product.family.name}</span>
-              {product.model && <span>{product.model.name}</span>}
-            </div>
-          </div>
-
-          {/* Price */}
-          {shouldShowPrice && resolvedPrice !== undefined ? (
-            <div className="text-lg font-bold text-primary">{formatPrice(resolvedPrice)}</div>
-          ) : (
-            <div className="text-sm text-muted-foreground text-center py-2">
-              <span
-                className="text-primary font-medium cursor-pointer hover:underline"
-                onClick={() => navigate("/login")}
-              >
-                {t("products.signIn")}
-              </span>{" "}
-              {t("products.viewPrices")}
-            </div>
+        {/* Badges (S37: highlight markers, never a status colour) */}
+        <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1">
+          {!product.inStock && (
+            <Badge variant="highlightOutline" className="text-xs">
+              {t("products.outStock")}
+            </Badge>
           )}
-
-          {/* Action Button */}
-          <div className="pt-2">
-            <Button variant="outline" size="sm" onClick={handleViewDetails} className="w-full">
-              <Eye className="h-4 w-4 mr-2" />
-              {t("products.viewDetails")}
-            </Button>
-          </div>
+          {product.inCart && (
+            <Badge variant="highlight" className="text-xs">
+              {t("cart.inCart")}
+            </Badge>
+          )}
         </div>
-      </CardContent>
+
+        {/* Heart — clients only; always visible on touch, revealed on hover from md up */}
+        {isClient && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full bg-asset-tile/90 text-asset-tile-foreground shadow-sm hover:bg-asset-tile hover:text-asset-tile-foreground focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+            onClick={handleWishlistToggle}
+            disabled={isTogglingCart}
+            aria-label={t(
+              product.inCart ? "wishlist.removeFromWishlist" : "wishlist.addToWishlist",
+            )}
+          >
+            <Heart className={cn("h-4 w-4", product.inCart && "fill-highlight text-highlight")} />
+          </Button>
+        )}
+      </AssetTile>
+
+      {/* Info */}
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        <p className="truncate text-xs text-muted-foreground">{product.brand.name}</p>
+        <h3 className="min-h-[2.5em] text-sm font-medium leading-snug" title={product.name}>
+          <Link
+            to={`/products/${product.id}`}
+            // Stretched link: the ::after covers the whole card. -webkit-touch-callout keeps iOS
+            // from opening its link sheet on the long-press that expands the name instead.
+            className={cn(
+              "[-webkit-touch-callout:none] after:absolute after:inset-0 focus-visible:outline-none",
+              !nameExpanded && "line-clamp-2",
+            )}
+            {...longPress}
+          >
+            {product.name}
+          </Link>
+        </h3>
+
+        {/* Price — the dominant element */}
+        <div className="mt-auto pt-1">
+          {shouldShowPrice && resolvedPrice !== undefined ? (
+            <p className="text-lg font-extrabold leading-tight text-foreground sm:text-xl">
+              {formatPrice(resolvedPrice)}
+            </p>
+          ) : (
+            <p className="relative z-10 text-xs text-muted-foreground">
+              <Link to="/login" className="font-medium text-primary hover:underline">
+                {t("products.signIn")}
+              </Link>{" "}
+              {t("products.viewPrices")}
+            </p>
+          )}
+        </div>
+      </div>
     </Card>
   );
 });

@@ -22,6 +22,7 @@ import {
   GenerateBarcodeSchema,
   ModelIdParamsSchema,
   ModelsQuerySchema,
+  NewArrivalsQuerySchema,
   ProductIdParamsSchema,
   ProductImageParamsSchema,
   ProductListQuerySchema,
@@ -111,6 +112,13 @@ router.get(
   optionalViewer,
   validateRequest({ query: ProductListQuerySchema }),
   controller.listProducts,
+);
+// S39 — before PRODUCT_DETAIL: "/products/new-arrivals" must not be read as a product :id.
+router.get(
+  CATALOG_ROUTES.PRODUCTS_NEW_ARRIVALS,
+  optionalViewer,
+  validateRequest({ query: NewArrivalsQuerySchema }),
+  controller.listNewArrivals,
 );
 router.get(
   CATALOG_ROUTES.PRODUCT_DETAIL,

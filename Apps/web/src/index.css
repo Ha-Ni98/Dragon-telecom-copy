@@ -29,6 +29,12 @@
      plan-S37 §0.5 — never on primary buttons, large fills, long text, or status badges. */
   --highlight: 0.583 0.219 26.2;
   --highlight-foreground: 1 0 89.9;
+  /* S39 — the light tile every transparent asset sits on (brand logos, family icons, the store
+     logo, product photos), in BOTH themes: a dark logo can never vanish on a dark surface. The
+     foreground is for anything drawn ON the tile (fallback letters/icons) — dark in both themes,
+     because text-muted-foreground turns light grey in dark mode and would disappear on it. */
+  --asset-tile: 1 0 89.9;
+  --asset-tile-foreground: 0.37 0.02 264.4;
   --destructive: 0.636 0.208 25.4;
   --destructive-foreground: 1 0 89.9;
   --success: 0.623 0.169 149.2;
@@ -85,6 +91,10 @@
      near-black (6.3:1). This pair is the reason the token has a foreground at all. */
   --highlight: 0.687 0.204 34.1;
   --highlight-foreground: 0.161 0.014 266.7;
+  /* S39 — near-white rather than pure white: a row of light tiles in dark mode is intentional (the
+     same treatment product photos get), but a full-white block glares. Foreground stays dark. */
+  --asset-tile: 0.96 0.003 264.5;
+  --asset-tile-foreground: 0.37 0.02 264.4;
   --destructive: 0.667 0.185 23.6;
   --destructive-foreground: 1 0 89.9;
   --success: 0.735 0.201 149;
