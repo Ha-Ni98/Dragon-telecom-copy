@@ -41,11 +41,13 @@ import { InvoicingSettingsForm } from "@/pages/admin/settings/components/invoici
 import { HierarchyPanel } from "@/pages/admin/settings/components/hierarchy-panel";
 import { DisabledProductsPanel } from "@/pages/admin/settings/components/disabled-products-panel";
 import { StorefrontSettings } from "@/pages/admin/settings/components/storefront-settings";
+import { HeroSlidesPanel } from "@/pages/admin/settings/components/hero-slides-panel";
+import { StorefrontOptionsForm } from "@/pages/admin/settings/components/storefront-options-form";
 import { TableSkeleton } from "@/components/shared/TableSkeleton";
 import { NotFoundState } from "@/components/shared/NotFoundState";
 import { ImageUploadField } from "@/components/shared/image-upload-field";
 import type { AutocompleteOption } from "@/components/shared/autocomplete-input";
-import type { StoreSettingsFormValues } from "@/pages/admin/settings/components/store-settings.schema";
+import type { StoreSettingsPatch } from "@/pages/admin/settings/components/store-settings.schema";
 import type { InvoicingSettingsFormValues } from "@/pages/admin/settings/components/invoicing-settings.schema";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePlatformSettings, useUpdatePlatformSettings } from "@/hooks/usePlatform";
@@ -80,6 +82,11 @@ import { SectionTitle } from "@/components/shared/SectionTitle";
 // (StorefrontSettingsInputSchema's own `.max(6)`, mirrored client-side). Both lists are draft
 // state batched into one real PATCH on Save — the old Save button only fired a toast; every
 // actual write happened one PATCH per chip via onAdd/onRemove.
+//
+// S38 extended the Storefront tab: a hero-slider panel on top (self-contained — own queries and
+// mutations), the featured pickers below it, then the repair-tools family / meta description /
+// link-preview image. The link-preview image commits on upload, so the options form's draft never
+// carries it (two writers for one field would race — the S26.1 logo rule).
 //
 // S21 added the Disabled Products tab, driven by `useAdminCatalogProducts` with the new
 // `enabledStatus: DISABLED` filter — `listAdminProducts` used to hardcode `isEnabled: true`, so a
@@ -204,9 +211,9 @@ export default function AdminSettings() {
     JSON.stringify(productIds) !== JSON.stringify(savedProductIds ?? []) ||
     JSON.stringify(familyIds) !== JSON.stringify(savedFamilyIds ?? []);
 
-  const handleSaveStore = (values: StoreSettingsFormValues) => {
+  const handleSaveStore = (patch: StoreSettingsPatch) => {
     updateSettings.mutate(
-      { store: values },
+      { store: patch },
       { onSuccess: () => toast.success(t("admin.settings.saveSuccess")) },
     );
   };
@@ -363,6 +370,26 @@ export default function AdminSettings() {
           }
         },
       },
+    );
+  };
+
+  // S38 — the repair-tools family + meta description save together (null clears); the
+  // link-preview image commits on its own the moment its upload succeeds (S26.1's logo rule).
+  // Neither touches featuredProductIds/featuredFamilyIds: mergeDefined keeps untouched leaves.
+  const handleSaveStorefrontOptions = (patch: {
+    repairToolsFamilyId: string | null;
+    metaDescription: string | null;
+  }) => {
+    updateSettings.mutate(
+      { storefront: patch },
+      { onSuccess: () => toast.success(t("admin.settings.saveSuccess")) },
+    );
+  };
+
+  const handleSaveLinkPreviewImage = (url: string) => {
+    updateSettings.mutate(
+      { storefront: { linkPreviewImageUrl: url } },
+      { onSuccess: () => toast.success(t("admin.settings.saveSuccess")) },
     );
   };
 
@@ -745,8 +772,9 @@ export default function AdminSettings() {
           />
         </TabsContent>
 
-        {/* Storefront Tab */}
-        <TabsContent value="storefront">
+        {/* Storefront Tab — S38: hero slider first, then the featured pickers, then the options */}
+        <TabsContent value="storefront" className="space-y-6">
+          <HeroSlidesPanel />
           {settingsQuery.isLoading ? (
             <TableSkeleton rows={3} columns={1} />
           ) : settingsQuery.isError ? (
@@ -775,6 +803,15 @@ export default function AdminSettings() {
               onRemoveFamily={handleRemoveFamily}
               isDirty={storefrontDirty}
               onSave={handleSaveStorefront}
+              isSaving={updateSettings.isPending}
+            />
+          )}
+          {settingsQuery.data && (
+            <StorefrontOptionsForm
+              storefront={settingsQuery.data.storefront}
+              families={(families.data ?? []).filter((f) => f.isEnabled)}
+              onSave={handleSaveStorefrontOptions}
+              onSaveLinkPreviewImage={handleSaveLinkPreviewImage}
               isSaving={updateSettings.isPending}
             />
           )}

@@ -169,7 +169,9 @@ COMPLETED consumes parts (FIFO, idempotent; shortfall names the product). CANCEL
 
 ## 11. System
 
-**Setting** — key–value, JSON-encoded: store info (**invoice header only** — the storefront footer is front-end static), invoice prefixes + next sequences per document type (`INVOICE, SALE, ORDER, REPAIR, SUPPLIER_INVOICE, ADJUSTMENT, POS_CLIENT, CLIENT`; lowering refused), default delivery fees, featured products. No localisation keys. `key` PK · `value` · `updatedAt`.
+**Setting** — key–value, JSON-encoded: store info — the invoice/receipt header **and, since S38, the storefront footer** (name, address, phones, WhatsApp, email, social links); invoice prefixes + next sequences per document type (`INVOICE, SALE, ORDER, REPAIR, SUPPLIER_INVOICE, ADJUSTMENT, POS_CLIENT, CLIENT`; lowering refused), default delivery fees; the storefront section (featured products/families, repair-tools family, meta description, link-preview image). No localisation keys. `key` PK · `value` · `updatedAt`.
+
+**HeroSlide** (S38) — the home-page slider, admin-managed: `desktopImageUrl` + `desktopImageKey` · `mobileImageUrl` + `mobileImageKey` (two separate uploads, ~1920×600 and ~1080×1080) · `text` JSON keyed by content locale `{ fr: { title, ctaLabel }, en: { title, ctaLabel } }` — real text rendered over the image, never baked in; this is slide *content*, not a localisation key · `link` (internal path or http(s) URL) · `isActive` · `startsAt?` / `endsAt?` (store-day bounds, `endsAt` exclusive) · `displayOrder` · `createdAt` · `updatedAt`. Public = active, inside its window, by `displayOrder`, max 5.
 
 **AuditLog** — append-only, admin-only: `userId?` FK · `actionType` open string (no enum — new actions need no schema change) · `entityType` · `entityId` · `description` (**one narrated string containing the before/after values** — no structured diff columns) · `ipAddress?` · `createdAt`.
 

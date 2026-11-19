@@ -1,4 +1,5 @@
 export * from './platform.enums';
+export * from './platform.constants';
 export * from './platform.routes';
 export * from './platform.command';
 export * from './platform.query';

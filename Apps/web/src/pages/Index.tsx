@@ -1,5 +1,5 @@
 import { lazy, Suspense, memo } from "react";
-import { HeroSection } from "@/components/sections/landing/hero-section";
+import { HeroSlider } from "@/components/sections/landing/hero-slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 
@@ -29,7 +29,9 @@ const Index = memo(() => {
   return (
     <div>
       <main>
-        <HeroSection />
+        <ErrorBoundary>
+          <HeroSlider />
+        </ErrorBoundary>
         <div className="px-4 sm:px-8 md:px-12 py-8 ">
           <ErrorBoundary>
             <Suspense fallback={<SectionSkeleton />}>

@@ -125,6 +125,13 @@ export const qk = {
     adminFees: () => ["platform", "admin-fees"] as const,
     settings: () => ["platform", "settings"] as const,
     publicSettings: () => ["platform", "public-settings"] as const,
+    // S38 — the home hero slider. `public` = live slides only; `admin` = the full ordered list
+    // behind Settings → Storefront. Admin mutations seed `admin` and invalidate `public`.
+    heroSlides: {
+      all: () => ["platform", "hero-slides"] as const,
+      public: () => ["platform", "hero-slides", "public"] as const,
+      admin: () => ["platform", "hero-slides", "admin"] as const,
+    },
   },
   // S27.1 — the local print helper's availability. Not a backend resource, but it is fetched
   // state shared by every print button on a page, so it belongs in the cache rather than in a

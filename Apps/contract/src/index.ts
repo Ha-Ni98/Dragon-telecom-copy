@@ -4,6 +4,8 @@ export * from './common/auth';
 export * from './common/exports';
 export * from './common/media';
 export * from './common/store-time';
+export * from './common/locale';
+export * from './common/phone';
 export * from './modules/identity';
 export * from './modules/catalog';
 export * from './modules/clients';

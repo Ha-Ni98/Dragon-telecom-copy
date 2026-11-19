@@ -977,6 +977,30 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+// S38 — home-page hero slider (platform module). Images come from the shared pipeline
+// (ImagePurpose.HERO_DESKTOP / HERO_MOBILE); the *Key columns let a delete clean R2 up, the
+// *Url columns are derived server-side from the key (never taken from the client).
+// `text` = HeroSlideTextSchema: { fr: { title, ctaLabel }, en: { title, ctaLabel } } — slide
+// content per locale, rendered over the image. startsAt/endsAt are store-day bounds (endsAt
+// exclusive), both null = always on while active.
+model HeroSlide {
+  id              String    @id @default(uuid())
+  desktopImageUrl String
+  desktopImageKey String
+  mobileImageUrl  String
+  mobileImageKey  String
+  text            Json
+  link            String
+  isActive        Boolean   @default(true)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  displayOrder    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isActive, displayOrder])
+}
+
 model AuditLog {
   id          String   @id @default(uuid())
   userId      String?

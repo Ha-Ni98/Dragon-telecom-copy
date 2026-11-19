@@ -8,7 +8,7 @@
 // own exports (discovered in Sprint 5 prep — see useCatalogTaxonomy.ts's header comment for the
 // same class of collision found one sprint earlier).
 import { api } from "@/lib/axios";
-import { apiPath } from "@/lib/api-path";
+import { apiPath, withParams } from "@/lib/api-path";
 import {
   PLATFORM_ROUTES,
   type ApiResponse,
@@ -21,6 +21,11 @@ import {
   type SettingsDto,
   type UpdateSettingsCommand,
   type PublicSettingsDto,
+  type PublicHeroSlideDto,
+  type HeroSlideDto,
+  type CreateHeroSlideCommand,
+  type UpdateHeroSlideCommand,
+  type ReorderHeroSlidesCommand,
 } from "@dragon-telecom/contract";
 
 // Not exported from @dragon-telecom/contract — Apps/api's own IPlatformService.importFees
@@ -94,6 +99,64 @@ export async function updateSettings(command: UpdateSettingsCommand): Promise<Se
 export async function getPublicSettings(): Promise<PublicSettingsDto> {
   const res = await api.get<ApiResponse<PublicSettingsDto>>(
     apiPath(PLATFORM_ROUTES.SETTINGS_PUBLIC),
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+// --- S38 hero slides. Every admin mutation returns the full ordered list (≤ HERO_SLIDES_MAX). ---
+
+export async function listPublicHeroSlides(): Promise<PublicHeroSlideDto[]> {
+  const res = await api.get<ApiResponse<PublicHeroSlideDto[]>>(
+    apiPath(PLATFORM_ROUTES.HERO_SLIDES),
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+export async function listAdminHeroSlides(): Promise<HeroSlideDto[]> {
+  const res = await api.get<ApiResponse<HeroSlideDto[]>>(
+    apiPath(PLATFORM_ROUTES.ADMIN_HERO_SLIDES),
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+export async function createHeroSlide(command: CreateHeroSlideCommand): Promise<HeroSlideDto[]> {
+  const res = await api.post<ApiResponse<HeroSlideDto[]>>(
+    apiPath(PLATFORM_ROUTES.ADMIN_HERO_SLIDES),
+    command,
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+export async function updateHeroSlide(
+  id: string,
+  command: UpdateHeroSlideCommand,
+): Promise<HeroSlideDto[]> {
+  const res = await api.patch<ApiResponse<HeroSlideDto[]>>(
+    withParams(apiPath(PLATFORM_ROUTES.ADMIN_HERO_SLIDE_BY_ID), { id }),
+    command,
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+export async function deleteHeroSlide(id: string): Promise<HeroSlideDto[]> {
+  const res = await api.delete<ApiResponse<HeroSlideDto[]>>(
+    withParams(apiPath(PLATFORM_ROUTES.ADMIN_HERO_SLIDE_BY_ID), { id }),
+  );
+  if (!res.data.success) throw new Error(res.data.error.message); // defensive
+  return res.data.data;
+}
+
+export async function reorderHeroSlides(
+  command: ReorderHeroSlidesCommand,
+): Promise<HeroSlideDto[]> {
+  const res = await api.put<ApiResponse<HeroSlideDto[]>>(
+    apiPath(PLATFORM_ROUTES.ADMIN_HERO_SLIDES_ORDER),
+    command,
   );
   if (!res.data.success) throw new Error(res.data.error.message); // defensive
   return res.data.data;

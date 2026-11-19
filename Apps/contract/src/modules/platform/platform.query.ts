@@ -7,6 +7,9 @@ export const FeeQuerySchema = z.object({
 });
 export type FeeQuery = z.infer<typeof FeeQuerySchema>;
 
+export const HeroSlideIdParamsSchema = z.object({ id: z.uuid() });
+export type HeroSlideIdParams = z.infer<typeof HeroSlideIdParamsSchema>;
+
 export const FeesExportQuerySchema = z.object({
   // S25 added "pdf" alongside excel/csv/json.
   format: z.enum(['excel', 'csv', 'json', 'pdf']).optional(),
