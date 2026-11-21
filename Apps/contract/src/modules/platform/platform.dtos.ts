@@ -66,6 +66,10 @@ export const SettingsResponseSchema = z.object({
   storefront: z.object({
     featuredProductIds: z.array(z.uuid()),
     featuredFamilyIds: z.array(z.uuid()),
+    // Ordered; empty = the home Brands section is hidden.
+    featuredBrandIds: z.array(z.uuid()),
+    // Ordered; the desktop header bar's family links. Empty = only "Home" / "All products".
+    navFamilyIds: z.array(z.uuid()),
     // S38 — the family feeding the home page's "Repair tools" row (S39). A stored id, not a
     // product flag; absent = the row hides.
     repairToolsFamilyId: z.uuid().optional(),
@@ -104,6 +108,10 @@ export const PublicSettingsResponseSchema = z.object({
   storefront: z.object({
     featuredProductIds: z.array(z.uuid()),
     featuredFamilyIds: z.array(z.uuid()),
+    // Ordered; empty = the home Brands section is hidden.
+    featuredBrandIds: z.array(z.uuid()),
+    // Ordered; the desktop header bar's family links. Empty = only "Home" / "All products".
+    navFamilyIds: z.array(z.uuid()),
     // S38 — the family feeding the home page's "Repair tools" row (S39). A stored id, not a
     // product flag; absent = the row hides.
     repairToolsFamilyId: z.uuid().optional(),

@@ -11,8 +11,8 @@ import { usePublicSettings } from "@/hooks/usePlatform";
 import type { FamilyDto } from "@dragon-telecom/contract";
 import { catalogFamilyLink } from "@/lib/deep-links";
 
-// S39 — a horizontally scrolling row of family tiles on phones, a full 6-column row from md up
-// (the set). Each icon sits on the light AssetTile in both themes, so a dark transparent icon can
+// S39 — a horizontally scrolling row of family tiles on phones, a 6-column grid from md up (the
+// set); more than 6 chosen families simply wrap onto further rows. Each icon sits on the light AssetTile in both themes, so a dark transparent icon can
 // never vanish. The tile's alt is "" because the family name is printed right under it.
 export function CategoriesSection() {
   const { t } = useTranslation();
@@ -54,13 +54,12 @@ export function CategoriesSection() {
     );
   }
 
-  // S15/R2 — settings first, in the admin's own order; `Family.isFeatured` is the fallback
-  // while no pick exists (S17 builds the picker). Six tiles either way.
-  const items = featuredFamilyIds.length
-    ? featuredFamilyIds
-        .map((id) => (families ?? []).find((f) => f.id === id))
-        .filter((f): f is FamilyDto => !!f)
-    : (families ?? []).filter((f) => f.isFeatured).slice(0, 6);
+  // Exactly the families chosen in Settings → Storefront, in the admin's order (owner change after
+  // S39: no 6-family cap, and NO fallback — the old `Family.isFeatured` slice is gone). Ids are
+  // matched against the public list, so a disabled family drops out. Nothing chosen = no section.
+  const items = featuredFamilyIds
+    .map((id) => (families ?? []).find((f) => f.id === id))
+    .filter((f): f is FamilyDto => !!f);
   // Empty section hides itself (PUB-01).
   if (items.length === 0) return null;
 

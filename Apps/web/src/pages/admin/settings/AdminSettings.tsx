@@ -78,9 +78,10 @@ import { SectionTitle } from "@/components/shared/SectionTitle";
 //
 // S17 rebuilt the Storefront tab: it now drives a server-searched product picker (a static
 // 100-row page could neither show nor find a product outside it, so a featured product beyond
-// that page rendered its raw uuid) plus a new featured-**families** picker capped at 6
-// (StorefrontSettingsInputSchema's own `.max(6)`, mirrored client-side). Both lists are draft
-// state batched into one real PATCH on Save — the old Save button only fired a toast; every
+// that page rendered its raw uuid) plus a new featured-**families** picker (the 6-family cap was
+// later removed at the owner's request, as were the storefront fallbacks: every list is "empty =
+// hidden"). Owner change after S39: two more ordered lists — the home page's brands and the
+// desktop header bar's families. All four lists are draft state batched into one real PATCH on Save — the old Save button only fired a toast; every
 // actual write happened one PATCH per chip via onAdd/onRemove.
 //
 // S38 extended the Storefront tab: a hero-slider panel on top (self-contained — own queries and
@@ -135,14 +136,24 @@ export default function AdminSettings() {
   // Save or a fresh server value arrives.
   const [draftProductIds, setDraftProductIds] = useState<string[] | null>(null);
   const [draftFamilyIds, setDraftFamilyIds] = useState<string[] | null>(null);
+  const [draftBrandIds, setDraftBrandIds] = useState<string[] | null>(null);
+  const [draftNavFamilyIds, setDraftNavFamilyIds] = useState<string[] | null>(null);
   const savedProductIds = settingsQuery.data?.storefront.featuredProductIds;
   const savedFamilyIds = settingsQuery.data?.storefront.featuredFamilyIds;
+  const savedBrandIds = settingsQuery.data?.storefront.featuredBrandIds;
+  const savedNavFamilyIds = settingsQuery.data?.storefront.navFamilyIds;
   useEffect(() => {
     if (savedProductIds) setDraftProductIds(savedProductIds);
   }, [savedProductIds]);
   useEffect(() => {
     if (savedFamilyIds) setDraftFamilyIds(savedFamilyIds);
   }, [savedFamilyIds]);
+  useEffect(() => {
+    if (savedBrandIds) setDraftBrandIds(savedBrandIds);
+  }, [savedBrandIds]);
+  useEffect(() => {
+    if (savedNavFamilyIds) setDraftNavFamilyIds(savedNavFamilyIds);
+  }, [savedNavFamilyIds]);
   // Memoized so the `?? []` fallback doesn't mint a new array identity every render, which would
   // otherwise recompute every useMemo below on each render regardless of an actual change.
   const productIds = useMemo(
@@ -152,6 +163,14 @@ export default function AdminSettings() {
   const familyIds = useMemo(
     () => draftFamilyIds ?? savedFamilyIds ?? [],
     [draftFamilyIds, savedFamilyIds],
+  );
+  const brandIds = useMemo(
+    () => draftBrandIds ?? savedBrandIds ?? [],
+    [draftBrandIds, savedBrandIds],
+  );
+  const navFamilyIds = useMemo(
+    () => draftNavFamilyIds ?? savedNavFamilyIds ?? [],
+    [draftNavFamilyIds, savedNavFamilyIds],
   );
 
   // Picker options: server-side search (a static 100-row page could neither show nor find a
@@ -205,11 +224,41 @@ export default function AdminSettings() {
     [families.data, familyIds],
   );
 
-  const MAX_FEATURED_FAMILIES = 6; // mirrors StorefrontSettingsInputSchema's own .max(6)
+  // Brands and header-bar families reuse the Hierarchy tab's existing queries — no extra request.
+  const brandNameById = useMemo(
+    () => new Map((brands.data ?? []).map((b) => [b.id, b.name])),
+    [brands.data],
+  );
+  const featuredBrands = useMemo(
+    () => brandIds.map((id) => ({ id, name: brandNameById.get(id) ?? id })),
+    [brandIds, brandNameById],
+  );
+  const brandOptions: AutocompleteOption[] = useMemo(
+    () =>
+      (brands.data ?? [])
+        .filter((b) => !brandIds.includes(b.id))
+        .map((b) => ({ value: b.id, label: b.name })),
+    [brands.data, brandIds],
+  );
+  const navFamilies = useMemo(
+    () => navFamilyIds.map((id) => ({ id, name: familyNameById.get(id) ?? id })),
+    [navFamilyIds, familyNameById],
+  );
+  const navFamilyOptions: AutocompleteOption[] = useMemo(
+    () =>
+      (families.data ?? [])
+        .filter((f) => !navFamilyIds.includes(f.id))
+        .map((f) => ({ value: f.id, label: f.name })),
+    [families.data, navFamilyIds],
+  );
 
+  const sameIds = (a: string[], b: string[] | undefined) =>
+    JSON.stringify(a) === JSON.stringify(b ?? []);
   const storefrontDirty =
-    JSON.stringify(productIds) !== JSON.stringify(savedProductIds ?? []) ||
-    JSON.stringify(familyIds) !== JSON.stringify(savedFamilyIds ?? []);
+    !sameIds(productIds, savedProductIds) ||
+    !sameIds(familyIds, savedFamilyIds) ||
+    !sameIds(brandIds, savedBrandIds) ||
+    !sameIds(navFamilyIds, savedNavFamilyIds);
 
   const handleSaveStore = (patch: StoreSettingsPatch) => {
     updateSettings.mutate(
@@ -253,11 +302,24 @@ export default function AdminSettings() {
   const handleAddFamily = (id: string) =>
     setDraftFamilyIds((prev) => {
       const current = prev ?? savedFamilyIds ?? [];
-      if (current.includes(id) || current.length >= MAX_FEATURED_FAMILIES) return current;
-      return [...current, id];
+      return current.includes(id) ? current : [...current, id];
     });
   const handleRemoveFamily = (id: string) =>
     setDraftFamilyIds((prev) => (prev ?? savedFamilyIds ?? []).filter((x) => x !== id));
+  const handleAddBrand = (id: string) =>
+    setDraftBrandIds((prev) => {
+      const current = prev ?? savedBrandIds ?? [];
+      return current.includes(id) ? current : [...current, id];
+    });
+  const handleRemoveBrand = (id: string) =>
+    setDraftBrandIds((prev) => (prev ?? savedBrandIds ?? []).filter((x) => x !== id));
+  const handleAddNavFamily = (id: string) =>
+    setDraftNavFamilyIds((prev) => {
+      const current = prev ?? savedNavFamilyIds ?? [];
+      return current.includes(id) ? current : [...current, id];
+    });
+  const handleRemoveNavFamily = (id: string) =>
+    setDraftNavFamilyIds((prev) => (prev ?? savedNavFamilyIds ?? []).filter((x) => x !== id));
 
   const handleCreateFamily = (name: string) => {
     createFamily.mutate(
@@ -395,7 +457,14 @@ export default function AdminSettings() {
 
   const handleSaveStorefront = () => {
     updateSettings.mutate(
-      { storefront: { featuredProductIds: productIds, featuredFamilyIds: familyIds } },
+      {
+        storefront: {
+          featuredProductIds: productIds,
+          featuredFamilyIds: familyIds,
+          featuredBrandIds: brandIds,
+          navFamilyIds,
+        },
+      },
       { onSuccess: () => toast.success(t("admin.settings.saveSuccess")) },
     );
   };
@@ -801,6 +870,14 @@ export default function AdminSettings() {
               familyOptions={familyOptions}
               onAddFamily={handleAddFamily}
               onRemoveFamily={handleRemoveFamily}
+              featuredBrands={featuredBrands}
+              brandOptions={brandOptions}
+              onAddBrand={handleAddBrand}
+              onRemoveBrand={handleRemoveBrand}
+              navFamilies={navFamilies}
+              navFamilyOptions={navFamilyOptions}
+              onAddNavFamily={handleAddNavFamily}
+              onRemoveNavFamily={handleRemoveNavFamily}
               isDirty={storefrontDirty}
               onSave={handleSaveStorefront}
               isSaving={updateSettings.isPending}

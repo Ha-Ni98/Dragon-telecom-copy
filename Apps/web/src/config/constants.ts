@@ -19,3 +19,8 @@ export const HERO_SWITCH_MEDIA = "(min-width: 768px)";
 // og:image at it by absolute URL; useDocumentMeta falls back to it when no link-preview image or
 // store logo is set.
 export const DEFAULT_SHARE_IMAGE_PATH = "/og-default.jpg";
+
+// Owner change after S39 — the storefront header and footer carry these ids so a URL can land on
+// them directly: /#header (top) and /#footer (contact). ScrollToTop honours the hash.
+export const STOREFRONT_HEADER_ID = "header";
+export const STOREFRONT_FOOTER_ID = "footer";

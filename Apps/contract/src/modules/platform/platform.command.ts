@@ -53,9 +53,14 @@ const DeliverySettingsInputSchema = z.object({
 
 const StorefrontSettingsInputSchema = z.object({
   featuredProductIds: z.array(z.uuid()).optional(),
-  // Max 6 — the home page's family strip is a 6-tile grid (S17 builds the picker that enforces
-  // it in the UI; this is the server-side bound).
-  featuredFamilyIds: z.array(z.uuid()).max(6).optional(),
+  // Ordered; empty = the home Categories section is hidden. The old max-6 cap was removed at the
+  // owner's request (the desktop row simply wraps past 6).
+  featuredFamilyIds: z.array(z.uuid()).optional(),
+  // Ordered; empty = the home Brands section is hidden.
+  featuredBrandIds: z.array(z.uuid()).optional(),
+  // Ordered; the desktop header bar's family links after "Home" / "All products". Empty = only
+  // those two links.
+  navFamilyIds: z.array(z.uuid()).optional(),
   // S38 — `null` clears (see UpdateSettingsSchema).
   repairToolsFamilyId: z.uuid().nullable().optional(),
   metaDescription: z.string().trim().max(META_DESCRIPTION_MAX).nullable().optional(),

@@ -14915,8 +14915,8 @@
     "ar": ""
   },
   "admin.settings.storefront.featuredFamiliesHelp": {
-    "en": "Choose up to 6 families to show on the home page",
-    "fr": "Choisissez jusqu'à 6 familles à afficher sur la page d'accueil",
+    "en": "Families shown in the home page's categories section, in this order. None selected = section hidden.",
+    "fr": "Familles affichées dans la section catégories de la page d'accueil, dans cet ordre. Aucune = section masquée.",
     "ar": ""
   },
   "admin.settings.storefront.searchFamiliesPlaceholder": {
@@ -14932,11 +14932,6 @@
   "admin.settings.storefront.removeFamily": {
     "en": "Remove this family",
     "fr": "Retirer cette famille",
-    "ar": ""
-  },
-  "admin.settings.storefront.familyLimitReached": {
-    "en": "Maximum of 6 families reached — remove one to add another",
-    "fr": "Maximum de 6 familles atteint — retirez-en une pour en ajouter une autre",
     "ar": ""
   },
   "admin.settings.storefront.unsavedChanges": {
@@ -16682,6 +16677,46 @@
   "home.rows.newLabel": {
     "en": "New",
     "fr": "Nouveau",
+    "ar": ""
+  },
+  "admin.settings.storefront.featuredBrands": {
+    "en": "Home page brands",
+    "fr": "Marques de la page d'accueil",
+    "ar": ""
+  },
+  "admin.settings.storefront.featuredBrandsHelp": {
+    "en": "Brands shown in the home page's brands section, in this order. None selected = section hidden.",
+    "fr": "Marques affichées dans la section marques de la page d'accueil, dans cet ordre. Aucune = section masquée.",
+    "ar": ""
+  },
+  "admin.settings.storefront.searchBrandsPlaceholder": {
+    "en": "Search a brand",
+    "fr": "Rechercher une marque",
+    "ar": ""
+  },
+  "admin.settings.storefront.noBrandSelected": {
+    "en": "No brand selected",
+    "fr": "Aucune marque sélectionnée",
+    "ar": ""
+  },
+  "admin.settings.storefront.removeBrand": {
+    "en": "Remove this brand",
+    "fr": "Retirer cette marque",
+    "ar": ""
+  },
+  "admin.settings.storefront.navFamilies": {
+    "en": "Header bar families",
+    "fr": "Familles de la barre d'en-tête",
+    "ar": ""
+  },
+  "admin.settings.storefront.navFamiliesHelp": {
+    "en": "Shown in the desktop header bar after \"Home\" and \"All products\", in this order. None selected = only those two links.",
+    "fr": "Affichées dans la barre d'en-tête (ordinateur) après « Accueil » et « Tous les produits », dans cet ordre. Aucune = seulement ces deux liens.",
+    "ar": ""
+  },
+  "admin.settings.storefront.noNavFamilySelected": {
+    "en": "No family selected",
+    "fr": "Aucune famille sélectionnée",
     "ar": ""
   }
 }
