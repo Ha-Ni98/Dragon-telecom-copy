@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NEW_ARRIVALS_DEFAULT_LIMIT } from "@dragon-telecom/contract";
 import type {
@@ -9,6 +10,7 @@ import type {
   UpdateProductImagesCommand,
   GenerateBarcodeCommand,
   BarcodeLookupCommand,
+  StaffProductDto,
 } from "@dragon-telecom/contract";
 import * as catalogService from "@/services/catalog.service";
 import { qk } from "@/lib/query-keys";
@@ -53,6 +55,27 @@ export function useStaffProducts(query: ProductListQuery, options?: { enabled?: 
     queryFn: () => catalogService.listStaffProducts(query),
     enabled: options?.enabled,
   });
+}
+
+// POS barcode scan — the scanner types the code and sends Enter at once, so this cannot wait for
+// the page's 300 ms debounced list: it fetches the staff list for that exact code right away (a
+// cache hit if the list already holds it) and returns the product whose barcode EQUALS the code
+// (the staff search matches barcode prefixes and names, so a prefix or a name never counts).
+export function useFindStaffProductByBarcode() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    async (code: string): Promise<StaffProductDto | undefined> => {
+      const wanted = code.trim().toLowerCase();
+      if (!wanted) return undefined;
+      const query: ProductListQuery = { search: code.trim(), page: 1, limit: 20 };
+      const result = await queryClient.fetchQuery({
+        queryKey: qk.catalog.staffProducts.list(query),
+        queryFn: () => catalogService.listStaffProducts(query),
+      });
+      return result.items.find((product) => product.barcode?.trim().toLowerCase() === wanted);
+    },
+    [queryClient],
+  );
 }
 
 // `options.enabled` (S17) — the Settings featured-products chip-resolution query must not fire

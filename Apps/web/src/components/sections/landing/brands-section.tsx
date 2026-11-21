@@ -6,19 +6,27 @@ import { NotFoundState } from "@/components/shared/NotFoundState";
 import { HomeSectionHeader } from "@/components/sections/landing/home-section-header";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCatalogBrands } from "@/hooks/useCatalogTaxonomy";
+import { usePublicSettings } from "@/hooks/usePlatform";
+import type { BrandDto } from "@dragon-telecom/contract";
 import { catalogBrandLink } from "@/lib/deep-links";
 
 // Shared by the loading skeleton and the real grid so the two can never drift apart.
 const GRID_CLASS = "grid grid-cols-4 gap-3 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8";
 
-// S39 — a grid of EVERY enabled brand: about 4 per row on a phone, 7–8 on desktop. The old
-// carousel (and its 8-brand cap) is gone — a grid shows the whole range at a glance, and a
-// shopper looking for their phone's brand should not have to page through. Each logo sits on the
+// S39 — a grid of brands: about 4 per row on a phone, 7–8 on desktop (the old carousel and its
+// 8-brand cap are gone). Owner change after S39: it shows exactly the brands chosen in Settings →
+// Storefront → "Home page brands" (settings.storefront.featuredBrandIds), in that order; nothing
+// chosen = no section. Ids are matched against the public (enabled) brands list. Each logo sits on the
 // light AssetTile in both themes, so a dark transparent logo can never vanish and a newly added
 // brand cannot break (no per-brand override exists or should be added).
 export function BrandsSection() {
   const { t } = useTranslation();
-  const { data: brands, isLoading, isError, refetch } = useCatalogBrands();
+  const { data: allBrands, isLoading, isError, refetch } = useCatalogBrands();
+  const { data: settings } = usePublicSettings();
+  const byId = new Map((allBrands ?? []).map((brand) => [brand.id, brand]));
+  const brands = (settings?.storefront.featuredBrandIds ?? [])
+    .map((id) => byId.get(id))
+    .filter((brand): brand is BrandDto => brand !== undefined);
 
   if (isLoading) {
     return (
@@ -55,7 +63,7 @@ export function BrandsSection() {
   }
 
   // Empty section hides itself (PUB-01).
-  if (!brands || brands.length === 0) return null;
+  if (brands.length === 0) return null;
 
   return (
     <section className="min-w-0">

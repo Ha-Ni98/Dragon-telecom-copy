@@ -8,6 +8,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useTranslation } from "@/hooks/useTranslation";
 import { usePublicSettings } from "@/hooks/usePlatform";
 import { mailtoHref, telHref, whatsappHref } from "@/lib/contact-links";
+import { STOREFRONT_FOOTER_ID } from "@/config/constants";
 
 // One contact line. 44px-high tap target (the footer is the phone user's way to call or message
 // the shop), and the text wraps anywhere so a long email or address can never push the page wider
@@ -89,7 +90,11 @@ export function PublicFooter() {
   const hasContact = !!store?.address || phones.length > 0 || !!whatsapp || !!store?.email;
 
   return (
-    <footer className="mt-16 border-t border-border bg-surface" role="contentinfo">
+    <footer
+      id={STOREFRONT_FOOTER_ID}
+      className="mt-16 border-t border-border bg-surface"
+      role="contentinfo"
+    >
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[2fr_1fr_1fr]">
           {/* Company info */}

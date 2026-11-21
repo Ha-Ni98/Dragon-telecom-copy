@@ -6,6 +6,7 @@ import { LanguageToggle } from "@/components/shared/LanguageToggle";
 import { StorefrontSearch } from "@/components/shared/StorefrontSearch";
 import { CartCountBubble } from "@/components/shared/CartCountBubble";
 import { StorefrontCategoryBar } from "@/components/layout/StorefrontCategoryBar";
+import { STOREFRONT_HEADER_ID } from "@/config/constants";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -61,7 +62,10 @@ export function PublicHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-30 w-full border-b border-border bg-background/80 backdrop-blur-md">
+    <header
+      id={STOREFRONT_HEADER_ID}
+      className="sticky top-0 z-30 w-full border-b border-border bg-background/80 backdrop-blur-md"
+    >
       {/* S37 — one search instance reflows via flex order: phones get logo + icons on row 1 and
           the search on its own full-width row 2; md+ gets logo | wide search | icons on one row.
           The cart lives in the bottom nav on phones (StorefrontBottomNav). */}

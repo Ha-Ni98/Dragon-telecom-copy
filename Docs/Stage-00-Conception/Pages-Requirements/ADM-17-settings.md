@@ -9,7 +9,7 @@
 - **Categories**: client categories table — **name only**, enable/disable; member count + priced-product count columns as warnings.
 - **Hierarchy**: three sub-panels — Families (name, icon upload, parent?, featured ≤ 6) / Brands (name, logo) / Models (brand, name; **families multi-select** = the many-to-many). Inline create everywhere; **disable only** (disabling hides from storefront filters and pickers; products keep references).
 - **Delivery fees**: one row per wilaya (frName/arName, home fee, office fee); each row expands to its **explicit commune overrides** (add only where needed); Excel import (row-level validation report) + export buttons; default fees fields.
-- **Storefront**: **hero slides** (create/edit/delete, both images, FR+EN title and button, link, active, start/end day, reorder) · featured products picker · featured families · **repair-tools family** · **site description** · **link-preview image** · delivery companies list.
+- **Storefront**: **hero slides** (create/edit/delete, both images, FR+EN title and button, link, active, start/end day, reorder) · featured products picker · home-page families (no cap) · home-page brands · header-bar families (all ordered; empty = hidden on the storefront) · **repair-tools family** · **site description** · **link-preview image** · delivery companies list.
 - No localisation tab.
 
 ## Interactions

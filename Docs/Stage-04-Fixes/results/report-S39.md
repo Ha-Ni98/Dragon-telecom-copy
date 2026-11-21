@@ -289,3 +289,64 @@ four sides, including the first card; every card in the Featured row shows a "Fe
 every card in the New arrivals row a "New" badge at its top-left, in both languages and both
 themes, readable in dark mode (near-black text on vermilion), and an out-of-stock product shows
 ONLY its "Out of stock" badge (no Featured/New, no In cart).
+
+---
+
+## 6. Owner change (2026-11-21): storefront pickers and header/footer anchors
+
+Planned and executed in one pass at the owner's request. Uncommitted.
+
+**Owner decisions:** an empty picker shows NOTHING on the storefront (no fallback); the header bar
+uses plain links (the S37 child-family dropdown is removed); family-name formatting was dropped and
+replaced by linkable header/footer ids.
+
+**What changed:**
+- **Contract / API.** `storefront.featuredFamilyIds` lost its `.max(6)`. New ordered
+  `storefront.featuredBrandIds` and `storefront.navFamilyIds` (command optional, DTO and public DTO
+  required), defaulted to `[]` in `settings-defaults.ts`, so the existing row gets them through the
+  mapper's field-wise merge. No migration.
+- **Settings → Storefront.** The 6-family cap and its message are gone (key
+  `admin.settings.storefront.familyLimitReached` deleted). Two more ordered pickers, "Home page
+  brands" and "Header bar families", save with the same button as the featured lists.
+- **Home.** Categories shows exactly `featuredFamilyIds` (no `Family.isFeatured` fallback, no 6
+  limit; the desktop grid wraps past 6). Brands shows exactly `featuredBrandIds`. Either one empty
+  → that section is hidden.
+- **Header bar.** Home · All products · the `navFamilyIds` families as plain links, in order.
+  None chosen → only Home and All products.
+- **Anchors.** `<header id="header">` and `<footer id="footer">` (constants in
+  `config/constants.ts`). `ScrollToTop` now honours a URL hash: it scrolls the element into view and
+  keeps it there for up to 2 s while lazy sections load, letting go at the first wheel, touch or key.
+- **Not changed:** the separate `Family.isFeatured` cap of 6 in the catalog service
+  (`FEATURED_FAMILIES_LIMIT`). No settings UI reaches it, and the storefront no longer reads the
+  flag for families.
+- **Stage-00:** PUB-01, ADM-17 and `Module-Contracts/platform.md` updated.
+
+**Verification I ran:**
+- **Gates.** contract `tsc` + lint clean; api 0 in `src/` / 198; web `tsc` clean; test config 54
+  (unchanged, `settings-primitives` still 2); eslint 0 on every touched file.
+- **Smoke run (real service, dev DB, row restored afterwards):**
+  - the existing row reads `featuredBrandIds: []` and `navFamilyIds: []`;
+  - 8 family ids are accepted;
+  - a `navFamilyIds`-only PATCH leaves the families and brands untouched;
+  - the public settings expose both new fields.
+- **Not verified (no browser):** the UI and the hash scrolling.
+
+**Checklist (both themes, phone + desktop):**
+1. **Settings → Storefront:**
+   - pick more than 6 home families (no limit message);
+   - pick home brands and header-bar families, then Save;
+   - reload: all four lists persist in order.
+2. **Home:**
+   - Categories = exactly the picked families, in order (wrapping past 6 on desktop);
+   - Brands = exactly the picked brands, in order;
+   - clear a list → its section disappears.
+3. **Desktop header bar:**
+   - Home, All products, then the picked families as plain links (no dropdowns);
+   - clicking one filters the catalog and underlines it;
+   - none picked → only Home and All products.
+4. **Anchors:**
+   - `/#footer` lands on the footer (first load, and from another page), even while the home
+     sections load;
+   - scrolling during that time is not overridden;
+   - `/#header` → top;
+   - normal navigation still lands at the top.

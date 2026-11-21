@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
 import type { FamilyDto } from "@dragon-telecom/contract";
 import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
+import { usePublicSettings } from "@/hooks/usePlatform";
 import { useTranslation } from "@/hooks/useTranslation";
 import { CATALOG_FAMILY_PARAM, catalogFamilyLink } from "@/lib/deep-links";
 import { cn } from "@/lib/utils";
@@ -15,33 +15,30 @@ const itemClass = (active: boolean) =>
       : "border-transparent text-muted-foreground hover:text-foreground",
   );
 
-// S37 — desktop category bar: top-level families, each with a hover/focus dropdown of its child
-// families (one nesting level, catalog.service assertOneNestingLevel). Links are exact-match
-// family filters (Q1). Children of a disabled parent don't surface (S21 Q5 / plan-S37 P7): the
-// public families list omits the disabled parent, so its children have no parent in the list and
-// are skipped. Phones use the bottom nav's Categories item instead (this bar is md+ only).
+// S37 — desktop header bar (md+ only; phones use the bottom nav's Categories item).
+// Owner change after S39: after "Home" and "All products" it lists exactly the families chosen in
+// Settings → Storefront → "Header bar families" (settings.storefront.navFamilyIds), in that order,
+// as PLAIN links — the S37 hover dropdown of child families was removed, and a child family can be
+// picked directly. No selection = only "Home" and "All products". Ids are matched against the
+// PUBLIC families list, so a disabled (or deleted) family silently drops out. Links are
+// exact-match family filters (S37 Q1).
 export function StorefrontCategoryBar() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const [searchParams] = useSearchParams();
   const { data: families } = useCatalogFamilies();
+  const { data: settings } = usePublicSettings();
 
-  const { tops, childrenByParent } = useMemo(() => {
-    const list = families ?? [];
-    const byParent = new Map<string, FamilyDto[]>();
-    for (const family of list) {
-      if (!family.parentId) continue;
-      byParent.set(family.parentId, [...(byParent.get(family.parentId) ?? []), family]);
-    }
-    return { tops: list.filter((family) => !family.parentId), childrenByParent: byParent };
-  }, [families]);
+  const navFamilies = useMemo(() => {
+    const byId = new Map((families ?? []).map((family) => [family.id, family]));
+    return (settings?.storefront.navFamilyIds ?? [])
+      .map((id) => byId.get(id))
+      .filter((family): family is FamilyDto => family !== undefined);
+  }, [families, settings?.storefront.navFamilyIds]);
 
   const paramFamilyId = pathname === "/products" ? searchParams.get(CATALOG_FAMILY_PARAM) : null;
   const homeActive = pathname === "/";
   const allActive = pathname === "/products" && !paramFamilyId;
-  const isTopActive = (family: FamilyDto, kids: FamilyDto[]) =>
-    paramFamilyId !== null &&
-    (paramFamilyId === family.id || kids.some((child) => child.id === paramFamilyId));
 
   return (
     <nav aria-label={t("header.categoryBar")} className="hidden border-t border-border md:block">
@@ -61,43 +58,16 @@ export function StorefrontCategoryBar() {
             {t("header.allProducts")}
           </Link>
         </li>
-        {tops.map((family) => {
-          const kids = childrenByParent.get(family.id) ?? [];
-          return (
-            <li key={family.id} className="group relative">
-              <Link
-                to={catalogFamilyLink(family.id)}
-                className={itemClass(isTopActive(family, kids))}
-                aria-haspopup={kids.length > 0 ? "true" : undefined}
-              >
-                {family.name}
-                {kids.length > 0 && <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
-              </Link>
-              {kids.length > 0 && (
-                <div className="invisible absolute left-0 top-full z-40 min-w-48 pt-1 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-                  <ul
-                    aria-label={t("header.subFamiliesOf", { name: family.name })}
-                    className="rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
-                  >
-                    {kids.map((child) => (
-                      <li key={child.id}>
-                        <Link
-                          to={catalogFamilyLink(child.id)}
-                          className={cn(
-                            "block rounded-sm px-3 py-1.5 text-sm hover:bg-muted",
-                            paramFamilyId === child.id && "font-semibold text-foreground",
-                          )}
-                        >
-                          {child.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </li>
-          );
-        })}
+        {navFamilies.map((family) => (
+          <li key={family.id}>
+            <Link
+              to={catalogFamilyLink(family.id)}
+              className={itemClass(paramFamilyId === family.id)}
+            >
+              {family.name}
+            </Link>
+          </li>
+        ))}
       </ul>
     </nav>
   );

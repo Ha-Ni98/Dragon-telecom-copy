@@ -32,7 +32,7 @@ UpsertFeesCommand { rows: { wilayaId; communeId?: uuid|null; deliveryHome; deliv
 SettingsDto { store { name; activityLine?; address?; phone?; repairPhone?; salesPhone?; whatsappPhone?; email?; facebookUrl?; instagramUrl?; tiktokUrl?; logoUrl?; printLogoUrl? };  // invoice/receipt header AND (S38) the storefront footer
   invoicing { prefixes: Record<DocType,string>; nextSequences: Record<DocType,number>; footerNote? };
   delivery { defaultHome; defaultOffice };
-  storefront { featuredProductIds: uuid[]; featuredFamilyIds: uuid[]; repairToolsFamilyId?: uuid; metaDescription?: string; linkPreviewImageUrl?: string } }
+  storefront { featuredProductIds: uuid[]; featuredFamilyIds: uuid[]; featuredBrandIds: uuid[]; navFamilyIds: uuid[]; repairToolsFamilyId?: uuid; metaDescription?: string; linkPreviewImageUrl?: string } }
 HeroSlideDto { id; desktopImageUrl; desktopImageKey; mobileImageUrl; mobileImageKey; text: { fr: { title; ctaLabel }; en: { title; ctaLabel } }; link; isActive; startsOn?; endsOn?; displayOrder; isLive }  // S38
 DocType = 'INVOICE'|'SALE'|'ORDER'|'REPAIR'|'SUPPLIER_INVOICE'|'ADJUSTMENT'|'POS_CLIENT'|'CLIENT'
 ```

@@ -12,7 +12,7 @@ import { MyDraftsDrawer } from "@/pages/staff/pos/components/MyDraftsDrawer";
 import { PosReceiptView } from "@/pages/staff/pos/components/PosReceiptView";
 import { QuickAddPosClientDialog } from "@/pages/staff/pos/components/QuickAddPosClientDialog";
 import { CreditChangeConfirmDialog } from "@/components/shared/CreditChangeConfirmDialog";
-import { useStaffProducts } from "@/hooks/useCatalogProducts";
+import { useFindStaffProductByBarcode, useStaffProducts } from "@/hooks/useCatalogProducts";
 import { useCatalogFamilies } from "@/hooks/useCatalogTaxonomy";
 import { useCatalogClientCategories } from "@/hooks/useClientCategories";
 import { usePosClientSearch, useQuickCreatePosClient } from "@/hooks/usePosClients";
@@ -30,6 +30,7 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 import { apiErrorMessage } from "@/lib/query-client";
 import { printReceipt } from "@/lib/print";
+import { playPosError, playPosSuccess } from "@/lib/pos-sound";
 import { useReceiptPrint } from "@/hooks/use-receipt-print";
 import { buildPosReceiptEscPos } from "@/pages/staff/pos/pos-receipt-escpos";
 import { cn, formatDZD } from "@/lib/utils";
@@ -162,7 +163,21 @@ export default function StaffPos({ scope = "staff" }: Props) {
   // The paid amount is what is being paid for THIS sale. The client's outstanding credit is
   // deliberately NOT added in: settling an older balance is the separate record-payment flow.
 
+  // Owner change — every add (card click or barcode scan) is confirmed by sound: a beep when the
+  // product goes onto the ticket, a low double buzz plus a toast when it cannot (no stock, or the
+  // line is already at the available quantity — that used to clamp silently). The decision reads
+  // the current `lines` before setLines; the line logic below is unchanged.
   const handleSelectProduct = (product: StaffProductDto) => {
+    const existingLine = lines.find((l) => l.productId === product.id);
+    const atLimit =
+      product.availableQuantity <= 0 ||
+      (existingLine !== undefined && existingLine.quantity >= existingLine.availableQuantity);
+    if (atLimit) {
+      playPosError();
+      toast.error(t("staff.pos.scan.stockLimit", { name: product.name }));
+      return;
+    }
+    playPosSuccess();
     setLines((prev) => {
       const existing = prev.find((l) => l.productId === product.id);
       if (existing) {
@@ -192,6 +207,29 @@ export default function StaffPos({ scope = "staff" }: Props) {
         },
       ];
     });
+  };
+
+  // Barcode scan: the scanner's trailing Enter in the search box lands here. An exact barcode match
+  // is added (and beeps through handleSelectProduct) and the box clears for the next scan; an
+  // unknown code buzzes, toasts, and stays selected so the next scan simply replaces it.
+  const findByBarcode = useFindStaffProductByBarcode();
+  const handleScan = async (code: string) => {
+    let product: StaffProductDto | undefined;
+    try {
+      product = await findByBarcode(code);
+    } catch {
+      // The global query error toast already reports a failed request.
+      playPosError();
+      return;
+    }
+    if (product) {
+      handleSelectProduct(product);
+      setProductQuery("");
+      return;
+    }
+    playPosError();
+    toast.error(t("staff.pos.scan.notFound", { code }));
+    searchRef.current?.select();
   };
 
   const handleQuantityChange = (productId: string, quantity: number) =>
@@ -469,7 +507,9 @@ export default function StaffPos({ scope = "staff" }: Props) {
 
   // F2 focuses the barcode/search input; F4 jumps to the paid-amount field; Enter confirms only
   // when that same field currently has focus (STF-02 §UI/§Optimization) — a page-wide Enter
-  // listener would otherwise also fire while typing in the product/client search boxes.
+  // listener would otherwise also fire while typing in the product/client search boxes. Enter
+  // inside the product search box is handled by that input itself (onSubmitCode → handleScan):
+  // it adds the scanned product.
   useKeyboardShortcuts({
     f2: () => searchRef.current?.focus(),
     f4: () => document.getElementById("pos-paid-amount")?.focus(),
@@ -579,6 +619,7 @@ export default function StaffPos({ scope = "staff" }: Props) {
               isError={productsIsError}
               onRetry={() => refetchProducts()}
               onSelect={handleSelectProduct}
+              onSubmitCode={(code) => void handleScan(code)}
               attachedCategoryId={attachedClient?.categoryId}
             />
             <FamilyQuickPickGrid
