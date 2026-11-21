@@ -16718,5 +16718,15 @@
     "en": "No family selected",
     "fr": "Aucune famille sélectionnée",
     "ar": ""
+  },
+  "staff.pos.scan.notFound": {
+    "en": "No product with barcode {code}",
+    "fr": "Aucun produit avec le code-barres {code}",
+    "ar": ""
+  },
+  "staff.pos.scan.stockLimit": {
+    "en": "{name}: no more stock available",
+    "fr": "{name} : plus de stock disponible",
+    "ar": ""
   }
 }

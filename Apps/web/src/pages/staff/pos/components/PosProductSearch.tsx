@@ -21,6 +21,9 @@ interface PosProductSearchProps {
   /** The attached POS client's category, if any — the card's right-hand price resolves to this
    *  category's price when one exists (S6/I1); the four-price breakdown beneath is unchanged. */
   attachedCategoryId?: string;
+  /** Enter in the search box (a barcode scanner sends one after the digits) — the page adds the
+   *  product whose barcode matches exactly. Optional: without it Enter does nothing, as before. */
+  onSubmitCode?: (code: string) => void;
 }
 
 // Dumb, props-only (Sprint 4). Ref forwarded so Sprint 7 can wire the F2 barcode-scanner
@@ -31,9 +34,21 @@ interface PosProductSearchProps {
 // narrower widths (the ticket pane got more room, §6 of the S29 plan), with the full text in a
 // native `title` tooltip — not a styled Radix tooltip, since a hover-delay popover on up to 20
 // rapidly scanned/tapped cards would fight the scan-and-tap rhythm this page is built around.
+// Owner change: Enter in the input calls `onSubmitCode` — the scanner's trailing Enter now adds the
+// exact barcode match straight to the ticket instead of only filtering this list.
 export const PosProductSearch = forwardRef<HTMLInputElement, PosProductSearchProps>(
   function PosProductSearch(
-    { query, onQueryChange, products, isLoading, isError, onRetry, onSelect, attachedCategoryId },
+    {
+      query,
+      onQueryChange,
+      products,
+      isLoading,
+      isError,
+      onRetry,
+      onSelect,
+      attachedCategoryId,
+      onSubmitCode,
+    },
     ref,
   ) {
     const { t, language } = useTranslation();
@@ -46,6 +61,11 @@ export const PosProductSearch = forwardRef<HTMLInputElement, PosProductSearchPro
             ref={ref}
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || !onSubmitCode || !query.trim()) return;
+              e.preventDefault();
+              onSubmitCode(query.trim());
+            }}
             placeholder={t("staff.pos.search.placeholder")}
             className="pl-9"
           />
